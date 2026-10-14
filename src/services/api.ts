@@ -1,0 +1,1185 @@
+import type {
+  AdminActionLogRecord,
+  AdminProduct,
+  CouponItem,
+  CouponValidation,
+  CustomerProfile,
+  DeliveryMode,
+  InstantDeliverySettings,
+  InventoryItem,
+  InventoryStats,
+  Order,
+  OrderStatus,
+  PaginatedLogsResponse,
+  PaymentGateway,
+  Product,
+  ProductGroup,
+  ProviderCatalogItem,
+  ReferralStats,
+  SendOTPResponse,
+  SMSSettings,
+  TransactionRecord,
+  VerifyOTPResponse,
+  VirtualNumberCountry,
+  VirtualNumberOrder,
+  VirtualNumberService,
+  VirtualNumberSettings,
+  WalletLedgerItem,
+} from '../types'
+
+function normalizeProduct(raw: any): Product {
+  let mode: DeliveryMode = 'INSTANT_LINK'
+  if (raw.delivery_mode) {
+    mode = raw.delivery_mode
+  } else if (
+    raw.delivery_type === 'manual_timed' ||
+    raw.category === 'personal_upgrade'
+  ) {
+    mode = 'UPGRADE_EXISTING'
+  } else if (raw.category === 'ai_account') {
+    mode = 'INSTANT_ACCOUNT'
+  } else {
+    mode = 'INSTANT_LINK'
+  }
+
+  const defaultFeatures: Record<DeliveryMode, string[]> = {
+    INSTANT_LINK: [
+      'تحویل ۰ ثانیه‌ای بلافاصله پس از پرداخت',
+      'فعال‌سازی با یک کلیک روی اکانت شخصی',
+      'تضمین اصالت لایسنس و عدم قطعی',
+    ],
+    INSTANT_ACCOUNT: [
+      'تحویل درجا (ایمیل و پسورد اختصاصی)',
+      'امکان تغییر رمز عبور و شخصی‌سازی کامل',
+      'دسترسی اختصاصی بدون قطعی',
+    ],
+    UPGRADE_EXISTING: [
+      'فعال‌سازی روی ایمیل و اکانت شخصی شما',
+      'تبادل لایو کد ۲FA جهت حفظ امنیت کامل',
+      'پرداخت قانونی با کارت معتبر بین‌المللی',
+      'سیاست نابودسازی خودکار رمزها (Zeroize)',
+    ],
+  }
+
+  return {
+    id: raw.id,
+    title_fa: raw.title_fa || raw.title,
+    title_en: raw.title || raw.title_fa,
+    category: raw.category || 'ai_chat',
+    delivery_mode: mode,
+    price_toman: Number(raw.price_toman || 0),
+    price_usd: Number(raw.base_cost_usd || raw.price_usd || 0),
+    sla_minutes: raw.sla_min_minutes || raw.sla_minutes || 20,
+    description_fa:
+      raw.description_fa ||
+      raw.sla_display_text ||
+      raw.operating_hours ||
+      'تحویل آنی و مطمئن آناهیکس',
+    features:
+      Array.isArray(raw.features) && raw.features.length > 0
+        ? raw.features
+        : defaultFeatures[mode],
+    in_stock: raw.is_active !== false,
+    stock_count: raw.available_stock ?? raw.stock_count ?? 12,
+  }
+}
+
+function normalizePayment(raw: any): PaymentGateway {
+  return {
+    id: raw.id,
+    name: raw.name_fa || raw.name,
+    platform: raw.platform,
+    fee_percentage: raw.fee_percentage ?? 0,
+    is_default: raw.id === -1 || raw.platform === 'balance',
+    icon_type: raw.icon || raw.icon_type || 'wallet',
+    description_fa: raw.description || raw.description_fa || '',
+  }
+}
+
+export const apiService = {
+  async getProducts(): Promise<Product[]> {
+    try {
+      const res = await fetch('/api/v1/products')
+      if (res.ok) {
+        const json = await res.json()
+        if (json.data && Array.isArray(json.data)) {
+          return json.data.map(normalizeProduct)
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch products from backend:', err)
+    }
+    return []
+  },
+
+  async getPayments(): Promise<PaymentGateway[]> {
+    try {
+      const res = await fetch('/api/v1/payments')
+      if (res.ok) {
+        const json = await res.json()
+        if (json.data && Array.isArray(json.data)) {
+          return json.data.map(normalizePayment)
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch payments from backend:', err)
+    }
+    return []
+  },
+
+  // Customer Orders Storage in localStorage
+  getCustomerOrders(): Order[] {
+    const raw = localStorage.getItem('anahix_customer_orders')
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw)
+        if (Array.isArray(parsed)) return parsed
+      } catch {}
+    }
+    return []
+  },
+
+  saveCustomerOrder(order: Order) {
+    const current = this.getCustomerOrders()
+    const filtered = current.filter((o) => o.order_no !== order.order_no)
+    localStorage.setItem(
+      'anahix_customer_orders',
+      JSON.stringify([order, ...filtered]),
+    )
+  },
+
+  updateCustomerOrder(order: Order) {
+    const current = this.getCustomerOrders()
+    const updated = current.map((o) =>
+      o.order_no === order.order_no ? { ...o, ...order } : o,
+    )
+    localStorage.setItem('anahix_customer_orders', JSON.stringify(updated))
+  },
+
+  // Customer Virtual Number Orders in localStorage
+  getCustomerVirtualOrders(): VirtualNumberOrder[] {
+    const raw = localStorage.getItem('anahix_customer_virtual_orders')
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw)
+        if (Array.isArray(parsed)) return parsed
+      } catch {}
+    }
+    return []
+  },
+
+  saveCustomerVirtualOrder(order: VirtualNumberOrder) {
+    const current = this.getCustomerVirtualOrders()
+    const filtered = current.filter((o) => o.id !== order.id)
+    localStorage.setItem(
+      'anahix_customer_virtual_orders',
+      JSON.stringify([order, ...filtered]),
+    )
+  },
+
+  updateCustomerVirtualOrder(order: VirtualNumberOrder) {
+    const current = this.getCustomerVirtualOrders()
+    const updated = current.map((o) =>
+      o.id === order.id ? { ...o, ...order } : o,
+    )
+    localStorage.setItem(
+      'anahix_customer_virtual_orders',
+      JSON.stringify(updated),
+    )
+  },
+
+  async createOrder(payload: {
+    product_id?: string | number
+    items?: { product_id: string; quantity: number }[]
+    payment_platform: string
+    customer_phone: string
+    customer_email?: string
+    account_email?: string
+    account_password?: string
+    customer_notes?: string
+    coupon_code?: string
+    referral_code?: string
+  }): Promise<Order> {
+    const backendPayload = {
+      product_id: payload.product_id ? String(payload.product_id) : undefined,
+      items: payload.items,
+      payment_method: payload.payment_platform,
+      customer_phone: payload.customer_phone,
+      customer_email: payload.customer_email || payload.account_email || '',
+      customer_account_email: payload.account_email || '',
+      customer_account_password: payload.account_password || '',
+      customer_notes: payload.customer_notes || '',
+      coupon_code: payload.coupon_code,
+      referral_code: payload.referral_code,
+    }
+
+    const res = await fetch('/api/v1/orders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(backendPayload),
+    })
+
+    const json = await res.json()
+    if (!res.ok || json.code !== 200 || !json.data?.order_number) {
+      throw new Error(json.msg || 'خطا در ثبت سفارش')
+    }
+
+    // Retrieve genuine order record from database
+    const realOrder = await this.getOrderDetail(
+      json.data.order_number,
+      json.data.access_token,
+    )
+
+    // Persist to local customer order history
+    this.saveCustomerOrder(realOrder)
+
+    return realOrder
+  },
+
+  async getOrderDetail(orderIdOrNo: string, token?: string): Promise<Order> {
+    const url = token
+      ? `/api/v1/orders/${encodeURIComponent(orderIdOrNo)}?token=${encodeURIComponent(token)}`
+      : `/api/v1/orders/${encodeURIComponent(orderIdOrNo)}`
+
+    const res = await fetch(url)
+    const json = await res.json()
+    if (!res.ok || json.code !== 200 || !json.data) {
+      throw new Error(json.msg || 'سفارش یافت نشد')
+    }
+
+    const d = json.data
+    let status: OrderStatus = 'PAID'
+    const s = (d.status || '').toLowerCase()
+    if (s === 'completed') status = 'COMPLETED'
+    else if (
+      d.two_factor_status === 'requested' ||
+      s === 'awaiting_customer_action'
+    )
+      status = 'WAITING_CUSTOMER_2FA'
+    else if (s === 'processing' || d.two_factor_status === 'submitted')
+      status = 'PROCESSING'
+    else if (s === 'in_queue' || s === 'operator_queue')
+      status = 'OPERATOR_QUEUE'
+    else if (s === 'pending_payment') status = 'PENDING_PAYMENT'
+    else if (s === 'failed') status = 'FAILED'
+    else if (s === 'refunded') status = 'REFUNDED'
+    else status = 'PAID'
+
+    let mode: DeliveryMode = 'INSTANT_LINK'
+    if (
+      d.delivery_type === 'manual_timed' ||
+      d.delivery_type === 'upgrade_existing'
+    ) {
+      mode = 'UPGRADE_EXISTING'
+    } else if (d.delivery_type === 'instant_account') {
+      mode = 'INSTANT_ACCOUNT'
+    }
+
+    let deliveredLink: string | undefined
+    let deliveredCreds: Order['delivered_credentials'] | undefined
+    if (
+      d.delivered_items &&
+      Array.isArray(d.delivered_items) &&
+      d.delivered_items.length > 0
+    ) {
+      const first = d.delivered_items[0]
+      if (first.payload?.startsWith('http')) {
+        deliveredLink = first.payload
+      } else if (first.payload) {
+        deliveredCreds = {
+          email: d.customer_email || 'اکانت اختصاصی',
+          password: first.payload,
+          notes: first.instructions,
+        }
+      }
+    }
+
+    return {
+      id: d.order_id,
+      order_no: d.order_number,
+      token: token,
+      product_id: d.order_id,
+      product_title:
+        d.delivered_items?.[0]?.product_title ||
+        (mode === 'UPGRADE_EXISTING'
+          ? 'ارتقای اشتراک روی اکانت شخصی'
+          : 'لایسنس آنی هوش مصنوعی'),
+      delivery_mode: mode,
+      amount_toman: Number(d.total_amount_toman || 0),
+      status: status,
+      payment_platform: d.payment_method || 'balance',
+      customer_phone: d.customer_phone || '',
+      account_email: d.customer_account_email || d.customer_email,
+      two_factor_prompt: d.two_factor_prompt,
+      two_factor_status: d.two_factor_status,
+      two_factor_requested_at: d.two_factor_requested_at,
+      delivered_link: deliveredLink,
+      delivered_credentials: deliveredCreds,
+      delivered_items: d.delivered_items,
+      created_at: d.created_at || new Date().toISOString(),
+    }
+  },
+
+  async submitOrderTwoFactor(
+    orderIdOrNo: string,
+    token: string,
+    code: string,
+  ): Promise<boolean> {
+    const url = token
+      ? `/api/v1/orders/${encodeURIComponent(orderIdOrNo)}/2fa?token=${encodeURIComponent(token)}`
+      : `/api/v1/orders/${encodeURIComponent(orderIdOrNo)}/2fa`
+
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Order-Token': token,
+      },
+      body: JSON.stringify({ two_factor_code: code }),
+    })
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'ارسال کد ۲FA ناموفق بود')
+    }
+    return true
+  },
+
+  // Admin Token Storage
+  getAdminToken(): string | null {
+    return localStorage.getItem('anahix_admin_token')
+  },
+  setAdminToken(token: string) {
+    localStorage.setItem('anahix_admin_token', token)
+  },
+  clearAdminToken() {
+    localStorage.removeItem('anahix_admin_token')
+    localStorage.removeItem('anahix_admin_user')
+  },
+  getAdminUser(): any | null {
+    const raw = localStorage.getItem('anahix_admin_user')
+    if (raw) {
+      try {
+        return JSON.parse(raw)
+      } catch {
+        return null
+      }
+    }
+    return null
+  },
+  setAdminUser(user: any) {
+    localStorage.setItem('anahix_admin_user', JSON.stringify(user))
+  },
+
+  // Admin Auth
+  async adminLogin(
+    username: string,
+    password: string,
+  ): Promise<{
+    token: string
+    username: string
+    full_name: string
+    role: string
+  }> {
+    const res = await fetch('/api/v1/admin/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password }),
+    })
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'نام کاربری یا رمز عبور اشتباه است')
+    }
+    this.setAdminToken(json.data.token)
+    this.setAdminUser(json.data)
+    return json.data
+  },
+
+  // Admin Queue Orders
+  async getAdminQueueOrders(): Promise<any[]> {
+    const token = this.getAdminToken()
+    const res = await fetch('/api/v1/admin/orders', {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+    if (res.ok) {
+      const json = await res.json()
+      if (json.data) return json.data
+    }
+    return []
+  },
+
+  // Admin Request 2FA
+  async requestAdmin2FA(
+    orderId: string,
+    promptMessage: string,
+  ): Promise<boolean> {
+    const token = this.getAdminToken()
+    const res = await fetch(`/api/v1/admin/orders/${orderId}/2fa-request`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ prompt_message: promptMessage }),
+    })
+    return res.ok
+  },
+
+  // Admin Complete Order
+  async completeAdminOrder(orderId: string, notes?: string): Promise<boolean> {
+    const token = this.getAdminToken()
+    const res = await fetch(`/api/v1/admin/orders/${orderId}/complete`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ operator_notes: notes }),
+    })
+    return res.ok
+  },
+
+  // Admin Virtual Number Provider Settings
+  async getVirtualNumberSettings(): Promise<VirtualNumberSettings> {
+    const token = this.getAdminToken()
+    const res = await fetch('/api/v1/admin/settings/virtual-numbers', {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+    if (res.ok) {
+      const json = await res.json()
+      return json.data
+    }
+    throw new Error('خطا در دریافت تنظیمات سامانه شماره‌های مجازی')
+  },
+
+  async updateVirtualNumberSettings(payload: {
+    enabled?: boolean
+    api_key?: string
+    margin_percent?: number
+    usd_rate?: number
+    rub_rate?: number
+    default_operator?: string
+    rate_priority?: 'manual' | 'swapwallet'
+  }): Promise<VirtualNumberSettings> {
+    const token = this.getAdminToken()
+    const res = await fetch('/api/v1/admin/settings/virtual-numbers', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(payload),
+    })
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'خطا در ذخیره تنظیمات سامانه شماره‌های مجازی')
+    }
+    return json.data
+  },
+
+  async getAdminVirtualOrders(): Promise<any[]> {
+    const token = this.getAdminToken()
+    const res = await fetch('/api/v1/admin/virtual-numbers/orders', {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+    if (res.ok) {
+      const json = await res.json()
+      return json.data || []
+    }
+    return []
+  },
+
+  // Public Virtual Numbers
+  async getVirtualServices(): Promise<VirtualNumberService[]> {
+    try {
+      const res = await fetch('/api/v1/virtual-numbers/services')
+      if (res.ok) {
+        const json = await res.json()
+        if (json.data && Array.isArray(json.data)) {
+          return json.data
+        }
+      }
+    } catch {
+      // fallback
+    }
+    return []
+  },
+
+  async getVirtualCountries(service: string): Promise<VirtualNumberCountry[]> {
+    try {
+      const res = await fetch(
+        `/api/v1/virtual-numbers/countries?service=${encodeURIComponent(service)}`,
+      )
+      if (res.ok) {
+        const json = await res.json()
+        if (json.data && Array.isArray(json.data)) {
+          return json.data
+        }
+      }
+    } catch {
+      // fallback
+    }
+    return []
+  },
+
+  async getVirtualCatalog(): Promise<any[]> {
+    try {
+      const res = await fetch('/api/v1/virtual-numbers/catalog')
+      if (res.ok) {
+        const json = await res.json()
+        if (json.data && Array.isArray(json.data)) {
+          return json.data
+        }
+      }
+    } catch {
+      // fallback
+    }
+    return []
+  },
+
+  async buyVirtualNumber(payload: {
+    country: string
+    service: string
+    operator?: string
+    customer_phone: string
+    payment_method?: string
+  }): Promise<any> {
+    const res = await fetch('/api/v1/virtual-numbers/orders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'خطا در خرید شماره مجازی')
+    }
+    return json.data
+  },
+
+  async getVirtualOrderDetail(orderId: string): Promise<any> {
+    const res = await fetch(`/api/v1/virtual-numbers/orders/${orderId}`)
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'سفارش یافت نشد')
+    }
+    return json.data
+  },
+
+  async cancelVirtualOrder(orderId: string): Promise<boolean> {
+    const res = await fetch(
+      `/api/v1/virtual-numbers/orders/${orderId}/cancel`,
+      {
+        method: 'POST',
+      },
+    )
+    return res.ok
+  },
+
+  async finishVirtualOrder(orderId: string): Promise<boolean> {
+    const res = await fetch(
+      `/api/v1/virtual-numbers/orders/${orderId}/finish`,
+      {
+        method: 'POST',
+      },
+    )
+    return res.ok
+  },
+
+  // Delivery Engine & Instant Fulfillment Infrastructure API Methods
+
+  async getInstantDeliverySettings(): Promise<InstantDeliverySettings> {
+    const token = this.getAdminToken()
+    const res = await fetch('/api/v1/admin/settings/instant-delivery', {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (res.ok) {
+      const json = await res.json()
+      return json.data
+    }
+    throw new Error('خطا در دریافت تنظیمات موتور تحویل آنی')
+  },
+
+  async updateInstantDeliverySettings(payload: {
+    enabled?: boolean
+    api_key?: string
+    margin_percent?: number
+  }): Promise<any> {
+    const token = this.getAdminToken()
+    const res = await fetch('/api/v1/admin/settings/instant-delivery', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(payload),
+    })
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'خطا در ذخیره تنظیمات موتور تحویل آنی')
+    }
+    return json.data
+  },
+
+  async getProviderCatalog(): Promise<ProviderCatalogItem[]> {
+    const token = this.getAdminToken()
+    const res = await fetch('/api/v1/admin/delivery/provider-catalog', {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (res.ok) {
+      const json = await res.json()
+      return json.data || []
+    }
+    throw new Error('خطا در دریافت کاتالوگ انبار لایسنس‌های آنی')
+  },
+
+  async getProductGroups(): Promise<ProductGroup[]> {
+    const token = this.getAdminToken()
+    const res = await fetch('/api/v1/admin/delivery/groups', {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (res.ok) {
+      const json = await res.json()
+      return json.data || []
+    }
+    throw new Error('خطا در دریافت گروه‌های محصولات')
+  },
+
+  async updateGroupDeliveryStrategy(
+    groupTag: string,
+    strategy: 'manual_operator' | 'third_party_instant',
+  ): Promise<any> {
+    const token = this.getAdminToken()
+    const res = await fetch('/api/v1/admin/delivery/groups/strategy', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        group_tag: groupTag,
+        delivery_strategy: strategy,
+      }),
+    })
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'خطا در به‌روزرسانی استراتژی تحویل گروه')
+    }
+    return json.data
+  },
+
+  async linkProductProvider(
+    productId: string,
+    externalProductId: number,
+    strategy?: string,
+  ): Promise<any> {
+    const token = this.getAdminToken()
+    const res = await fetch('/api/v1/admin/delivery/products/link', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        product_id: productId,
+        external_product_id: externalProductId,
+        delivery_strategy: strategy,
+      }),
+    })
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'خطا در اتصال محصول به انبار تحویل آنی')
+    }
+    return json.data
+  },
+
+  // Admin Audit & Financial Transaction Logs
+  async getTransactionLogs(params?: {
+    page?: number
+    page_size?: number
+    query?: string
+    status?: string
+    order_type?: string
+  }): Promise<PaginatedLogsResponse<TransactionRecord>> {
+    const token = this.getAdminToken()
+    const queryParams = new URLSearchParams()
+    if (params?.page) queryParams.set('page', params.page.toString())
+    if (params?.page_size)
+      queryParams.set('page_size', params.page_size.toString())
+    if (params?.query) queryParams.set('query', params.query)
+    if (params?.status) queryParams.set('status', params.status)
+    if (params?.order_type) queryParams.set('order_type', params.order_type)
+
+    const url = `/api/v1/admin/logs/transactions?${queryParams.toString()}`
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (res.ok) {
+      const json = await res.json()
+      if (json.data) return json.data
+    }
+    return { total: 0, items: [] }
+  },
+
+  async getAdminActionLogs(params?: {
+    page?: number
+    page_size?: number
+    query?: string
+    action?: string
+    resource?: string
+  }): Promise<PaginatedLogsResponse<AdminActionLogRecord>> {
+    const token = this.getAdminToken()
+    const queryParams = new URLSearchParams()
+    if (params?.page) queryParams.set('page', params.page.toString())
+    if (params?.page_size)
+      queryParams.set('page_size', params.page_size.toString())
+    if (params?.query) queryParams.set('query', params.query)
+    if (params?.action) queryParams.set('action', params.action)
+    if (params?.resource) queryParams.set('resource', params.resource)
+
+    const url = `/api/v1/admin/logs/actions?${queryParams.toString()}`
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (res.ok) {
+      const json = await res.json()
+      if (json.data) return json.data
+    }
+    return { total: 0, items: [] }
+  },
+
+  // Customer Token & Session Management
+  getCustomerToken(): string | null {
+    return localStorage.getItem('anahix_customer_token')
+  },
+
+  setCustomerToken(token: string) {
+    localStorage.setItem('anahix_customer_token', token)
+  },
+
+  removeCustomerToken() {
+    localStorage.removeItem('anahix_customer_token')
+  },
+
+  // Customer OTP Auth
+  async sendOTP(mobile: string): Promise<SendOTPResponse> {
+    const res = await fetch('/api/v1/auth/otp/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mobile }),
+    })
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'خطا در ارسال کد تایید پیامکی')
+    }
+    return json.data
+  },
+
+  async verifyOTP(mobile: string, code: string): Promise<VerifyOTPResponse> {
+    const res = await fetch('/api/v1/auth/otp/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mobile, code }),
+    })
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'کد تایید وارد شده نامعتبر است')
+    }
+    if (json.data?.token) {
+      this.setCustomerToken(json.data.token)
+    }
+    return json.data
+  },
+
+  async getCustomerProfile(): Promise<CustomerProfile | null> {
+    const token = this.getCustomerToken()
+    if (!token) return null
+    try {
+      const res = await fetch('/api/v1/auth/me', {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      const json = await res.json()
+      if (res.ok && json.code === 200 && json.data) {
+        return json.data
+      }
+      if (res.status === 401 || json.code === 401) {
+        this.removeCustomerToken()
+      }
+      return null
+    } catch {
+      return null
+    }
+  },
+
+  async updateCustomerProfile(payload: {
+    first_name?: string
+    last_name?: string
+    full_name?: string
+    email?: string
+  }): Promise<CustomerProfile> {
+    const token = this.getCustomerToken()
+    if (!token) throw new Error('کاربر وارد نشده است')
+    const res = await fetch('/api/v1/auth/me', {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(payload),
+    })
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'خطا در به‌روزرسانی مشخصات')
+    }
+    return json.data
+  },
+
+  // Admin SMS Settings
+  async getSMSSettings(): Promise<SMSSettings> {
+    const token = this.getAdminToken()
+    const res = await fetch('/api/v1/admin/settings/sms', {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'خطا در دریافت تنظیمات سامانه پیامک')
+    }
+    return json.data
+  },
+
+  async updateSMSSettings(data: {
+    api_key?: string
+    line_number?: string
+    template_id?: string
+    is_sandbox?: boolean
+  }): Promise<void> {
+    const token = this.getAdminToken()
+    const res = await fetch('/api/v1/admin/settings/sms', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(data),
+    })
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'خطا در ذخیره تنظیمات سامانه پیامک')
+    }
+  },
+
+  async sendTestSMS(
+    mobile: string,
+    message?: string,
+  ): Promise<{ status: string; message: string }> {
+    const token = this.getAdminToken()
+    const res = await fetch('/api/v1/admin/settings/sms/test', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        mobile,
+        message: message || 'تست اتصال وب‌سرویس پیامک آناهیکس',
+      }),
+    })
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'خطا در ارسال پیامک آزمایشی')
+    }
+    return json.data
+  },
+
+  // Coupons & Discounts
+  async validateCoupon(payload: {
+    code: string
+    subtotal_toman: number
+    customer_phone?: string
+    category?: string
+  }): Promise<CouponValidation> {
+    const res = await fetch('/api/v1/coupons/validate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    const json = await res.json()
+    if (!res.ok || json.code !== 200 || !json.data) {
+      return {
+        valid: false,
+        code: payload.code,
+        discount_type: 'percentage',
+        discount_value: 0,
+        discount_toman: 0,
+        final_amount_toman: payload.subtotal_toman,
+        message: json.msg || 'کد تخفیف نامعتبر است',
+      }
+    }
+    return json.data
+  },
+
+  // Referral System
+  async getReferralStats(phone?: string): Promise<ReferralStats | null> {
+    try {
+      const token = this.getCustomerToken()
+      const headers: Record<string, string> = {}
+      if (token) headers.Authorization = `Bearer ${token}`
+      const query = phone ? `?phone=${encodeURIComponent(phone)}` : ''
+      const res = await fetch(`/api/v1/referrals/stats${query}`, { headers })
+      const json = await res.json()
+      if (res.ok && json.code === 200 && json.data) {
+        return json.data
+      }
+    } catch (err) {
+      console.error('Failed to get referral stats:', err)
+    }
+    return null
+  },
+
+  async transferReferralCommission(): Promise<{
+    success: boolean
+    message: string
+    new_balance?: number
+  }> {
+    const token = this.getCustomerToken()
+    const res = await fetch('/api/v1/referrals/transfer-to-wallet', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+    const json = await res.json()
+    if (res.ok && json.code === 200) {
+      return {
+        success: true,
+        message:
+          json.data?.message || 'کمیسیون با موفقیت به کیف پول منتقل گردید',
+        new_balance: json.data?.new_balance_toman,
+      }
+    }
+    throw new Error(json.msg || 'خطا در انتقال کمیسیون')
+  },
+
+  // Customer Wallet Ledger
+  async getWalletLedger(phone?: string): Promise<WalletLedgerItem[]> {
+    try {
+      const token = this.getCustomerToken()
+      const headers: Record<string, string> = {}
+      if (token) headers.Authorization = `Bearer ${token}`
+      const query = phone ? `?phone=${encodeURIComponent(phone)}` : ''
+      const res = await fetch(`/api/v1/wallet/ledger${query}`, { headers })
+      const json = await res.json()
+      if (res.ok && json.code === 200 && Array.isArray(json.data)) {
+        return json.data
+      }
+    } catch (err) {
+      console.error('Failed to get wallet ledger:', err)
+    }
+    return []
+  },
+
+  // Admin Inventory Management
+  async getInventoryStats(): Promise<InventoryStats> {
+    const token = this.getAdminToken()
+    const res = await fetch('/api/v1/admin/inventory/stats', {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    const json = await res.json()
+    if (res.ok && json.code === 200 && json.data) {
+      return json.data
+    }
+    return {
+      total_count: 0,
+      available_count: 0,
+      reserved_count: 0,
+      sold_delivered_count: 0,
+      void_count: 0,
+    }
+  },
+
+  async listInventory(
+    productId?: string,
+    status?: string,
+    page = 1,
+    pageSize = 20,
+  ): Promise<{ total: number; items: InventoryItem[] }> {
+    const token = this.getAdminToken()
+    const params = new URLSearchParams()
+    if (productId) params.set('product_id', productId)
+    if (status && status !== 'all') params.set('status', status)
+    params.set('page', String(page))
+    params.set('page_size', String(pageSize))
+
+    const res = await fetch(`/api/v1/admin/inventory?${params.toString()}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    const json = await res.json()
+    if (res.ok && json.code === 200 && json.data) {
+      return json.data
+    }
+    return { total: 0, items: [] }
+  },
+
+  async replaceInventoryKey(
+    orderId: string | number,
+    oldInventoryItemId: string | number,
+    reason?: string,
+  ): Promise<{
+    success: boolean
+    new_inventory_item_id: string
+    delivered_payload: string
+    message: string
+  }> {
+    const token = this.getAdminToken()
+    const res = await fetch('/api/v1/admin/inventory/replace-key', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        order_id: orderId,
+        old_inventory_item_id: oldInventoryItemId,
+        reason,
+      }),
+    })
+    const json = await res.json()
+    if (res.ok && json.code === 200 && json.data) {
+      return json.data
+    }
+    throw new Error(json.msg || 'خطا در جایگزینی کلید')
+  },
+
+  async exportInventoryKeys(
+    productId?: string,
+    status?: string,
+  ): Promise<string[]> {
+    const token = this.getAdminToken()
+    const params = new URLSearchParams()
+    if (productId) params.set('product_id', productId)
+    if (status && status !== 'all') params.set('status', status)
+
+    const res = await fetch(
+      `/api/v1/admin/inventory/export?${params.toString()}`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      },
+    )
+    const json = await res.json()
+    if (res.ok && json.code === 200 && Array.isArray(json.data?.keys)) {
+      return json.data.keys
+    }
+    return []
+  },
+
+  async listCoupons(): Promise<CouponItem[]> {
+    const token = this.getAdminToken()
+    const res = await fetch('/api/v1/admin/coupons', {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    const json = await res.json()
+    if (res.ok && json.code === 200 && Array.isArray(json.data)) {
+      return json.data
+    }
+    return []
+  },
+
+  async createCoupon(data: {
+    code: string
+    discount_type: string
+    discount_value: number
+    min_order_amount_toman?: number
+    max_discount_toman?: number
+    per_user_limit?: number
+    max_usage?: number
+    category?: string
+    is_active?: boolean
+  }): Promise<CouponItem> {
+    const token = this.getAdminToken()
+    const res = await fetch('/api/v1/admin/coupons', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(data),
+    })
+    const json = await res.json()
+    if (res.ok && json.code === 200 && json.data) {
+      return json.data
+    }
+    throw new Error(json.msg || 'خطا در ایجاد کوپن تخفیف')
+  },
+
+  // Admin Product Catalog Management
+  async adminListProducts(): Promise<AdminProduct[]> {
+    const token = this.getAdminToken()
+    const res = await fetch('/api/v1/admin/products', {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+    const json = await res.json()
+    if (res.ok && json.code === 200 && Array.isArray(json.data)) {
+      return json.data
+    }
+    return []
+  },
+
+  async adminCreateProduct(data: Partial<AdminProduct>): Promise<AdminProduct> {
+    const token = this.getAdminToken()
+    const res = await fetch('/api/v1/admin/products', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(data),
+    })
+    const json = await res.json()
+    if (res.ok && json.code === 200 && json.data) {
+      return json.data
+    }
+    throw new Error(json.msg || 'خطا در ایجاد محصول')
+  },
+
+  async adminUpdateProduct(
+    id: string,
+    data: Partial<AdminProduct>,
+  ): Promise<AdminProduct> {
+    const token = this.getAdminToken()
+    const res = await fetch(`/api/v1/admin/products/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(data),
+    })
+    const json = await res.json()
+    if (res.ok && json.code === 200 && json.data) {
+      return json.data
+    }
+    throw new Error(json.msg || 'خطا در بروزرسانی محصول')
+  },
+
+  async adminDeleteProduct(id: string): Promise<void> {
+    const token = this.getAdminToken()
+    const res = await fetch(`/api/v1/admin/products/${id}`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'خطا در حذف محصول')
+    }
+  },
+}
+
+export const api = apiService
