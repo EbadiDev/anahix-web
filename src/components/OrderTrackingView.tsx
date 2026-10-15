@@ -6,8 +6,10 @@ import {
   Clock,
   Copy,
   ExternalLink,
+  FileText,
   KeyRound,
   Lock,
+  Printer,
   RefreshCw,
   Search,
   Send,
@@ -18,6 +20,7 @@ import type React from 'react'
 import { useCallback, useEffect, useState } from 'react'
 import { apiService } from '../services/api'
 import type { Order } from '../types'
+import { OfficialInvoiceModal } from './invoice/OfficialInvoiceModal'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
 import { Card } from './ui/card'
@@ -43,6 +46,7 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [copiedLink, setCopiedLink] = useState(false)
   const [copiedCreds, setCopiedCreds] = useState(false)
+  const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false)
 
   // 2FA state
   const [otpCode, setOtpCode] = useState('')
@@ -401,17 +405,72 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
               </div>
             </div>
 
-            <button
-              onClick={handleManualRefresh}
-              disabled={isRefreshing}
-              className="flex items-center gap-1 text-[11px] text-slate-500 dark:text-slate-400 hover:text-blue-600 transition-colors"
-            >
-              <RefreshCw
-                className={`w-3 h-3 ${isRefreshing ? 'animate-spin' : ''}`}
-              />
-              <span>همگام‌سازی لحظه‌ای</span>
-            </button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsInvoiceModalOpen(true)}
+                className="h-8 text-xs rounded-xl px-3 border-blue-200 dark:border-blue-900 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 gap-1.5 font-semibold"
+              >
+                <FileText className="w-3.5 h-3.5" />
+                <span>
+                  {activeOrder.status === 'COMPLETED' ||
+                  activeOrder.status === 'PAID'
+                    ? 'فاکتور رسمی و PDF'
+                    : 'پیش‌فاکتور رسمی'}
+                </span>
+              </Button>
+
+              <button
+                onClick={handleManualRefresh}
+                disabled={isRefreshing}
+                className="flex items-center gap-1 text-[11px] text-slate-500 dark:text-slate-400 hover:text-blue-600 transition-colors"
+              >
+                <RefreshCw
+                  className={`w-3 h-3 ${isRefreshing ? 'animate-spin' : ''}`}
+                />
+                <span>همگام‌سازی لحظه‌ای</span>
+              </button>
+            </div>
           </div>
+        </div>
+
+        {/* Friendly Order Invoice & Receipt Banner */}
+        <div className="rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/60 p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-950/80 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 mt-0.5">
+              <FileText className="w-5 h-5" />
+            </div>
+            <div>
+              <h4 className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <span>
+                  {activeOrder.status === 'COMPLETED' ||
+                  activeOrder.status === 'PAID'
+                    ? 'رسید و صورتحساب خرید'
+                    : 'پیش‌فاکتور سفارش'}
+                </span>
+                <Badge
+                  variant="outline"
+                  className="text-[10px] bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-950/60 dark:text-blue-400"
+                >
+                  رسید دیجیتال و چاپی
+                </Badge>
+              </h4>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
+                امکان مشاهده و دریافت نسخه چاپی فاکتور به همراه کد پیگیری،
+                تاریخ، اقلام سفارش و مبلغ پرداختی.
+              </p>
+            </div>
+          </div>
+
+          <Button
+            size="sm"
+            onClick={() => setIsInvoiceModalOpen(true)}
+            className="h-8 text-xs rounded-xl px-4 bg-blue-600 hover:bg-blue-700 text-white shrink-0 gap-1.5 shadow-xs"
+          >
+            <Printer className="w-3.5 h-3.5" />
+            <span>مشاهده و چاپ فاکتور (PDF)</span>
+          </Button>
         </div>
 
         {/* MODE A: INSTANT LINK FULFILLMENT */}
@@ -725,6 +784,16 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
           </div>
         )}
       </Card>
+
+      {/* Official Tax Invoice & Proforma Modal */}
+      {activeOrder && (
+        <OfficialInvoiceModal
+          isOpen={isInvoiceModalOpen}
+          onClose={() => setIsInvoiceModalOpen(false)}
+          orderIdOrNo={activeOrder.order_no}
+          accessToken={activeOrder.token}
+        />
+      )}
     </div>
   )
 }

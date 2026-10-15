@@ -28,6 +28,7 @@ export type AdminTabType =
   | 'virtual-numbers'
   | 'products'
   | 'sms-gateway'
+  | 'billing'
   | 'transactions'
   | 'audit-logs'
   | 'system'
@@ -148,6 +149,12 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
     {
       label: 'پیکربندی هسته سیستم',
       items: [
+        {
+          id: 'billing',
+          title: 'فاکتور رسمی و مشخصات حقوقی',
+          subtitle: 'شناسه ملی، ارزش افزوده و مهر شرکت',
+          icon: ReceiptText,
+        },
         {
           id: 'sms-gateway',
           title: 'سامانه پیامک و اعتبارسنجی',

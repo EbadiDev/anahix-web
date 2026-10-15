@@ -392,6 +392,17 @@ export interface CustomerProfile {
   referral_balance_toman?: number
   is_active: boolean
   is_admin?: boolean
+
+  // Corporate profile fields
+  is_corporate?: boolean
+  company_name?: string
+  national_id?: string
+  economic_code?: string
+  registration_no?: string
+  postal_code?: string
+  company_address?: string
+  company_phone?: string
+
   created_at: string
 }
 
@@ -710,4 +721,117 @@ export interface AdminTicketListResponse {
   items: TicketItem[]
   total: number
   stats: AdminTicketStats
+}
+
+// ==========================================
+// Official Tax Invoice & Billing Interfaces
+// ==========================================
+
+export interface SellerBillingInfo {
+  company_name: string
+  brand_fa: string
+  national_id: string
+  economic_code: string
+  registration_no: string
+  postal_code: string
+  province: string
+  city: string
+  address: string
+  phone: string
+  email: string
+  website: string
+  tax_memory_id: string
+  stamp_signature_url: string
+}
+
+export interface BuyerBillingInfo {
+  is_corporate: boolean
+  company_name?: string
+  full_name: string
+  national_id?: string
+  economic_code?: string
+  registration_no?: string
+  postal_code?: string
+  address?: string
+  phone: string
+  email?: string
+}
+
+export interface InvoiceItem {
+  row_index: number
+  product_id: string
+  product_title: string
+  product_slug: string
+  delivery_type: string
+  quantity: number
+  unit_price_toman: number
+  subtotal_toman: number
+  discount_toman: number
+  total_after_discount_toman: number
+  tax_rate_percent: number
+  tax_toman: number
+  final_amount_toman: number
+}
+
+export interface OfficialInvoice {
+  invoice_number: string
+  order_number: string
+  order_id: string
+  invoice_type: 'proforma' | 'official'
+  invoice_type_fa: string
+  issue_date: string
+  issue_date_jalali: string
+  paid_at?: string
+  paid_at_jalali?: string
+  payment_method: string
+  payment_method_fa: string
+  payment_ref_id?: string
+  payment_authority?: string
+  payment_status: string
+  payment_status_fa: string
+  seller: SellerBillingInfo
+  buyer: BuyerBillingInfo
+  items: InvoiceItem[]
+  subtotal_toman: number
+  total_discount_toman: number
+  amount_after_discount_toman: number
+  tax_rate_percent: number
+  total_tax_toman: number
+  final_total_toman: number
+  final_total_toman_words: string
+  final_total_rials: number
+  notes: string
+}
+
+export interface UpdateBuyerInvoicePayload {
+  is_corporate: boolean
+  company_name?: string
+  full_name?: string
+  national_id?: string
+  economic_code?: string
+  registration_no?: string
+  postal_code?: string
+  address?: string
+  phone?: string
+  email?: string
+}
+
+export interface BillingSettings {
+  seller_company_name: string
+  seller_brand_fa: string
+  seller_national_id: string
+  seller_economic_code: string
+  seller_registration_no: string
+  seller_postal_code: string
+  seller_province: string
+  seller_city: string
+  seller_address: string
+  seller_phone: string
+  seller_email: string
+  seller_website: string
+  vat_percent: number
+  vat_enabled: boolean
+  invoice_notes: string
+  tax_memory_id: string
+  stamp_signature_url: string
 }

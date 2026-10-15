@@ -12,6 +12,7 @@ import {
   Link2,
   PackageCheck,
   Percent,
+  Printer,
   RefreshCw,
   Send,
   Sliders,
@@ -25,6 +26,7 @@ import type React from 'react'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AdminActionLogView } from '../../components/admin/AdminActionLogView'
+import { AdminBillingSettingsView } from '../../components/admin/AdminBillingSettingsView'
 import { AdminInventoryView } from '../../components/admin/AdminInventoryView'
 import { AdminReviewsView } from '../../components/admin/AdminReviewsView'
 import {
@@ -35,6 +37,7 @@ import { AdminTicketsView } from '../../components/admin/AdminTicketsView'
 import { SMSGatewayView } from '../../components/admin/SMSGatewayView'
 import { TransactionsLogView } from '../../components/admin/TransactionsLogView'
 import { Header } from '../../components/Header'
+import { OfficialInvoiceModal } from '../../components/invoice/OfficialInvoiceModal'
 import { apiService } from '../../services/api'
 import type {
   InstantDeliverySettings,
@@ -109,6 +112,9 @@ export const AdminDashboardPage: React.FC = () => {
   const [sendingPrompt, setSendingPrompt] = useState(false)
   const [revealedCreds, setRevealedCreds] = useState<Record<string, boolean>>(
     {},
+  )
+  const [adminInvoiceOrderNo, setAdminInvoiceOrderNo] = useState<string | null>(
+    null,
   )
 
   // Auth Guard
@@ -1620,7 +1626,17 @@ export const AdminDashboardPage: React.FC = () => {
                           )}
                         </div>
 
-                        <div className="flex items-center gap-3 pt-2">
+                        <div className="flex items-center gap-2 pt-2">
+                          <button
+                            onClick={() =>
+                              setAdminInvoiceOrderNo(ord.order_number)
+                            }
+                            className="py-2 px-3 rounded-xl border border-blue-200 dark:border-blue-900/60 bg-blue-50/50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400 hover:bg-blue-100/50 text-xs font-semibold transition-colors flex items-center justify-center gap-1.5"
+                            title="چاپ صورتحساب رسمی"
+                          >
+                            <Printer className="w-3.5 h-3.5" />
+                            <span>فاکتور رسمی</span>
+                          </button>
                           <button
                             onClick={() => setPromptOrderId(oid)}
                             className="flex-1 py-2 px-3 rounded-xl border border-blue-600 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/50 text-xs font-semibold transition-colors flex items-center justify-center gap-1.5"
@@ -1749,6 +1765,9 @@ export const AdminDashboardPage: React.FC = () => {
           {/* TAB: SMS GATEWAY SETTINGS & TESTING */}
           {activeTab === 'sms-gateway' && <SMSGatewayView />}
 
+          {/* TAB: OFFICIAL TAX BILLING SETTINGS */}
+          {activeTab === 'billing' && <AdminBillingSettingsView />}
+
           {/* TAB: TRANSACTIONS FINANCIAL LOG */}
           {activeTab === 'transactions' && <TransactionsLogView />}
 
@@ -1756,6 +1775,16 @@ export const AdminDashboardPage: React.FC = () => {
           {activeTab === 'audit-logs' && <AdminActionLogView />}
         </div>
       </div>
+
+      {/* Admin Order Official Invoice Modal */}
+      {adminInvoiceOrderNo && (
+        <OfficialInvoiceModal
+          isOpen={!!adminInvoiceOrderNo}
+          onClose={() => setAdminInvoiceOrderNo(null)}
+          orderIdOrNo={adminInvoiceOrderNo}
+          isAdmin={true}
+        />
+      )}
     </div>
   )
 }

@@ -1,8 +1,17 @@
-import { Eye, Package, Radio, Search, Sparkles, Star } from 'lucide-react'
+import {
+  Eye,
+  FileText,
+  Package,
+  Radio,
+  Search,
+  Sparkles,
+  Star,
+} from 'lucide-react'
 import type React from 'react'
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import type { CustomerProfile, Order, VirtualNumberOrder } from '../../types'
+import { OfficialInvoiceModal } from '../invoice/OfficialInvoiceModal'
 import { SubmitReviewModal } from '../reviews/SubmitReviewModal'
 import { Badge } from '../ui/badge'
 import { Button } from '../ui/button'
@@ -31,6 +40,7 @@ export const ProfileOrdersTab: React.FC<ProfileOrdersTabProps> = ({
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
   const [copiedKey, setCopiedKey] = useState('')
   const [reviewOrder, setReviewOrder] = useState<Order | null>(null)
+  const [invoiceOrder, setInvoiceOrder] = useState<Order | null>(null)
 
   // Map unified list
   const unifiedItems = useMemo(() => {
@@ -308,6 +318,19 @@ export const ProfileOrdersTab: React.FC<ProfileOrdersTabProps> = ({
 
                 {item.rawProductOrder && (
                   <div className="flex items-center gap-1.5">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        setInvoiceOrder(item.rawProductOrder || null)
+                      }
+                      className="h-8 text-xs rounded-xl px-2.5 border-blue-200 dark:border-blue-900 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 gap-1 font-medium"
+                      title="مشاهده و چاپ فاکتور رسمی"
+                    >
+                      <FileText className="w-3.5 h-3.5" />
+                      <span className="hidden sm:inline">فاکتور رسمی</span>
+                    </Button>
+
                     {item.rawProductOrder.status === 'COMPLETED' && (
                       <Button
                         variant="outline"
@@ -414,7 +437,21 @@ export const ProfileOrdersTab: React.FC<ProfileOrdersTabProps> = ({
               </div>
             )}
 
-            <div className="pt-2 flex items-center justify-between">
+            <div className="pt-2 flex flex-wrap items-center justify-between gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const ord = selectedOrder
+                  setSelectedOrder(null)
+                  setInvoiceOrder(ord)
+                }}
+                className="rounded-xl text-xs h-9 px-3 border-blue-200 dark:border-blue-900 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 gap-1.5 font-semibold"
+              >
+                <FileText className="w-3.5 h-3.5" />
+                <span>مشاهده و چاپ فاکتور رسمی</span>
+              </Button>
+
               {selectedOrder.status === 'COMPLETED' && (
                 <Button
                   variant="outline"
@@ -456,6 +493,16 @@ export const ProfileOrdersTab: React.FC<ProfileOrdersTabProps> = ({
           orderId={String(reviewOrder.id || '')}
           orderNumber={reviewOrder.order_no}
           customer={customer}
+        />
+      )}
+
+      {/* Official Tax Invoice & Proforma Modal */}
+      {invoiceOrder && (
+        <OfficialInvoiceModal
+          isOpen={!!invoiceOrder}
+          onClose={() => setInvoiceOrder(null)}
+          orderIdOrNo={invoiceOrder.order_no}
+          accessToken={invoiceOrder.token}
         />
       )}
     </div>

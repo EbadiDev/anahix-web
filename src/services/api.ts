@@ -5,6 +5,7 @@ import type {
   AdminReviewListResponse,
   AdminTicketListResponse,
   AdminUpdateTicketPayload,
+  BillingSettings,
   CouponItem,
   CouponValidation,
   CreateTicketPayload,
@@ -13,6 +14,7 @@ import type {
   InstantDeliverySettings,
   InventoryItem,
   InventoryStats,
+  OfficialInvoice,
   Order,
   OrderStatus,
   PaginatedLogsResponse,
@@ -35,6 +37,7 @@ import type {
   TicketItem,
   TicketMessage,
   TransactionRecord,
+  UpdateBuyerInvoicePayload,
   VerifyOTPResponse,
   VirtualNumberCountry,
   VirtualNumberOrder,
@@ -883,6 +886,14 @@ export const apiService = {
     last_name?: string
     full_name?: string
     email?: string
+    is_corporate?: boolean
+    company_name?: string
+    national_id?: string
+    economic_code?: string
+    registration_no?: string
+    postal_code?: string
+    company_address?: string
+    company_phone?: string
   }): Promise<CustomerProfile> {
     const token = this.getCustomerToken()
     if (!token) throw new Error('کاربر وارد نشده است')
@@ -1740,6 +1751,109 @@ export const apiService = {
       return json.data
     }
     throw new Error(json.msg || 'خطا در آپلود فایل توسط ادمین')
+  },
+
+  // ==========================================
+  // Official Tax Invoice & Seller Billing API
+  // ==========================================
+
+  async getOrderInvoice(
+    orderIdOrNo: string,
+    token?: string,
+  ): Promise<OfficialInvoice> {
+    const custToken = this.getCustomerToken()
+    const headers: Record<string, string> = {}
+    if (custToken) {
+      headers.Authorization = `Bearer ${custToken}`
+    }
+
+    const url = token
+      ? `/api/v1/orders/${encodeURIComponent(orderIdOrNo)}/invoice?token=${encodeURIComponent(token)}`
+      : `/api/v1/orders/${encodeURIComponent(orderIdOrNo)}/invoice`
+
+    const res = await fetch(url, { headers })
+    const json = await res.json()
+    if (!res.ok || json.code !== 200 || !json.data) {
+      throw new Error(json.msg || 'فاکتور سفارش یافت نشد')
+    }
+    return json.data
+  },
+
+  async updateBuyerInvoice(
+    orderIdOrNo: string,
+    token: string,
+    payload: UpdateBuyerInvoicePayload,
+  ): Promise<void> {
+    const custToken = this.getCustomerToken()
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    }
+    if (custToken) {
+      headers.Authorization = `Bearer ${custToken}`
+    }
+
+    const url = token
+      ? `/api/v1/orders/${encodeURIComponent(orderIdOrNo)}/invoice-buyer?token=${encodeURIComponent(token)}`
+      : `/api/v1/orders/${encodeURIComponent(orderIdOrNo)}/invoice-buyer`
+
+    const res = await fetch(url, {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify(payload),
+    })
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'خطا در ذخیره مشخصات حقوقی خریدار')
+    }
+  },
+
+  async getBillingSettings(): Promise<BillingSettings> {
+    const token = this.getAdminToken()
+    const res = await fetch('/api/v1/admin/settings/billing', {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+    const json = await res.json()
+    if (!res.ok || json.code !== 200 || !json.data) {
+      throw new Error(json.msg || 'خطا در دریافت تنظیمات فاکتور رسمی')
+    }
+    return json.data
+  },
+
+  async updateBillingSettings(
+    payload: Partial<BillingSettings>,
+  ): Promise<void> {
+    const token = this.getAdminToken()
+    const res = await fetch('/api/v1/admin/settings/billing', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    })
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'خطا در ذخیره تنظیمات فاکتور رسمی')
+    }
+  },
+
+  async getAdminOrderInvoice(orderIdOrNo: string): Promise<OfficialInvoice> {
+    const token = this.getAdminToken()
+    const res = await fetch(
+      `/api/v1/admin/orders/${encodeURIComponent(orderIdOrNo)}/invoice`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      },
+    )
+    const json = await res.json()
+    if (!res.ok || json.code !== 200 || !json.data) {
+      throw new Error(json.msg || 'خطا در دریافت فاکتور رسمی سفارش')
+    }
+    return json.data
   },
 }
 

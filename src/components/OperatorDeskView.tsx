@@ -4,12 +4,15 @@ import {
   KeyRound,
   Mail,
   Phone,
+  Printer,
   ShieldAlert,
   Trash2,
   UserCheck,
 } from 'lucide-react'
 import type React from 'react'
+import { useState } from 'react'
 import type { Order } from '../types'
+import { OfficialInvoiceModal } from './invoice/OfficialInvoiceModal'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
 import { Card } from './ui/card'
@@ -25,6 +28,7 @@ export const OperatorDeskView: React.FC<OperatorDeskViewProps> = ({
   onRequest2FA,
   onCompleteOrder,
 }) => {
+  const [invoiceOrderNo, setInvoiceOrderNo] = useState<string | null>(null)
   const modeCOrders = orders.filter(
     (o) => o.delivery_mode === 'UPGRADE_EXISTING',
   )
@@ -152,33 +156,55 @@ export const OperatorDeskView: React.FC<OperatorDeskViewProps> = ({
                 )}
 
                 {/* Operator Actions */}
-                {!isCompleted && (
-                  <div className="mt-5 flex items-center justify-end gap-2 pt-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => onRequest2FA(order.order_no)}
-                      className="text-xs h-9"
-                    >
-                      <KeyRound className="h-3.5 w-3.5 ml-1.5 text-blue-600 dark:text-blue-400" />
-                      <span>درخواست کد تایید ۲FA از کاربر</span>
-                    </Button>
+                <div className="mt-5 flex flex-wrap items-center justify-end gap-2 pt-2 border-t border-border">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setInvoiceOrderNo(order.order_no)}
+                    className="text-xs h-9 border-blue-200 dark:border-blue-900 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 gap-1.5"
+                  >
+                    <Printer className="h-3.5 w-3.5" />
+                    <span>چاپ فاکتور رسمی</span>
+                  </Button>
 
-                    <Button
-                      size="sm"
-                      onClick={() => onCompleteOrder(order.order_no)}
-                      className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs h-9 shadow-sm"
-                    >
-                      <Trash2 className="h-3.5 w-3.5 ml-1.5" />
-                      <span>تکمیل موفق و پاکسازی امن رمزها (Zeroize)</span>
-                    </Button>
-                  </div>
-                )}
+                  {!isCompleted && (
+                    <>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onRequest2FA(order.order_no)}
+                        className="text-xs h-9"
+                      >
+                        <KeyRound className="h-3.5 w-3.5 ml-1.5 text-blue-600 dark:text-blue-400" />
+                        <span>درخواست کد تایید ۲FA از کاربر</span>
+                      </Button>
+
+                      <Button
+                        size="sm"
+                        onClick={() => onCompleteOrder(order.order_no)}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs h-9 shadow-sm"
+                      >
+                        <Trash2 className="h-3.5 w-3.5 ml-1.5" />
+                        <span>تکمیل موفق و پاکسازی امن رمزها (Zeroize)</span>
+                      </Button>
+                    </>
+                  )}
+                </div>
               </Card>
             )
           })
         )}
       </div>
+
+      {/* Official Tax Invoice Modal */}
+      {invoiceOrderNo && (
+        <OfficialInvoiceModal
+          isOpen={!!invoiceOrderNo}
+          onClose={() => setInvoiceOrderNo(null)}
+          orderIdOrNo={invoiceOrderNo}
+          isAdmin={true}
+        />
+      )}
     </div>
   )
 }
