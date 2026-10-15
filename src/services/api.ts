@@ -939,6 +939,10 @@ export const apiService = {
     api_key?: string
     line_number?: string
     template_id?: string
+    template_otp?: string
+    template_2fa?: string
+    template_order_complete?: string
+    template_renewal?: string
     is_sandbox?: boolean
   }): Promise<void> {
     const token = this.getAdminToken()
@@ -958,6 +962,9 @@ export const apiService = {
 
   async sendTestSMS(
     mobile: string,
+    templateType?: string,
+    templateId?: number,
+    parameters?: Record<string, string>,
     message?: string,
   ): Promise<{ status: string; message: string }> {
     const token = this.getAdminToken()
@@ -969,6 +976,9 @@ export const apiService = {
       },
       body: JSON.stringify({
         mobile,
+        template_type: templateType,
+        template_id: templateId,
+        parameters,
         message: message || 'تست اتصال وب‌سرویس پیامک آناهیکس',
       }),
     })

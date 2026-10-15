@@ -419,11 +419,26 @@ export interface VerifyOTPResponse {
   customer: CustomerProfile
 }
 
+export interface SMSTemplateItem {
+  key: string
+  title: string
+  description: string
+  template_id: string
+  variables: string[]
+  sample_text: string
+  is_enabled: boolean
+}
+
 export interface SMSSettings {
   provider: string
   api_key_mask: string
   line_number: string
   template_id: string
+  template_otp?: string
+  template_2fa?: string
+  template_order_complete?: string
+  template_renewal?: string
+  templates?: SMSTemplateItem[]
   is_sandbox: boolean
   live_credit: number
   lines: string[]
