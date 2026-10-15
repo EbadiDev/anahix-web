@@ -31,6 +31,7 @@ import {
   AdminSidebar,
   type AdminTabType,
 } from '../../components/admin/AdminSidebar'
+import { AdminTicketsView } from '../../components/admin/AdminTicketsView'
 import { SMSGatewayView } from '../../components/admin/SMSGatewayView'
 import { TransactionsLogView } from '../../components/admin/TransactionsLogView'
 import { Header } from '../../components/Header'
@@ -48,6 +49,7 @@ export const AdminDashboardPage: React.FC = () => {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
   const [adminUser, setAdminUser] = useState<any>(null)
   const [reviewsPendingCount, setReviewsPendingCount] = useState<number>(0)
+  const [ticketsPendingCount, setTicketsPendingCount] = useState<number>(0)
 
   // Virtual Numbers Provider state
   const [vnSettings, setVnSettings] = useState<VirtualNumberSettings | null>(
@@ -371,6 +373,7 @@ export const AdminDashboardPage: React.FC = () => {
         onSelectTab={setActiveTab}
         adminUser={adminUser}
         queueCount={queueOrders.length}
+        ticketsPendingCount={ticketsPendingCount}
         reviewsPendingCount={reviewsPendingCount}
         vnEnabled={vnSettings?.enabled}
         deliveryEnabled={deliverySettings?.enabled}
@@ -1675,6 +1678,14 @@ export const AdminDashboardPage: React.FC = () => {
                 </div>
               )}
             </div>
+          )}
+
+          {/* TAB: SUPPORT & REAL TICKETING ENGINE DESK */}
+          {activeTab === 'tickets' && (
+            <AdminTicketsView
+              adminUser={adminUser}
+              onUpdatePendingCount={setTicketsPendingCount}
+            />
           )}
 
           {/* TAB: BUYER REVIEWS & SOCIAL PROOF MODERATION DESK */}

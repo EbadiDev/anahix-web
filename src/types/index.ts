@@ -599,3 +599,115 @@ export interface AdminReviewListResponse {
   total: number
   stats: AdminReviewStats
 }
+
+// Support & Real Ticketing Engine Types
+
+export type TicketStatusType =
+  | 'awaiting_admin' // در انتظار پاسخ پشتیبان
+  | 'awaiting_user' // در انتظار پاسخ کاربر
+  | 'in_progress' // در حال بررسی
+  | 'resolved' // حل شده
+  | 'closed' // بسته شده
+
+export type TicketPriorityType = 'low' | 'medium' | 'high' | 'urgent'
+
+export interface TicketAttachment {
+  id: string
+  file_name: string
+  file_url: string
+  file_size: number
+  mime_type: string
+  is_image: boolean
+}
+
+export interface TicketMessage {
+  id: string
+  ticket_id: string
+  sender_type: 'customer' | 'admin' | 'system'
+  sender_id: string
+  sender_name: string
+  message: string
+  attachments: TicketAttachment[]
+  is_internal?: boolean
+  created_at: string
+}
+
+export interface TicketItem {
+  id: string
+  ticket_number: string
+  customer_id: string
+  customer_phone: string
+  customer_name: string
+  customer_email: string
+  subject: string
+  department: string
+  priority: TicketPriorityType
+  status: TicketStatusType
+  related_order_no?: string
+  notify_via_sms: boolean
+  notify_via_email: boolean
+  assigned_admin_name?: string
+  satisfaction_rating?: number
+  satisfaction_comment?: string
+  last_reply_at?: string
+  last_reply_by: 'customer' | 'admin'
+  messages_count: number
+  created_at: string
+  updated_at: string
+}
+
+export interface TicketDetailResponse {
+  ticket: TicketItem
+  messages: TicketMessage[]
+}
+
+export interface CreateTicketPayload {
+  subject: string
+  department: string
+  priority?: TicketPriorityType
+  related_order_no?: string
+  notify_via_sms?: boolean
+  notify_via_email?: boolean
+  message: string
+  attachments?: TicketAttachment[]
+}
+
+export interface ReplyTicketPayload {
+  message: string
+  attachments?: TicketAttachment[]
+  notify_via_sms?: boolean
+  notify_via_email?: boolean
+}
+
+export interface AdminReplyTicketPayload {
+  message: string
+  is_internal?: boolean
+  attachments?: TicketAttachment[]
+  status?: TicketStatusType
+  notify_sms?: boolean
+  notify_email?: boolean
+}
+
+export interface AdminUpdateTicketPayload {
+  status?: TicketStatusType
+  priority?: TicketPriorityType
+  department?: string
+  assigned_admin_name?: string
+  notify_sms?: boolean
+  notify_email?: boolean
+}
+
+export interface AdminTicketStats {
+  total: number
+  awaiting_admin: number
+  awaiting_user: number
+  in_progress: number
+  resolved: number
+  closed: number
+}
+
+export interface AdminTicketListResponse {
+  items: TicketItem[]
+  total: number
+  stats: AdminTicketStats
+}

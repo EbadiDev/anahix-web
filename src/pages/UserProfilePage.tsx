@@ -153,6 +153,20 @@ export const UserProfilePage: React.FC = () => {
     ).length
   }, [orders])
 
+  const [supportBadgeCount, setSupportBadgeCount] = useState<number>(0)
+
+  useEffect(() => {
+    if (customer) {
+      apiService
+        .getMyTickets()
+        .then((tList) => {
+          const count = tList.filter((t) => t.status === 'awaiting_user').length
+          setSupportBadgeCount(count)
+        })
+        .catch(() => {})
+    }
+  }, [customer])
+
   const handleLogout = () => {
     apiService.removeCustomerToken()
     setCustomer(null)
@@ -237,6 +251,7 @@ export const UserProfilePage: React.FC = () => {
       label: 'پشتیبانی و تیکت‌ها',
       shortLabel: 'پشتیبانی',
       icon: MessageSquare,
+      badge: supportBadgeCount > 0 ? supportBadgeCount : undefined,
       group: 'system',
     },
     {

@@ -2,6 +2,7 @@ import {
   ExternalLink,
   History,
   Layers,
+  LifeBuoy,
   LogOut,
   MessageSquare,
   Radio,
@@ -21,6 +22,7 @@ import { ThemeToggle } from '../ThemeToggle'
 
 export type AdminTabType =
   | 'queue'
+  | 'tickets'
   | 'reviews'
   | 'delivery'
   | 'virtual-numbers'
@@ -35,6 +37,7 @@ interface AdminSidebarProps {
   onSelectTab: (tab: AdminTabType) => void
   adminUser: any
   queueCount: number
+  ticketsPendingCount?: number
   reviewsPendingCount?: number
   vnEnabled?: boolean
   deliveryEnabled?: boolean
@@ -62,6 +65,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
   onSelectTab,
   adminUser,
   queueCount,
+  ticketsPendingCount,
   reviewsPendingCount,
   vnEnabled,
   deliveryEnabled,
@@ -79,6 +83,17 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
           subtitle: 'پردازش دستی Mode C و کد ۲FA',
           icon: Layers,
           badge: queueCount > 0 ? queueCount : undefined,
+        },
+        {
+          id: 'tickets',
+          title: 'میزکار پشتیبانی و تیکت‌ها',
+          subtitle: 'پاسخگویی، اعلان پیامکی و پیوست‌ها',
+          icon: LifeBuoy,
+          badge:
+            ticketsPendingCount && ticketsPendingCount > 0
+              ? ticketsPendingCount
+              : undefined,
+          pulse: Boolean(ticketsPendingCount && ticketsPendingCount > 0),
         },
         {
           id: 'reviews',

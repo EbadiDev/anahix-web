@@ -1,9 +1,13 @@
 import type {
   AdminActionLogRecord,
   AdminProduct,
+  AdminReplyTicketPayload,
   AdminReviewListResponse,
+  AdminTicketListResponse,
+  AdminUpdateTicketPayload,
   CouponItem,
   CouponValidation,
+  CreateTicketPayload,
   CustomerProfile,
   DeliveryMode,
   InstantDeliverySettings,
@@ -19,12 +23,17 @@ import type {
   ProductReviewsResponse,
   ProviderCatalogItem,
   ReferralStats,
+  ReplyTicketPayload,
   ReviewEligibilityResponse,
   ReviewItem,
   SendOTPResponse,
   SMSSettings,
   SubmitReviewRequest,
   SubmitReviewResponse,
+  TicketAttachment,
+  TicketDetailResponse,
+  TicketItem,
+  TicketMessage,
   TransactionRecord,
   VerifyOTPResponse,
   VirtualNumberCountry,
@@ -1484,6 +1493,253 @@ export const apiService = {
       return true
     }
     throw new Error(json.msg || 'خطا در حذف نظر')
+  },
+
+  // ----------------------------------------------------
+  // Customer Support & Real Ticketing Engine Endpoints
+  // ----------------------------------------------------
+
+  async getMyTickets(): Promise<TicketItem[]> {
+    const token = this.getCustomerToken()
+    const res = await fetch('/api/v1/tickets', {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+    const json = await res.json()
+    if (res.ok && json.code === 200) {
+      return json.data || []
+    }
+    throw new Error(json.msg || 'خطا در دریافت لیست تیکت‌ها')
+  },
+
+  async getTicketDetail(ticketId: string): Promise<TicketDetailResponse> {
+    const token = this.getCustomerToken()
+    const res = await fetch(`/api/v1/tickets/${ticketId}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+    const json = await res.json()
+    if (res.ok && json.code === 200) {
+      return json.data
+    }
+    throw new Error(json.msg || 'خطا در دریافت جزئیات تیکت')
+  },
+
+  async createTicket(
+    payload: CreateTicketPayload,
+  ): Promise<TicketDetailResponse> {
+    const token = this.getCustomerToken()
+    const res = await fetch('/api/v1/tickets', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(payload),
+    })
+    const json = await res.json()
+    if (res.ok && json.code === 200) {
+      return json.data
+    }
+    throw new Error(json.msg || 'خطا در ثبت تیکت جدید')
+  },
+
+  async replyTicket(
+    ticketId: string,
+    payload: ReplyTicketPayload,
+  ): Promise<TicketMessage> {
+    const token = this.getCustomerToken()
+    const res = await fetch(`/api/v1/tickets/${ticketId}/reply`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(payload),
+    })
+    const json = await res.json()
+    if (res.ok && json.code === 200) {
+      return json.data
+    }
+    throw new Error(json.msg || 'خطا در ارسال پاسخ تیکت')
+  },
+
+  async closeTicket(ticketId: string): Promise<{ closed: boolean }> {
+    const token = this.getCustomerToken()
+    const res = await fetch(`/api/v1/tickets/${ticketId}/close`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+    const json = await res.json()
+    if (res.ok && json.code === 200) {
+      return json.data
+    }
+    throw new Error(json.msg || 'خطا در بستن تیکت')
+  },
+
+  async rateTicket(
+    ticketId: string,
+    rating: number,
+    comment?: string,
+  ): Promise<{ rated: boolean }> {
+    const token = this.getCustomerToken()
+    const res = await fetch(`/api/v1/tickets/${ticketId}/rate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ rating, comment: comment || '' }),
+    })
+    const json = await res.json()
+    if (res.ok && json.code === 200) {
+      return json.data
+    }
+    throw new Error(json.msg || 'خطا در ثبت امتیاز تیکت')
+  },
+
+  async uploadTicketAttachment(file: File): Promise<TicketAttachment> {
+    const token = this.getCustomerToken()
+    const formData = new FormData()
+    formData.append('file', file)
+
+    const res = await fetch('/api/v1/tickets/upload', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    })
+    const json = await res.json()
+    if (res.ok && json.code === 200) {
+      return json.data
+    }
+    throw new Error(json.msg || 'خطا در آپلود فایل')
+  },
+
+  // ----------------------------------------------------
+  // Admin Support & Real Ticketing Engine Endpoints
+  // ----------------------------------------------------
+
+  async getAdminTickets(params?: {
+    status?: string
+    department?: string
+    priority?: string
+    search?: string
+    page?: number
+    page_size?: number
+  }): Promise<AdminTicketListResponse> {
+    const token = this.getAdminToken()
+    const query = new URLSearchParams()
+    if (params?.status) query.set('status', params.status)
+    if (params?.department) query.set('department', params.department)
+    if (params?.priority) query.set('priority', params.priority)
+    if (params?.search) query.set('search', params.search)
+    if (params?.page) query.set('page', String(params.page))
+    if (params?.page_size) query.set('page_size', String(params.page_size))
+
+    const res = await fetch(`/api/v1/admin/tickets?${query.toString()}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+    const json = await res.json()
+    if (res.ok && json.code === 200) {
+      return json.data
+    }
+    throw new Error(json.msg || 'خطا در دریافت لیست تیکت‌های مدیریت')
+  },
+
+  async getAdminTicketDetail(ticketId: string): Promise<TicketDetailResponse> {
+    const token = this.getAdminToken()
+    const res = await fetch(`/api/v1/admin/tickets/${ticketId}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+    const json = await res.json()
+    if (res.ok && json.code === 200) {
+      return json.data
+    }
+    throw new Error(json.msg || 'خطا در دریافت جزئیات تیکت')
+  },
+
+  async adminReplyTicket(
+    ticketId: string,
+    payload: AdminReplyTicketPayload,
+  ): Promise<TicketMessage> {
+    const token = this.getAdminToken()
+    const res = await fetch(`/api/v1/admin/tickets/${ticketId}/reply`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(payload),
+    })
+    const json = await res.json()
+    if (res.ok && json.code === 200) {
+      return json.data
+    }
+    throw new Error(json.msg || 'خطا در ارسال پاسخ تیکت توسط ادمین')
+  },
+
+  async adminUpdateTicket(
+    ticketId: string,
+    payload: AdminUpdateTicketPayload,
+  ): Promise<TicketItem> {
+    const token = this.getAdminToken()
+    const res = await fetch(`/api/v1/admin/tickets/${ticketId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(payload),
+    })
+    const json = await res.json()
+    if (res.ok && json.code === 200) {
+      return json.data
+    }
+    throw new Error(json.msg || 'خطا در به‌روزرسانی مشخصات تیکت')
+  },
+
+  async adminDeleteTicket(ticketId: string): Promise<{ deleted: boolean }> {
+    const token = this.getAdminToken()
+    const res = await fetch(`/api/v1/admin/tickets/${ticketId}`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+    const json = await res.json()
+    if (res.ok && json.code === 200) {
+      return json.data
+    }
+    throw new Error(json.msg || 'خطا در حذف تیکت')
+  },
+
+  async uploadAdminTicketAttachment(file: File): Promise<TicketAttachment> {
+    const token = this.getAdminToken()
+    const formData = new FormData()
+    formData.append('file', file)
+
+    const res = await fetch('/api/v1/admin/tickets/upload', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    })
+    const json = await res.json()
+    if (res.ok && json.code === 200) {
+      return json.data
+    }
+    throw new Error(json.msg || 'خطا در آپلود فایل توسط ادمین')
   },
 }
 
