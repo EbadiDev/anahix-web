@@ -981,3 +981,181 @@ export interface AdminUpdateOrderStatusRequest {
   operator_notes?: string
   refund_to_wallet?: boolean
 }
+
+// ---------------- BLOG & KNOWLEDGE BASE (SEO ENGINE) TYPES ----------------
+
+export interface ContentCategory {
+  id: string
+  name: string
+  slug: string
+  type: 'blog' | 'help'
+  icon: string
+  description?: string
+  sort_order: number
+  is_active: boolean
+  article_count?: number
+}
+
+export interface TOCItem {
+  id: string
+  text: string
+  level: number
+}
+
+export interface ArticleComment {
+  id: string
+  article_id: string
+  author_name: string
+  content: string
+  status: 'pending' | 'approved' | 'rejected'
+  admin_reply?: string
+  created_at: string
+}
+
+export interface ArticleListItem {
+  id: string
+  title: string
+  slug: string
+  excerpt: string
+  cover_image: string
+  category_slug: string
+  category_name: string
+  tags: string[]
+  author_name: string
+  author_role: string
+  author_avatar?: string
+  reading_time_minutes: number
+  view_count: number
+  like_count: number
+  is_featured: boolean
+  is_published: boolean
+  published_at?: string
+  related_product_title?: string
+  related_product_slug?: string
+  created_at: string
+}
+
+export interface ArticleDetail extends ArticleListItem {
+  content: string
+  related_product_id?: string
+  related_product_price?: number
+  meta_title?: string
+  meta_description?: string
+  meta_keywords?: string
+  canonical_url?: string
+  table_of_contents: TOCItem[]
+  comments: ArticleComment[]
+  related_articles: ArticleListItem[]
+  updated_at: string
+}
+
+export interface HelpGuideListItem {
+  id: string
+  title: string
+  slug: string
+  excerpt: string
+  category_slug: string
+  category_name: string
+  icon: string
+  difficulty: string
+  service_target: string
+  reading_time_minutes: number
+  view_count: number
+  helpful_yes: number
+  helpful_no: number
+  is_featured: boolean
+  is_published: boolean
+  published_at?: string
+  related_product_title?: string
+  related_product_slug?: string
+  created_at: string
+}
+
+export interface HelpGuideDetail extends HelpGuideListItem {
+  content: string
+  related_product_id?: string
+  related_product_price?: number
+  meta_title?: string
+  meta_description?: string
+  meta_keywords?: string
+  table_of_contents: TOCItem[]
+  related_guides: HelpGuideListItem[]
+  updated_at: string
+}
+
+export interface ContentListResponse<T> {
+  items: T[]
+  total: number
+  page: number
+  page_size: number
+  total_pages: number
+}
+
+export interface CreateArticlePayload {
+  title: string
+  slug: string
+  excerpt: string
+  content: string
+  cover_image: string
+  category_slug: string
+  category_name: string
+  tags: string[]
+  author_name: string
+  author_role: string
+  author_avatar?: string
+  reading_time_minutes?: number
+  is_featured: boolean
+  is_published?: boolean
+  related_product_id?: string
+  related_product_title?: string
+  related_product_slug?: string
+  related_product_price?: number
+  meta_title?: string
+  meta_description?: string
+  meta_keywords?: string
+  canonical_url?: string
+}
+
+export interface CreateHelpGuidePayload {
+  title: string
+  slug: string
+  excerpt: string
+  content: string
+  category_slug: string
+  category_name: string
+  icon: string
+  difficulty: string
+  service_target: string
+  reading_time_minutes?: number
+  sort_order: number
+  is_featured: boolean
+  is_published?: boolean
+  related_product_id?: string
+  related_product_title?: string
+  related_product_slug?: string
+  related_product_price?: number
+  meta_title?: string
+  meta_description?: string
+  meta_keywords?: string
+}
+
+export interface ContentTemplate {
+  id: string
+  title: string
+  slug: string
+  type: 'all' | 'blog' | 'help'
+  icon: string
+  description?: string
+  template_content: string
+  sort_order: number
+  is_active: boolean
+}
+
+export interface ServiceTarget {
+  id: string
+  key: string
+  label: string
+  icon: string
+  sort_order: number
+  is_active: boolean
+}

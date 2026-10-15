@@ -438,6 +438,30 @@ export const ProfileSupportTab: React.FC<ProfileSupportTabProps> = ({
         </div>
       </div>
 
+      {/* Knowledge Base Fast-Track Banner */}
+      <div className="rounded-2xl border border-blue-500/20 bg-blue-50/50 dark:bg-blue-950/20 p-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+        <div className="flex items-center gap-2.5 text-right">
+          <div className="w-8 h-8 rounded-xl bg-blue-600/10 text-primary flex items-center justify-center shrink-0">
+            <Sparkles className="w-4 h-4" />
+          </div>
+          <div>
+            <span className="font-bold text-foreground block">
+              حل فوری مشکلات بدون انتظار برای تیکت:
+            </span>
+            <span className="text-muted-foreground text-[11px]">
+              راهنماهای رفع خطای Access Denied، عدم دریافت کد شماره مجازی و
+              لاگین اکانت‌ها در پایگاه دانش آناهیکس در دسترس است.
+            </span>
+          </div>
+        </div>
+        <a
+          href="/help"
+          className="px-4 py-2 rounded-xl bg-primary text-primary-foreground font-semibold text-xs hover:opacity-90 shrink-0 transition-opacity"
+        >
+          مرکز راهنما و رفع ارورها
+        </a>
+      </div>
+
       {/* 2. Filter & Search Controls */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
         <div className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-800/80 rounded-xl w-full sm:w-auto overflow-x-auto">

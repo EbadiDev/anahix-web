@@ -2,6 +2,10 @@ import { useState } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AdminDashboardPage } from './pages/admin/AdminDashboardPage'
 import { AdminLoginPage } from './pages/admin/AdminLoginPage'
+import { BlogDetailPage } from './pages/BlogDetailPage'
+import { BlogListPage } from './pages/BlogListPage'
+import { HelpDetailPage } from './pages/HelpDetailPage'
+import { HelpListPage } from './pages/HelpListPage'
 import { OrderTrackingPage } from './pages/OrderTrackingPage'
 import { ProductDetailPage } from './pages/ProductDetailPage'
 import { StorefrontPage } from './pages/StorefrontPage'
@@ -68,6 +72,12 @@ export function App() {
 
         {/* Virtual Numbers Receiving SMS */}
         <Route path="/virtual-numbers" element={<VirtualNumbersPage />} />
+
+        {/* Blog & Knowledge Base (SEO Engine) */}
+        <Route path="/blog" element={<BlogListPage />} />
+        <Route path="/blog/:slug" element={<BlogDetailPage />} />
+        <Route path="/help" element={<HelpListPage />} />
+        <Route path="/help/:slug" element={<HelpDetailPage />} />
 
         {/* Admin Authentication */}
         <Route path="/admin/login" element={<AdminLoginPage />} />

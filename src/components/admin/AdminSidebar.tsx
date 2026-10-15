@@ -1,4 +1,5 @@
 import {
+  BookOpen,
   ExternalLink,
   History,
   Layers,
@@ -27,6 +28,7 @@ export type AdminTabType =
   | 'queue'
   | 'tickets'
   | 'reviews'
+  | 'content'
   | 'delivery'
   | 'virtual-numbers'
   | 'products'
@@ -121,6 +123,12 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
               ? reviewsPendingCount
               : undefined,
           pulse: Boolean(reviewsPendingCount && reviewsPendingCount > 0),
+        },
+        {
+          id: 'content',
+          title: 'وبلاگ و پایگاه دانش (SEO)',
+          subtitle: 'مقالات سئو، رفع ارورها، آموزش و دیدگاه‌ها',
+          icon: BookOpen,
         },
         {
           id: 'delivery',

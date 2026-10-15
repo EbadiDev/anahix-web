@@ -406,6 +406,22 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
                   </Link>
                 </li>
                 <li>
+                  <Link
+                    to="/blog"
+                    className="hover:text-blue-600 font-semibold text-primary"
+                  >
+                    وبلاگ و آموزش‌ها (SEO Engine)
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    to="/help"
+                    className="hover:text-blue-600 font-semibold text-primary"
+                  >
+                    پایگاه دانش و رفع ارورها (Help Center)
+                  </Link>
+                </li>
+                <li>
                   <Link to="/track" className="hover:text-blue-600">
                     پیگیری سفارش و فاکتورها
                   </Link>

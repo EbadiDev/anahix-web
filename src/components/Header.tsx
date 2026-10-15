@@ -1,5 +1,7 @@
 import {
+  BookOpen,
   ChevronDown,
+  HelpCircle,
   Lock,
   LogIn,
   LogOut,
@@ -182,6 +184,30 @@ export const Header: React.FC<HeaderProps> = ({
                   <span className="px-1.5 py-0.2 rounded-full text-[9px] bg-blue-600 text-white font-bold">
                     جدید
                   </span>
+                </Link>
+
+                <Link
+                  to="/blog"
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors ${
+                    pathname.startsWith('/blog')
+                      ? 'text-blue-600 dark:text-blue-400 bg-blue-500/10 font-bold'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                  }`}
+                >
+                  <BookOpen className="h-4 w-4" />
+                  <span>وبلاگ و آموزش‌ها</span>
+                </Link>
+
+                <Link
+                  to="/help"
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors ${
+                    pathname.startsWith('/help')
+                      ? 'text-blue-600 dark:text-blue-400 bg-blue-500/10 font-bold'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                  }`}
+                >
+                  <HelpCircle className="h-4 w-4" />
+                  <span>پایگاه دانش و ارورها</span>
                 </Link>
 
                 <Link

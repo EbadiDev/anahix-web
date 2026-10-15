@@ -15,12 +15,20 @@ import type {
   AdminUpdateCustomerStatusRequest,
   AdminUpdateOrderStatusRequest,
   AdminUpdateTicketPayload,
+  ArticleComment,
+  ArticleDetail,
+  ArticleListItem,
   BillingSettings,
+  ContentCategory,
+  ContentListResponse,
+  ContentTemplate,
   CouponItem,
   CouponValidation,
   CreateTicketPayload,
   CustomerProfile,
   DeliveryMode,
+  HelpGuideDetail,
+  HelpGuideListItem,
   InstantDeliverySettings,
   InventoryItem,
   InventoryStats,
@@ -39,6 +47,7 @@ import type {
   ReviewEligibilityResponse,
   ReviewItem,
   SendOTPResponse,
+  ServiceTarget,
   SMSSettings,
   SubmitReviewRequest,
   SubmitReviewResponse,
@@ -2083,6 +2092,585 @@ export const apiService = {
         message: 'وضعیت سفارش با موفقیت به‌روزرسانی شد',
       }
     )
+  },
+
+  // ---------------- BLOG & KNOWLEDGE BASE APIs ----------------
+
+  async getContentCategories(type?: string): Promise<ContentCategory[]> {
+    const query = type ? `?type=${encodeURIComponent(type)}` : ''
+    const res = await fetch(`/api/v1/content/categories${query}`)
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'خطا در دریافت دسته‌بندی‌ها')
+    }
+    return json.data || []
+  },
+
+  async getArticles(params?: {
+    page?: number
+    page_size?: number
+    category?: string
+    tag?: string
+    search?: string
+  }): Promise<ContentListResponse<ArticleListItem>> {
+    const query = new URLSearchParams()
+    if (params?.page) query.set('page', String(params.page))
+    if (params?.page_size) query.set('page_size', String(params.page_size))
+    if (params?.category) query.set('category', params.category)
+    if (params?.tag) query.set('tag', params.tag)
+    if (params?.search) query.set('search', params.search)
+
+    const res = await fetch(`/api/v1/articles?${query.toString()}`)
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'خطا در دریافت مقالات وبلاگ')
+    }
+    return json.data
+  },
+
+  async getArticleDetail(slug: string): Promise<ArticleDetail> {
+    const res = await fetch(`/api/v1/articles/${encodeURIComponent(slug)}`)
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'مقاله مورد نظر یافت نشد')
+    }
+    return json.data
+  },
+
+  async submitArticleComment(
+    slug: string,
+    payload: { author_name: string; email?: string; content: string },
+  ): Promise<void> {
+    const token = this.getCustomerToken()
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    }
+    if (token) headers.Authorization = `Bearer ${token}`
+
+    const res = await fetch(
+      `/api/v1/articles/${encodeURIComponent(slug)}/comments`,
+      {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(payload),
+      },
+    )
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'خطا در ارسال دیدگاه')
+    }
+  },
+
+  async getHelpGuides(params?: {
+    page?: number
+    page_size?: number
+    category?: string
+    service_target?: string
+    search?: string
+  }): Promise<ContentListResponse<HelpGuideListItem>> {
+    const query = new URLSearchParams()
+    if (params?.page) query.set('page', String(params.page))
+    if (params?.page_size) query.set('page_size', String(params.page_size))
+    if (params?.category) query.set('category', params.category)
+    if (params?.service_target)
+      query.set('service_target', params.service_target)
+    if (params?.search) query.set('search', params.search)
+
+    const res = await fetch(`/api/v1/help/guides?${query.toString()}`)
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'خطا در دریافت راهنماهای پایگاه دانش')
+    }
+    return json.data
+  },
+
+  async getHelpGuideDetail(slug: string): Promise<HelpGuideDetail> {
+    const res = await fetch(`/api/v1/help/guides/${encodeURIComponent(slug)}`)
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'راهنمای مورد نظر یافت نشد')
+    }
+    return json.data
+  },
+
+  async voteHelpGuide(slug: string, is_helpful: boolean): Promise<void> {
+    const token = this.getCustomerToken()
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    }
+    if (token) headers.Authorization = `Bearer ${token}`
+
+    const res = await fetch(
+      `/api/v1/help/guides/${encodeURIComponent(slug)}/vote`,
+      {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ is_helpful }),
+      },
+    )
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'خطا در ثبت بازخورد')
+    }
+  },
+
+  // Admin Content Management
+  async getAdminArticles(params?: {
+    page?: number
+    page_size?: number
+    search?: string
+    category?: string
+    is_published?: string
+  }): Promise<ContentListResponse<ArticleListItem>> {
+    const token = this.getAdminToken()
+    const query = new URLSearchParams()
+    if (params?.page) query.set('page', String(params.page))
+    if (params?.page_size) query.set('page_size', String(params.page_size))
+    if (params?.search) query.set('search', params.search)
+    if (params?.category) query.set('category', params.category)
+    if (params?.is_published) query.set('is_published', params.is_published)
+
+    const res = await fetch(`/api/v1/admin/articles?${query.toString()}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'خطا در دریافت مقالات مدیریت')
+    }
+    return json.data
+  },
+
+  async getAdminArticle(id: string): Promise<ArticleDetail> {
+    const token = this.getAdminToken()
+    const res = await fetch(
+      `/api/v1/admin/articles/${encodeURIComponent(id)}`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      },
+    )
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'مقاله مورد نظر یافت نشد')
+    }
+    return json.data
+  },
+
+  async createAdminArticle(payload: any): Promise<ArticleDetail> {
+    const token = this.getAdminToken()
+    const res = await fetch('/api/v1/admin/articles', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    })
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'خطا در ایجاد مقاله')
+    }
+    return json.data
+  },
+
+  async updateAdminArticle(id: string, payload: any): Promise<ArticleDetail> {
+    const token = this.getAdminToken()
+    const res = await fetch(
+      `/api/v1/admin/articles/${encodeURIComponent(id)}`,
+      {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      },
+    )
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'خطا در ویرایش مقاله')
+    }
+    return json.data
+  },
+
+  async deleteAdminArticle(id: string): Promise<void> {
+    const token = this.getAdminToken()
+    const res = await fetch(
+      `/api/v1/admin/articles/${encodeURIComponent(id)}`,
+      {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      },
+    )
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'خطا در حذف مقاله')
+    }
+  },
+
+  async getAdminHelpGuides(params?: {
+    page?: number
+    page_size?: number
+    search?: string
+    category?: string
+    service_target?: string
+  }): Promise<ContentListResponse<HelpGuideListItem>> {
+    const token = this.getAdminToken()
+    const query = new URLSearchParams()
+    if (params?.page) query.set('page', String(params.page))
+    if (params?.page_size) query.set('page_size', String(params.page_size))
+    if (params?.search) query.set('search', params.search)
+    if (params?.category) query.set('category', params.category)
+    if (params?.service_target)
+      query.set('service_target', params.service_target)
+
+    const res = await fetch(`/api/v1/admin/help/guides?${query.toString()}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'خطا در دریافت راهنماهای مدیریت')
+    }
+    return json.data
+  },
+
+  async getAdminHelpGuide(id: string): Promise<HelpGuideDetail> {
+    const token = this.getAdminToken()
+    const res = await fetch(
+      `/api/v1/admin/help/guides/${encodeURIComponent(id)}`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      },
+    )
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'راهنمای مورد نظر یافت نشد')
+    }
+    return json.data
+  },
+
+  async createAdminHelpGuide(payload: any): Promise<HelpGuideDetail> {
+    const token = this.getAdminToken()
+    const res = await fetch('/api/v1/admin/help/guides', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    })
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'خطا در ایجاد راهنما')
+    }
+    return json.data
+  },
+
+  async updateAdminHelpGuide(
+    id: string,
+    payload: any,
+  ): Promise<HelpGuideDetail> {
+    const token = this.getAdminToken()
+    const res = await fetch(
+      `/api/v1/admin/help/guides/${encodeURIComponent(id)}`,
+      {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      },
+    )
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'خطا در ویرایش راهنما')
+    }
+    return json.data
+  },
+
+  async deleteAdminHelpGuide(id: string): Promise<void> {
+    const token = this.getAdminToken()
+    const res = await fetch(
+      `/api/v1/admin/help/guides/${encodeURIComponent(id)}`,
+      {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      },
+    )
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'خطا در حذف راهنما')
+    }
+  },
+
+  async getAdminContentCategories(type?: string): Promise<ContentCategory[]> {
+    const token = this.getAdminToken()
+    const query = type ? `?type=${encodeURIComponent(type)}` : ''
+    const res = await fetch(`/api/v1/admin/content/categories${query}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'خطا در دریافت دسته‌بندی‌ها')
+    }
+    return json.data || []
+  },
+
+  async createAdminContentCategory(payload: any): Promise<ContentCategory> {
+    const token = this.getAdminToken()
+    const res = await fetch('/api/v1/admin/content/categories', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    })
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'خطا در ایجاد دسته‌بندی')
+    }
+    return json.data
+  },
+
+  async updateAdminContentCategory(id: string, payload: any): Promise<void> {
+    const token = this.getAdminToken()
+    const res = await fetch(
+      `/api/v1/admin/content/categories/${encodeURIComponent(id)}`,
+      {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      },
+    )
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'خطا در ویرایش دسته‌بندی')
+    }
+  },
+
+  async deleteAdminContentCategory(id: string): Promise<void> {
+    const token = this.getAdminToken()
+    const res = await fetch(
+      `/api/v1/admin/content/categories/${encodeURIComponent(id)}`,
+      {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      },
+    )
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'خطا در حذف دسته‌بندی')
+    }
+  },
+
+  async getAdminArticleComments(
+    articleId?: string,
+    status?: string,
+  ): Promise<ArticleComment[]> {
+    const token = this.getAdminToken()
+    const query = new URLSearchParams()
+    if (articleId) query.set('article_id', articleId)
+    if (status) query.set('status', status)
+    const res = await fetch(
+      `/api/v1/admin/content/comments?${query.toString()}`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      },
+    )
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'خطا در دریافت نظرات')
+    }
+    return json.data || []
+  },
+
+  async updateAdminCommentStatus(
+    id: string,
+    status: string,
+    reply?: string,
+  ): Promise<void> {
+    const token = this.getAdminToken()
+    const res = await fetch(
+      `/api/v1/admin/content/comments/${encodeURIComponent(id)}`,
+      {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status, reply }),
+      },
+    )
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'خطا در به‌روزرسانی نظر')
+    }
+  },
+
+  async deleteAdminComment(id: string): Promise<void> {
+    const token = this.getAdminToken()
+    const res = await fetch(
+      `/api/v1/admin/content/comments/${encodeURIComponent(id)}`,
+      {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      },
+    )
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'خطا در حذف نظر')
+    }
+  },
+
+  // Dynamic Content Templates (DB-driven)
+  async getContentTemplates(type?: string): Promise<ContentTemplate[]> {
+    const query = type ? `?type=${encodeURIComponent(type)}` : ''
+    const res = await fetch(`/api/v1/content/templates${query}`)
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'خطا در دریافت قالب‌های نگارش')
+    }
+    return json.data || []
+  },
+
+  async getContentServices(): Promise<ServiceTarget[]> {
+    const res = await fetch('/api/v1/content/services')
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'خطا در دریافت لیست پلتفرم‌ها')
+    }
+    return json.data || []
+  },
+
+  async getAdminContentTemplates(type?: string): Promise<ContentTemplate[]> {
+    const token = this.getAdminToken()
+    const query = type ? `?type=${encodeURIComponent(type)}` : ''
+    const res = await fetch(`/api/v1/admin/content/templates${query}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'خطا در دریافت قالب‌های مدیریت')
+    }
+    return json.data || []
+  },
+
+  async createAdminContentTemplate(payload: any): Promise<ContentTemplate> {
+    const token = this.getAdminToken()
+    const res = await fetch('/api/v1/admin/content/templates', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    })
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'خطا در ایجاد قالب')
+    }
+    return json.data
+  },
+
+  async updateAdminContentTemplate(id: string, payload: any): Promise<void> {
+    const token = this.getAdminToken()
+    const res = await fetch(
+      `/api/v1/admin/content/templates/${encodeURIComponent(id)}`,
+      {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      },
+    )
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'خطا در ویرایش قالب')
+    }
+  },
+
+  async deleteAdminContentTemplate(id: string): Promise<void> {
+    const token = this.getAdminToken()
+    const res = await fetch(
+      `/api/v1/admin/content/templates/${encodeURIComponent(id)}`,
+      {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      },
+    )
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'خطا در حذف قالب')
+    }
+  },
+
+  async getAdminContentServices(): Promise<ServiceTarget[]> {
+    const token = this.getAdminToken()
+    const res = await fetch('/api/v1/admin/content/services', {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'خطا در دریافت سرویس‌های مدیریت')
+    }
+    return json.data || []
+  },
+
+  async createAdminContentService(payload: any): Promise<ServiceTarget> {
+    const token = this.getAdminToken()
+    const res = await fetch('/api/v1/admin/content/services', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    })
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'خطا در افزودن سرویس')
+    }
+    return json.data
+  },
+
+  async updateAdminContentService(id: string, payload: any): Promise<void> {
+    const token = this.getAdminToken()
+    const res = await fetch(
+      `/api/v1/admin/content/services/${encodeURIComponent(id)}`,
+      {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      },
+    )
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'خطا در ویرایش سرویس')
+    }
+  },
+
+  async deleteAdminContentService(id: string): Promise<void> {
+    const token = this.getAdminToken()
+    const res = await fetch(
+      `/api/v1/admin/content/services/${encodeURIComponent(id)}`,
+      {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      },
+    )
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'خطا در حذف سرویس')
+    }
   },
 }
 

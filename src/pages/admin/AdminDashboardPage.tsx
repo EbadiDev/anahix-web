@@ -27,6 +27,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AdminActionLogView } from '../../components/admin/AdminActionLogView'
 import { AdminBillingSettingsView } from '../../components/admin/AdminBillingSettingsView'
+import { AdminContentView } from '../../components/admin/AdminContentView'
 import { AdminInventoryView } from '../../components/admin/AdminInventoryView'
 import { AdminOrdersTableView } from '../../components/admin/AdminOrdersTableView'
 import { AdminReviewsView } from '../../components/admin/AdminReviewsView'
@@ -406,6 +407,9 @@ export const AdminDashboardPage: React.FC = () => {
 
           {/* TAB 0.5: ENHANCED ALL-ORDERS MANAGEMENT TABLE */}
           {activeTab === 'all-orders' && <AdminOrdersTableView />}
+
+          {/* TAB 0.6: BLOG & KNOWLEDGE BASE SEO ENGINE */}
+          {activeTab === 'content' && <AdminContentView />}
 
           {/* TAB 1: VIRTUAL NUMBERS SETTINGS & MANAGEMENT */}
           {activeTab === 'virtual-numbers' && (
