@@ -1,6 +1,7 @@
 import type {
   AdminActionLogRecord,
   AdminProduct,
+  AdminReviewListResponse,
   CouponItem,
   CouponValidation,
   CustomerProfile,
@@ -13,11 +14,17 @@ import type {
   PaginatedLogsResponse,
   PaymentGateway,
   Product,
+  ProductDetail,
   ProductGroup,
+  ProductReviewsResponse,
   ProviderCatalogItem,
   ReferralStats,
+  ReviewEligibilityResponse,
+  ReviewItem,
   SendOTPResponse,
   SMSSettings,
+  SubmitReviewRequest,
+  SubmitReviewResponse,
   TransactionRecord,
   VerifyOTPResponse,
   VirtualNumberCountry,
@@ -65,13 +72,20 @@ function normalizeProduct(raw: any): Product {
     id: raw.id,
     title_fa: raw.title_fa || raw.title,
     title_en: raw.title || raw.title_fa,
+    slug: raw.slug || '',
     category: raw.category || 'ai_chat',
     delivery_mode: mode,
+    delivery_type: raw.delivery_type || 'instant',
     price_toman: Number(raw.price_toman || 0),
     price_usd: Number(raw.base_cost_usd || raw.price_usd || 0),
     sla_minutes: raw.sla_min_minutes || raw.sla_minutes || 20,
+    sla_min_minutes: raw.sla_min_minutes || 10,
+    sla_max_minutes: raw.sla_max_minutes || 30,
+    sla_display_text: raw.sla_display_text,
+    operating_hours: raw.operating_hours,
     description_fa:
       raw.description_fa ||
+      raw.description ||
       raw.sla_display_text ||
       raw.operating_hours ||
       'تحویل آنی و مطمئن آناهیکس',
@@ -81,6 +95,31 @@ function normalizeProduct(raw: any): Product {
         : defaultFeatures[mode],
     in_stock: raw.is_active !== false,
     stock_count: raw.available_stock ?? raw.stock_count ?? 12,
+    group_tag: raw.group_tag,
+    group_title_fa: raw.group_title_fa,
+    plans: raw.plans,
+    comparison_table: raw.comparison_table,
+    activation_guide: raw.activation_guide,
+    faqs: raw.faqs,
+    seo: raw.seo,
+  }
+}
+
+function normalizeProductDetail(raw: any): ProductDetail {
+  const base = normalizeProduct(raw)
+  return {
+    ...base,
+    description: raw.description || raw.description_fa || '',
+    instructions: raw.instructions || '',
+    delivery_strategy: raw.delivery_strategy,
+    meta_title: raw.meta_title,
+    meta_description: raw.meta_description,
+    og_image_url: raw.og_image_url,
+    plans_json: raw.plans_json,
+    comparison_json: raw.comparison_json,
+    guide_json: raw.guide_json,
+    faq_json: raw.faq_json,
+    features_json: raw.features_json,
   }
 }
 
@@ -110,6 +149,21 @@ export const apiService = {
       console.error('Failed to fetch products from backend:', err)
     }
     return []
+  },
+
+  async getProductBySlug(slug: string): Promise<ProductDetail | null> {
+    try {
+      const res = await fetch(`/api/v1/products/${encodeURIComponent(slug)}`)
+      if (res.ok) {
+        const json = await res.json()
+        if (json.code === 200 && json.data) {
+          return normalizeProductDetail(json.data)
+        }
+      }
+    } catch (err) {
+      console.error(`Failed to fetch product by slug [${slug}]:`, err)
+    }
+    return null
   },
 
   async getPayments(): Promise<PaymentGateway[]> {
@@ -1130,6 +1184,20 @@ export const apiService = {
     return []
   },
 
+  async adminGetProduct(id: string): Promise<AdminProduct> {
+    const token = this.getAdminToken()
+    const res = await fetch(`/api/v1/admin/products/${id}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+    const json = await res.json()
+    if (res.ok && json.code === 200 && json.data) {
+      return json.data
+    }
+    throw new Error(json.msg || 'خطا در دریافت مشخصات محصول')
+  },
+
   async adminCreateProduct(data: Partial<AdminProduct>): Promise<AdminProduct> {
     const token = this.getAdminToken()
     const res = await fetch('/api/v1/admin/products', {
@@ -1179,6 +1247,243 @@ export const apiService = {
     if (!res.ok || json.code !== 200) {
       throw new Error(json.msg || 'خطا در حذف محصول')
     }
+  },
+
+  // ==========================================
+  // Social Proof & Buyer Reviews Services
+  // ==========================================
+
+  async getProductReviews(
+    slug: string,
+    options?: {
+      rating?: number
+      sort?: string
+      has_comment?: boolean
+      page?: number
+      page_size?: number
+    },
+  ): Promise<ProductReviewsResponse | null> {
+    try {
+      const params = new URLSearchParams()
+      if (options?.rating && options.rating > 0)
+        params.append('rating', String(options.rating))
+      if (options?.sort) params.append('sort', options.sort)
+      if (options?.has_comment !== undefined)
+        params.append('has_comment', String(options.has_comment))
+      if (options?.page) params.append('page', String(options.page))
+      if (options?.page_size)
+        params.append('page_size', String(options.page_size))
+
+      const q = params.toString() ? `?${params.toString()}` : ''
+      const res = await fetch(`/api/v1/products/${slug}/reviews${q}`)
+      const json = await res.json()
+      if (res.ok && json.code === 200 && json.data) {
+        return json.data
+      }
+      return null
+    } catch {
+      return null
+    }
+  },
+
+  async checkReviewEligibility(
+    slug: string,
+  ): Promise<ReviewEligibilityResponse> {
+    const token = this.getCustomerToken()
+    const headers: Record<string, string> = {}
+    if (token) {
+      headers.Authorization = `Bearer ${token}`
+    }
+
+    try {
+      const res = await fetch(`/api/v1/products/${slug}/review-eligibility`, {
+        headers,
+      })
+      const json = await res.json()
+      if (res.ok && json.code === 200 && json.data) {
+        return json.data
+      }
+      return { eligible: false, reason: json.msg || 'خطا در استعلام صلاحیت' }
+    } catch {
+      return { eligible: false, reason: 'خطا در ارتباط با سرور' }
+    }
+  },
+
+  async submitReview(
+    payload: SubmitReviewRequest,
+  ): Promise<SubmitReviewResponse> {
+    const token = this.getCustomerToken()
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    }
+    if (token) {
+      headers.Authorization = `Bearer ${token}`
+    }
+
+    const res = await fetch('/api/v1/reviews', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(payload),
+    })
+    const json = await res.json()
+    if (res.ok && json.code === 200 && json.data) {
+      return json.data
+    }
+    throw new Error(json.msg || 'خطا در ثبت نظر')
+  },
+
+  async voteReviewHelpful(reviewId: string): Promise<number> {
+    const token = this.getCustomerToken()
+    const headers: Record<string, string> = {}
+    if (token) {
+      headers.Authorization = `Bearer ${token}`
+    }
+
+    const res = await fetch(`/api/v1/reviews/${reviewId}/helpful`, {
+      method: 'POST',
+      headers,
+    })
+    const json = await res.json()
+    if (res.ok && json.code === 200 && json.data) {
+      return json.data.helpful_count
+    }
+    return 0
+  },
+
+  async getCustomerReviews(): Promise<ReviewItem[]> {
+    const token = this.getCustomerToken()
+    if (!token) return []
+
+    try {
+      const res = await fetch('/api/v1/auth/my-reviews', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+      const json = await res.json()
+      if (res.ok && json.code === 200 && Array.isArray(json.data)) {
+        return json.data
+      }
+      return []
+    } catch {
+      return []
+    }
+  },
+
+  async getAdminReviews(options?: {
+    status?: string
+    product_id?: string
+    search?: string
+    page?: number
+    page_size?: number
+  }): Promise<AdminReviewListResponse | null> {
+    const token = this.getAdminToken()
+    if (!token) return null
+
+    const params = new URLSearchParams()
+    if (options?.status) params.append('status', options.status)
+    if (options?.product_id) params.append('product_id', options.product_id)
+    if (options?.search) params.append('search', options.search)
+    if (options?.page) params.append('page', String(options.page))
+    if (options?.page_size)
+      params.append('page_size', String(options.page_size))
+
+    const q = params.toString() ? `?${params.toString()}` : ''
+    const res = await fetch(`/api/v1/admin/reviews${q}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+    const json = await res.json()
+    if (res.ok && json.code === 200 && json.data) {
+      return json.data
+    }
+    throw new Error(json.msg || 'خطا در دریافت لیست نظرات مدیریت')
+  },
+
+  async updateAdminReviewStatus(
+    reviewId: string,
+    status: 'approved' | 'rejected',
+    rejectionReason?: string,
+  ): Promise<boolean> {
+    const token = this.getAdminToken()
+    const res = await fetch(`/api/v1/admin/reviews/${reviewId}/status`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        status,
+        rejection_reason: rejectionReason || '',
+      }),
+    })
+    const json = await res.json()
+    if (res.ok && json.code === 200) {
+      return true
+    }
+    throw new Error(json.msg || 'خطا در تغییر وضعیت نظر')
+  },
+
+  async replyAdminReview(
+    reviewId: string,
+    reply: string,
+    author?: string,
+  ): Promise<boolean> {
+    const token = this.getAdminToken()
+    const res = await fetch(`/api/v1/admin/reviews/${reviewId}/reply`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        reply,
+        author: author || 'پشتیبانی رسمی آناهیکس',
+      }),
+    })
+    const json = await res.json()
+    if (res.ok && json.code === 200) {
+      return true
+    }
+    throw new Error(json.msg || 'خطا در ارسال پاسخ مدیریت')
+  },
+
+  async featureAdminReview(
+    reviewId: string,
+    isFeatured: boolean,
+  ): Promise<boolean> {
+    const token = this.getAdminToken()
+    const res = await fetch(`/api/v1/admin/reviews/${reviewId}/feature`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        is_featured: isFeatured,
+      }),
+    })
+    const json = await res.json()
+    if (res.ok && json.code === 200) {
+      return true
+    }
+    throw new Error(json.msg || 'خطا در تغییر وضعیت برگزیده')
+  },
+
+  async deleteAdminReview(reviewId: string): Promise<boolean> {
+    const token = this.getAdminToken()
+    const res = await fetch(`/api/v1/admin/reviews/${reviewId}`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+    const json = await res.json()
+    if (res.ok && json.code === 200) {
+      return true
+    }
+    throw new Error(json.msg || 'خطا در حذف نظر')
   },
 }
 

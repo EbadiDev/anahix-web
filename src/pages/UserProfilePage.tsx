@@ -16,6 +16,7 @@ import {
   ShieldCheck,
   ShoppingBag,
   Sparkles,
+  Star,
   User,
   UserCheck,
   Wallet,
@@ -32,6 +33,7 @@ import { ProfileOverviewTab } from '../components/profile/ProfileOverviewTab'
 import { ProfilePersonalTab } from '../components/profile/ProfilePersonalTab'
 import { ProfileProductsTab } from '../components/profile/ProfileProductsTab'
 import { ProfileReferralTab } from '../components/profile/ProfileReferralTab'
+import { ProfileReviewsTab } from '../components/profile/ProfileReviewsTab'
 import { ProfileSecurityTab } from '../components/profile/ProfileSecurityTab'
 import { ProfileSettingsTab } from '../components/profile/ProfileSettingsTab'
 import { ProfileSupportTab } from '../components/profile/ProfileSupportTab'
@@ -47,6 +49,7 @@ type ProfileTabId =
   | 'personal'
   | 'security'
   | 'orders'
+  | 'reviews'
   | 'numbers'
   | 'products'
   | 'wallet'
@@ -88,6 +91,7 @@ export const UserProfilePage: React.FC = () => {
     'personal',
     'security',
     'orders',
+    'reviews',
     'numbers',
     'products',
     'wallet',
@@ -189,6 +193,13 @@ export const UserProfilePage: React.FC = () => {
       shortLabel: 'سفارش‌ها',
       icon: Package,
       badge: pendingOrdersCount > 0 ? pendingOrdersCount : undefined,
+      group: 'services',
+    },
+    {
+      id: 'reviews',
+      label: 'نظرات و بازخوردهای من',
+      shortLabel: 'نظرات من',
+      icon: Star,
       group: 'services',
     },
     {
@@ -736,8 +747,11 @@ export const UserProfilePage: React.FC = () => {
                   <ProfileOrdersTab
                     orders={orders}
                     virtualOrders={virtualOrders}
+                    customer={customer}
                   />
                 )}
+
+                {activeTab === 'reviews' && <ProfileReviewsTab />}
 
                 {activeTab === 'numbers' && (
                   <ProfileNumberSessionsTab

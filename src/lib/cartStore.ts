@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { CartItem, CouponValidation, Product } from '../types'
+import type { CartItem, CouponValidation, Product, ProductPlan } from '../types'
 
 const CART_STORAGE_KEY = 'anahix_cart_state'
 
@@ -39,9 +39,12 @@ export const cartStore = {
     return globalState
   },
 
-  addItem(product: Product, quantity = 1) {
+  addItem(product: Product, quantity = 1, plan?: ProductPlan) {
+    const planId = plan?.id || ''
     const existingIndex = globalState.items.findIndex(
-      (item) => String(item.product.id) === String(product.id),
+      (item) =>
+        String(item.product.id) === String(product.id) &&
+        (item.plan?.id || '') === planId,
     )
     if (existingIndex > -1) {
       const updated = [...globalState.items]
@@ -53,34 +56,47 @@ export const cartStore = {
     } else {
       globalState = {
         ...globalState,
-        items: [...globalState.items, { product, quantity }],
+        items: [...globalState.items, { product, quantity, plan }],
       }
     }
     notify()
   },
 
-  removeItem(productId: string | number) {
+  removeItem(productId: string | number, planId?: string) {
     globalState = {
       ...globalState,
-      items: globalState.items.filter(
-        (item) => String(item.product.id) !== String(productId),
-      ),
+      items: globalState.items.filter((item) => {
+        const matchesProduct = String(item.product.id) === String(productId)
+        if (!matchesProduct) return true
+        if (planId !== undefined) {
+          return (item.plan?.id || '') !== planId
+        }
+        return false
+      }),
     }
     notify()
   },
 
-  updateQuantity(productId: string | number, quantity: number) {
+  updateQuantity(
+    productId: string | number,
+    quantity: number,
+    planId?: string,
+  ) {
     if (quantity <= 0) {
-      cartStore.removeItem(productId)
+      cartStore.removeItem(productId, planId)
       return
     }
     globalState = {
       ...globalState,
-      items: globalState.items.map((item) =>
-        String(item.product.id) === String(productId)
-          ? { ...item, quantity }
-          : item,
-      ),
+      items: globalState.items.map((item) => {
+        const matchesProduct = String(item.product.id) === String(productId)
+        const matchesPlan =
+          planId === undefined || (item.plan?.id || '') === planId
+        if (matchesProduct && matchesPlan) {
+          return { ...item, quantity }
+        }
+        return item
+      }),
     }
     notify()
   },
@@ -119,7 +135,9 @@ export function useCart() {
 
   const itemCount = state.items.reduce((sum, item) => sum + item.quantity, 0)
   const subtotal = state.items.reduce(
-    (sum, item) => sum + item.product.price_toman * item.quantity,
+    (sum, item) =>
+      sum +
+      (item.plan?.price_toman ?? item.product.price_toman) * item.quantity,
     0,
   )
 

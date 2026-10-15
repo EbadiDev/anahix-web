@@ -3,6 +3,7 @@ import {
   History,
   Layers,
   LogOut,
+  MessageSquare,
   Radio,
   ReceiptText,
   Settings,
@@ -20,6 +21,7 @@ import { ThemeToggle } from '../ThemeToggle'
 
 export type AdminTabType =
   | 'queue'
+  | 'reviews'
   | 'delivery'
   | 'virtual-numbers'
   | 'products'
@@ -33,6 +35,7 @@ interface AdminSidebarProps {
   onSelectTab: (tab: AdminTabType) => void
   adminUser: any
   queueCount: number
+  reviewsPendingCount?: number
   vnEnabled?: boolean
   deliveryEnabled?: boolean
   onLogout: () => void
@@ -59,6 +62,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
   onSelectTab,
   adminUser,
   queueCount,
+  reviewsPendingCount,
   vnEnabled,
   deliveryEnabled,
   onLogout,
@@ -75,6 +79,17 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
           subtitle: 'پردازش دستی Mode C و کد ۲FA',
           icon: Layers,
           badge: queueCount > 0 ? queueCount : undefined,
+        },
+        {
+          id: 'reviews',
+          title: 'مدیریت نظرات و بازخوردها',
+          subtitle: 'بررسی، تایید و پاسخ به خریداران',
+          icon: MessageSquare,
+          badge:
+            reviewsPendingCount && reviewsPendingCount > 0
+              ? reviewsPendingCount
+              : undefined,
+          pulse: Boolean(reviewsPendingCount && reviewsPendingCount > 0),
         },
         {
           id: 'delivery',

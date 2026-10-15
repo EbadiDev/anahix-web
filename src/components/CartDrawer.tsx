@@ -94,7 +94,7 @@ interface CartDrawerProps {
   customer?: CustomerProfile | null
   payments?: PaymentGateway[]
   onSubmit?: (data: {
-    items: { product_id: string; quantity: number }[]
+    items: { product_id: string; plan_id?: string; quantity: number }[]
     payment_platform: string
     customer_phone: string
     account_email?: string
@@ -360,6 +360,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
         await onSubmit({
           items: items.map((it) => ({
             product_id: String(it.product.id),
+            plan_id: it.plan?.id,
             quantity: it.quantity,
           })),
           payment_platform: selectedPlatform,
@@ -518,12 +519,13 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
 
               {/* Products List */}
               <div className="space-y-3">
-                {items.map(({ product, quantity }) => {
+                {items.map(({ product, quantity, plan }) => {
                   const brand = getProductBrandConfig(
                     product.category,
                     product.title_fa,
                   )
-                  const lineTotal = product.price_toman * quantity
+                  const unitPrice = plan?.price_toman ?? product.price_toman
+                  const lineTotal = unitPrice * quantity
                   const isModeC = product.delivery_mode === 'UPGRADE_EXISTING'
                   const cred = itemCreds[String(product.id)] || {
                     email: '',
@@ -536,7 +538,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
 
                   return (
                     <div
-                      key={product.id}
+                      key={`${product.id}-${plan?.id || 'default'}`}
                       className="group relative rounded-2xl border border-border/80 bg-card/70 hover:bg-card hover:border-blue-500/40 p-3.5 sm:p-4 shadow-xs transition-all space-y-3"
                     >
                       {/* Product Header & Info */}
@@ -553,9 +555,15 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                               <h4 className="font-bold text-xs sm:text-sm text-foreground truncate max-w-[180px] sm:max-w-[320px]">
                                 {product.title_fa}
                               </h4>
-                              <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-muted text-muted-foreground font-semibold">
-                                {brand.badge}
-                              </span>
+                              {plan ? (
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400">
+                                  {plan.title} ({plan.duration_text})
+                                </span>
+                              ) : (
+                                <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-muted text-muted-foreground font-semibold">
+                                  {brand.badge}
+                                </span>
+                              )}
                             </div>
 
                             <div className="flex items-center gap-2 flex-wrap text-xs">
@@ -574,7 +582,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                               <span className="text-muted-foreground text-[10px] sm:text-[11px] flex items-center gap-1">
                                 <span>واحد:</span>
                                 <span className="font-mono font-bold text-foreground">
-                                  {product.price_toman.toLocaleString('fa-IR')}
+                                  {unitPrice.toLocaleString('fa-IR')}
                                 </span>
                                 <span>تومان</span>
                               </span>
@@ -585,7 +593,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                         {/* Remove Action */}
                         <button
                           type="button"
-                          onClick={() => removeItem(product.id)}
+                          onClick={() => removeItem(product.id, plan?.id)}
                           className="p-1.5 text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 rounded-xl transition-colors shrink-0"
                           title="حذف این مورد از سبد"
                         >
@@ -691,7 +699,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                           <button
                             type="button"
                             onClick={() =>
-                              updateQuantity(product.id, quantity - 1)
+                              updateQuantity(product.id, quantity - 1, plan?.id)
                             }
                             className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-card hover:text-foreground transition active:scale-90"
                             aria-label="کاهش تعداد"
@@ -710,7 +718,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                           <button
                             type="button"
                             onClick={() =>
-                              updateQuantity(product.id, quantity + 1)
+                              updateQuantity(product.id, quantity + 1, plan?.id)
                             }
                             className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-card hover:text-foreground transition active:scale-90"
                             aria-label="افزایش تعداد"
@@ -731,8 +739,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                           </div>
                           {quantity > 1 && (
                             <div className="text-[10px] sm:text-[11px] text-muted-foreground font-mono">
-                              {quantity} ×{' '}
-                              {product.price_toman.toLocaleString('fa-IR')}
+                              {quantity} × {unitPrice.toLocaleString('fa-IR')}
                             </div>
                           )}
                         </div>

@@ -1,8 +1,9 @@
-import { Eye, Package, Radio, Search, Sparkles } from 'lucide-react'
+import { Eye, Package, Radio, Search, Sparkles, Star } from 'lucide-react'
 import type React from 'react'
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import type { Order, VirtualNumberOrder } from '../../types'
+import type { CustomerProfile, Order, VirtualNumberOrder } from '../../types'
+import { SubmitReviewModal } from '../reviews/SubmitReviewModal'
 import { Badge } from '../ui/badge'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
@@ -10,6 +11,7 @@ import { Input } from '../ui/input'
 interface ProfileOrdersTabProps {
   orders: Order[]
   virtualOrders: VirtualNumberOrder[]
+  customer?: CustomerProfile | null
 }
 
 type OrderFilterType =
@@ -22,11 +24,13 @@ type OrderFilterType =
 export const ProfileOrdersTab: React.FC<ProfileOrdersTabProps> = ({
   orders,
   virtualOrders,
+  customer,
 }) => {
   const [activeFilter, setActiveFilter] = useState<OrderFilterType>('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
   const [copiedKey, setCopiedKey] = useState('')
+  const [reviewOrder, setReviewOrder] = useState<Order | null>(null)
 
   // Map unified list
   const unifiedItems = useMemo(() => {
@@ -303,17 +307,32 @@ export const ProfileOrdersTab: React.FC<ProfileOrdersTabProps> = ({
                 </Badge>
 
                 {item.rawProductOrder && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() =>
-                      setSelectedOrder(item.rawProductOrder || null)
-                    }
-                    className="h-8 text-xs rounded-xl"
-                  >
-                    <Eye className="w-3.5 h-3.5 ml-1.5" />
-                    جزئیات
-                  </Button>
+                  <div className="flex items-center gap-1.5">
+                    {item.rawProductOrder.status === 'COMPLETED' && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          setReviewOrder(item.rawProductOrder || null)
+                        }
+                        className="h-8 text-xs rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 border-amber-500/30 gap-1 font-bold"
+                      >
+                        <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                        <span>ثبت نظر</span>
+                      </Button>
+                    )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        setSelectedOrder(item.rawProductOrder || null)
+                      }
+                      className="h-8 text-xs rounded-xl"
+                    >
+                      <Eye className="w-3.5 h-3.5 ml-1.5" />
+                      جزئیات
+                    </Button>
+                  </div>
                 )}
               </div>
             </div>
@@ -395,18 +414,49 @@ export const ProfileOrdersTab: React.FC<ProfileOrdersTabProps> = ({
               </div>
             )}
 
-            <div className="pt-2 flex justify-end">
+            <div className="pt-2 flex items-center justify-between">
+              {selectedOrder.status === 'COMPLETED' && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const ord = selectedOrder
+                    setSelectedOrder(null)
+                    setReviewOrder(ord)
+                  }}
+                  className="rounded-xl text-xs h-9 px-3 bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 border-amber-500/30 gap-1.5 font-bold"
+                >
+                  <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                  <span>ثبت نظر و امتیاز برای این محصول</span>
+                </Button>
+              )}
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setSelectedOrder(null)}
-                className="rounded-xl text-xs h-9 px-4"
+                className="rounded-xl text-xs h-9 px-4 mr-auto"
               >
                 بستن
               </Button>
             </div>
           </div>
         </div>
+      )}
+
+      {/* Review Submission Modal for Orders */}
+      {reviewOrder && (
+        <SubmitReviewModal
+          isOpen={!!reviewOrder}
+          onClose={() => setReviewOrder(null)}
+          productSlug={reviewOrder.product_slug || ''}
+          productTitle={reviewOrder.product_title || 'محصول خریداری شده'}
+          productId={
+            reviewOrder.product_id ? String(reviewOrder.product_id) : undefined
+          }
+          orderId={String(reviewOrder.id || '')}
+          orderNumber={reviewOrder.order_no}
+          customer={customer}
+        />
       )}
     </div>
   )

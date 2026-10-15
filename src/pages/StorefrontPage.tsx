@@ -60,7 +60,7 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
   }, [])
 
   const handleCartCheckoutSubmit = async (data: {
-    items: { product_id: string; quantity: number }[]
+    items: { product_id: string; plan_id?: string; quantity: number }[]
     payment_platform: string
     customer_phone: string
     account_email?: string

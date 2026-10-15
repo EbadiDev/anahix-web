@@ -3,22 +3,102 @@ export type DeliveryMode =
   | 'INSTANT_ACCOUNT'
   | 'UPGRADE_EXISTING'
 
+export interface ProductPlan {
+  id: string
+  title: string
+  duration_days: number
+  duration_text: string
+  price_toman: number
+  original_price_toman?: number
+  base_cost_usd?: number
+  badge?: string
+  is_default: boolean
+  delivery_type?: string
+  features?: string[]
+}
+
+export interface ComparisonColumn {
+  key: string
+  title: string
+  subtitle?: string
+  badge?: string
+  highlight: boolean
+}
+
+export interface ComparisonFeature {
+  name: string
+  category?: string
+  values: Record<string, string>
+}
+
+export interface ProductComparison {
+  columns: ComparisonColumn[]
+  features: ComparisonFeature[]
+}
+
+export interface ActivationStep {
+  step_number: number
+  title: string
+  description: string
+  icon?: string
+  tip?: string
+  image_url?: string
+}
+
+export interface ProductFAQ {
+  question: string
+  answer: string
+}
+
+export interface ProductSEO {
+  meta_title: string
+  meta_description: string
+  og_image_url?: string
+}
+
 export interface Product {
   id: string | number
   title_fa: string
   title_en: string
+  slug?: string
   category: string
   delivery_mode: DeliveryMode
+  delivery_type?: 'instant' | 'manual_timed'
   price_toman: number
   price_usd: number
   duration_days?: number
   is_shared?: boolean
   sla_minutes?: number
+  sla_min_minutes?: number
+  sla_max_minutes?: number
+  sla_display_text?: string
+  operating_hours?: string
   description_fa: string
   features?: string[]
   in_stock: boolean
   stock_count: number
   icon_name?: string
+  group_tag?: string
+  group_title_fa?: string
+  plans?: ProductPlan[]
+  comparison_table?: ProductComparison
+  activation_guide?: ActivationStep[]
+  faqs?: ProductFAQ[]
+  seo?: ProductSEO
+}
+
+export interface ProductDetail extends Product {
+  description: string
+  instructions: string
+  delivery_strategy?: string
+  meta_title?: string
+  meta_description?: string
+  og_image_url?: string
+  plans_json?: string
+  comparison_json?: string
+  guide_json?: string
+  faq_json?: string
+  features_json?: string
 }
 
 export interface AdminProduct {
@@ -41,6 +121,14 @@ export interface AdminProduct {
   group_title_fa?: string
   delivery_strategy?: string
   available_stock?: number
+  meta_title?: string
+  meta_description?: string
+  og_image_url?: string
+  plans_json?: string
+  comparison_json?: string
+  guide_json?: string
+  faq_json?: string
+  features_json?: string
   created_at?: string
   updated_at?: string
 }
@@ -72,6 +160,7 @@ export interface Order {
   order_no: string
   product_id: string | number
   product_title: string
+  product_slug?: string
   delivery_mode: DeliveryMode
   amount_toman: number
   status: OrderStatus
@@ -334,6 +423,7 @@ export interface SMSSettings {
 export interface CartItem {
   product: Product
   quantity: number
+  plan?: ProductPlan
 }
 
 export interface CouponValidation {
@@ -406,4 +496,106 @@ export interface WalletLedgerItem {
   payment_method: string
   payment_ref_id?: string
   created_at: string
+}
+
+// Social Proof & Buyer Reviews Types
+
+export interface ReviewItem {
+  id: string
+  product_id: string
+  product_slug: string
+  product_title: string
+  order_id?: string
+  order_number?: string
+  customer_name: string
+  customer_phone?: string
+  rating: number
+  comment: string
+  experience_tags: string[]
+  status: 'pending' | 'approved' | 'rejected'
+  is_verified_buyer: boolean
+  is_featured: boolean
+  helpful_count: number
+  admin_reply?: string
+  admin_reply_author?: string
+  admin_replied_at?: string
+  rejection_reason?: string
+  created_at: string
+}
+
+export interface RatingBreakdown {
+  star_5: number
+  star_4: number
+  star_3: number
+  star_2: number
+  star_1: number
+  star_5_percent: number
+  star_4_percent: number
+  star_3_percent: number
+  star_2_percent: number
+  star_1_percent: number
+}
+
+export interface ExperienceTagSummary {
+  tag: string
+  count: number
+  percent: number
+}
+
+export interface ProductReviewsSummary {
+  average_rating: number
+  total_reviews: number
+  rating_breakdown: RatingBreakdown
+  top_tags: ExperienceTagSummary[]
+  verified_buyers_count: number
+  satisfaction_rate: number
+}
+
+export interface ProductReviewsResponse {
+  summary: ProductReviewsSummary
+  reviews: ReviewItem[]
+  total: number
+}
+
+export interface SubmitReviewRequest {
+  product_id?: string
+  product_slug?: string
+  order_id?: string
+  order_number?: string
+  order_access_token?: string
+  customer_phone?: string
+  customer_name?: string
+  rating: number
+  comment?: string
+  experience_tags?: string[]
+}
+
+export interface SubmitReviewResponse {
+  review_id: string
+  status: string
+  message: string
+  requires_approval: boolean
+}
+
+export interface ReviewEligibilityResponse {
+  eligible: boolean
+  reason?: string
+  order_id?: string
+  order_number?: string
+  product_title?: string
+  existing_review?: ReviewItem
+}
+
+export interface AdminReviewStats {
+  total_reviews: number
+  pending_reviews: number
+  approved_reviews: number
+  rejected_reviews: number
+  average_rating: number
+}
+
+export interface AdminReviewListResponse {
+  items: ReviewItem[]
+  total: number
+  stats: AdminReviewStats
 }

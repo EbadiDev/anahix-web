@@ -3,6 +3,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AdminDashboardPage } from './pages/admin/AdminDashboardPage'
 import { AdminLoginPage } from './pages/admin/AdminLoginPage'
 import { OrderTrackingPage } from './pages/OrderTrackingPage'
+import { ProductDetailPage } from './pages/ProductDetailPage'
 import { StorefrontPage } from './pages/StorefrontPage'
 import { UserProfilePage } from './pages/UserProfilePage'
 import { VirtualNumbersPage } from './pages/VirtualNumbersPage'
@@ -34,6 +35,17 @@ export function App() {
           path="/"
           element={
             <StorefrontPage
+              orders={orders}
+              onOrderCreated={handleOrderCreated}
+            />
+          }
+        />
+
+        {/* Dedicated Product Detail Page (PDP) */}
+        <Route
+          path="/products/:slug"
+          element={
+            <ProductDetailPage
               orders={orders}
               onOrderCreated={handleOrderCreated}
             />

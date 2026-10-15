@@ -26,6 +26,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AdminActionLogView } from '../../components/admin/AdminActionLogView'
 import { AdminInventoryView } from '../../components/admin/AdminInventoryView'
+import { AdminReviewsView } from '../../components/admin/AdminReviewsView'
 import {
   AdminSidebar,
   type AdminTabType,
@@ -46,6 +47,7 @@ export const AdminDashboardPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<AdminTabType>('queue')
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
   const [adminUser, setAdminUser] = useState<any>(null)
+  const [reviewsPendingCount, setReviewsPendingCount] = useState<number>(0)
 
   // Virtual Numbers Provider state
   const [vnSettings, setVnSettings] = useState<VirtualNumberSettings | null>(
@@ -369,6 +371,7 @@ export const AdminDashboardPage: React.FC = () => {
         onSelectTab={setActiveTab}
         adminUser={adminUser}
         queueCount={queueOrders.length}
+        reviewsPendingCount={reviewsPendingCount}
         vnEnabled={vnSettings?.enabled}
         deliveryEnabled={deliverySettings?.enabled}
         onLogout={handleLogout}
@@ -1672,6 +1675,15 @@ export const AdminDashboardPage: React.FC = () => {
                 </div>
               )}
             </div>
+          )}
+
+          {/* TAB: BUYER REVIEWS & SOCIAL PROOF MODERATION DESK */}
+          {activeTab === 'reviews' && (
+            <AdminReviewsView
+              onStatsUpdated={(stats) =>
+                setReviewsPendingCount(stats.pending_reviews)
+              }
+            />
           )}
 
           {/* TAB 3: PRODUCTS & INVENTORY */}

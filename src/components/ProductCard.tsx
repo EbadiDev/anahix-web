@@ -1,4 +1,5 @@
 import {
+  ArrowLeft,
   Check,
   Clock,
   KeyRound,
@@ -8,6 +9,7 @@ import {
   Zap,
 } from 'lucide-react'
 import type React from 'react'
+import { Link } from 'react-router-dom'
 import { cartStore } from '../lib/cartStore'
 import type { Product } from '../types'
 import { ClaudeIcon, CursorIcon, GeminiIcon, OpenAIIcon } from './BrandIcons'
@@ -117,15 +119,20 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           </div>
 
           {/* Product Title */}
-          <h3 className="text-base font-black tracking-tight text-foreground leading-snug group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-            {product.title_fa}
-          </h3>
-          <p
-            className="text-xs text-muted-foreground font-latin text-left mt-1"
-            dir="ltr"
+          <Link
+            to={`/products/${product.slug || product.id}`}
+            className="block group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors"
           >
-            {product.title_en}
-          </p>
+            <h3 className="text-base font-black tracking-tight text-foreground leading-snug">
+              {product.title_fa}
+            </h3>
+            <p
+              className="text-xs text-muted-foreground font-latin text-left mt-1"
+              dir="ltr"
+            >
+              {product.title_en}
+            </p>
+          </Link>
         </CardHeader>
 
         <CardContent className="p-5 pt-0 space-y-4">
@@ -165,7 +172,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         </CardContent>
       </div>
 
-      <CardFooter className="p-5 pt-0 border-t border-border/60 mt-2 flex items-center justify-between">
+      <CardFooter className="p-5 pt-0 border-t border-border/60 mt-2 flex items-center justify-between gap-2">
         {/* Price display with discount strike-through */}
         <div>
           <div className="text-[11px] text-muted-foreground line-through">
@@ -181,16 +188,27 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           </div>
         </div>
 
-        <Button
-          onClick={() => {
-            cartStore.addItem(product)
-            onSelect(product)
-          }}
-          className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs h-10 px-4 rounded-xl shadow-md shadow-blue-600/20 transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center gap-2"
-        >
-          <ShoppingCart className="h-4 w-4" />
-          <span>افزودن به سبد خرید</span>
-        </Button>
+        <div className="flex items-center gap-1.5">
+          <Link
+            to={`/products/${product.slug || product.id}`}
+            className="h-10 px-3 rounded-xl border border-border/80 hover:bg-muted text-xs font-bold text-foreground transition-all flex items-center gap-1"
+            title="مشاهده مشخصات و پلن‌های زمانی"
+          >
+            <span>انتخاب پلن</span>
+            <ArrowLeft className="h-3.5 w-3.5" />
+          </Link>
+          <Button
+            onClick={() => {
+              cartStore.addItem(product)
+              onSelect(product)
+            }}
+            className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs h-10 px-3.5 rounded-xl shadow-md shadow-blue-600/20 transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center gap-1.5"
+            title="افزودن سریع به سبد خرید"
+          >
+            <ShoppingCart className="h-4 w-4" />
+            <span className="hidden sm:inline">سبد</span>
+          </Button>
+        </div>
       </CardFooter>
     </Card>
   )
