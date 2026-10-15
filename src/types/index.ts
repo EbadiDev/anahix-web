@@ -835,3 +835,134 @@ export interface BillingSettings {
   tax_memory_id: string
   stamp_signature_url: string
 }
+
+// -----------------------------------------------------------------------------
+// Admin 360-Degree Customer Management & Orders Enhancement
+// -----------------------------------------------------------------------------
+
+export type CustomerTier = 'standard' | 'colleague' | 'vip'
+
+export interface AdminCustomerListItem {
+  id: string
+  phone: string
+  first_name?: string
+  last_name?: string
+  full_name: string
+  email: string
+  tier: CustomerTier
+  balance_toman: number
+  referral_code: string
+  referral_balance_toman: number
+  total_orders_count: number
+  store_orders_count: number
+  virtual_orders_count: number
+  total_spent_toman: number
+  is_active: boolean
+  is_admin: boolean
+  block_reason?: string
+  internal_notes?: string
+  last_login_at?: string
+  is_online: boolean
+  created_at: string
+}
+
+export interface AdminListCustomersRequest {
+  search?: string
+  status?: 'all' | 'active' | 'blocked'
+  has_balance?: boolean
+  tier?: 'all' | 'standard' | 'colleague' | 'vip'
+  sort_by?: 'created_at' | 'last_login_at' | 'total_spent' | 'balance'
+  sort_order?: 'desc' | 'asc'
+  page?: number
+  page_size?: number
+}
+
+export interface AdminListCustomersResponse {
+  customers: AdminCustomerListItem[]
+  total: number
+  page: number
+  page_size: number
+  total_active: number
+  total_blocked: number
+  total_vip: number
+  total_balance_toman: number
+}
+
+export interface AdminCustomerOrderBrief {
+  id: string
+  order_number: string
+  status: string
+  delivery_type: string
+  total_amount_toman: number
+  payment_method: string
+  product_title: string
+  delivered_payload?: string
+  items: any[]
+  created_at: string
+  paid_at?: string
+}
+
+export interface AdminReferredUserItem {
+  id: string
+  phone: string
+  full_name: string
+  created_at: string
+}
+
+export interface AdminCustomerAffiliateStats {
+  referral_code: string
+  referred_count: number
+  total_commission_toman: number
+  transferred_commission_toman: number
+  available_commission_toman: number
+  referred_users: AdminReferredUserItem[]
+  commissions: any[]
+}
+
+export interface AdminCustomerDetail360Response {
+  customer: AdminCustomerListItem
+  wallet_transactions: any[]
+  orders: AdminCustomerOrderBrief[]
+  virtual_numbers: any[]
+  affiliate_stats: AdminCustomerAffiliateStats
+  audit_logs: any[]
+}
+
+export interface AdminAdjustCustomerWalletRequest {
+  amount_toman: number
+  action: 'credit' | 'debit'
+  reason: string
+}
+
+export interface AdminUpdateCustomerStatusRequest {
+  is_active?: boolean
+  block_reason?: string
+  tier?: CustomerTier
+  internal_notes?: string
+  full_name?: string
+  email?: string
+}
+
+export interface AdminSendCustomerSMSRequest {
+  message: string
+  template_id?: number
+}
+
+export interface AdminReplaceCustomerKeyRequest {
+  order_item_id: string
+  new_payload: string
+  reason?: string
+}
+
+export interface AdminOrderListResult {
+  orders: any[]
+  total: number
+  page: number
+  page_size: number
+}
+
+export interface AdminUpdateOrderStatusRequest {
+  status: string
+  operator_notes?: string
+  refund_to_wallet?: boolean
+}

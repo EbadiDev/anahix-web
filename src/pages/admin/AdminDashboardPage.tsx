@@ -28,12 +28,14 @@ import { useNavigate } from 'react-router-dom'
 import { AdminActionLogView } from '../../components/admin/AdminActionLogView'
 import { AdminBillingSettingsView } from '../../components/admin/AdminBillingSettingsView'
 import { AdminInventoryView } from '../../components/admin/AdminInventoryView'
+import { AdminOrdersTableView } from '../../components/admin/AdminOrdersTableView'
 import { AdminReviewsView } from '../../components/admin/AdminReviewsView'
 import {
   AdminSidebar,
   type AdminTabType,
 } from '../../components/admin/AdminSidebar'
 import { AdminTicketsView } from '../../components/admin/AdminTicketsView'
+import { AdminUsersView } from '../../components/admin/AdminUsersView'
 import { SMSGatewayView } from '../../components/admin/SMSGatewayView'
 import { TransactionsLogView } from '../../components/admin/TransactionsLogView'
 import { Header } from '../../components/Header'
@@ -399,6 +401,12 @@ export const AdminDashboardPage: React.FC = () => {
 
         {/* View Content Container */}
         <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 flex-1">
+          {/* TAB 0: 360-DEGREE USER MANAGEMENT */}
+          {activeTab === 'users' && <AdminUsersView />}
+
+          {/* TAB 0.5: ENHANCED ALL-ORDERS MANAGEMENT TABLE */}
+          {activeTab === 'all-orders' && <AdminOrdersTableView />}
+
           {/* TAB 1: VIRTUAL NUMBERS SETTINGS & MANAGEMENT */}
           {activeTab === 'virtual-numbers' && (
             <div className="space-y-8">

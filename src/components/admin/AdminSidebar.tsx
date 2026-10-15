@@ -13,6 +13,7 @@ import {
   Smartphone,
   Sparkles,
   UserCheck,
+  Users,
   X,
   Zap,
 } from 'lucide-react'
@@ -21,6 +22,8 @@ import { Link } from 'react-router-dom'
 import { ThemeToggle } from '../ThemeToggle'
 
 export type AdminTabType =
+  | 'users'
+  | 'all-orders'
   | 'queue'
   | 'tickets'
   | 'reviews'
@@ -76,8 +79,20 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
 }) => {
   const groups: NavGroup[] = [
     {
-      label: 'عملیات و پردازش سفارشات',
+      label: 'مدیریت کاربران و پردازش سفارشات',
       items: [
+        {
+          id: 'users',
+          title: 'مدیریت کاربران (User 360°)',
+          subtitle: 'پرونده ۳۶۰ درجه، کیف پول و دسترسی',
+          icon: Users,
+        },
+        {
+          id: 'all-orders',
+          title: 'جدول جامع سفارش‌ها',
+          subtitle: 'تایید، در صف، لغو و مرجوعی',
+          icon: ReceiptText,
+        },
         {
           id: 'queue',
           title: 'صف سفارشات اپراتور',

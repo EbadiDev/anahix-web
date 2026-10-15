@@ -1,9 +1,19 @@
 import type {
   AdminActionLogRecord,
+  AdminAdjustCustomerWalletRequest,
+  AdminCustomerDetail360Response,
+  AdminCustomerListItem,
+  AdminListCustomersRequest,
+  AdminListCustomersResponse,
+  AdminOrderListResult,
   AdminProduct,
+  AdminReplaceCustomerKeyRequest,
   AdminReplyTicketPayload,
   AdminReviewListResponse,
+  AdminSendCustomerSMSRequest,
   AdminTicketListResponse,
+  AdminUpdateCustomerStatusRequest,
+  AdminUpdateOrderStatusRequest,
   AdminUpdateTicketPayload,
   BillingSettings,
   CouponItem,
@@ -1854,6 +1864,215 @@ export const apiService = {
       throw new Error(json.msg || 'خطا در دریافت فاکتور رسمی سفارش')
     }
     return json.data
+  },
+
+  // ---------------------------------------------------------------------------
+  // Customer 360 & User Management
+  // ---------------------------------------------------------------------------
+
+  async getAdminCustomers(
+    params?: AdminListCustomersRequest,
+  ): Promise<AdminListCustomersResponse> {
+    const token = this.getAdminToken()
+    const query = new URLSearchParams()
+    if (params?.search) query.set('search', params.search)
+    if (params?.status) query.set('status', params.status)
+    if (params?.has_balance !== undefined)
+      query.set('has_balance', String(params.has_balance))
+    if (params?.tier) query.set('tier', params.tier)
+    if (params?.sort_by) query.set('sort_by', params.sort_by)
+    if (params?.sort_order) query.set('sort_order', params.sort_order)
+    if (params?.page) query.set('page', String(params.page))
+    if (params?.page_size) query.set('page_size', String(params.page_size))
+
+    const res = await fetch(`/api/v1/admin/customers?${query.toString()}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+    const json = await res.json()
+    if (!res.ok || json.code !== 200 || !json.data) {
+      throw new Error(json.msg || 'خطا در دریافت لیست کاربران')
+    }
+    return json.data
+  },
+
+  async getAdminCustomer360(
+    customerId: string,
+  ): Promise<AdminCustomerDetail360Response> {
+    const token = this.getAdminToken()
+    const res = await fetch(
+      `/api/v1/admin/customers/${encodeURIComponent(customerId)}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      },
+    )
+    const json = await res.json()
+    if (!res.ok || json.code !== 200 || !json.data) {
+      throw new Error(json.msg || 'خطا در دریافت پرونده ۳۶۰ درجه مشتری')
+    }
+    return json.data
+  },
+
+  async adjustCustomerWallet(
+    customerId: string,
+    data: AdminAdjustCustomerWalletRequest,
+  ): Promise<AdminCustomerListItem> {
+    const token = this.getAdminToken()
+    const res = await fetch(
+      `/api/v1/admin/customers/${encodeURIComponent(customerId)}/wallet-adjust`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      },
+    )
+    const json = await res.json()
+    if (!res.ok || json.code !== 200 || !json.data) {
+      throw new Error(json.msg || 'خطا در تعدیل موجودی کیف پول کاربر')
+    }
+    return json.data
+  },
+
+  async updateCustomerStatus(
+    customerId: string,
+    data: AdminUpdateCustomerStatusRequest,
+  ): Promise<AdminCustomerListItem> {
+    const token = this.getAdminToken()
+    const res = await fetch(
+      `/api/v1/admin/customers/${encodeURIComponent(customerId)}`,
+      {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      },
+    )
+    const json = await res.json()
+    if (!res.ok || json.code !== 200 || !json.data) {
+      throw new Error(json.msg || 'خطا در به‌روزرسانی اطلاعات کاربر')
+    }
+    return json.data
+  },
+
+  async sendCustomerSMS(
+    customerId: string,
+    data: AdminSendCustomerSMSRequest,
+  ): Promise<{ sent: boolean; message: string }> {
+    const token = this.getAdminToken()
+    const res = await fetch(
+      `/api/v1/admin/customers/${encodeURIComponent(customerId)}/sms`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      },
+    )
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'خطا در ارسال پیامک به کاربر')
+    }
+    return json.data || { sent: true, message: 'پیامک با موفقیت ارسال شد' }
+  },
+
+  async replaceCustomerOrderKey(
+    customerId: string,
+    data: AdminReplaceCustomerKeyRequest,
+  ): Promise<{ updated: boolean; message: string }> {
+    const token = this.getAdminToken()
+    const res = await fetch(
+      `/api/v1/admin/customers/${encodeURIComponent(customerId)}/replace-key`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      },
+    )
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'خطا در جایگزینی کلید سفارش')
+    }
+    return (
+      json.data || {
+        updated: true,
+        message: 'لایسنس با موفقیت به‌روزرسانی شد',
+      }
+    )
+  },
+
+  // ---------------------------------------------------------------------------
+  // Enhanced Orders Management
+  // ---------------------------------------------------------------------------
+
+  async getAdminAllOrders(params?: {
+    status?: string
+    delivery_type?: string
+    payment_method?: string
+    search?: string
+    page?: number
+    page_size?: number
+  }): Promise<AdminOrderListResult> {
+    const token = this.getAdminToken()
+    const query = new URLSearchParams()
+    if (params?.status) query.set('status', params.status)
+    if (params?.delivery_type) query.set('delivery_type', params.delivery_type)
+    if (params?.payment_method)
+      query.set('payment_method', params.payment_method)
+    if (params?.search) query.set('search', params.search)
+    if (params?.page) query.set('page', String(params.page))
+    if (params?.page_size) query.set('page_size', String(params.page_size))
+
+    const res = await fetch(`/api/v1/admin/orders/all?${query.toString()}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+    const json = await res.json()
+    if (!res.ok || json.code !== 200 || !json.data) {
+      throw new Error(json.msg || 'خطا در دریافت لیست کلی سفارش‌ها')
+    }
+    return json.data
+  },
+
+  async updateAdminOrderStatus(
+    orderId: string,
+    data: AdminUpdateOrderStatusRequest,
+  ): Promise<{ updated: boolean; message: string }> {
+    const token = this.getAdminToken()
+    const res = await fetch(
+      `/api/v1/admin/orders/${encodeURIComponent(orderId)}/status`,
+      {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      },
+    )
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'خطا در به‌روزرسانی وضعیت سفارش')
+    }
+    return (
+      json.data || {
+        updated: true,
+        message: 'وضعیت سفارش با موفقیت به‌روزرسانی شد',
+      }
+    )
   },
 }
 
