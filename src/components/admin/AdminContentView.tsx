@@ -2123,7 +2123,7 @@ export const AdminContentView: React.FC = () => {
                     })
                   }
                   placeholder="## عنوان بخش اول&#10;&#10;متن پیش‌فرض قالب..."
-                  className="w-full rounded-xl border border-border bg-background p-3 text-sm font-mono text-xs focus:outline-hidden leading-relaxed"
+                  className="w-full rounded-xl border border-border bg-background p-3 font-mono text-xs focus:outline-hidden leading-relaxed"
                 />
               </div>
             </div>
