@@ -53,7 +53,10 @@ export const BannerCarousel: React.FC<BannerCarouselProps> = ({
   return (
     <div
       dir="rtl"
-      className={`group relative overflow-hidden rounded-3xl border border-border shadow-md transition-all duration-300 ${className}`}
+      className={`group relative overflow-hidden rounded-2xl border border-border transition-all duration-200 ${className}`}
+      style={{
+        boxShadow: 'var(--depth-surface)',
+      }}
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
     >

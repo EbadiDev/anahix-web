@@ -9,7 +9,6 @@ import {
   LogIn,
   LogOut,
   Menu,
-  Palette,
   PhoneCall,
   Radio,
   ShieldCheck,
@@ -31,11 +30,6 @@ import { AuthModal } from './AuthModal'
 import { GithubIcon, GoogleIcon } from './SocialIcons'
 import { ThemeToggle } from './ThemeToggle'
 import { HolidayThemeBanner } from './vibefarsi/HolidayThemeBanner'
-import {
-  useVibeTheme,
-  VIBE_THEMES,
-  type VibeFarsiThemeKey,
-} from './vibefarsi/ThemeContext'
 
 interface HeaderProps {
   balance?: number
@@ -72,14 +66,10 @@ export const Header: React.FC<HeaderProps> = ({
   )
   const [userDropdownOpen, setUserDropdownOpen] = useState(false)
   const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false)
-  const [themeDropdownOpen, setThemeDropdownOpen] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-
-  const { activeTheme, setTheme } = useVibeTheme()
 
   const dropdownRef = useRef<HTMLDivElement>(null)
   const categoryMenuRef = useRef<HTMLDivElement>(null)
-  const themeMenuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     api.getCustomerProfile().then((profile: CustomerProfile | null) => {
@@ -105,12 +95,6 @@ export const Header: React.FC<HeaderProps> = ({
         !categoryMenuRef.current.contains(e.target as Node)
       ) {
         setCategoryDropdownOpen(false)
-      }
-      if (
-        themeMenuRef.current &&
-        !themeMenuRef.current.contains(e.target as Node)
-      ) {
-        setThemeDropdownOpen(false)
       }
     }
     document.addEventListener('mousedown', handleClickOutside)
@@ -393,12 +377,12 @@ export const Header: React.FC<HeaderProps> = ({
                     </span>
                   </div>
 
-                  {/* Divider */}
-                  <div className="h-4 w-px bg-border/80 mx-0.5" />
+                  {/* Divider - hidden on small mobile to avoid overflow */}
+                  <div className="hidden sm:block h-4 w-px bg-border/80 mx-0.5" />
 
-                  {/* Integrated Wallet Balance */}
-                  <div className="flex items-center gap-1.5 text-right font-medium">
-                    <Wallet className="h-3.5 w-3.5 text-muted-foreground group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors" />
+                  {/* Integrated Wallet Balance - shown on sm screens, inside dropdown for mobile */}
+                  <div className="hidden sm:flex items-center gap-1.5 text-right font-medium">
+                    <Wallet className="h-3.5 w-3.5 text-muted-foreground group-hover:text-blue-400 transition-colors" />
                     <span className="text-xs font-bold text-foreground">
                       {toPersianDigits(effectiveBalance.toLocaleString())}
                     </span>
@@ -583,60 +567,7 @@ export const Header: React.FC<HeaderProps> = ({
               </button>
             )}
 
-            {/* Vibe Farsi Theme Palette Picker */}
-            <div className="relative" ref={themeMenuRef}>
-              <button
-                type="button"
-                onClick={() => setThemeDropdownOpen(!themeDropdownOpen)}
-                className="p-2 rounded-xl border border-border bg-card hover:bg-muted/50 text-foreground transition shadow-xs flex items-center justify-center"
-                title="انتخاب تم سیستم طراحی وایب‌فارسی"
-              >
-                <Palette className="h-4 w-4 text-muted-foreground hover:text-foreground transition-colors" />
-              </button>
-
-              {themeDropdownOpen && (
-                <div className="absolute left-0 mt-2 w-52 rounded-2xl border border-border bg-card p-2 shadow-2xl z-50 animate-in fade-in zoom-in-95 space-y-1">
-                  <div className="px-2.5 py-1.5 text-[11px] font-bold text-muted-foreground border-b border-border/60">
-                    تم‌های وایب‌فارسی
-                  </div>
-                  {(Object.keys(VIBE_THEMES) as VibeFarsiThemeKey[]).map(
-                    (themeKey) => {
-                      const t = VIBE_THEMES[themeKey]
-                      const isCurrent = activeTheme === themeKey
-                      return (
-                        <button
-                          key={themeKey}
-                          type="button"
-                          onClick={() => {
-                            setTheme(themeKey)
-                            setThemeDropdownOpen(false)
-                          }}
-                          className={`w-full flex items-center justify-between p-2 rounded-xl text-xs font-bold transition-colors text-right ${
-                            isCurrent
-                              ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400'
-                              : 'hover:bg-muted/60 text-foreground'
-                          }`}
-                        >
-                          <div className="flex items-center gap-2">
-                            <span
-                              className="h-3 w-3 rounded-full"
-                              style={{ backgroundColor: t.primary }}
-                            />
-                            <span>{t.nameFA}</span>
-                          </div>
-                          {isCurrent && (
-                            <span className="text-[10px] font-bold text-blue-600">
-                              فعال
-                            </span>
-                          )}
-                        </button>
-                      )
-                    },
-                  )}
-                </div>
-              )}
-            </div>
-
+            {/* Dark / Light Mode Toggle */}
             <ThemeToggle />
           </div>
         </div>

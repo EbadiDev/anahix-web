@@ -68,7 +68,10 @@ export const FlashSaleCountdown: React.FC<FlashSaleCountdownProps> = ({
   return (
     <div
       dir="rtl"
-      className={`relative overflow-hidden rounded-3xl border border-rose-500/30 bg-gradient-to-r from-rose-950/40 via-red-900/30 to-slate-900/40 p-5 sm:p-6 backdrop-blur-xl shadow-lg shadow-rose-950/20 ${className}`}
+      className={`relative overflow-hidden rounded-2xl border border-rose-500/30 bg-gradient-to-r from-rose-950/40 via-red-900/30 to-zinc-900/50 p-5 sm:p-6 backdrop-blur-xl ${className}`}
+      style={{
+        boxShadow: 'var(--depth-surface)',
+      }}
     >
       {/* Background flare */}
       <div className="pointer-events-none absolute -top-12 -right-12 h-40 w-40 rounded-full bg-rose-500/20 blur-3xl" />

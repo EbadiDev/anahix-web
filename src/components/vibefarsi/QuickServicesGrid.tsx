@@ -116,7 +116,10 @@ export const QuickServicesGrid: React.FC<QuickServicesGridProps> = ({
                 onSelectCategory(cat)
               }
             }}
-            className={`group relative flex flex-col justify-between rounded-2xl border p-4 bg-gradient-to-b backdrop-blur-md transition-all duration-300 hover:scale-[1.03] hover:shadow-lg hover:shadow-blue-500/10 ${item.gradient}`}
+            className={`group relative flex flex-col justify-between rounded-2xl border p-4 bg-gradient-to-b backdrop-blur-md transition-all duration-200 hover:-translate-y-1 ${item.gradient}`}
+            style={{
+              boxShadow: 'var(--depth-surface)',
+            }}
           >
             <div className="space-y-2.5">
               <div className="flex items-start justify-between">

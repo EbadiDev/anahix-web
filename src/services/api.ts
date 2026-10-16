@@ -173,6 +173,19 @@ function normalizePayment(raw: any): PaymentGateway {
   }
 }
 
+// Helper to safely parse JSON responses and guard against non-JSON text/404 errors
+async function safeJsonParse(res: Response): Promise<any> {
+  const contentType = res.headers.get('content-type') || ''
+  if (!contentType.includes('application/json')) {
+    const text = await res.text()
+    if (!res.ok) {
+      throw new Error(text || `خطای ارتباط با سرور (${res.status})`)
+    }
+    return { code: res.status, msg: text, data: null }
+  }
+  return await res.json()
+}
+
 export const apiService = {
   async getProducts(): Promise<Product[]> {
     try {
@@ -2145,6 +2158,20 @@ export const apiService = {
     return json.data
   },
 
+  async likeArticle(slug: string): Promise<number> {
+    const res = await fetch(
+      `/api/v1/articles/${encodeURIComponent(slug)}/like`,
+      {
+        method: 'POST',
+      },
+    )
+    const json = await safeJsonParse(res)
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'خطا در ثبت پسندیدن مقاله')
+    }
+    return json.data?.like_count || 0
+  },
+
   async submitArticleComment(
     slug: string,
     payload: { author_name: string; email?: string; content: string },
@@ -2842,7 +2869,7 @@ export const apiService = {
   async getBanners(position?: string): Promise<BannerItem[]> {
     const query = position ? `?position=${encodeURIComponent(position)}` : ''
     const res = await fetch(`/api/v1/banners${query}`)
-    const json = await res.json()
+    const json = await safeJsonParse(res)
     if (res.ok && json.code === 200 && json.data) {
       return json.data
     }
@@ -2854,7 +2881,7 @@ export const apiService = {
     const res = await fetch('/api/v1/admin/banners', {
       headers: { Authorization: `Bearer ${token}` },
     })
-    const json = await res.json()
+    const json = await safeJsonParse(res)
     if (res.ok && json.code === 200 && json.data) {
       return json.data
     }
@@ -2871,7 +2898,7 @@ export const apiService = {
       },
       body: JSON.stringify(data),
     })
-    const json = await res.json()
+    const json = await safeJsonParse(res)
     if (!res.ok || json.code !== 200) {
       throw new Error(json.msg || 'خطا در ثبت بنر جدید')
     }
@@ -2891,7 +2918,7 @@ export const apiService = {
       },
       body: JSON.stringify(data),
     })
-    const json = await res.json()
+    const json = await safeJsonParse(res)
     if (!res.ok || json.code !== 200) {
       throw new Error(json.msg || 'خطا در ویرایش بنر')
     }
@@ -2904,7 +2931,7 @@ export const apiService = {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${token}` },
     })
-    const json = await res.json()
+    const json = await safeJsonParse(res)
     if (!res.ok || json.code !== 200) {
       throw new Error(json.msg || 'خطا در حذف بنر')
     }
@@ -2915,11 +2942,12 @@ export const apiService = {
   // ==========================================
   async getThemeSettings(): Promise<ThemeSettings> {
     const res = await fetch('/api/v1/system/theme')
-    const json = await res.json()
+    const json = await safeJsonParse(res)
     if (res.ok && json.code === 200 && json.data) {
       return json.data
     }
     return {
+      default_theme: 'graphite',
       event_name: 'عادی',
       event_active: false,
       primary_color: '#2563eb',
@@ -2940,7 +2968,7 @@ export const apiService = {
     const res = await fetch('/api/v1/admin/settings/theme', {
       headers: { Authorization: `Bearer ${token}` },
     })
-    const json = await res.json()
+    const json = await safeJsonParse(res)
     if (res.ok && json.code === 200 && json.data) {
       return json.data
     }
@@ -2957,7 +2985,7 @@ export const apiService = {
       },
       body: JSON.stringify(data),
     })
-    const json = await res.json()
+    const json = await safeJsonParse(res)
     if (!res.ok || json.code !== 200) {
       throw new Error(json.msg || 'خطا در ذخیره تنظیمات تم و رویداد')
     }
@@ -2975,7 +3003,7 @@ export const apiService = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ identifier, password }),
     })
-    const json = await res.json()
+    const json = await safeJsonParse(res)
     if (!res.ok || json.code !== 200) {
       throw new Error(json.msg || 'کلمه عبور وارد شده نادرست است')
     }
@@ -2997,7 +3025,7 @@ export const apiService = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ provider, id, email, name, avatar }),
     })
-    const json = await res.json()
+    const json = await safeJsonParse(res)
     if (!res.ok || json.code !== 200) {
       throw new Error(json.msg || 'خطا در ورود از طریق حساب کاربری')
     }
@@ -3023,7 +3051,7 @@ export const apiService = {
         current_password: currentPassword,
       }),
     })
-    const json = await res.json()
+    const json = await safeJsonParse(res)
     if (!res.ok || json.code !== 200) {
       throw new Error(json.msg || 'خطا در تنظیم کلمه عبور')
     }
@@ -3041,7 +3069,7 @@ export const apiService = {
       headers: { Authorization: `Bearer ${token}` },
       body: formData,
     })
-    const json = await res.json()
+    const json = await safeJsonParse(res)
     if (!res.ok || json.code !== 200) {
       throw new Error(json.msg || 'خطا در آپلود تصویر')
     }

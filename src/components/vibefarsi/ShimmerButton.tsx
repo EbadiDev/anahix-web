@@ -15,7 +15,7 @@ export const ShimmerButton: React.FC<ShimmerButtonProps> = ({
   shimmerColor = '#ffffff',
   shimmerSize = '0.05em',
   shimmerDuration = '3s',
-  borderRadius = '1rem',
+  borderRadius = '0.625rem',
   background = 'rgba(37, 99, 235, 1)',
   className = '',
   children,
@@ -33,7 +33,7 @@ export const ShimmerButton: React.FC<ShimmerButtonProps> = ({
           '--bg': background,
         } as React.CSSProperties
       }
-      className={`group relative z-0 flex cursor-pointer items-center justify-center overflow-hidden whitespace-nowrap px-6 py-3 text-white font-bold [background:var(--bg)] [border-radius:var(--radius)] transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] shadow-md shadow-blue-500/20 hover:shadow-lg hover:shadow-blue-500/30 ${className}`}
+      className={`group relative z-0 flex cursor-pointer items-center justify-center overflow-hidden whitespace-nowrap px-6 py-3 text-white font-bold [background:var(--bg)] [border-radius:var(--radius)] transition-all duration-200 hover:scale-[1.01] active:scale-[0.98] ${className}`}
       {...props}
     >
       {/* Sparkle beam reflection */}

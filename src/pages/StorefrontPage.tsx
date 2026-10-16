@@ -1,8 +1,5 @@
 import {
-  ArrowLeft,
   BookOpen,
-  ChevronDown,
-  ChevronUp,
   CreditCard,
   Headphones,
   HelpCircle,
@@ -22,15 +19,21 @@ import { CartDrawer } from '../components/CartDrawer'
 import { Header } from '../components/Header'
 import { ProductCard } from '../components/ProductCard'
 import { Input } from '../components/ui/input'
+import { Accordion } from '../components/vibefarsi/Accordion'
 import { Alert } from '../components/vibefarsi/Alert'
+import { ArrowLink } from '../components/vibefarsi/ArrowLink'
 import {
   BannerCarousel,
   type BannerData,
 } from '../components/vibefarsi/BannerCarousel'
 import { FlashSaleCountdown } from '../components/vibefarsi/FlashSaleCountdown'
 import { GridPattern } from '../components/vibefarsi/GridPattern'
+import { LikeButton } from '../components/vibefarsi/LikeButton'
 import { QuickServicesGrid } from '../components/vibefarsi/QuickServicesGrid'
+import { RangeSlider } from '../components/vibefarsi/RangeSlider'
 import { ShimmerButton } from '../components/vibefarsi/ShimmerButton'
+import { Stepper } from '../components/vibefarsi/Stepper'
+import { TypewriterText } from '../components/vibefarsi/TypewriterText'
 import { useCart } from '../lib/cartStore'
 import { api, apiService } from '../services/api'
 import type {
@@ -67,8 +70,8 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
   const [isCartOpen, setIsCartOpen] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
   const [searchQuery, setSearchQuery] = useState('')
+  const [maxPriceFilter, setMaxPriceFilter] = useState<number>(10000000)
   const [loading, setLoading] = useState(true)
-  const [openFaq, setOpenFaq] = useState<number | null>(null)
 
   useEffect(() => {
     async function init() {
@@ -164,7 +167,8 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
       p.title_fa.toLowerCase().includes(query) ||
       p.title_en.toLowerCase().includes(query) ||
       p.description_fa.toLowerCase().includes(query)
-    return matchesCategory && matchesSearch
+    const matchesPrice = p.price_toman <= maxPriceFilter
+    return matchesCategory && matchesSearch && matchesPrice
   })
 
   // Flash Sale Products
@@ -177,22 +181,51 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
     .filter((p) => p.is_best_seller || p.is_featured)
     .slice(0, 3)
 
-  const faqs = [
+  const faqItems = [
     {
-      q: 'آیا اشتراک‌ها قانونی پرداخت می‌شوند و قطعی نخواهند داشت؟',
-      a: 'بله، تمامی اشتراک‌های آناهیکس به صورت ۱۰۰٪ قانونی توسط کارت‌های اعتباری بین‌المللی اختصاصی و بدون استفاده از روش‌های پرخطر یا اشتراکی هکی پرداخت می‌شوند. در طول دوره اشتراک ضمانت کامل و عدم قطعی ارائه می‌گردد.',
+      id: 'faq-1',
+      title: 'آیا اشتراک‌ها قانونی پرداخت می‌شوند و قطعی نخواهند داشت؟',
+      content:
+        'بله، تمامی اشتراک‌های آناهیکس به صورت ۱۰۰٪ قانونی توسط کارت‌های اعتباری بین‌المللی اختصاصی و بدون استفاده از روش‌های پرخطر یا اشتراکی هکی پرداخت می‌شوند. در طول دوره اشتراک ضمانت کامل و عدم قطعی ارائه می‌گردد.',
     },
     {
-      q: 'تفاوت تحویل لینک فوری و ارتقای اکانت شخصی چیست؟',
-      a: 'در حالت «لینک فوری»، بلافاصله پس از پرداخت لینک دعوت فمیلی اختصاصی برای شما صادر شده و درجا روی جیمیل شما فعال می‌شود. در حالت «ارتقای اکانت شخصی»، اپراتور متخصص آناهیکس با ورود امن و تبادل لایو کد ۲FA اشتراک را مستقیم روی اکانت خودتان تمدید می‌کند.',
+      id: 'faq-2',
+      title: 'تفاوت تحویل لینک فوری و ارتقای اکانت شخصی چیست؟',
+      content:
+        'در حالت «لینک فوری»، بلافاصله پس از پرداخت لینک دعوت فمیلی اختصاصی برای شما صادر شده و درجا روی جیمیل شما فعال می‌شود. در حالت «ارتقای اکانت شخصی»، اپراتور متخصص آناهیکس با ورود امن و تبادل لایو کد ۲FA اشتراک را مستقیم روی اکانت خودتان تمدید می‌کند.',
     },
     {
-      q: 'سیاست امنیتی Zeroize رمزهای عبور چگونه کار می‌کند؟',
-      a: 'در سیستم آناهیکس، اطلاعات حساس و کلمه عبور وارد شده توسط الگوریتم رمزنگاری نامتقارن محافظت شده و بلافاصله پس از تکمیل فرآیند فعال‌سازی توسط اپراتور، رمز عبور به طور برگشت‌ناپذیر از پایگاه داده سرور پاکسازی (Zeroize) می‌شود.',
+      id: 'faq-3',
+      title: 'سیاست امنیتی Zeroize رمزهای عبور چگونه کار می‌کند؟',
+      content:
+        'در سیستم آناهیکس، اطلاعات حساس و کلمه عبور وارد شده توسط الگوریتم رمزنگاری نامتقارن محافظت شده و بلافاصله پس از تکمیل فرآیند فعال‌سازی توسط اپراتور، رمز عبور به طور برگشت‌ناپذیر از پایگاه داده سرور پاکسازی (Zeroize) می‌شود.',
     },
     {
-      q: 'در صورت بروز مشکل در فرآیند فعال‌سازی چه باید کرد؟',
-      a: 'پشتیبانی ۲۴ ساعته تلگرام آناهیکس (@AnahixSupport) آماده پاسخگویی سریع است. همچنین می‌توانید با شماره سفارش خود وضعیت را در تب «پیگیری سفارش» لحظه‌ای رصد نمایید.',
+      id: 'faq-4',
+      title: 'در صورت بروز مشکل در فرآیند فعال‌سازی چه باید کرد؟',
+      content:
+        'پشتیبانی ۲۴ ساعته تلگرام آناهیکس (@AnahixSupport) آماده پاسخگویی سریع است. همچنین می‌توانید با شماره سفارش خود وضعیت را در تب «پیگیری سفارش» لحظه‌ای رصد نمایید.',
+    },
+  ]
+
+  const workflowSteps = [
+    {
+      number: 1,
+      title: 'انتخاب پلن و مدت زمان',
+      description: 'انتخاب هوش مصنوعی، ظرفیت یا شماره مجازی دلخواه',
+      status: 'completed' as const,
+    },
+    {
+      number: 2,
+      title: 'پرداخت امن عضو شتاب و تتر',
+      description: 'تسویه حساب فوری با کلیه کارت‌های بانکی یا رمز ارز',
+      status: 'current' as const,
+    },
+    {
+      number: 3,
+      title: 'تحویل ۰ ثانیه‌ای لایسنس',
+      description: 'صدور آنی اکانت و فعال‌سازی قانونی بدون معطلی',
+      status: 'upcoming' as const,
     },
   ]
 
@@ -210,7 +243,7 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
       />
 
       <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 py-6 w-full space-y-10 sm:space-y-12">
-        {/* GRAPHITE SECURITY & ZEROIZE ALERT BANNER */}
+        {/* GRAPHITE SECURITY ALERT BANNER */}
         <Alert
           variant="graphite"
           title="زیرساخت امنیتی اختصاصی و تحویل رسمی لایسنس‌ها"
@@ -220,8 +253,11 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
           هیچ‌گونه رمز عبوری در سرور باقی نخواهد ماند.
         </Alert>
 
-        {/* HERO SECTION WITH VIBE FARSI GRID PATTERN & CAROUSEL */}
-        <section className="relative overflow-hidden rounded-3xl border border-border/80 bg-card p-6 sm:p-10 shadow-sm">
+        {/* HERO SECTION WITH TYPEWRITER & VIBE FARSI GRID */}
+        <section
+          className="relative overflow-hidden rounded-2xl border border-border bg-card p-6 sm:p-10"
+          style={{ boxShadow: 'var(--depth-surface)' }}
+        >
           <GridPattern
             squares={[
               [2, 1],
@@ -234,16 +270,23 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
           <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
             {/* Hero Left/Right Content */}
             <div className="lg:col-span-7 space-y-4 text-right">
-              <div className="inline-flex items-center gap-2 rounded-full border border-blue-500/20 bg-blue-500/10 px-3 py-1 text-xs font-semibold text-blue-600 dark:text-blue-400">
+              <div className="inline-flex items-center gap-2 rounded-full border border-blue-500/20 bg-blue-500/10 px-3 py-1 text-xs font-semibold text-blue-500">
                 <Zap className="h-3.5 w-3.5" />
                 <span>تحویل ۰ ثانیه‌ای لایسنس و اکانت‌های هوش مصنوعی</span>
               </div>
 
               <h1 className="text-2xl sm:text-4xl md:text-5xl font-black tracking-tight text-foreground leading-tight">
-                خرید قانونی اشتراک‌های بین‌المللی{' '}
-                <span className="text-blue-600 dark:text-blue-400">
-                  ChatGPT، Claude و Gemini
-                </span>
+                خرید قانونی اشتراک‌های{' '}
+                <TypewriterText
+                  words={[
+                    'ChatGPT Plus',
+                    'Claude 3.7 Sonnet',
+                    'Gemini Advanced',
+                    'Cursor AI Pro',
+                    'Google One 2TB',
+                  ]}
+                  className="text-blue-500 font-latin"
+                />
               </h1>
 
               <p className="text-xs sm:text-base text-muted-foreground leading-relaxed max-w-xl">
@@ -254,15 +297,15 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
 
               <div className="pt-2 flex flex-wrap items-center gap-3 sm:gap-4 text-xs text-muted-foreground">
                 <div className="flex items-center gap-1.5">
-                  <ShieldCheck className="h-4 w-4 text-blue-600" />
+                  <ShieldCheck className="h-4 w-4 text-blue-500" />
                   <span>ضمانت کامل بازگشت وجه</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <Lock className="h-4 w-4 text-blue-600" />
+                  <Lock className="h-4 w-4 text-blue-500" />
                   <span>پروتکل امنیت کلمه عبور (Zeroize)</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <CreditCard className="h-4 w-4 text-blue-600" />
+                  <CreditCard className="h-4 w-4 text-blue-500" />
                   <span>پرداخت عضو شتاب و تتر</span>
                 </div>
               </div>
@@ -276,7 +319,7 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
                 </a>
                 <Link
                   to="/virtual-numbers"
-                  className="px-5 py-3 rounded-2xl border border-border bg-card/80 hover:bg-muted text-xs sm:text-sm font-bold text-foreground transition-all hover:scale-[1.02]"
+                  className="px-5 py-3 rounded-2xl border border-border bg-card hover:bg-muted text-xs sm:text-sm font-bold text-foreground transition-all hover:scale-[1.01]"
                 >
                   شماره مجازی (SMS)
                 </Link>
@@ -288,8 +331,11 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
               {banners.length > 0 ? (
                 <BannerCarousel banners={banners} />
               ) : (
-                <div className="relative overflow-hidden rounded-3xl border border-border bg-gradient-to-br from-blue-600/10 via-indigo-600/10 to-slate-900/30 p-6 text-right space-y-3">
-                  <div className="inline-flex items-center gap-1.5 rounded-full bg-blue-500/20 text-blue-600 dark:text-blue-400 px-3 py-1 text-xs font-bold">
+                <div
+                  className="relative overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-blue-600/10 via-indigo-600/10 to-zinc-900/40 p-6 text-right space-y-3"
+                  style={{ boxShadow: 'var(--depth-surface)' }}
+                >
+                  <div className="inline-flex items-center gap-1.5 rounded-full bg-blue-500/20 text-blue-400 px-3 py-1 text-xs font-bold">
                     <Sparkles className="h-3.5 w-3.5" />
                     <span>پیشنهاد برگزیده ماه</span>
                   </div>
@@ -300,13 +346,9 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
                     با ۲ ترابایت فضای ابری گوگل وان و دسترسی کامل به Gemini 1.5
                     Pro با نازل‌ترین هزینه ریالی
                   </p>
-                  <Link
-                    to="/products/gemini-advanced-18m"
-                    className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 dark:text-blue-400 pt-2"
-                  >
-                    <span>سفارش آنی سرویس</span>
-                    <span>←</span>
-                  </Link>
+                  <ArrowLink to="/products/gemini-advanced-18m">
+                    سفارش آنی سرویس
+                  </ArrowLink>
                 </div>
               )}
             </div>
@@ -319,6 +361,14 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
             </div>
             <BrandIcons />
           </div>
+        </section>
+
+        {/* WORKFLOW STEPS STEPPER */}
+        <section
+          className="rounded-2xl border border-border bg-card p-5 sm:p-6"
+          style={{ boxShadow: 'var(--depth-surface)' }}
+        >
+          <Stepper steps={workflowSteps} />
         </section>
 
         {/* QUICK SERVICES ACCESS GRID */}
@@ -372,37 +422,54 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
           </section>
         )}
 
-        {/* MAIN PRODUCTS CATALOG & FILTER BAR */}
+        {/* MAIN PRODUCTS CATALOG & FILTER BAR (WITH CATEGORIES + RANGE SLIDER) */}
         <section id="products-catalog" className="space-y-6">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            {/* Category tabs */}
-            <div className="flex items-center gap-2 overflow-x-auto w-full md:w-auto pb-2 md:pb-0 scrollbar-none">
-              {categories.map((cat) => (
-                <button
-                  key={cat.id}
-                  type="button"
-                  onClick={() => setSelectedCategory(cat.id)}
-                  className={`px-4 py-2 rounded-2xl text-xs font-bold whitespace-nowrap transition-all ${
-                    selectedCategory === cat.id
-                      ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
-                      : 'bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-muted/50'
-                  }`}
-                >
-                  {cat.label}
-                </button>
-              ))}
+          <div
+            className="rounded-2xl border border-border bg-card p-5 space-y-4"
+            style={{ boxShadow: 'var(--depth-surface)' }}
+          >
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+              {/* Category tabs */}
+              <div className="flex items-center gap-2 overflow-x-auto w-full md:w-auto pb-2 md:pb-0 scrollbar-none">
+                {categories.map((cat) => (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    onClick={() => setSelectedCategory(cat.id)}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
+                      selectedCategory === cat.id
+                        ? 'bg-blue-600 text-white shadow-sm'
+                        : 'bg-zinc-900 border border-zinc-800 text-muted-foreground hover:text-foreground hover:bg-zinc-800'
+                    }`}
+                  >
+                    {cat.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Search Input */}
+              <div className="relative w-full md:w-80">
+                <Input
+                  type="text"
+                  placeholder="جستجوی سرویس (مثلاً Gemini، ChatGPT)..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pr-10 text-xs rounded-xl bg-zinc-900 border-zinc-800 h-10"
+                />
+                <Search className="h-4 w-4 text-muted-foreground absolute right-3.5 top-3 pointer-events-none" />
+              </div>
             </div>
 
-            {/* Search Input */}
-            <div className="relative w-full md:w-80">
-              <Input
-                type="text"
-                placeholder="جستجوی سرویس (مثلاً Gemini، ChatGPT)..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pr-10 text-xs rounded-2xl bg-card border-border h-11"
+            {/* Range Slider for Price Filtering */}
+            <div className="pt-3 border-t border-border/60 max-w-sm">
+              <RangeSlider
+                min={200000}
+                max={10000000}
+                step={100000}
+                value={maxPriceFilter}
+                onChange={(val) => setMaxPriceFilter(val)}
+                label="فیلتر بر اساس سقف قیمت:"
               />
-              <Search className="h-4 w-4 text-muted-foreground absolute right-3.5 top-3.5 pointer-events-none" />
             </div>
           </div>
 
@@ -410,20 +477,23 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
           <div>
             {loading ? (
               <div className="py-20 text-center space-y-3">
-                <RefreshCw className="h-8 w-8 text-blue-600 animate-spin mx-auto" />
+                <RefreshCw className="h-8 w-8 text-blue-500 animate-spin mx-auto" />
                 <p className="text-xs text-muted-foreground">
                   در حال بارگذاری اشتراک‌ها و موجودی لایسنس‌ها...
                 </p>
               </div>
             ) : filteredProducts.length === 0 ? (
-              <div className="rounded-3xl border border-border bg-card p-12 text-center text-muted-foreground space-y-2">
+              <div
+                className="rounded-2xl border border-border bg-card p-12 text-center text-muted-foreground space-y-2"
+                style={{ boxShadow: 'var(--depth-surface)' }}
+              >
                 <HelpCircle className="h-8 w-8 mx-auto text-muted-foreground/60" />
                 <div className="font-bold text-sm text-foreground">
                   محصولی با این مشخصات یافت نشد
                 </div>
                 <p className="text-xs">
-                  لطفاً کلمه کلیدی دیگری را جستجو کنید یا دسته‌بندی را به «همه
-                  سرویس‌ها» تغییر دهید.
+                  لطفاً کلمه کلیدی دیگری را جستجو کنید یا فیلتر قیمت را افزایش
+                  دهید.
                 </p>
               </div>
             ) : (
@@ -440,49 +510,43 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
           </div>
         </section>
 
-        {/* LATEST BLOG ARTICLES & TUTORIALS */}
+        {/* LATEST BLOG ARTICLES & TUTORIALS (WITH LIKE BUTTON & ARROW LINK) */}
         {articles.length > 0 && (
           <section className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-base sm:text-lg font-black text-foreground flex items-center gap-2">
-                  <BookOpen className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                  <BookOpen className="h-5 w-5 text-blue-500" />
                   <span>آموزش‌ها و آخرین اخبار هوش مصنوعی</span>
                 </h3>
                 <p className="text-xs text-muted-foreground mt-0.5">
                   راهنمای جامع کار با مدل‌های هوش مصنوعی و ترفندهای حرفه‌ای
                 </p>
               </div>
-              <Link
-                to="/blog"
-                className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
-              >
-                <span>مشاهده وبلاگ</span>
-                <ArrowLeft className="h-3.5 w-3.5" />
-              </Link>
+              <ArrowLink to="/blog">مشاهده وبلاگ</ArrowLink>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {articles.map((art) => (
-                <Link
+                <div
                   key={art.id}
-                  to={`/blog/${art.slug}`}
-                  className="group rounded-3xl border border-border bg-card overflow-hidden hover:shadow-lg transition-all flex flex-col justify-between"
+                  className="group rounded-2xl border border-border bg-card overflow-hidden hover:border-zinc-700 transition-all flex flex-col justify-between"
+                  style={{ boxShadow: 'var(--depth-surface)' }}
                 >
-                  <div>
+                  <Link to={`/blog/${art.slug}`}>
                     {art.cover_image && (
-                      <div className="h-40 w-full overflow-hidden bg-muted">
+                      <div className="h-40 w-full overflow-hidden bg-zinc-950">
                         <img
                           src={art.cover_image}
                           alt={art.title}
-                          className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-200"
                         />
                       </div>
                     )}
-                    <div className="p-5 space-y-2 text-right">
+                    <div className="p-4 sm:p-5 space-y-2 text-right">
                       <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
                         {art.category_name && (
-                          <span className="font-bold text-blue-600">
+                          <span className="font-bold text-blue-400">
                             {art.category_name}
                           </span>
                         )}
@@ -492,29 +556,34 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
                           مطالعه
                         </span>
                       </div>
-                      <h4 className="text-sm font-bold text-foreground group-hover:text-blue-600 transition-colors line-clamp-1">
+                      <h4 className="text-sm font-bold text-foreground group-hover:text-blue-400 transition-colors line-clamp-1">
                         {art.title}
                       </h4>
                       <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
                         {art.excerpt}
                       </p>
                     </div>
-                  </div>
+                  </Link>
 
-                  <div className="p-5 pt-0 flex items-center justify-between text-xs font-bold text-blue-600 border-t border-border/40 mt-2">
-                    <span>مطالعه مقاله</span>
-                    <span className="group-hover:-translate-x-1 transition-transform">
-                      ←
-                    </span>
+                  {/* Footer with LikeButton and Arrow Link */}
+                  <div className="p-4 pt-0 flex items-center justify-between text-xs font-bold border-t border-border/80 mt-2">
+                    <ArrowLink to={`/blog/${art.slug}`}>مطالعه مقاله</ArrowLink>
+                    <LikeButton
+                      slug={art.slug}
+                      initialCount={art.like_count || 0}
+                    />
                   </div>
-                </Link>
+                </div>
               ))}
             </div>
           </section>
         )}
 
         {/* 4-PILLAR REASSURANCE TRUST GRID */}
-        <section className="rounded-3xl border border-border bg-card p-6 sm:p-8">
+        <section
+          className="rounded-2xl border border-border bg-card p-6 sm:p-8"
+          style={{ boxShadow: 'var(--depth-surface)' }}
+        >
           <div className="text-center mb-8">
             <h3 className="text-lg font-black text-foreground">
               چرا آناهیکس را برای خرید اکانت‌های هوش مصنوعی انتخاب می‌کنند؟
@@ -524,111 +593,88 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 text-right">
-            <div className="p-5 rounded-2xl bg-muted/40 border border-border/60 space-y-2.5">
-              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-50 dark:bg-blue-950/80 text-blue-600 dark:text-blue-400 font-black">
-                <Zap className="h-5 w-5" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 text-right">
+            <div className="p-4 rounded-xl bg-zinc-900/60 border border-zinc-800 space-y-2">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-500/10 text-blue-400 font-black">
+                <Zap className="h-4 w-4" />
               </div>
-              <h4 className="font-bold text-sm text-foreground">
+              <h4 className="font-bold text-xs sm:text-sm text-foreground">
                 تحویل آنی و بدون معطلی
               </h4>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                لینک‌های اختصاصی و اکانت‌های پیش‌ساخته بلافاصله پس از پرداخت در
-                همان لحظه صادر و تحویل می‌گردند.
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                لینک‌های اختصاصی و اکانت‌های پیش‌ساخته بلافاصله پس از پرداخت صادر
+                می‌گردند.
               </p>
             </div>
 
-            <div className="p-5 rounded-2xl bg-muted/40 border border-border/60 space-y-2.5">
-              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-50 dark:bg-blue-950/80 text-blue-600 dark:text-blue-400 font-black">
-                <ShieldCheck className="h-5 w-5" />
+            <div className="p-4 rounded-xl bg-zinc-900/60 border border-zinc-800 space-y-2">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-500/10 text-blue-400 font-black">
+                <ShieldCheck className="h-4 w-4" />
               </div>
-              <h4 className="font-bold text-sm text-foreground">
+              <h4 className="font-bold text-xs sm:text-sm text-foreground">
                 تضمین عدم مسدودی و اصالت
               </h4>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                پرداخت‌ها با مسترکارت معتبر و قانونی انجام شده و در طول دوره به
-                هیچ عنوان غیرفعال نمی‌شوند.
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                پرداخت‌ها با مسترکارت معتبر انجام شده و در طول دوره به هیچ عنوان
+                مسدود نمی‌شوند.
               </p>
             </div>
 
-            <div className="p-5 rounded-2xl bg-muted/40 border border-border/60 space-y-2.5">
-              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-50 dark:bg-blue-950/80 text-blue-600 dark:text-blue-400 font-black">
-                <Lock className="h-5 w-5" />
+            <div className="p-4 rounded-xl bg-zinc-900/60 border border-zinc-800 space-y-2">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-500/10 text-blue-400 font-black">
+                <Lock className="h-4 w-4" />
               </div>
-              <h4 className="font-bold text-sm text-foreground">
+              <h4 className="font-bold text-xs sm:text-sm text-foreground">
                 سیاست نابودسازی رمز (Zeroize)
               </h4>
-              <p className="text-xs text-muted-foreground leading-relaxed">
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
                 کلمه عبور ارائه شده در ارتقای شخصی پس از اتمام سفارش فوراً از
-                دیتابیس امحا شده و غیرقابل بازیابی است.
+                دیتابیس امحا می‌شود.
               </p>
             </div>
 
-            <div className="p-5 rounded-2xl bg-muted/40 border border-border/60 space-y-2.5">
-              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-50 dark:bg-blue-950/80 text-blue-600 dark:text-blue-400 font-black">
-                <Headphones className="h-5 w-5" />
+            <div className="p-4 rounded-xl bg-zinc-900/60 border border-zinc-800 space-y-2">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-500/10 text-blue-400 font-black">
+                <Headphones className="h-4 w-4" />
               </div>
-              <h4 className="font-bold text-sm text-foreground">
+              <h4 className="font-bold text-xs sm:text-sm text-foreground">
                 پشتیبانی ۲۴ ساعته متخصص
               </h4>
-              <p className="text-xs text-muted-foreground leading-relaxed">
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
                 کارشناسان فنی مسلط به پلتفرم‌های هوش مصنوعی در کلیه روزهای هفته
-                پاسخگوی سوالات شما هستند.
+                پاسخگوی شما هستند.
               </p>
             </div>
           </div>
         </section>
 
-        {/* FAQ SECTION */}
-        <section className="rounded-3xl border border-border bg-card p-6 sm:p-8 space-y-6">
-          <div className="text-center">
+        {/* FAQ ACCORDION SECTION (VIBE FARSI ACCORDION) */}
+        <section
+          className="rounded-2xl border border-border bg-card p-6 sm:p-8 space-y-5"
+          style={{ boxShadow: 'var(--depth-surface)' }}
+        >
+          <div className="text-center space-y-1">
             <h3 className="text-lg font-black text-foreground">
               پرسش‌های متداول خریداران
             </h3>
-            <p className="text-xs text-muted-foreground mt-1">
+            <p className="text-xs text-muted-foreground">
               پاسخ به سوالات متداول درباره نحوه پرداخت، فعال‌سازی و پشتیبانی
             </p>
           </div>
 
-          <div className="max-w-3xl mx-auto space-y-3">
-            {faqs.map((faq, index) => {
-              const isOpen = openFaq === index
-              return (
-                <div
-                  key={faq.q}
-                  className="rounded-2xl border border-border bg-muted/20 overflow-hidden transition-colors"
-                >
-                  <button
-                    type="button"
-                    onClick={() => setOpenFaq(isOpen ? null : index)}
-                    className="w-full flex items-center justify-between p-4 text-right font-bold text-xs sm:text-sm text-foreground hover:bg-muted/40 transition-colors"
-                  >
-                    <span>{faq.q}</span>
-                    {isOpen ? (
-                      <ChevronUp className="h-4 w-4 text-blue-600 shrink-0" />
-                    ) : (
-                      <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
-                    )}
-                  </button>
-                  {isOpen && (
-                    <div className="px-4 pb-4 pt-1 text-xs text-muted-foreground leading-relaxed border-t border-border/50 bg-background/50">
-                      {faq.a}
-                    </div>
-                  )}
-                </div>
-              )
-            })}
+          <div className="max-w-3xl mx-auto">
+            <Accordion items={faqItems} defaultOpenId="faq-1" />
           </div>
         </section>
       </main>
 
       {/* FOOTER */}
-      <footer className="border-t border-border bg-card/60 mt-12 py-10 text-muted-foreground transition-colors">
+      <footer className="border-t border-border bg-card mt-12 py-10 text-muted-foreground transition-colors">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-8">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8 text-right text-xs">
             <div className="space-y-3">
               <div className="flex items-center gap-2.5">
-                <div className="h-8 w-8 rounded-xl bg-blue-600 text-white font-black flex items-center justify-center text-sm shadow-sm shadow-blue-600/30">
+                <div className="h-8 w-8 rounded-xl bg-blue-600 text-white font-black flex items-center justify-center text-sm shadow-sm">
                   A
                 </div>
                 <span className="font-black text-foreground text-sm">
@@ -648,19 +694,19 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
               </h5>
               <ul className="space-y-2.5 text-xs">
                 <li>
-                  <a href="#products-catalog" className="hover:text-blue-600">
+                  <a href="#products-catalog" className="hover:text-blue-500">
                     کاتالوگ اشتراک‌ها
                   </a>
                 </li>
                 <li>
-                  <Link to="/virtual-numbers" className="hover:text-blue-600">
+                  <Link to="/virtual-numbers" className="hover:text-blue-500">
                     شماره مجازی (SMS Verification)
                   </Link>
                 </li>
                 <li>
                   <Link
                     to="/blog"
-                    className="hover:text-blue-600 font-semibold text-primary"
+                    className="hover:text-blue-500 font-semibold"
                   >
                     وبلاگ و آموزش‌ها (SEO Engine)
                   </Link>
@@ -668,19 +714,14 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
                 <li>
                   <Link
                     to="/help"
-                    className="hover:text-blue-600 font-semibold text-primary"
+                    className="hover:text-blue-500 font-semibold"
                   >
                     پایگاه دانش و رفع ارورها (Help Center)
                   </Link>
                 </li>
                 <li>
-                  <Link to="/track" className="hover:text-blue-600">
+                  <Link to="/track" className="hover:text-blue-500">
                     پیگیری سفارش و فاکتورها
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/admin/dashboard" className="hover:text-blue-600">
-                    ورود به پنل مدیریت
                   </Link>
                 </li>
               </ul>
@@ -712,7 +753,7 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
                   href="https://t.me/AnahixSupport"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 rounded-xl bg-blue-600/10 border border-blue-500/20 px-3.5 py-2 text-xs text-blue-600 dark:text-blue-400 font-bold hover:bg-blue-600 hover:text-white transition-colors"
+                  className="inline-flex items-center gap-2 rounded-xl bg-blue-500/10 border border-blue-500/20 px-3.5 py-2 text-xs text-blue-400 font-bold hover:bg-blue-600 hover:text-white transition-colors"
                 >
                   <Headphones className="h-4 w-4" />
                   <span>پشتیبانی تلگرام: @AnahixSupport</span>
@@ -726,8 +767,7 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
               © ۱۴۰۵ تمامی حقوق متعلق به سامانه آناهیکس (Anahix) می‌باشد.
             </div>
             <div className="text-muted-foreground/80 font-latin text-[11px]">
-              Security Powered by AES-256-GCM Vault & Zero-Knowledge
-              Architecture
+              Vibe Farsi Graphite System • AES-256-GCM Vault
             </div>
           </div>
         </div>

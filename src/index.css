@@ -3,132 +3,153 @@
 @tailwind utilities;
 
 @layer base {
-  :root {
-    --background: 210 40% 98%;
-    --foreground: 222.2 84% 4.9%;
-
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-
-    /* Signature Royal Blue */
-    --primary: 221.2 83.2% 53.3%;
-    --primary-hover: 224.3 76.3% 48%;
-    --primary-foreground: 210 40% 98%;
-
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-
-    --accent: 214 95% 93%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 221.2 83.2% 53.3%;
-
-    --radius: 0.75rem;
-  }
-
+  /* گرافیت وایب‌فارسی - حالت پیش‌فرض تیره */
+  :root,
   .dark {
-    --background: 224 71% 4%;
-    --foreground: 210 40% 98%;
+    color-scheme: dark;
+    /* رنگ */
+    --background: oklch(0.115 0.002 285);
+    --foreground: oklch(0.975 0 0);
+    --card: oklch(0.14 0.002 285);
+    --card-foreground: oklch(0.975 0 0);
+    --popover: oklch(0.16 0.002 285);
+    --popover-foreground: oklch(0.975 0 0);
+    --primary: oklch(0.975 0 0);
+    --primary-foreground: oklch(0.13 0 0);
+    --primary-hover: oklch(0.88 0 0);
+    --secondary: oklch(0.2 0.002 285);
+    --secondary-foreground: oklch(0.975 0 0);
+    --muted: oklch(0.175 0.002 285);
+    --muted-foreground: oklch(0.63 0.004 285);
+    --accent: oklch(0.2 0.002 285);
+    --accent-foreground: oklch(0.975 0 0);
+    --destructive: oklch(0.65 0.2 25);
+    --destructive-foreground: oklch(0.975 0 0);
+    --success: oklch(0.75 0.16 160);
+    --warning: oklch(0.82 0.16 80);
+    --border: oklch(1 0 0 / 8%);
+    --input: oklch(1 0 0 / 11%);
+    --ring: oklch(0.7 0 0);
+    --brand: oklch(0.8 0.165 65);
+    --brand-foreground: oklch(0.22 0.06 60);
 
-    --card: 222.2 84% 5.5%;
-    --card-foreground: 210 40% 98%;
-
-    --popover: 222.2 84% 5.5%;
-    --popover-foreground: 210 40% 98%;
-
-    /* Signature Electric Blue */
-    --primary: 217.2 91.2% 59.8%;
-    --primary-hover: 221.2 83.2% 53.3%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-
-    --muted: 217.2 32.6% 14%;
-    --muted-foreground: 215 20.2% 65.1%;
-
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 217.2 91.2% 59.8%;
+    /* زبان طراحی: فونت، فرم، خط، عمق، حرکت و تراکم */
+    --radius: 0.625rem;
+    --type-display-weight: 700;
+    --shape-control: calc(var(--radius) - 2px);
+    --shape-field: calc(var(--radius) - 2px);
+    --shape-surface: calc(var(--radius) + 12px);
+    --shape-overlay: calc(var(--radius) + 4px);
+    --line: 1px;
+    --line-field: 1px;
+    --line-style: solid;
+    --field: color-mix(in oklch, var(--background) 60%, transparent);
+    --depth-control: 0 0 #0000;
+    --depth-press: 0 0 #0000;
+    --depth-field: 0 0 #0000;
+    --depth-surface: 0 1px 0 0 oklch(1 0 0 / 6%) inset;
+    --depth-overlay: 0 20px 50px -20px oklch(0 0 0 / 80%);
+    --surface-filter: none;
+    --press: scale(0.98);
+    --motion: 200ms;
+    --motion-ease: cubic-bezier(0.2, 0, 0, 1);
+    --backdrop: none;
+    --spacing: 0.25rem;
   }
-}
 
-@layer base {
+  /* گرافیت وایب‌فارسی - حالت روشن مینیمال فنی */
+  html:not(.dark) {
+    color-scheme: light;
+    --background: oklch(0.985 0.002 285);
+    --foreground: oklch(0.14 0.002 285);
+    --card: oklch(1 0 0);
+    --card-foreground: oklch(0.14 0.002 285);
+    --popover: oklch(1 0 0);
+    --popover-foreground: oklch(0.14 0.002 285);
+    --primary: oklch(0.2 0.002 285);
+    --primary-foreground: oklch(0.98 0 0);
+    --primary-hover: oklch(0.3 0.002 285);
+    --secondary: oklch(0.95 0.002 285);
+    --secondary-foreground: oklch(0.14 0.002 285);
+    --muted: oklch(0.95 0.002 285);
+    --muted-foreground: oklch(0.45 0.004 285);
+    --accent: oklch(0.94 0.002 285);
+    --accent-foreground: oklch(0.14 0.002 285);
+    --destructive: oklch(0.6 0.2 25);
+    --destructive-foreground: oklch(0.98 0 0);
+    --success: oklch(0.6 0.16 160);
+    --warning: oklch(0.7 0.16 80);
+    --border: oklch(0 0 0 / 10%);
+    --input: oklch(0 0 0 / 12%);
+    --ring: oklch(0.3 0 0);
+    --brand: oklch(0.6 0.165 65);
+    --brand-foreground: oklch(0.98 0 0);
+    --depth-surface: 0 1px 3px 0 oklch(0 0 0 / 6%);
+    --depth-overlay: 0 10px 30px -10px oklch(0 0 0 / 15%);
+  }
+
   * {
     @apply border-border;
   }
   body {
     @apply bg-background text-foreground;
     font-family:
-      "Vazirmatn", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-      sans-serif;
+      "IRANSans", "Vazirmatn", -apple-system, BlinkMacSystemFont, "Segoe UI",
+      Roboto, sans-serif;
     direction: rtl;
     text-align: right;
     min-height: 100vh;
+    background-color: var(--background);
+    color: var(--foreground);
+    transition:
+      background-color var(--motion) var(--motion-ease),
+      color var(--motion) var(--motion-ease);
   }
 }
 
-/* Vibe Farsi Design System Utility Classes */
+/* Vibe Farsi Graphite Design System Utility Classes */
 @layer utilities {
   .bg-grid-pattern {
     background-size: 32px 32px;
     background-image:
-      linear-gradient(to right, rgba(100, 116, 139, 0.08) 1px, transparent 1px),
-      linear-gradient(to bottom, rgba(100, 116, 139, 0.08) 1px, transparent 1px);
+      linear-gradient(to right, oklch(1 0 0 / 4%) 1px, transparent 1px),
+      linear-gradient(to bottom, oklch(1 0 0 / 4%) 1px, transparent 1px);
   }
 
-  .dark .bg-grid-pattern {
+  html:not(.dark) .bg-grid-pattern {
     background-size: 32px 32px;
     background-image:
-      linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
-      linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+      linear-gradient(to right, oklch(0 0 0 / 4%) 1px, transparent 1px),
+      linear-gradient(to bottom, oklch(0 0 0 / 4%) 1px, transparent 1px);
   }
 
   .bg-dot-pattern {
     background-size: 20px 20px;
-    background-image: radial-gradient(
-      rgba(100, 116, 139, 0.15) 1px,
-      transparent 1px
-    );
+    background-image: radial-gradient(oklch(1 0 0 / 8%) 1px, transparent 1px);
   }
 
-  .dark .bg-dot-pattern {
+  html:not(.dark) .bg-dot-pattern {
     background-size: 20px 20px;
-    background-image: radial-gradient(
-      rgba(255, 255, 255, 0.1) 1px,
-      transparent 1px
-    );
+    background-image: radial-gradient(oklch(0 0 0 / 8%) 1px, transparent 1px);
+  }
+
+  /* کارت و پنل گرافیت: بدون سایه سنگین، با خط روشن ملایم در بالای کارت */
+  .graphite-card {
+    background-color: var(--card);
+    border: 1px solid var(--border);
+    box-shadow: var(--depth-surface);
+    border-radius: var(--radius);
+    transition:
+      transform var(--motion) var(--motion-ease),
+      border-color var(--motion) var(--motion-ease);
   }
 
   .glass-panel {
-    background: rgba(255, 255, 255, 0.7);
+    background: color-mix(in oklch, var(--card) 85%, transparent);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
-    border: 1px solid rgba(226, 232, 240, 0.8);
-  }
-
-  .dark .glass-panel {
-    background: rgba(15, 23, 42, 0.7);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--border);
+    box-shadow: var(--depth-surface);
   }
 
   .scrollbar-none::-webkit-scrollbar {
@@ -143,7 +164,7 @@
     background: linear-gradient(
       90deg,
       rgba(255, 255, 255, 0) 0%,
-      rgba(255, 255, 255, 0.15) 50%,
+      rgba(255, 255, 255, 0.12) 50%,
       rgba(255, 255, 255, 0) 100%
     );
     background-size: 200% 100%;

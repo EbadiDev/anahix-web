@@ -195,7 +195,10 @@ const ToastItem: React.FC<{
 
   return (
     <div
-      className={`pointer-events-auto flex items-start gap-3 rounded-2xl border p-4 shadow-xl backdrop-blur-xl transition-all duration-300 animate-fade-in-up bg-card/95 text-foreground ${getBorderColor()}`}
+      className={`pointer-events-auto flex items-start gap-3 rounded-2xl border p-4 backdrop-blur-xl transition-all duration-200 animate-fade-in-up bg-zinc-950/95 text-zinc-100 ${getBorderColor()}`}
+      style={{
+        boxShadow: 'var(--depth-surface)',
+      }}
     >
       {item.image ? (
         <img

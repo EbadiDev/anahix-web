@@ -41,6 +41,7 @@ import { ProfileSettingsTab } from '../components/profile/ProfileSettingsTab'
 import { ProfileSupportTab } from '../components/profile/ProfileSupportTab'
 import { ProfileWalletTab } from '../components/profile/ProfileWalletTab'
 import { WalletTopupModal } from '../components/profile/WalletTopupModal'
+import { ThemeToggle } from '../components/ThemeToggle'
 import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
 import { apiService } from '../services/api'
@@ -330,26 +331,40 @@ export const UserProfilePage: React.FC = () => {
 
         {/* Profile Hero Header Card */}
         {loading ? (
-          <div className="rounded-2xl border border-border bg-card p-6 shadow-sm flex items-center justify-center">
+          <div
+            className="rounded-2xl border border-border bg-card p-6 flex items-center justify-center"
+            style={{ boxShadow: 'var(--depth-surface)' }}
+          >
             <div className="flex items-center gap-3 text-muted-foreground text-xs font-medium">
               <span className="h-4 w-4 rounded-full border-2 border-blue-600 border-t-transparent animate-spin" />
               <span>در حال بارگذاری اطلاعات حساب کاربری...</span>
             </div>
           </div>
         ) : customer ? (
-          <div className="relative overflow-hidden rounded-2xl border border-border bg-card p-6 shadow-sm">
-            {/* Top decorative gradient mesh */}
-            <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-blue-600 via-indigo-600 to-sky-400" />
+          <div
+            className="relative overflow-hidden rounded-2xl border border-border bg-card p-5 sm:p-6"
+            style={{ boxShadow: 'var(--depth-surface)' }}
+          >
+            {/* Top decorative gradient line in Graphite style */}
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-600 via-indigo-600 to-sky-400" />
 
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-5">
               {/* Left/Start: Avatar + Info */}
-              <div className="flex items-center gap-4">
-                <div className="relative">
-                  <div className="h-16 w-16 sm:h-20 sm:w-20 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-500 text-white flex items-center justify-center font-black text-2xl shadow-lg shadow-blue-500/20">
-                    {customer.full_name
-                      ? customer.full_name.charAt(0).toUpperCase()
-                      : customer.phone.slice(-4)}
-                  </div>
+              <div className="flex items-center gap-3.5 sm:gap-4 w-full md:w-auto">
+                <div className="relative shrink-0">
+                  {customer.avatar_url ? (
+                    <img
+                      src={customer.avatar_url}
+                      alt={customer.full_name || 'کاربر'}
+                      className="h-14 w-14 sm:h-16 sm:w-16 rounded-2xl object-cover border-2 border-blue-500/30"
+                    />
+                  ) : (
+                    <div className="h-14 w-14 sm:h-16 sm:w-16 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-500 text-white flex items-center justify-center font-black text-xl sm:text-2xl shadow-md">
+                      {customer.full_name
+                        ? customer.full_name.charAt(0).toUpperCase()
+                        : customer.phone.slice(-4)}
+                    </div>
+                  )}
                   <span
                     className="absolute -bottom-1 -right-1 h-5 w-5 rounded-full bg-emerald-500 border-2 border-card flex items-center justify-center"
                     title="حساب فعال و تایید شده"
@@ -358,21 +373,22 @@ export const UserProfilePage: React.FC = () => {
                   </span>
                 </div>
 
-                <div className="space-y-1 text-right">
-                  <div className="flex items-center gap-2">
-                    <h1 className="text-xl sm:text-2xl font-black tracking-tight text-foreground">
+                <div className="space-y-1 text-right flex-1 min-w-0">
+                  <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                    <h1 className="text-base sm:text-xl font-black tracking-tight text-foreground truncate">
                       {customer.full_name || 'کاربر گرامی آناهیکس'}
                     </h1>
-                    {/* Real Role & Verification Badges */}
+
+                    {/* Role & Badges */}
                     {(customer.is_admin || apiService.getAdminUser()) && (
                       <Link
                         to="/admin/dashboard"
                         title="ورود به پنل مدیریت"
-                        className="inline-flex"
+                        className="inline-flex shrink-0"
                       >
                         <Badge
                           variant="outline"
-                          className="border-red-500/40 text-red-600 dark:text-red-400 bg-red-500/10 hover:bg-red-500/20 text-[11px] gap-1 px-2 py-0.5 cursor-pointer transition-colors"
+                          className="border-red-500/40 text-red-500 bg-red-500/10 text-[10px] gap-1 px-1.5 py-0.5"
                         >
                           <ShieldCheck className="h-3 w-3" />
                           <span>مدیر سیستم</span>
@@ -383,85 +399,77 @@ export const UserProfilePage: React.FC = () => {
                     {customer.is_active && (
                       <Badge
                         variant="outline"
-                        className="border-emerald-500/30 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 text-[11px] gap-1 px-2 py-0.5"
+                        className="border-emerald-500/30 text-emerald-400 bg-emerald-500/10 text-[10px] gap-1 px-1.5 py-0.5 shrink-0"
                       >
                         <CheckCircle2 className="h-3 w-3" />
-                        <span>حساب تاییدشده</span>
+                        <span>تاییدشده</span>
                       </Badge>
                     )}
 
-                    {orders.length > 0 ? (
+                    {orders.length > 0 && (
                       <Badge
                         variant="outline"
-                        className="border-blue-500/30 text-blue-600 dark:text-blue-400 bg-blue-500/10 text-[11px] gap-1 px-2 py-0.5"
+                        className="border-blue-500/30 text-blue-400 bg-blue-500/10 text-[10px] gap-1 px-1.5 py-0.5 shrink-0"
                       >
                         <ShoppingBag className="h-3 w-3" />
                         <span>
                           {orders.length.toLocaleString('fa-IR')} سفارش
                         </span>
                       </Badge>
-                    ) : (
-                      <Badge
-                        variant="outline"
-                        className="border-slate-300 dark:border-slate-700 text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800/60 text-[11px] gap-1 px-2 py-0.5"
-                      >
-                        <User className="h-3 w-3" />
-                        <span>کاربر جدید</span>
-                      </Badge>
                     )}
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-2.5 text-xs text-muted-foreground">
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                     <div className="flex items-center gap-1 font-mono text-foreground font-bold">
-                      <Phone className="h-3 w-3 text-blue-600" />
+                      <Phone className="h-3 w-3 text-blue-500" />
                       <span dir="ltr">{customer.phone}</span>
                     </div>
                     <span>•</span>
-                    <span className="text-emerald-600 dark:text-emerald-400 font-medium">
-                      حساب کاربری فعال و تایید شده
+                    <span className="text-emerald-400 font-medium text-[11px]">
+                      فعال و رسمی
                     </span>
                   </div>
                 </div>
               </div>
 
-              {/* Right/End: Wallet Snapshot & Quick Actions */}
-              <div className="flex flex-wrap items-center gap-3 w-full md:w-auto justify-between md:justify-end border-t md:border-t-0 border-border/60 pt-4 md:pt-0">
-                {/* Unified Wallet & Top-up Component (Matched h-10 with logout button) */}
-                <div className="h-10 flex items-center gap-2.5 px-3 rounded-xl bg-blue-50/60 dark:bg-blue-950/40 border border-blue-200/60 dark:border-blue-900/60 shadow-xs">
+              {/* Right/End: Responsive Wallet & Actions (Clean 2-row / responsive grid) */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full md:w-auto border-t md:border-t-0 border-border/80 pt-3 md:pt-0">
+                {/* Unified Wallet Component */}
+                <div className="flex items-center justify-between sm:justify-start gap-2.5 px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800">
                   <div className="flex items-center gap-1.5 text-xs text-right">
-                    <span className="text-[11px] text-muted-foreground">
-                      موجودی:
-                    </span>
-                    <span className="font-black text-blue-600 dark:text-blue-400">
+                    <span className="text-[11px] text-zinc-400">موجودی:</span>
+                    <span className="font-black text-blue-400 font-latin text-sm">
                       {customer.balance_toman.toLocaleString('fa-IR')}
                     </span>
-                    <span className="text-[10px] text-muted-foreground">
-                      تومان
-                    </span>
+                    <span className="text-[10px] text-zinc-400">تومان</span>
                   </div>
 
-                  <div className="h-4 w-px bg-blue-200/80 dark:bg-blue-800/60" />
+                  <div className="h-4 w-px bg-zinc-800" />
 
                   <Button
                     type="button"
                     size="sm"
                     onClick={() => setIsWalletModalOpen(true)}
-                    className="h-7 px-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs gap-1 shadow-xs shadow-blue-600/20"
+                    className="h-7 px-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs gap-1 shadow-xs"
                   >
                     <Plus className="h-3 w-3" />
-                    <span>افزایش موجودی</span>
+                    <span>شارژ</span>
                   </Button>
                 </div>
 
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleLogout}
-                  className="h-10 px-3.5 rounded-xl text-xs text-red-600 dark:text-red-400 border-red-200 dark:border-red-900/40 hover:bg-red-50 dark:hover:bg-red-950/40 gap-1.5"
-                >
-                  <LogOut className="h-3.5 w-3.5" />
-                  <span>خروج</span>
-                </Button>
+                <div className="flex items-center gap-2">
+                  <ThemeToggle />
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleLogout}
+                    className="h-9 px-3.5 rounded-xl text-xs text-red-400 border-red-900/40 hover:bg-red-950/30 gap-1.5 shrink-0 justify-center flex-1 sm:flex-initial"
+                  >
+                    <LogOut className="h-3.5 w-3.5" />
+                    <span>خروج از حساب</span>
+                  </Button>
+                </div>
               </div>
             </div>
           </div>

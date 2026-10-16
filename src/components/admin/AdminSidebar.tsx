@@ -96,31 +96,31 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
         {
           id: 'bi-analytics',
           title: 'داشبورد هوش تجاری (BI Analytics)',
-          subtitle: 'سود ناخالص، فروش تومان/تتر، AOV و نرخ تبدیل',
+          subtitle: 'سود ناخالص، فروش، AOV و نرخ تبدیل',
           icon: TrendingUp,
         },
         {
           id: 'calendar',
-          title: 'تقویم شمسی و رویدادها (Calendar)',
-          subtitle: 'مناسبت‌ها، جشنواره‌ها و زمان‌بندی تخفیف‌ها',
+          title: 'تقویم شمسی رویدادها و جشنواره‌ها',
+          subtitle: 'مناسبت‌های رسمی و زمان‌بندی تخفیف‌ها',
           icon: CalendarIcon,
         },
         {
           id: 'banners',
           title: 'مدیریت بنرها و اسلایدرها',
-          subtitle: 'اسلایدر هیرو، بنرهای جشنواره و تخفیف‌ها',
+          subtitle: 'اسلایدر هیرو، بنرهای جشنواره و تخفیف',
           icon: ImageIcon,
         },
         {
           id: 'theme-settings',
-          title: 'تم مناسبتی و روش‌های ورود',
-          subtitle: 'افکت‌های نوری، رنگ برند، ورود گوگل و پسورد',
+          title: 'سیستم تم و روش‌های احراز هویت',
+          subtitle: 'افکت‌های نوری، تم دلخواه و ورود گوگل',
           icon: Palette,
         },
         {
           id: 'loyalty-tiers',
           title: 'باشگاه مشتریان و سطوح VIP',
-          subtitle: 'سطوح برنزی، نقره‌ای، طلایی و اولویت صف',
+          subtitle: 'سطوح طلایی، نقره‌ای، الماسی و اولویت صف',
           icon: Crown,
         },
       ],
@@ -131,19 +131,19 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
         {
           id: 'users',
           title: 'مدیریت کاربران (User 360°)',
-          subtitle: 'پرونده ۳۶۰ درجه، کیف پول و دسترسی',
+          subtitle: 'پرونده ۳۶۰ درجه، کیف پول و دسترسی‌ها',
           icon: Users,
         },
         {
           id: 'all-orders',
           title: 'جدول جامع سفارش‌ها',
-          subtitle: 'تایید، در صف، لغو و مرجوعی',
+          subtitle: 'تایید، در صف، لغو و پیگیری مرجوعی',
           icon: ReceiptText,
         },
         {
           id: 'queue',
           title: 'صف سفارشات اپراتور',
-          subtitle: 'پردازش دستی Mode C و کد ۲FA',
+          subtitle: 'پردازش دستی Mode C و تبادل ۲FA',
           icon: Layers,
           badge: queueCount > 0 ? queueCount : undefined,
         },
@@ -172,7 +172,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
         {
           id: 'content',
           title: 'وبلاگ و پایگاه دانش (SEO)',
-          subtitle: 'مقالات سئو، رفع ارورها، آموزش و دیدگاه‌ها',
+          subtitle: 'مقالات سئو، رفع ارورها و آموزش‌ها',
           icon: BookOpen,
         },
         {
@@ -192,7 +192,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
         {
           id: 'products',
           title: 'کاتالوگ و انبار اکانت‌ها',
-          subtitle: 'مدیریت محصولات، نرخ‌ها و دسته‌ها',
+          subtitle: 'مدیریت محصولات، عکس و تخفیف‌ها',
           icon: Sliders,
         },
       ],
@@ -245,32 +245,33 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
   }
 
   const sidebarContent = (
-    <div className="flex flex-col h-full bg-white dark:bg-[#020817] border-l border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 select-none">
+    <div className="flex flex-col h-full bg-zinc-950 border-l border-zinc-800/80 text-zinc-100 select-none">
       {/* Brand Header */}
-      <div className="p-5 border-b border-slate-200 dark:border-slate-800">
+      <div className="p-4 sm:p-5 border-b border-zinc-800">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-700 to-blue-500 text-white flex items-center justify-center font-bold text-lg shadow-md shadow-blue-500/25 ring-2 ring-blue-500/20">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center font-bold text-lg shadow-md shadow-blue-500/25 ring-2 ring-blue-500/20 shrink-0">
               <ShieldCheck className="w-5 h-5 text-white" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="font-extrabold text-base tracking-tight text-slate-900 dark:text-white">
+                <span className="font-black text-base tracking-tight text-white">
                   آناهیکس
                 </span>
-                <span className="text-[10px] bg-blue-100 dark:bg-blue-950/80 text-blue-700 dark:text-blue-300 font-bold px-2 py-0.5 rounded-full border border-blue-200 dark:border-blue-900">
+                <span className="text-[10px] bg-blue-950/80 text-blue-300 font-bold px-2 py-0.5 rounded-full border border-blue-900 font-latin">
                   v2.5 Pro
                 </span>
               </div>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+              <p className="text-[11px] text-zinc-400 font-medium">
                 پنل مدیریت و امنیت سازمانی
               </p>
             </div>
           </div>
 
           <button
+            type="button"
             onClick={onCloseMobile}
-            className="lg:hidden p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
+            className="lg:hidden p-1.5 rounded-xl text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
             aria-label="بستن منو"
           >
             <X className="w-5 h-5" />
@@ -281,21 +282,21 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
         <Link
           to="/"
           target="_blank"
-          className="mt-4 flex items-center justify-between px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800/80 text-xs font-medium text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:border-blue-300 dark:hover:border-blue-800 transition-all group"
+          className="mt-3.5 flex items-center justify-between px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800/80 text-xs font-bold text-zinc-300 hover:text-white hover:border-zinc-700 transition-all group"
         >
           <span className="flex items-center gap-2">
-            <Sparkles className="w-3.5 h-3.5 text-blue-500 group-hover:rotate-12 transition-transform" />
+            <Sparkles className="w-3.5 h-3.5 text-blue-400 group-hover:rotate-12 transition-transform" />
             مشاهده ویترین فروشگاه
           </span>
           <ExternalLink className="w-3.5 h-3.5 opacity-60 group-hover:opacity-100 transition-opacity" />
         </Link>
       </div>
 
-      {/* Navigation Groups */}
-      <div className="flex-1 overflow-y-auto px-3 py-4 space-y-6 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-800">
+      {/* Navigation Groups - Clean, Readable and Free of Truncate Cuts */}
+      <div className="flex-1 overflow-y-auto px-3 py-4 space-y-5 scrollbar-thin scrollbar-thumb-zinc-800">
         {groups.map((group) => (
           <div key={group.label} className="space-y-1">
-            <div className="px-3 pb-1 text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+            <div className="px-2.5 pb-1 text-[11px] font-bold text-zinc-400 tracking-wider">
               {group.label}
             </div>
             <div className="space-y-1">
@@ -306,32 +307,31 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
                 return (
                   <button
                     key={item.id}
+                    type="button"
                     onClick={() => handleNavClick(item.id)}
-                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-right transition-all group relative ${
+                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-right transition-all group relative cursor-pointer ${
                       isActive
-                        ? 'bg-blue-600 text-white font-medium shadow-md shadow-blue-600/20 ring-1 ring-blue-500'
-                        : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-900/80 hover:text-slate-900 dark:hover:text-white'
+                        ? 'bg-blue-600 text-white font-bold shadow-md shadow-blue-600/20'
+                        : 'text-zinc-300 hover:bg-zinc-900 hover:text-white'
                     }`}
                   >
-                    <div className="flex items-center gap-3 min-w-0">
+                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
                       <div
-                        className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
+                        className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
                           isActive
                             ? 'bg-white/20 text-white'
-                            : 'bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400 group-hover:text-blue-600 dark:group-hover:text-blue-400'
+                            : 'bg-zinc-900 text-zinc-400 group-hover:text-blue-400'
                         }`}
                       >
-                        <Icon className="w-4 h-4" />
+                        <Icon className="w-3.5 h-3.5" />
                       </div>
-                      <div className="min-w-0 text-right">
-                        <div className="text-xs font-bold truncate leading-tight">
+                      <div className="min-w-0 flex-1 text-right">
+                        <div className="text-xs font-bold leading-tight">
                           {item.title}
                         </div>
                         <div
-                          className={`text-[10px] truncate leading-tight mt-0.5 ${
-                            isActive
-                              ? 'text-blue-100'
-                              : 'text-slate-500 dark:text-slate-400'
+                          className={`text-[10px] leading-tight mt-0.5 truncate ${
+                            isActive ? 'text-blue-100' : 'text-zinc-400'
                           }`}
                         >
                           {item.subtitle}
@@ -339,13 +339,13 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-1.5 shrink-0 pr-2">
+                    <div className="flex items-center gap-1.5 shrink-0 pr-1.5">
                       {item.badge !== undefined && (
                         <span
-                          className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                          className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
                             isActive
                               ? 'bg-white text-blue-600'
-                              : 'bg-amber-500 text-white'
+                              : 'bg-amber-500 text-zinc-950 font-black'
                           }`}
                         >
                           {item.badge}
@@ -363,42 +363,41 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
         ))}
       </div>
 
-      {/* Admin Profile & Footer */}
-      <div className="p-3 border-t border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/40 space-y-3">
-        {/* User Card */}
-        <div className="flex items-center justify-between p-2 rounded-xl bg-white dark:bg-slate-900/80 border border-slate-200/80 dark:border-slate-800/80">
+      {/* Admin Profile & Server Status */}
+      <div className="p-3 border-t border-zinc-800 bg-zinc-950/80 space-y-2.5">
+        <div className="flex items-center justify-between p-2 rounded-xl bg-zinc-900 border border-zinc-800/80">
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-9 h-9 rounded-xl bg-blue-100 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold text-sm shrink-0 border border-blue-200 dark:border-blue-900/60">
+            <div className="w-8 h-8 rounded-lg bg-blue-950/60 text-blue-400 flex items-center justify-center font-bold text-xs shrink-0 border border-blue-900/60">
               <UserCheck className="w-4 h-4" />
             </div>
-            <div className="min-w-0">
-              <div className="text-xs font-bold text-slate-900 dark:text-white truncate">
+            <div className="min-w-0 text-right">
+              <div className="text-xs font-bold text-white truncate">
                 {adminUser?.full_name || 'مدیر سیستم'}
               </div>
-              <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate flex items-center gap-1">
+              <div className="text-[10px] text-zinc-400 truncate flex items-center gap-1 font-latin">
                 <span>@{adminUser?.username || 'admin'}</span>
                 <span>•</span>
-                <span className="text-blue-600 dark:text-blue-400 font-semibold">
-                  {adminUser?.role === 'super_admin' ? 'مدیر ارشد' : 'اپراتور'}
+                <span className="text-blue-400 font-semibold font-sans">
+                  {adminUser?.role === 'super_admin' ? 'مدیر کل' : 'اپراتور'}
                 </span>
               </div>
             </div>
           </div>
 
           <button
+            type="button"
             onClick={onLogout}
             title="خروج از پنل مدیریت"
-            className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
+            className="p-1.5 rounded-lg text-zinc-400 hover:text-red-400 hover:bg-red-950/30 transition-colors"
           >
             <LogOut className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Theme Toggle & Status Row */}
-        <div className="flex items-center justify-between px-1 text-[11px] text-slate-500 dark:text-slate-400">
+        <div className="flex items-center justify-between px-1 text-[11px] text-zinc-400">
           <span className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-emerald-500" />
-            سرور آنلاین (:8080)
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span>سرور آنلاین (:8080)</span>
           </span>
           <ThemeToggle />
         </div>
@@ -409,7 +408,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
   return (
     <>
       {/* Desktop Persistent Sidebar */}
-      <aside className="hidden lg:block w-72 h-screen sticky top-0 shrink-0 z-30">
+      <aside className="hidden lg:block w-72 sm:w-80 h-screen sticky top-0 shrink-0 z-30">
         {sidebarContent}
       </aside>
 
@@ -417,7 +416,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
       {isMobileOpen && (
         <div className="fixed inset-0 z-50 lg:hidden flex">
           <div
-            className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm transition-opacity"
+            className="fixed inset-0 bg-black/70 backdrop-blur-sm transition-opacity"
             onClick={onCloseMobile}
           />
           <div className="relative w-80 max-w-[85vw] h-full z-10 shadow-2xl animate-in slide-in-from-right duration-200">

@@ -16,6 +16,15 @@ interface HolidayThemeBannerProps {
   theme?: EventThemeConfig | null
 }
 
+function cleanDisplayText(text?: string, fallback = ''): string {
+  if (!text) return fallback
+  // If string contains multiple question marks or replacement characters, use clean fallback
+  if (text.includes('??') || text.includes('\ufffd') || text.includes('')) {
+    return fallback
+  }
+  return text.trim() || fallback
+}
+
 export const HolidayThemeBanner: React.FC<HolidayThemeBannerProps> = ({
   theme,
 }) => {
@@ -35,13 +44,19 @@ export const HolidayThemeBanner: React.FC<HolidayThemeBannerProps> = ({
 
   if (!theme?.event_active || dismissed) return null
 
+  const eventName = cleanDisplayText(theme.event_name, 'جشنواره ویژه آناهیکس')
+  const announcement = cleanDisplayText(
+    theme.header_announcement,
+    'تمامی سرویس‌ها و شماره‌های مجازی فعال و تحویل آنی ۰ ثانیه‌ای برقرار است',
+  )
+
   return (
     <div
       dir="rtl"
-      className="relative z-30 overflow-hidden bg-gradient-to-r from-blue-700 via-indigo-700 to-purple-800 text-white px-4 py-2 text-xs font-medium shadow-md transition-all"
+      className="relative z-30 overflow-hidden bg-gradient-to-r from-blue-700 via-indigo-700 to-purple-800 text-white px-3 sm:px-4 py-2 text-xs font-medium shadow-md transition-all select-none"
       style={{
         background: theme.primary_color
-          ? `linear-gradient(90deg, ${theme.primary_color}, #1e1b4b)`
+          ? `linear-gradient(90deg, ${theme.primary_color}, #18181b)`
           : undefined,
       }}
     >
@@ -50,19 +65,21 @@ export const HolidayThemeBanner: React.FC<HolidayThemeBannerProps> = ({
       {theme.event_effect === 'confetti' && <ConfettiEffect />}
       {theme.event_effect === 'stars' && <StarsEffect />}
 
-      <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
-        <div className="flex items-center gap-2">
-          <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-white/20 backdrop-blur-md">
-            <Gift className="h-3.5 w-3.5 animate-bounce" />
+      <div className="mx-auto flex max-w-7xl items-center justify-between gap-3">
+        <div className="flex items-center gap-2 truncate">
+          <span className="flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-lg bg-white/20 backdrop-blur-md shrink-0">
+            <Gift className="h-3 w-3 sm:h-3.5 sm:w-3.5 animate-bounce" />
           </span>
-          <span className="font-bold">{theme.event_name}:</span>
-          <span className="opacity-90">{theme.header_announcement}</span>
+          <span className="font-bold shrink-0">{eventName}:</span>
+          <span className="opacity-95 truncate text-[11px] sm:text-xs">
+            {announcement}
+          </span>
         </div>
 
         <button
           type="button"
           onClick={() => setDismissed(true)}
-          className="p-1 rounded-md hover:bg-white/10 transition-colors text-white/80 hover:text-white"
+          className="p-1 rounded-md hover:bg-white/10 transition-colors text-white/80 hover:text-white shrink-0"
           title="بستن اعلان مناسبت"
         >
           <X className="h-3.5 w-3.5" />
