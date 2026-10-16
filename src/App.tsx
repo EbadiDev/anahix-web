@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { NotificationProvider } from './components/vibefarsi/NotificationContext'
+import { VibeThemeProvider } from './components/vibefarsi/ThemeContext'
 import { AdminDashboardPage } from './pages/admin/AdminDashboardPage'
 import { AdminLoginPage } from './pages/admin/AdminLoginPage'
 import { BlogDetailPage } from './pages/BlogDetailPage'
@@ -33,69 +34,71 @@ export function App() {
   }
 
   return (
-    <NotificationProvider>
-      <BrowserRouter>
-        <Routes>
-          {/* Public Storefront */}
-          <Route
-            path="/"
-            element={
-              <StorefrontPage
-                orders={orders}
-                onOrderCreated={handleOrderCreated}
-              />
-            }
-          />
+    <VibeThemeProvider>
+      <NotificationProvider>
+        <BrowserRouter>
+          <Routes>
+            {/* Public Storefront */}
+            <Route
+              path="/"
+              element={
+                <StorefrontPage
+                  orders={orders}
+                  onOrderCreated={handleOrderCreated}
+                />
+              }
+            />
 
-          {/* Dedicated Product Detail Page (PDP) */}
-          <Route
-            path="/products/:slug"
-            element={
-              <ProductDetailPage
-                orders={orders}
-                onOrderCreated={handleOrderCreated}
-              />
-            }
-          />
+            {/* Dedicated Product Detail Page (PDP) */}
+            <Route
+              path="/products/:slug"
+              element={
+                <ProductDetailPage
+                  orders={orders}
+                  onOrderCreated={handleOrderCreated}
+                />
+              }
+            />
 
-          {/* Customer Profile */}
-          <Route path="/profile" element={<UserProfilePage />} />
+            {/* Customer Profile */}
+            <Route path="/profile" element={<UserProfilePage />} />
 
-          {/* Public Order Tracking */}
-          <Route
-            path="/track"
-            element={
-              <OrderTrackingPage
-                orders={orders}
-                onUpdateOrder={handleUpdateOrder}
-              />
-            }
-          />
+            {/* Public Order Tracking */}
+            <Route
+              path="/track"
+              element={
+                <OrderTrackingPage
+                  orders={orders}
+                  onUpdateOrder={handleUpdateOrder}
+                />
+              }
+            />
 
-          {/* Virtual Numbers Receiving SMS */}
-          <Route path="/virtual-numbers" element={<VirtualNumbersPage />} />
+            {/* Virtual Numbers Receiving SMS */}
+            <Route path="/virtual-numbers" element={<VirtualNumbersPage />} />
 
-          {/* Blog & Knowledge Base (SEO Engine) */}
-          <Route path="/blog" element={<BlogListPage />} />
-          <Route path="/blog/:slug" element={<BlogDetailPage />} />
-          <Route path="/help" element={<HelpListPage />} />
-          <Route path="/help/:slug" element={<HelpDetailPage />} />
+            {/* Blog & Knowledge Base (SEO Engine) */}
+            <Route path="/blog" element={<BlogListPage />} />
+            <Route path="/blog/:slug" element={<BlogDetailPage />} />
+            <Route path="/help" element={<HelpListPage />} />
+            <Route path="/help/:slug" element={<HelpDetailPage />} />
 
-          {/* Admin Authentication */}
-          <Route path="/admin/login" element={<AdminLoginPage />} />
+            {/* Admin Authentication */}
+            <Route path="/admin/login" element={<AdminLoginPage />} />
 
-          {/* Admin Dashboard */}
-          <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
-          <Route
-            path="/admin"
-            element={<Navigate to="/admin/dashboard" replace />}
-          />
+            {/* Admin Dashboard */}
+            <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
+            <Route
+              path="/admin"
+              element={<Navigate to="/admin/dashboard" replace />}
+            />
 
-          {/* Fallback */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </BrowserRouter>
-    </NotificationProvider>
+            {/* Fallback */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </BrowserRouter>
+      </NotificationProvider>
+    </VibeThemeProvider>
   )
 }
 

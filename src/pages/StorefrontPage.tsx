@@ -22,6 +22,7 @@ import { CartDrawer } from '../components/CartDrawer'
 import { Header } from '../components/Header'
 import { ProductCard } from '../components/ProductCard'
 import { Input } from '../components/ui/input'
+import { Alert } from '../components/vibefarsi/Alert'
 import {
   BannerCarousel,
   type BannerData,
@@ -195,7 +196,7 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
     },
   ]
 
-  // End time for Flash Sale countdown (2 days from now)
+  // End time for Flash Sale countdown (48 hours from now)
   const flashSaleTargetDate = new Date(Date.now() + 48 * 3600 * 1000)
 
   return (
@@ -208,7 +209,17 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
         onOpenCart={() => setIsCartOpen(true)}
       />
 
-      <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 py-6 w-full space-y-12">
+      <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 py-6 w-full space-y-10 sm:space-y-12">
+        {/* GRAPHITE SECURITY & ZEROIZE ALERT BANNER */}
+        <Alert
+          variant="graphite"
+          title="زیرساخت امنیتی اختصاصی و تحویل رسمی لایسنس‌ها"
+        >
+          تمامی اکانت‌ها و اشتراک‌های آناهیکس به صورت ۱۰۰٪ قانونی با مسترکارت‌های
+          بین‌المللی پرداخت شده و تحت پروتکل امنیتی Zeroize پس از فعال‌سازی
+          هیچ‌گونه رمز عبوری در سرور باقی نخواهد ماند.
+        </Alert>
+
         {/* HERO SECTION WITH VIBE FARSI GRID PATTERN & CAROUSEL */}
         <section className="relative overflow-hidden rounded-3xl border border-border/80 bg-card p-6 sm:p-10 shadow-sm">
           <GridPattern
@@ -369,6 +380,7 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
               {categories.map((cat) => (
                 <button
                   key={cat.id}
+                  type="button"
                   onClick={() => setSelectedCategory(cat.id)}
                   className={`px-4 py-2 rounded-2xl text-xs font-bold whitespace-nowrap transition-all ${
                     selectedCategory === cat.id

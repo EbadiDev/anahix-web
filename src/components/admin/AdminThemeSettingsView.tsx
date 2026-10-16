@@ -1,4 +1,5 @@
 import {
+  Check,
   Gift,
   KeyRound,
   Loader2,
@@ -17,12 +18,20 @@ import type { ThemeSettings } from '../../types'
 import { GithubIcon, GoogleIcon } from '../SocialIcons'
 import { useNotification } from '../vibefarsi/NotificationContext'
 import { ShimmerButton } from '../vibefarsi/ShimmerButton'
+import {
+  useVibeTheme,
+  VIBE_THEMES,
+  type VibeFarsiThemeKey,
+} from '../vibefarsi/ThemeContext'
 
 export const AdminThemeSettingsView: React.FC = () => {
   const { success, error } = useNotification()
+  const { setTheme, setCustomColors } = useVibeTheme()
+
   const [loading, setLoading] = useState(true)
   const [saveLoading, setSaveLoading] = useState(false)
   const [settings, setSettings] = useState<ThemeSettings>({
+    default_theme: 'graphite',
     event_name: 'عادی',
     event_active: false,
     primary_color: '#2563eb',
@@ -41,7 +50,7 @@ export const AdminThemeSettingsView: React.FC = () => {
     setLoading(true)
     try {
       const data = await api.getAdminThemeSettings()
-      setSettings(data)
+      if (data) setSettings(data)
     } catch (err: any) {
       error('خطا در بارگذاری تنظیمات تم و رویدادها', err.message)
     } finally {
@@ -59,7 +68,17 @@ export const AdminThemeSettingsView: React.FC = () => {
     try {
       await api.updateAdminThemeSettings(settings)
       success('تنظیمات تم و روش‌های ورود با موفقیت ذخیره شد')
-      // Apply immediately
+
+      // Apply to active theme context
+      if (settings.default_theme) {
+        if (settings.default_theme === 'custom') {
+          setCustomColors(settings.primary_color, settings.accent_color)
+        } else {
+          setTheme(settings.default_theme as VibeFarsiThemeKey)
+        }
+      }
+
+      // Apply dynamic event primary color if active
       if (settings.event_active && settings.primary_color) {
         document.documentElement.style.setProperty(
           '--event-primary',
@@ -74,15 +93,6 @@ export const AdminThemeSettingsView: React.FC = () => {
       setSaveLoading(false)
     }
   }
-
-  const presetColors = [
-    { label: 'رویال بلو سازمانی', color: '#2563eb' },
-    { label: 'سبز بهاری نوروز', color: '#059669' },
-    { label: 'قرمز یاقوتی یلدا', color: '#dc2626' },
-    { label: 'مشکی طلایی بلک فرایدی', color: '#d97706' },
-    { label: 'بنفش نئونی مدرن', color: '#7c3aed' },
-    { label: 'فیروزه‌ای سایبرپانک', color: '#0891b2' },
-  ]
 
   const presetEvents = [
     {
@@ -131,22 +141,242 @@ export const AdminThemeSettingsView: React.FC = () => {
       <div className="rounded-3xl border border-border bg-card p-6 shadow-sm">
         <h2 className="text-lg font-black text-foreground flex items-center gap-2">
           <Palette className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-          <span>مدیریت هوشمند تم رویدادها، مناسبت‌ها و روش‌های احراز هویت</span>
+          <span>
+            مدیریت سیستم طراحی وایب‌فارسی، تم‌های دلخواه و روش‌های احراز هویت
+          </span>
         </h2>
         <p className="text-xs text-muted-foreground mt-1">
-          شخصی‌سازی آنی ظاهر فروشگاه برای اعیاد و مناسبت‌ها، افکت‌های گرافیکی
-          وایب‌فارسی و تعیین گزینه‌های فعال ورود مشتریان
+          شخصی‌سازی آنی تم پیش‌فرض فروشگاه (گرافیت، لاجوردی، فیروزه‌ای و...)، تعریف
+          تم‌های دلخواه سازمانی، افکت‌های مناسبتی ایجنت‌محور و کنترل گزینه‌های ورود
+          مشتریان
         </p>
       </div>
 
       <form onSubmit={handleSave} className="space-y-6">
-        {/* Preset Events Quick Switcher */}
-        <div className="rounded-3xl border border-border bg-card p-6 shadow-sm space-y-4">
-          <h3 className="text-sm font-black text-foreground flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-amber-500" />
-            <span>قالب‌های آماده مناسبت‌های تقویمی</span>
-          </h3>
+        {/* SECTION 1: VIBE FARSI DESIGN SYSTEM & THEMES */}
+        <div className="rounded-3xl border border-border bg-card p-6 shadow-sm space-y-5">
+          <div className="flex items-center justify-between border-b border-border/60 pb-3">
+            <div>
+              <h3 className="text-sm font-black text-foreground flex items-center gap-2">
+                <Palette className="h-4 w-4 text-blue-600" />
+                <span>تم سیستم طراحی سراسری (Vibe Farsi Design System)</span>
+              </h3>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                تم گرافیت (Graphite) سیستم پیش‌فرض و استاندارد است. می‌توانید
+                تم‌های دیگر یا تم دلخواه را انتخاب کنید.
+              </p>
+            </div>
+            <span className="rounded-xl bg-blue-500/10 px-3 py-1 text-xs font-bold text-blue-600 dark:text-blue-400">
+              تم فعال:{' '}
+              {VIBE_THEMES[
+                (settings.default_theme as VibeFarsiThemeKey) || 'graphite'
+              ]?.nameFA || 'گرافیت'}
+            </span>
+          </div>
 
+          {/* Theme Cards Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+            {(Object.keys(VIBE_THEMES) as VibeFarsiThemeKey[]).map(
+              (themeKey) => {
+                const t = VIBE_THEMES[themeKey]
+                const isSelected =
+                  (settings.default_theme || 'graphite') === themeKey
+                return (
+                  <button
+                    key={themeKey}
+                    type="button"
+                    onClick={() => {
+                      setSettings((prev) => ({
+                        ...prev,
+                        default_theme: themeKey,
+                        primary_color:
+                          themeKey !== 'custom'
+                            ? t.primary
+                            : prev.primary_color,
+                        accent_color:
+                          themeKey !== 'custom' ? t.accent : prev.accent_color,
+                      }))
+                    }}
+                    className={`p-4 rounded-2xl border text-right transition-all flex flex-col justify-between cursor-pointer ${
+                      isSelected
+                        ? 'border-blue-500 bg-blue-500/10 shadow-md ring-1 ring-blue-500/30'
+                        : 'border-border/80 bg-muted/20 hover:bg-muted/50'
+                    }`}
+                  >
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className="h-3.5 w-3.5 rounded-full shadow-xs"
+                            style={{
+                              backgroundColor:
+                                themeKey === 'custom'
+                                  ? settings.primary_color
+                                  : t.primary,
+                            }}
+                          />
+                          <h4 className="text-xs font-black text-foreground">
+                            {t.nameFA}
+                          </h4>
+                        </div>
+                        {isSelected && (
+                          <div className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-white">
+                            <Check className="h-3 w-3" />
+                          </div>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-muted-foreground leading-relaxed">
+                        {t.description}
+                      </p>
+                    </div>
+                    <div className="pt-3 flex items-center gap-2">
+                      <span
+                        className="h-2 w-8 rounded-full"
+                        style={{
+                          backgroundColor:
+                            themeKey === 'custom'
+                              ? settings.primary_color
+                              : t.primary,
+                        }}
+                      />
+                      <span
+                        className="h-2 w-4 rounded-full"
+                        style={{
+                          backgroundColor:
+                            themeKey === 'custom'
+                              ? settings.accent_color
+                              : t.accent,
+                        }}
+                      />
+                    </div>
+                  </button>
+                )
+              },
+            )}
+          </div>
+
+          {/* Custom Theme Color Pickers (Visible when custom or adjusting) */}
+          <div className="p-4 rounded-2xl border border-border/80 bg-muted/20 space-y-3">
+            <h4 className="text-xs font-bold text-foreground flex items-center gap-2">
+              <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+              <span>تنظیم رنگ‌های تم دلخواه سازمانی (Custom Palette)</span>
+            </h4>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1 text-right">
+                <label className="text-[11px] font-bold text-foreground">
+                  رنگ اصلی تم (Primary Color)
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={settings.primary_color}
+                    onChange={(e) =>
+                      setSettings((prev) => ({
+                        ...prev,
+                        default_theme: 'custom',
+                        primary_color: e.target.value,
+                      }))
+                    }
+                    className="h-9 w-10 rounded-xl cursor-pointer border border-border bg-background p-1"
+                  />
+                  <input
+                    type="text"
+                    dir="ltr"
+                    value={settings.primary_color}
+                    onChange={(e) =>
+                      setSettings((prev) => ({
+                        ...prev,
+                        default_theme: 'custom',
+                        primary_color: e.target.value,
+                      }))
+                    }
+                    className="flex-1 h-9 px-3 rounded-xl border border-border bg-background font-mono text-xs uppercase"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1 text-right">
+                <label className="text-[11px] font-bold text-foreground">
+                  رنگ تاکیدی و ثانویه (Accent Color)
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={settings.accent_color}
+                    onChange={(e) =>
+                      setSettings((prev) => ({
+                        ...prev,
+                        default_theme: 'custom',
+                        accent_color: e.target.value,
+                      }))
+                    }
+                    className="h-9 w-10 rounded-xl cursor-pointer border border-border bg-background p-1"
+                  />
+                  <input
+                    type="text"
+                    dir="ltr"
+                    value={settings.accent_color}
+                    onChange={(e) =>
+                      setSettings((prev) => ({
+                        ...prev,
+                        default_theme: 'custom',
+                        accent_color: e.target.value,
+                      }))
+                    }
+                    className="flex-1 h-9 px-3 rounded-xl border border-border bg-background font-mono text-xs uppercase"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Live Component Preview */}
+            <div className="pt-3 border-t border-border/60">
+              <span className="text-[10px] font-bold text-muted-foreground block mb-2">
+                پیش‌نمایش زنده المان‌ها با رنگ انتخابی:
+              </span>
+              <div className="flex flex-wrap items-center gap-3">
+                <ShimmerButton
+                  background={settings.primary_color}
+                  className="text-xs font-bold px-4 py-2"
+                >
+                  <span>دکمه نمونه خرید</span>
+                  <span>←</span>
+                </ShimmerButton>
+
+                <span
+                  className="px-3 py-1 rounded-full text-xs font-bold border"
+                  style={{
+                    backgroundColor: `${settings.primary_color}20`,
+                    borderColor: `${settings.primary_color}40`,
+                    color: settings.primary_color,
+                  }}
+                >
+                  برچسب نمونه لایسنس
+                </span>
+
+                <span className="text-xs text-muted-foreground">
+                  کنتراست و جذابیت بصری در تمامی حالات لایت/دارک تضمین شده است.
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* SECTION 2: EVENT & HOLIDAY CAMPAIGNS (AGENT-CENTRIC) */}
+        <div className="rounded-3xl border border-border bg-card p-6 shadow-sm space-y-5">
+          <div className="border-b border-border/60 pb-3">
+            <h3 className="text-sm font-black text-foreground flex items-center gap-2">
+              <Gift className="h-4 w-4 text-blue-600" />
+              <span>رویدادهای مناسبتی و اعیاد (Agent-Centric Campaigns)</span>
+            </h3>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              اعمال بنر و افکت‌های ویژه مناسبتی (نوروز، یلدا، بلک فرایدی) روی هدر
+              و سراسر سایت
+            </p>
+          </div>
+
+          {/* Quick preset events */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             {presetEvents.map((evt) => (
               <button
@@ -162,12 +392,12 @@ export const AdminThemeSettingsView: React.FC = () => {
                     header_announcement: evt.announcement,
                   }))
                 }
-                className="flex flex-col justify-between p-4 rounded-2xl border border-border/80 bg-muted/30 hover:bg-muted/70 text-right transition-all hover:scale-[1.02]"
+                className="flex flex-col justify-between p-3.5 rounded-2xl border border-border/80 bg-muted/20 hover:bg-muted/60 text-right transition-all hover:scale-[1.01] cursor-pointer"
               >
                 <div>
-                  <div className="flex items-center gap-2 mb-2">
+                  <div className="flex items-center gap-2 mb-1.5">
                     <span
-                      className="h-3 w-3 rounded-full shrink-0"
+                      className="h-2.5 w-2.5 rounded-full shrink-0"
                       style={{ backgroundColor: evt.color }}
                     />
                     <h4 className="text-xs font-bold text-foreground">
@@ -178,30 +408,22 @@ export const AdminThemeSettingsView: React.FC = () => {
                     {evt.announcement}
                   </p>
                 </div>
-                <span className="text-[10px] font-bold text-blue-600 pt-3">
-                  اعمال سریع قالب ←
+                <span className="text-[10px] font-bold text-blue-600 pt-2">
+                  اعمال سریع رویداد ←
                 </span>
               </button>
             ))}
           </div>
-        </div>
-
-        {/* Section 1: Event & Visual Theme Customization */}
-        <div className="rounded-3xl border border-border bg-card p-6 shadow-sm space-y-5">
-          <h3 className="text-sm font-black text-foreground flex items-center gap-2">
-            <Gift className="h-4 w-4 text-blue-600" />
-            <span>تنظیمات رویداد و مناسبت فعال</span>
-          </h3>
 
           {/* Active Event Toggle */}
           <div className="flex items-center justify-between p-4 rounded-2xl border border-border/80 bg-muted/20">
             <div>
               <h4 className="text-xs font-bold text-foreground">
-                فعال‌سازی رویداد و بنر ویژه مناسبتی
+                فعال‌سازی نوار و افکت مناسبتی
               </h4>
               <p className="text-[11px] text-muted-foreground mt-0.5">
-                با فعال‌سازی، نوار اعلان رنگی و افکت گرافیکی در سراسر سایت نمایش
-                داده می‌شود.
+                با فعال‌سازی، بنر مناسبت و افکت انتخابی در بالای صفحه نمایش داده
+                می‌شود.
               </p>
             </div>
             <button
@@ -212,7 +434,7 @@ export const AdminThemeSettingsView: React.FC = () => {
                   event_active: !prev.event_active,
                 }))
               }
-              className={`p-1 rounded-2xl transition-colors ${
+              className={`p-1 rounded-2xl transition-colors cursor-pointer ${
                 settings.event_active
                   ? 'text-blue-600 dark:text-blue-400'
                   : 'text-muted-foreground'
@@ -271,59 +493,10 @@ export const AdminThemeSettingsView: React.FC = () => {
             </div>
           </div>
 
-          {/* Color palette picker */}
-          <div className="space-y-2 text-right">
-            <label className="text-xs font-bold text-foreground">
-              رنگ اصلی مناسبت و برند سازمانی
-            </label>
-            <div className="flex flex-wrap items-center gap-2">
-              {presetColors.map((pc) => (
-                <button
-                  key={pc.color}
-                  type="button"
-                  onClick={() =>
-                    setSettings((prev) => ({
-                      ...prev,
-                      primary_color: pc.color,
-                    }))
-                  }
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all ${
-                    settings.primary_color === pc.color
-                      ? 'border-foreground shadow-sm'
-                      : 'border-border text-muted-foreground'
-                  }`}
-                >
-                  <span
-                    className="h-3 w-3 rounded-full"
-                    style={{ backgroundColor: pc.color }}
-                  />
-                  <span>{pc.label}</span>
-                </button>
-              ))}
-
-              <div className="flex items-center gap-2 border border-border rounded-xl px-2.5 py-1">
-                <input
-                  type="color"
-                  value={settings.primary_color}
-                  onChange={(e) =>
-                    setSettings((prev) => ({
-                      ...prev,
-                      primary_color: e.target.value,
-                    }))
-                  }
-                  className="h-6 w-6 rounded cursor-pointer border-0 bg-transparent"
-                />
-                <span className="font-mono text-xs uppercase">
-                  {settings.primary_color}
-                </span>
-              </div>
-            </div>
-          </div>
-
           {/* Header Announcement message */}
           <div className="space-y-1.5 text-right">
             <label className="text-xs font-bold text-foreground">
-              پیام نوار اعلان بالای سایت
+              متن نوار اعلان هدر
             </label>
             <input
               type="text"
@@ -340,12 +513,20 @@ export const AdminThemeSettingsView: React.FC = () => {
           </div>
         </div>
 
-        {/* Section 2: Customer Authentication Methods Control */}
+        {/* SECTION 3: MULTI-AUTH METHODS CONTROL */}
         <div className="rounded-3xl border border-border bg-card p-6 shadow-sm space-y-5">
-          <h3 className="text-sm font-black text-foreground flex items-center gap-2">
-            <ShieldCheck className="h-4 w-4 text-emerald-500" />
-            <span>مدیریت روش‌های ورود و ثبت‌نام مشتریان (Multi-Auth System)</span>
-          </h3>
+          <div className="border-b border-border/60 pb-3">
+            <h3 className="text-sm font-black text-foreground flex items-center gap-2">
+              <ShieldCheck className="h-4 w-4 text-emerald-500" />
+              <span>
+                مدیریت روش‌های ورود و ثبت‌نام مشتریان (Multi-Auth System)
+              </span>
+            </h3>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              تعیین روش‌های ورود فعال در مدال ورود/ثبت‌نام (گوگل، گیت‌هاب، کلمه
+              عبور، پیامک OTP)
+            </p>
+          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Google OAuth */}
@@ -371,7 +552,7 @@ export const AdminThemeSettingsView: React.FC = () => {
                     auth_google_enabled: !prev.auth_google_enabled,
                   }))
                 }
-                className={`p-1 rounded-2xl transition-colors ${
+                className={`p-1 rounded-2xl transition-colors cursor-pointer ${
                   settings.auth_google_enabled
                     ? 'text-blue-600 dark:text-blue-400'
                     : 'text-muted-foreground'
@@ -408,7 +589,7 @@ export const AdminThemeSettingsView: React.FC = () => {
                     auth_github_enabled: !prev.auth_github_enabled,
                   }))
                 }
-                className={`p-1 rounded-2xl transition-colors ${
+                className={`p-1 rounded-2xl transition-colors cursor-pointer ${
                   settings.auth_github_enabled
                     ? 'text-blue-600 dark:text-blue-400'
                     : 'text-muted-foreground'
@@ -445,7 +626,7 @@ export const AdminThemeSettingsView: React.FC = () => {
                     auth_password_enabled: !prev.auth_password_enabled,
                   }))
                 }
-                className={`p-1 rounded-2xl transition-colors ${
+                className={`p-1 rounded-2xl transition-colors cursor-pointer ${
                   settings.auth_password_enabled
                     ? 'text-blue-600 dark:text-blue-400'
                     : 'text-muted-foreground'
@@ -482,7 +663,7 @@ export const AdminThemeSettingsView: React.FC = () => {
                     auth_otp_required: !prev.auth_otp_required,
                   }))
                 }
-                className={`p-1 rounded-2xl transition-colors ${
+                className={`p-1 rounded-2xl transition-colors cursor-pointer ${
                   settings.auth_otp_required
                     ? 'text-blue-600 dark:text-blue-400'
                     : 'text-muted-foreground'
@@ -503,7 +684,7 @@ export const AdminThemeSettingsView: React.FC = () => {
           <ShimmerButton
             type="submit"
             disabled={saveLoading}
-            className="text-xs sm:text-sm font-bold px-8 py-3 rounded-2xl"
+            className="text-xs sm:text-sm font-bold px-8 py-3 rounded-2xl cursor-pointer"
           >
             {saveLoading ? (
               <Loader2 className="h-4 w-4 animate-spin" />

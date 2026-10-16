@@ -445,6 +445,7 @@ export interface VerifyOTPResponse {
 }
 
 export interface ThemeSettings {
+  default_theme?: string
   event_name: string
   event_active: boolean
   primary_color: string

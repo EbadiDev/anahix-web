@@ -9,12 +9,14 @@ import {
   LogIn,
   LogOut,
   Menu,
+  Palette,
   PhoneCall,
   Radio,
   ShieldCheck,
   ShoppingCart,
   Store,
   User,
+  UserPlus,
   Wallet,
   X,
   Zap,
@@ -26,8 +28,14 @@ import { useCart } from '../lib/cartStore'
 import { api } from '../services/api'
 import type { CustomerProfile, ThemeSettings } from '../types'
 import { AuthModal } from './AuthModal'
+import { GithubIcon, GoogleIcon } from './SocialIcons'
 import { ThemeToggle } from './ThemeToggle'
 import { HolidayThemeBanner } from './vibefarsi/HolidayThemeBanner'
+import {
+  useVibeTheme,
+  VIBE_THEMES,
+  type VibeFarsiThemeKey,
+} from './vibefarsi/ThemeContext'
 
 interface HeaderProps {
   balance?: number
@@ -59,12 +67,19 @@ export const Header: React.FC<HeaderProps> = ({
   const [customer, setCustomer] = useState<CustomerProfile | null>(null)
   const [themeSettings, setThemeSettings] = useState<ThemeSettings | null>(null)
   const [isAuthOpen, setIsAuthOpen] = useState(false)
+  const [authModalMode, setAuthModalMode] = useState<'login' | 'register'>(
+    'login',
+  )
   const [userDropdownOpen, setUserDropdownOpen] = useState(false)
   const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false)
+  const [themeDropdownOpen, setThemeDropdownOpen] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+
+  const { activeTheme, setTheme } = useVibeTheme()
 
   const dropdownRef = useRef<HTMLDivElement>(null)
   const categoryMenuRef = useRef<HTMLDivElement>(null)
+  const themeMenuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     api.getCustomerProfile().then((profile: CustomerProfile | null) => {
@@ -90,6 +105,12 @@ export const Header: React.FC<HeaderProps> = ({
         !categoryMenuRef.current.contains(e.target as Node)
       ) {
         setCategoryDropdownOpen(false)
+      }
+      if (
+        themeMenuRef.current &&
+        !themeMenuRef.current.contains(e.target as Node)
+      ) {
+        setThemeDropdownOpen(false)
       }
     }
     document.addEventListener('mousedown', handleClickOutside)
@@ -486,15 +507,61 @@ export const Header: React.FC<HeaderProps> = ({
                 )}
               </div>
             ) : (
-              <button
-                type="button"
-                id="header-login-button"
-                onClick={() => setIsAuthOpen(true)}
-                className="flex items-center gap-1.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-2 text-xs font-bold shadow-sm shadow-blue-600/20 transition-all hover:scale-[1.02] active:scale-95"
-              >
-                <LogIn className="h-3.5 w-3.5" />
-                <span>ورود / ثبت‌نام</span>
-              </button>
+              <div className="flex items-center gap-1.5">
+                {/* One-click social quick login triggers */}
+                <div className="hidden sm:flex items-center gap-1 pl-1 border-l border-border/80">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAuthModalMode('login')
+                      setIsAuthOpen(true)
+                    }}
+                    className="p-2 rounded-xl border border-border hover:bg-muted/80 text-foreground transition-all shadow-xs"
+                    title="ورود سریع با Google"
+                  >
+                    <GoogleIcon className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAuthModalMode('login')
+                      setIsAuthOpen(true)
+                    }}
+                    className="p-2 rounded-xl border border-border hover:bg-muted/80 text-foreground transition-all shadow-xs"
+                    title="ورود سریع با GitHub"
+                  >
+                    <GithubIcon className="h-4 w-4" />
+                  </button>
+                </div>
+
+                {/* Login Button */}
+                <button
+                  type="button"
+                  id="header-login-button"
+                  onClick={() => {
+                    setAuthModalMode('login')
+                    setIsAuthOpen(true)
+                  }}
+                  className="flex items-center gap-1.5 rounded-xl border border-border bg-card hover:bg-muted/60 text-foreground px-3 py-1.5 text-xs font-bold transition-all shadow-xs hover:border-blue-500/40"
+                >
+                  <LogIn className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+                  <span>ورود</span>
+                </button>
+
+                {/* Register Button */}
+                <button
+                  type="button"
+                  id="header-register-button"
+                  onClick={() => {
+                    setAuthModalMode('register')
+                    setIsAuthOpen(true)
+                  }}
+                  className="flex items-center gap-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-1.5 text-xs font-bold shadow-sm shadow-blue-600/20 transition-all hover:scale-[1.02] active:scale-95"
+                >
+                  <UserPlus className="h-3.5 w-3.5" />
+                  <span>ثبت‌نام</span>
+                </button>
+              </div>
             )}
 
             {/* Shopping Cart Button */}
@@ -503,18 +570,72 @@ export const Header: React.FC<HeaderProps> = ({
                 type="button"
                 onClick={onOpenCart}
                 id="header-cart-button"
-                className="relative p-2.5 rounded-2xl border border-border bg-card hover:bg-muted/50 text-foreground transition shadow-sm flex items-center justify-center group"
+                className="relative p-2 rounded-xl border border-border bg-card hover:bg-muted/50 text-foreground transition shadow-xs flex items-center justify-center group"
                 title="سبد خرید"
                 aria-label="سبد خرید"
               >
                 <ShoppingCart className="h-4 w-4 text-muted-foreground group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors" />
                 {itemCount > 0 && (
-                  <span className="absolute -top-1.5 -left-1.5 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-blue-600 text-[10px] font-black text-white shadow-sm animate-pulse">
+                  <span className="absolute -top-1.5 -left-1.5 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-blue-600 text-[10px] font-black text-white shadow-xs animate-pulse">
                     {toPersianDigits(itemCount)}
                   </span>
                 )}
               </button>
             )}
+
+            {/* Vibe Farsi Theme Palette Picker */}
+            <div className="relative" ref={themeMenuRef}>
+              <button
+                type="button"
+                onClick={() => setThemeDropdownOpen(!themeDropdownOpen)}
+                className="p-2 rounded-xl border border-border bg-card hover:bg-muted/50 text-foreground transition shadow-xs flex items-center justify-center"
+                title="انتخاب تم سیستم طراحی وایب‌فارسی"
+              >
+                <Palette className="h-4 w-4 text-muted-foreground hover:text-foreground transition-colors" />
+              </button>
+
+              {themeDropdownOpen && (
+                <div className="absolute left-0 mt-2 w-52 rounded-2xl border border-border bg-card p-2 shadow-2xl z-50 animate-in fade-in zoom-in-95 space-y-1">
+                  <div className="px-2.5 py-1.5 text-[11px] font-bold text-muted-foreground border-b border-border/60">
+                    تم‌های وایب‌فارسی
+                  </div>
+                  {(Object.keys(VIBE_THEMES) as VibeFarsiThemeKey[]).map(
+                    (themeKey) => {
+                      const t = VIBE_THEMES[themeKey]
+                      const isCurrent = activeTheme === themeKey
+                      return (
+                        <button
+                          key={themeKey}
+                          type="button"
+                          onClick={() => {
+                            setTheme(themeKey)
+                            setThemeDropdownOpen(false)
+                          }}
+                          className={`w-full flex items-center justify-between p-2 rounded-xl text-xs font-bold transition-colors text-right ${
+                            isCurrent
+                              ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400'
+                              : 'hover:bg-muted/60 text-foreground'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <span
+                              className="h-3 w-3 rounded-full"
+                              style={{ backgroundColor: t.primary }}
+                            />
+                            <span>{t.nameFA}</span>
+                          </div>
+                          {isCurrent && (
+                            <span className="text-[10px] font-bold text-blue-600">
+                              فعال
+                            </span>
+                          )}
+                        </button>
+                      )
+                    },
+                  )}
+                </div>
+              )}
+            </div>
 
             <ThemeToggle />
           </div>
@@ -522,7 +643,89 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Mobile slide-down menu */}
         {mobileMenuOpen && !isAdminPage && (
-          <div className="md:hidden border-t border-border bg-card p-4 space-y-3 animate-in fade-in slide-in-from-top-4">
+          <div className="md:hidden border-t border-border bg-card p-4 space-y-4 animate-in fade-in slide-in-from-top-4">
+            {/* Mobile Auth Actions (Clear & Prominent) */}
+            {!customer ? (
+              <div className="p-3 rounded-2xl bg-muted/40 border border-border space-y-2.5">
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMobileMenuOpen(false)
+                      setAuthModalMode('login')
+                      setIsAuthOpen(true)
+                    }}
+                    className="flex-1 py-2.5 rounded-xl border border-border bg-card text-xs font-bold text-foreground flex items-center justify-center gap-1.5 shadow-xs"
+                  >
+                    <LogIn className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+                    <span>ورود به سیستم</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMobileMenuOpen(false)
+                      setAuthModalMode('register')
+                      setIsAuthOpen(true)
+                    }}
+                    className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs"
+                  >
+                    <UserPlus className="h-3.5 w-3.5" />
+                    <span>ثبت‌نام جدید</span>
+                  </button>
+                </div>
+                <div className="flex items-center justify-center gap-2 pt-1 border-t border-border/60">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMobileMenuOpen(false)
+                      setAuthModalMode('login')
+                      setIsAuthOpen(true)
+                    }}
+                    className="flex-1 flex items-center justify-center gap-2 py-1.5 rounded-xl border border-border/80 bg-card text-[11px] font-bold text-foreground"
+                  >
+                    <GoogleIcon className="h-3.5 w-3.5" />
+                    <span>ورود با Google</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMobileMenuOpen(false)
+                      setAuthModalMode('login')
+                      setIsAuthOpen(true)
+                    }}
+                    className="flex-1 flex items-center justify-center gap-2 py-1.5 rounded-xl border border-border/80 bg-card text-[11px] font-bold text-foreground"
+                  >
+                    <GithubIcon className="h-3.5 w-3.5" />
+                    <span>ورود با GitHub</span>
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="p-3 rounded-2xl bg-muted/40 border border-border flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400">
+                    <User className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-foreground">
+                      {customer.full_name || customer.phone}
+                    </h4>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      موجودی:{' '}
+                      {toPersianDigits(effectiveBalance.toLocaleString())} تومان
+                    </p>
+                  </div>
+                </div>
+                <Link
+                  to="/profile"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="text-xs font-bold text-blue-600 hover:underline"
+                >
+                  پروفایل ←
+                </Link>
+              </div>
+            )}
+
             <div className="space-y-1">
               <span className="text-[11px] font-bold text-muted-foreground px-2">
                 دسته‌بندی‌های سریع
@@ -583,6 +786,7 @@ export const Header: React.FC<HeaderProps> = ({
       {/* Customer Auth Modal */}
       <AuthModal
         isOpen={isAuthOpen}
+        initialMode={authModalMode}
         onClose={() => setIsAuthOpen(false)}
         onSuccess={(profile) => {
           setCustomer(profile)
