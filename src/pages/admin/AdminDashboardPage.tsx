@@ -26,9 +26,11 @@ import type React from 'react'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AdminActionLogView } from '../../components/admin/AdminActionLogView'
+import { AdminBIAnalyticsView } from '../../components/admin/AdminBIAnalyticsView'
 import { AdminBillingSettingsView } from '../../components/admin/AdminBillingSettingsView'
 import { AdminContentView } from '../../components/admin/AdminContentView'
 import { AdminInventoryView } from '../../components/admin/AdminInventoryView'
+import { AdminLoyaltyTiersView } from '../../components/admin/AdminLoyaltyTiersView'
 import { AdminOrdersTableView } from '../../components/admin/AdminOrdersTableView'
 import { AdminReviewsView } from '../../components/admin/AdminReviewsView'
 import {
@@ -51,7 +53,7 @@ import type {
 
 export const AdminDashboardPage: React.FC = () => {
   const navigate = useNavigate()
-  const [activeTab, setActiveTab] = useState<AdminTabType>('queue')
+  const [activeTab, setActiveTab] = useState<AdminTabType>('bi-analytics')
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
   const [adminUser, setAdminUser] = useState<any>(null)
   const [reviewsPendingCount, setReviewsPendingCount] = useState<number>(0)
@@ -402,6 +404,12 @@ export const AdminDashboardPage: React.FC = () => {
 
         {/* View Content Container */}
         <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 flex-1">
+          {/* TAB -1: BI & ANALYTICS DASHBOARD */}
+          {activeTab === 'bi-analytics' && <AdminBIAnalyticsView />}
+
+          {/* TAB -0.5: VIP CLUB & LOYALTY TIERS */}
+          {activeTab === 'loyalty-tiers' && <AdminLoyaltyTiersView />}
+
           {/* TAB 0: 360-DEGREE USER MANAGEMENT */}
           {activeTab === 'users' && <AdminUsersView />}
 
@@ -1560,11 +1568,52 @@ export const AdminDashboardPage: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {queueOrders.map((ord: any) => {
                     const oid = ord.order_id || ord.id || ord.order_number
+                    const tier = (ord.customer_tier || 'bronze').toLowerCase()
+                    const isVIP =
+                      tier === 'gold' ||
+                      tier === 'diamond' ||
+                      ord.priority_score >= 50
+                    const isSilver =
+                      tier === 'silver' || ord.priority_score >= 10
+
                     return (
                       <div
                         key={oid}
-                        className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm space-y-4 relative"
+                        className={`bg-white dark:bg-slate-900 rounded-2xl border p-6 shadow-sm space-y-4 relative transition ${
+                          isVIP
+                            ? 'border-amber-500/50 shadow-amber-500/10 ring-1 ring-amber-500/20'
+                            : isSilver
+                              ? 'border-slate-400/50 dark:border-slate-600'
+                              : 'border-slate-200 dark:border-slate-800'
+                        }`}
                       >
+                        {/* VIP High Priority Flag */}
+                        {(isVIP || isSilver) && (
+                          <div className="flex items-center justify-between -mt-2 mb-1 text-[11px] font-bold">
+                            <span
+                              className={`px-2.5 py-0.5 rounded-full flex items-center gap-1.5 shadow-sm ${
+                                isVIP
+                                  ? 'bg-amber-500/15 text-amber-500 dark:text-amber-400 border border-amber-500/30'
+                                  : 'bg-slate-500/15 text-slate-700 dark:text-slate-300 border border-slate-400/30'
+                              }`}
+                            >
+                              <Sparkles className="w-3.5 h-3.5" />
+                              {isVIP
+                                ? `👑 مشتری طلایی VIP (اولویت ${ord.priority_score || 50})`
+                                : `⭐ مشتری نقره‌ای ویژه (اولویت ${ord.priority_score || 10})`}
+                            </span>
+                            {ord.loyalty_discount_toman > 0 && (
+                              <span className="text-emerald-500 dark:text-emerald-400 font-mono text-[10px]">
+                                تخفیف وفاداری:{' '}
+                                {Math.round(
+                                  ord.loyalty_discount_toman,
+                                ).toLocaleString('fa-IR')}{' '}
+                                ت
+                              </span>
+                            )}
+                          </div>
+                        )}
+
                         <div className="flex items-start justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
                           <div>
                             <span className="text-xs font-mono font-bold text-blue-600 dark:text-blue-400">

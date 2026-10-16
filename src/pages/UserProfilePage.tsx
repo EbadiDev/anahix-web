@@ -2,6 +2,7 @@ import {
   Bell,
   CheckCircle2,
   ChevronLeft,
+  Crown,
   Gift,
   LayoutDashboard,
   LogIn,
@@ -26,6 +27,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { AuthModal } from '../components/AuthModal'
 import { Header } from '../components/Header'
+import { ProfileLoyaltyTab } from '../components/profile/ProfileLoyaltyTab'
 import { ProfileNotificationsTab } from '../components/profile/ProfileNotificationsTab'
 import { ProfileNumberSessionsTab } from '../components/profile/ProfileNumberSessionsTab'
 import { ProfileOrdersTab } from '../components/profile/ProfileOrdersTab'
@@ -46,6 +48,7 @@ import type { CustomerProfile, Order, VirtualNumberOrder } from '../types'
 
 type ProfileTabId =
   | 'overview'
+  | 'loyalty'
   | 'personal'
   | 'security'
   | 'orders'
@@ -88,6 +91,7 @@ export const UserProfilePage: React.FC = () => {
   const tabParam = searchParams.get('tab') as ProfileTabId | null
   const validTabs: ProfileTabId[] = [
     'overview',
+    'loyalty',
     'personal',
     'security',
     'orders',
@@ -236,6 +240,21 @@ export const UserProfilePage: React.FC = () => {
       label: 'کیف پول و موجودی',
       shortLabel: 'کیف پول',
       icon: Wallet,
+      group: 'financial',
+    },
+    {
+      id: 'loyalty',
+      label: 'باشگاه مشتریان و VIP',
+      shortLabel: 'باشگاه VIP',
+      icon: Crown,
+      badge:
+        customer?.tier === 'gold'
+          ? 'طلایی 👑'
+          : customer?.tier === 'silver'
+            ? 'نقره‌ای ⭐'
+            : customer?.tier === 'diamond'
+              ? 'الماسی 💎'
+              : 'VIP',
       group: 'financial',
     },
     {
@@ -785,6 +804,13 @@ export const UserProfilePage: React.FC = () => {
                   <ProfileWalletTab
                     customer={customer}
                     onOpenTopupModal={() => setIsWalletModalOpen(true)}
+                  />
+                )}
+
+                {activeTab === 'loyalty' && (
+                  <ProfileLoyaltyTab
+                    customer={customer}
+                    onReloadCustomer={refreshProfile}
                   />
                 )}
 

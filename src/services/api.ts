@@ -1,6 +1,8 @@
 import type {
   AdminActionLogRecord,
   AdminAdjustCustomerWalletRequest,
+  AdminBIOverviewRequest,
+  AdminBIOverviewResponse,
   AdminCustomerDetail360Response,
   AdminCustomerListItem,
   AdminListCustomersRequest,
@@ -24,7 +26,9 @@ import type {
   ContentTemplate,
   CouponItem,
   CouponValidation,
+  CreateOrUpdateLoyaltyTierRequest,
   CreateTicketPayload,
+  CustomerLoyaltyProfile,
   CustomerProfile,
   DeliveryMode,
   HelpGuideDetail,
@@ -32,6 +36,7 @@ import type {
   InstantDeliverySettings,
   InventoryItem,
   InventoryStats,
+  LoyaltyTier,
   OfficialInvoice,
   Order,
   OrderStatus,
@@ -2671,6 +2676,161 @@ export const apiService = {
     if (!res.ok || json.code !== 200) {
       throw new Error(json.msg || 'خطا در حذف سرویس')
     }
+  },
+
+  // ==========================================
+  // Business Intelligence (BI) Analytics API
+  // ==========================================
+  async getBIOverview(
+    params?: AdminBIOverviewRequest,
+  ): Promise<AdminBIOverviewResponse> {
+    const token = this.getAdminToken()
+    const searchParams = new URLSearchParams()
+    if (params?.range) searchParams.set('range', params.range)
+    if (params?.group_by) searchParams.set('group_by', params.group_by)
+    if (params?.start_date) searchParams.set('start_date', params.start_date)
+    if (params?.end_date) searchParams.set('end_date', params.end_date)
+
+    const query = searchParams.toString() ? `?${searchParams.toString()}` : ''
+    const res = await fetch(`/api/v1/admin/bi/overview${query}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'خطا در دریافت آمارهای هوش تجاری')
+    }
+    return json.data
+  },
+
+  // ==========================================
+  // VIP Club & Loyalty Tiers Admin Management
+  // ==========================================
+  async getAdminLoyaltyTiers(): Promise<LoyaltyTier[]> {
+    const token = this.getAdminToken()
+    const res = await fetch('/api/v1/admin/loyalty/tiers', {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'خطا در دریافت لیست سطوح وفاداری')
+    }
+    return json.data || []
+  },
+
+  async createAdminLoyaltyTier(
+    data: CreateOrUpdateLoyaltyTierRequest,
+  ): Promise<LoyaltyTier> {
+    const token = this.getAdminToken()
+    const res = await fetch('/api/v1/admin/loyalty/tiers', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    })
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'خطا در ایجاد سطح وفاداری جدید')
+    }
+    return json.data
+  },
+
+  async updateAdminLoyaltyTier(
+    id: string,
+    data: CreateOrUpdateLoyaltyTierRequest,
+  ): Promise<LoyaltyTier> {
+    const token = this.getAdminToken()
+    const res = await fetch(
+      `/api/v1/admin/loyalty/tiers/${encodeURIComponent(id)}`,
+      {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      },
+    )
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'خطا در ویرایش سطح وفاداری')
+    }
+    return json.data
+  },
+
+  async deleteAdminLoyaltyTier(id: string): Promise<void> {
+    const token = this.getAdminToken()
+    const res = await fetch(
+      `/api/v1/admin/loyalty/tiers/${encodeURIComponent(id)}`,
+      {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      },
+    )
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'خطا در حذف سطح وفاداری')
+    }
+  },
+
+  async getAdminLoyaltySettings(): Promise<Record<string, string>> {
+    const token = this.getAdminToken()
+    const res = await fetch('/api/v1/admin/loyalty/settings', {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'خطا در دریافت تنظیمات باشگاه وفاداری')
+    }
+    return json.data || {}
+  },
+
+  async updateAdminLoyaltySettings(
+    settings: Record<string, string>,
+  ): Promise<void> {
+    const token = this.getAdminToken()
+    const res = await fetch('/api/v1/admin/loyalty/settings', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(settings),
+    })
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'خطا در ذخیره تنظیمات باشگاه وفاداری')
+    }
+  },
+
+  // ==========================================
+  // Public Storefront VIP Loyalty Profile
+  // ==========================================
+  async getCustomerLoyaltyProfile(
+    phone?: string,
+  ): Promise<CustomerLoyaltyProfile> {
+    const token = this.getCustomerToken()
+    const headers: Record<string, string> = {}
+    if (token) {
+      headers.Authorization = `Bearer ${token}`
+    }
+    const query = phone ? `?phone=${encodeURIComponent(phone)}` : ''
+    const res = await fetch(`/api/v1/loyalty/profile${query}`, { headers })
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'خطا در دریافت اطلاعات باشگاه وفاداری')
+    }
+    return json.data
+  },
+
+  async getPublicLoyaltyTiers(): Promise<LoyaltyTier[]> {
+    const res = await fetch('/api/v1/loyalty/tiers')
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'خطا در دریافت سطوح وفاداری')
+    }
+    return json.data || []
   },
 }
 

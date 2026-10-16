@@ -1,6 +1,7 @@
 import {
   BookOpen,
   ChevronDown,
+  Crown,
   HelpCircle,
   Lock,
   LogIn,
@@ -293,6 +294,26 @@ export const Header: React.FC<HeaderProps> = ({
                     </div>
 
                     <div className="p-1 space-y-0.5">
+                      <Link
+                        to="/profile?tab=loyalty"
+                        onClick={() => setUserDropdownOpen(false)}
+                        className="flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-bold text-amber-500 bg-amber-500/10 hover:bg-amber-500/20 transition-colors text-right border border-amber-500/20"
+                      >
+                        <div className="flex items-center gap-2">
+                          <Crown className="h-3.5 w-3.5" />
+                          <span>باشگاه مشتریان و VIP</span>
+                        </div>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 font-bold">
+                          {customer.tier === 'gold'
+                            ? 'طلایی 👑'
+                            : customer.tier === 'silver'
+                              ? 'نقره‌ای ⭐'
+                              : customer.tier === 'diamond'
+                                ? 'الماسی 💎'
+                                : 'عضو VIP'}
+                        </span>
+                      </Link>
+
                       <Link
                         to="/profile"
                         onClick={() => setUserDropdownOpen(false)}

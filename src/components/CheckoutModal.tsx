@@ -2,6 +2,7 @@ import {
   AlertCircle,
   Coins,
   CreditCard,
+  Crown,
   Landmark,
   Loader2,
   Lock,
@@ -11,9 +12,11 @@ import {
 } from 'lucide-react'
 import type React from 'react'
 import { useEffect, useState } from 'react'
+import { apiService } from '../services/api'
 import type {
   CartItem,
   CouponValidation,
+  CustomerLoyaltyProfile,
   CustomerProfile,
   PaymentGateway,
   Product,
@@ -61,6 +64,17 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
+  const [loyaltyProfile, setLoyaltyProfile] =
+    useState<CustomerLoyaltyProfile | null>(null)
+
+  useEffect(() => {
+    if (customer?.phone) {
+      apiService
+        .getCustomerLoyaltyProfile(customer.phone)
+        .then((lp) => setLoyaltyProfile(lp))
+        .catch(() => {})
+    }
+  }, [customer?.phone])
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -80,22 +94,30 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       )
     : product?.price_toman || 0
 
-  let discount = 0
+  let couponDiscount = 0
   if (coupon?.valid) {
     if (coupon.discount_type === 'percentage') {
-      discount = (subtotal * coupon.discount_value) / 100
+      couponDiscount = (subtotal * coupon.discount_value) / 100
     } else {
-      discount = coupon.discount_value
+      couponDiscount = coupon.discount_value
     }
-    if (discount > subtotal) discount = subtotal
+    if (couponDiscount > subtotal) couponDiscount = subtotal
   }
+
+  // Calculate dynamic loyalty discount from database tier
+  const loyaltyDiscountPercent = loyaltyProfile?.active_discount_pct || 0
+  const loyaltyDiscount =
+    loyaltyDiscountPercent > 0 ? (subtotal * loyaltyDiscountPercent) / 100 : 0
+
+  const totalDiscount = Math.min(subtotal, couponDiscount + loyaltyDiscount)
 
   const selectedGateway =
     payments.find((p) => p.platform === selectedPlatform) || defaultGateway
   const fee = selectedGateway
-    ? (Math.max(0, subtotal - discount) * selectedGateway.fee_percentage) / 100
+    ? (Math.max(0, subtotal - totalDiscount) * selectedGateway.fee_percentage) /
+      100
     : 0
-  const finalAmount = Math.max(0, subtotal - discount) + fee
+  const finalAmount = Math.max(0, subtotal - totalDiscount) + fee
 
   const needsAccountUpgrade =
     product?.delivery_mode === 'UPGRADE_EXISTING' ||
@@ -364,11 +386,34 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           {/* Price Breakdown */}
           <div className="rounded-xl border border-border bg-muted/40 p-3 space-y-2 text-xs">
             <div className="flex justify-between text-muted-foreground">
-              <span>قیمت سرویس:</span>
+              <span>قیمت کل اقلام:</span>
               <span className="font-bold text-foreground">
                 {subtotal.toLocaleString('fa-IR')} تومان
               </span>
             </div>
+
+            {loyaltyDiscount > 0 && (
+              <div className="flex justify-between text-amber-600 dark:text-amber-400 font-semibold bg-amber-500/10 p-2 rounded-lg border border-amber-500/20">
+                <span className="flex items-center gap-1.5">
+                  <Crown className="w-3.5 h-3.5 text-amber-500" />
+                  تخفیف وفاداری ({loyaltyProfile?.current_tier?.name || 'VIP'} -{' '}
+                  {loyaltyDiscountPercent}٪):
+                </span>
+                <span className="font-bold">
+                  - {Math.round(loyaltyDiscount).toLocaleString('fa-IR')} تومان
+                </span>
+              </div>
+            )}
+
+            {couponDiscount > 0 && (
+              <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-semibold">
+                <span>تخفیف کوپن ({coupon?.code}):</span>
+                <span>
+                  - {Math.round(couponDiscount).toLocaleString('fa-IR')} تومان
+                </span>
+              </div>
+            )}
+
             {fee > 0 && (
               <div className="flex justify-between text-muted-foreground">
                 <span>کارمزد درگاه:</span>

@@ -390,6 +390,9 @@ export interface CustomerProfile {
   balance: number
   referral_code?: string
   referral_balance_toman?: number
+  tier?: string
+  total_spent_toman?: number
+  monthly_spent_toman?: number
   is_active: boolean
   is_admin?: boolean
 
@@ -1158,4 +1161,145 @@ export interface ServiceTarget {
   icon: string
   sort_order: number
   is_active: boolean
+}
+
+// ==========================================
+// BI & Business Intelligence Analytics Types
+// ==========================================
+export interface AdminBIKPIs {
+  total_revenue_toman: number
+  total_revenue_usdt: number
+  total_cogs_toman: number
+  total_cogs_usdt: number
+  gross_profit_toman: number
+  gross_profit_usdt: number
+  gross_margin_percent: number
+  total_orders: number
+  paid_orders: number
+  conversion_rate_percent: number
+  average_order_value_toman: number
+  average_order_value_usdt: number
+  total_customers: number
+  virtual_numbers_revenue: number
+  virtual_numbers_count: number
+  store_products_revenue: number
+  store_products_count: number
+}
+
+export interface AdminBITimeSeriesPoint {
+  period_label: string
+  date: string
+  revenue_toman: number
+  revenue_usdt: number
+  cogs_toman: number
+  cogs_usdt: number
+  gross_profit_toman: number
+  gross_profit_usdt: number
+  gross_margin: number
+  total_orders: number
+  paid_orders: number
+  conversion_rate: number
+}
+
+export interface AdminBITopProduct {
+  product_id: string
+  title_fa: string
+  slug: string
+  category: string
+  units_sold: number
+  revenue_toman: number
+  cogs_toman: number
+  gross_profit_toman: number
+  margin_percent: number
+}
+
+export interface AdminBITopCountry {
+  country: string
+  country_name_fa: string
+  country_flag: string
+  orders_count: number
+  revenue_toman: number
+  top_service: string
+}
+
+export interface AdminBILoyaltyDistribution {
+  tier_code: string
+  tier_name: string
+  tier_name_en: string
+  badge_color: string
+  discount_percent: number
+  customer_count: number
+  total_spent_toman: number
+  percentage_of_users: number
+  percentage_of_sales: number
+}
+
+export interface AdminBIOverviewResponse {
+  kpis: AdminBIKPIs
+  time_series: AdminBITimeSeriesPoint[]
+  top_products: AdminBITopProduct[]
+  top_countries: AdminBITopCountry[]
+  loyalty_stats: AdminBILoyaltyDistribution[]
+  effective_usd_rate: number
+  generated_at: string
+}
+
+export interface AdminBIOverviewRequest {
+  range?: '7d' | '30d' | '90d' | '1y' | 'all'
+  group_by?: 'daily' | 'weekly' | 'monthly'
+  start_date?: string
+  end_date?: string
+}
+
+// ==========================================
+// Loyalty Club & VIP Tiers Types
+// ==========================================
+export interface LoyaltyTier {
+  id: string
+  code: string
+  name: string
+  name_en?: string
+  min_spend_toman: number
+  discount_percent: number
+  queue_priority: number
+  badge_color: string
+  badge_gradient?: string
+  icon: string
+  description?: string
+  perks: string[]
+  order_index: number
+  is_active: boolean
+  user_count?: number
+  created_at?: string
+  updated_at?: string
+}
+
+export interface CreateOrUpdateLoyaltyTierRequest {
+  code: string
+  name: string
+  name_en?: string
+  min_spend_toman: number
+  discount_percent: number
+  queue_priority: number
+  badge_color: string
+  badge_gradient?: string
+  icon: string
+  description?: string
+  perks: string[]
+  order_index: number
+  is_active?: boolean
+}
+
+export interface CustomerLoyaltyProfile {
+  current_tier: LoyaltyTier
+  next_tier?: LoyaltyTier | null
+  total_spent_toman: number
+  monthly_spent_toman: number
+  period: 'monthly_30d' | 'all_time'
+  active_spent_toman: number
+  required_for_next: number
+  progress_percent: number
+  all_tiers: LoyaltyTier[]
+  active_discount_pct: number
+  total_saved_toman: number
 }

@@ -1,5 +1,6 @@
 import {
   BookOpen,
+  Crown,
   ExternalLink,
   History,
   Layers,
@@ -13,6 +14,7 @@ import {
   Sliders,
   Smartphone,
   Sparkles,
+  TrendingUp,
   UserCheck,
   Users,
   X,
@@ -23,6 +25,8 @@ import { Link } from 'react-router-dom'
 import { ThemeToggle } from '../ThemeToggle'
 
 export type AdminTabType =
+  | 'bi-analytics'
+  | 'loyalty-tiers'
   | 'users'
   | 'all-orders'
   | 'queue'
@@ -80,6 +84,23 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
   onCloseMobile,
 }) => {
   const groups: NavGroup[] = [
+    {
+      label: 'هوش تجاری و باشگاه مشتریان',
+      items: [
+        {
+          id: 'bi-analytics',
+          title: 'داشبورد هوش تجاری (BI Analytics)',
+          subtitle: 'سود ناخالص، فروش تومان/تتر، AOV و نرخ تبدیل',
+          icon: TrendingUp,
+        },
+        {
+          id: 'loyalty-tiers',
+          title: 'باشگاه مشتریان و سطوح VIP',
+          subtitle: 'سطوح برنزی، نقره‌ای، طلایی و اولویت صف',
+          icon: Crown,
+        },
+      ],
+    },
     {
       label: 'مدیریت کاربران و پردازش سفارشات',
       items: [
