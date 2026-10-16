@@ -41,7 +41,6 @@ import { ProfileSettingsTab } from '../components/profile/ProfileSettingsTab'
 import { ProfileSupportTab } from '../components/profile/ProfileSupportTab'
 import { ProfileWalletTab } from '../components/profile/ProfileWalletTab'
 import { WalletTopupModal } from '../components/profile/WalletTopupModal'
-import { ThemeToggle } from '../components/ThemeToggle'
 import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
 import { apiService } from '../services/api'
@@ -331,22 +330,16 @@ export const UserProfilePage: React.FC = () => {
 
         {/* Profile Hero Header Card */}
         {loading ? (
-          <div
-            className="rounded-2xl border border-border bg-card p-6 flex items-center justify-center"
-            style={{ boxShadow: 'var(--depth-surface)' }}
-          >
+          <div className="rounded-surface border-line bg-card p-6 flex items-center justify-center shadow-surface">
             <div className="flex items-center gap-3 text-muted-foreground text-xs font-medium">
-              <span className="h-4 w-4 rounded-full border-2 border-blue-600 border-t-transparent animate-spin" />
+              <span className="h-4 w-4 rounded-full border-2 border-foreground border-t-transparent animate-spin" />
               <span>در حال بارگذاری اطلاعات حساب کاربری...</span>
             </div>
           </div>
         ) : customer ? (
-          <div
-            className="relative overflow-hidden rounded-2xl border border-border bg-card p-5 sm:p-6"
-            style={{ boxShadow: 'var(--depth-surface)' }}
-          >
-            {/* Top decorative gradient line in Graphite style */}
-            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-600 via-indigo-600 to-sky-400" />
+          <div className="relative overflow-hidden rounded-surface border-line bg-card p-5 sm:p-6 shadow-surface duration-motion ease-motion">
+            {/* Top decorative hairline highlight in Graphite style */}
+            <div className="absolute top-0 left-0 right-0 h-px bg-white/10" />
 
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-5">
               {/* Left/Start: Avatar + Info */}
@@ -356,10 +349,10 @@ export const UserProfilePage: React.FC = () => {
                     <img
                       src={customer.avatar_url}
                       alt={customer.full_name || 'کاربر'}
-                      className="h-14 w-14 sm:h-16 sm:w-16 rounded-2xl object-cover border-2 border-blue-500/30"
+                      className="h-14 w-14 sm:h-16 sm:w-16 rounded-control object-cover border-line"
                     />
                   ) : (
-                    <div className="h-14 w-14 sm:h-16 sm:w-16 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-500 text-white flex items-center justify-center font-black text-xl sm:text-2xl shadow-md">
+                    <div className="h-14 w-14 sm:h-16 sm:w-16 rounded-control bg-secondary text-secondary-foreground border-line flex items-center justify-center font-black text-xl sm:text-2xl shadow-control">
                       {customer.full_name
                         ? customer.full_name.charAt(0).toUpperCase()
                         : customer.phone.slice(-4)}
@@ -388,7 +381,7 @@ export const UserProfilePage: React.FC = () => {
                       >
                         <Badge
                           variant="outline"
-                          className="border-red-500/40 text-red-500 bg-red-500/10 text-[10px] gap-1 px-1.5 py-0.5"
+                          className="border-line text-destructive bg-destructive/10 text-[10px] gap-1 px-2 py-0.5 rounded-control"
                         >
                           <ShieldCheck className="h-3 w-3" />
                           <span>مدیر سیستم</span>
@@ -399,7 +392,7 @@ export const UserProfilePage: React.FC = () => {
                     {customer.is_active && (
                       <Badge
                         variant="outline"
-                        className="border-emerald-500/30 text-emerald-400 bg-emerald-500/10 text-[10px] gap-1 px-1.5 py-0.5 shrink-0"
+                        className="border-line text-emerald-400 bg-emerald-500/10 text-[10px] gap-1 px-2 py-0.5 shrink-0 rounded-control"
                       >
                         <CheckCircle2 className="h-3 w-3" />
                         <span>تاییدشده</span>
@@ -409,9 +402,9 @@ export const UserProfilePage: React.FC = () => {
                     {orders.length > 0 && (
                       <Badge
                         variant="outline"
-                        className="border-blue-500/30 text-blue-400 bg-blue-500/10 text-[10px] gap-1 px-1.5 py-0.5 shrink-0"
+                        className="border-line text-foreground bg-muted text-[10px] gap-1 px-2 py-0.5 shrink-0 rounded-control"
                       >
-                        <ShoppingBag className="h-3 w-3" />
+                        <ShoppingBag className="h-3 w-3 text-brand" />
                         <span>
                           {orders.length.toLocaleString('fa-IR')} سفارش
                         </span>
@@ -421,7 +414,7 @@ export const UserProfilePage: React.FC = () => {
 
                   <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                     <div className="flex items-center gap-1 font-mono text-foreground font-bold">
-                      <Phone className="h-3 w-3 text-blue-500" />
+                      <Phone className="h-3 w-3 text-brand" />
                       <span dir="ltr">{customer.phone}</span>
                     </div>
                     <span>•</span>
@@ -432,43 +425,43 @@ export const UserProfilePage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Right/End: Responsive Wallet & Actions (Clean 2-row / responsive grid) */}
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full md:w-auto border-t md:border-t-0 border-border/80 pt-3 md:pt-0">
+              {/* Right/End: Responsive Wallet & Actions (Graphite Style - Primary white button) */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full md:w-auto border-t md:border-t-0 border-line pt-3 md:pt-0">
                 {/* Unified Wallet Component */}
-                <div className="flex items-center justify-between sm:justify-start gap-2.5 px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800">
+                <div className="flex items-center justify-between sm:justify-start gap-2.5 px-3 py-2 rounded-control bg-card border-line shadow-surface">
                   <div className="flex items-center gap-1.5 text-xs text-right">
-                    <span className="text-[11px] text-zinc-400">موجودی:</span>
-                    <span className="font-black text-blue-400 font-latin text-sm">
+                    <span className="text-[11px] text-muted-foreground">
+                      موجودی:
+                    </span>
+                    <span className="font-black text-foreground font-latin text-sm">
                       {customer.balance_toman.toLocaleString('fa-IR')}
                     </span>
-                    <span className="text-[10px] text-zinc-400">تومان</span>
+                    <span className="text-[10px] text-muted-foreground">
+                      تومان
+                    </span>
                   </div>
 
-                  <div className="h-4 w-px bg-zinc-800" />
+                  <div className="h-4 w-px bg-border" />
 
-                  <Button
+                  <button
                     type="button"
-                    size="sm"
                     onClick={() => setIsWalletModalOpen(true)}
-                    className="h-7 px-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs gap-1 shadow-xs"
+                    className="h-7 px-3 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs gap-1 flex items-center cursor-pointer active:[transform:var(--press)] duration-motion ease-motion shadow-control"
                   >
                     <Plus className="h-3 w-3" />
                     <span>شارژ</span>
-                  </Button>
+                  </button>
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <ThemeToggle />
-
-                  <Button
+                  <button
                     type="button"
-                    variant="outline"
                     onClick={handleLogout}
-                    className="h-9 px-3.5 rounded-xl text-xs text-red-400 border-red-900/40 hover:bg-red-950/30 gap-1.5 shrink-0 justify-center flex-1 sm:flex-initial"
+                    className="h-9 px-3.5 rounded-control text-xs text-destructive border-line bg-card hover:bg-muted gap-1.5 shrink-0 justify-center flex-1 sm:flex-initial flex items-center cursor-pointer active:[transform:var(--press)] duration-motion ease-motion"
                   >
                     <LogOut className="h-3.5 w-3.5" />
                     <span>خروج از حساب</span>
-                  </Button>
+                  </button>
                 </div>
               </div>
             </div>
@@ -507,22 +500,22 @@ export const UserProfilePage: React.FC = () => {
                   key={tab.id}
                   type="button"
                   onClick={() => handleSelectTab(tab.id)}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all ${
+                  className={`flex items-center gap-2 px-3 py-2 rounded-control text-xs font-bold transition-all duration-motion ease-motion active:scale-[0.98] ${
                     isActive
-                      ? 'bg-blue-600 text-white shadow-sm shadow-blue-600/30'
-                      : 'bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                      ? 'bg-primary text-primary-foreground font-black shadow-control'
+                      : 'border-line bg-card text-muted-foreground hover:text-foreground hover:bg-muted'
                   }`}
                 >
                   <Icon
-                    className={`h-3.5 w-3.5 ${isActive ? 'text-white' : 'text-muted-foreground'}`}
+                    className={`h-3.5 w-3.5 ${isActive ? 'text-primary-foreground' : 'text-muted-foreground'}`}
                   />
                   <span>{tab.shortLabel}</span>
                   {tab.badge && (
                     <span
-                      className={`px-1.5 py-0.2 rounded-full text-[9px] font-mono ${
+                      className={`px-1.5 py-0.2 rounded-control text-[9px] font-mono ${
                         isActive
-                          ? 'bg-white/20 text-white'
-                          : 'bg-blue-100 dark:bg-blue-950 text-blue-600 dark:text-blue-400 font-bold'
+                          ? 'bg-primary-foreground/20 text-primary-foreground'
+                          : 'bg-muted text-foreground font-bold border-line'
                       }`}
                     >
                       {tab.badge}
@@ -538,7 +531,7 @@ export const UserProfilePage: React.FC = () => {
         <div className="grid grid-cols-12 gap-6 items-start">
           {/* Sidebar Navigation */}
           <aside className="hidden lg:block lg:col-span-3 space-y-4 sticky top-20">
-            <div className="rounded-2xl border border-border bg-card p-3 shadow-sm space-y-4">
+            <div className="rounded-surface border-line bg-card p-3 shadow-surface space-y-4 duration-motion ease-motion">
               {/* General Group */}
               <div>
                 <span className="px-3 text-[10px] font-bold text-muted-foreground tracking-wider uppercase block mb-1.5">
@@ -555,17 +548,17 @@ export const UserProfilePage: React.FC = () => {
                           key={tab.id}
                           type="button"
                           onClick={() => handleSelectTab(tab.id)}
-                          className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-all text-right ${
+                          className={`w-full flex items-center justify-between px-3 py-2.5 rounded-control text-xs font-bold transition-all text-right duration-motion ease-motion active:scale-[0.98] ${
                             isActive
-                              ? 'bg-blue-600 text-white shadow-sm shadow-blue-600/25'
-                              : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+                              ? 'bg-primary text-primary-foreground font-black shadow-control'
+                              : 'text-muted-foreground hover:text-foreground hover:bg-muted'
                           }`}
                         >
                           <div className="flex items-center gap-2.5">
                             <Icon
                               className={`h-4 w-4 ${
                                 isActive
-                                  ? 'text-white'
+                                  ? 'text-primary-foreground'
                                   : 'text-muted-foreground'
                               }`}
                             />
@@ -573,7 +566,7 @@ export const UserProfilePage: React.FC = () => {
                           </div>
                           <ChevronLeft
                             className={`h-3.5 w-3.5 opacity-60 ${
-                              isActive ? 'text-white' : ''
+                              isActive ? 'text-primary-foreground' : ''
                             }`}
                           />
                         </button>
@@ -583,7 +576,7 @@ export const UserProfilePage: React.FC = () => {
               </div>
 
               {/* Services & Orders Group */}
-              <div className="pt-2 border-t border-border/60">
+              <div className="pt-2 border-t border-line">
                 <span className="px-3 text-[10px] font-bold text-muted-foreground tracking-wider uppercase block mb-1.5">
                   سرویس‌ها و سفارش‌ها
                 </span>
@@ -598,17 +591,17 @@ export const UserProfilePage: React.FC = () => {
                           key={tab.id}
                           type="button"
                           onClick={() => handleSelectTab(tab.id)}
-                          className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-all text-right ${
+                          className={`w-full flex items-center justify-between px-3 py-2.5 rounded-control text-xs font-bold transition-all text-right duration-motion ease-motion active:scale-[0.98] ${
                             isActive
-                              ? 'bg-blue-600 text-white shadow-sm shadow-blue-600/25'
-                              : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+                              ? 'bg-primary text-primary-foreground font-black shadow-control'
+                              : 'text-muted-foreground hover:text-foreground hover:bg-muted'
                           }`}
                         >
                           <div className="flex items-center gap-2.5">
                             <Icon
                               className={`h-4 w-4 ${
                                 isActive
-                                  ? 'text-white'
+                                  ? 'text-primary-foreground'
                                   : 'text-muted-foreground'
                               }`}
                             />
@@ -616,10 +609,10 @@ export const UserProfilePage: React.FC = () => {
                           </div>
                           {tab.badge ? (
                             <span
-                              className={`px-2 py-0.5 rounded-full text-[10px] font-mono ${
+                              className={`px-2 py-0.5 rounded-control text-[10px] font-mono ${
                                 isActive
-                                  ? 'bg-white/20 text-white'
-                                  : 'bg-blue-100 dark:bg-blue-950 text-blue-600 dark:text-blue-400 font-bold'
+                                  ? 'bg-primary-foreground/20 text-primary-foreground'
+                                  : 'border-line bg-muted text-foreground'
                               }`}
                             >
                               {tab.badge}
@@ -627,7 +620,7 @@ export const UserProfilePage: React.FC = () => {
                           ) : (
                             <ChevronLeft
                               className={`h-3.5 w-3.5 opacity-60 ${
-                                isActive ? 'text-white' : ''
+                                isActive ? 'text-primary-foreground' : ''
                               }`}
                             />
                           )}
@@ -638,7 +631,7 @@ export const UserProfilePage: React.FC = () => {
               </div>
 
               {/* Financial Group */}
-              <div className="pt-2 border-t border-border/60">
+              <div className="pt-2 border-t border-line">
                 <span className="px-3 text-[10px] font-bold text-muted-foreground tracking-wider uppercase block mb-1.5">
                   بخش مالی و درآمد
                 </span>
@@ -653,17 +646,17 @@ export const UserProfilePage: React.FC = () => {
                           key={tab.id}
                           type="button"
                           onClick={() => handleSelectTab(tab.id)}
-                          className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-all text-right ${
+                          className={`w-full flex items-center justify-between px-3 py-2.5 rounded-control text-xs font-bold transition-all text-right duration-motion ease-motion active:scale-[0.98] ${
                             isActive
-                              ? 'bg-blue-600 text-white shadow-sm shadow-blue-600/25'
-                              : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+                              ? 'bg-primary text-primary-foreground font-black shadow-control'
+                              : 'text-muted-foreground hover:text-foreground hover:bg-muted'
                           }`}
                         >
                           <div className="flex items-center gap-2.5">
                             <Icon
                               className={`h-4 w-4 ${
                                 isActive
-                                  ? 'text-white'
+                                  ? 'text-primary-foreground'
                                   : 'text-muted-foreground'
                               }`}
                             />
@@ -671,10 +664,10 @@ export const UserProfilePage: React.FC = () => {
                           </div>
                           {tab.badge ? (
                             <span
-                              className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                              className={`px-2 py-0.5 rounded-control text-[10px] font-bold ${
                                 isActive
-                                  ? 'bg-white/20 text-white'
-                                  : 'bg-emerald-100 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-400'
+                                  ? 'bg-primary-foreground/20 text-primary-foreground'
+                                  : 'border-brand/30 bg-brand/10 text-brand'
                               }`}
                             >
                               {tab.badge}
@@ -682,7 +675,7 @@ export const UserProfilePage: React.FC = () => {
                           ) : (
                             <ChevronLeft
                               className={`h-3.5 w-3.5 opacity-60 ${
-                                isActive ? 'text-white' : ''
+                                isActive ? 'text-primary-foreground' : ''
                               }`}
                             />
                           )}
@@ -693,7 +686,7 @@ export const UserProfilePage: React.FC = () => {
               </div>
 
               {/* System & Support Group */}
-              <div className="pt-2 border-t border-border/60">
+              <div className="pt-2 border-t border-line">
                 <span className="px-3 text-[10px] font-bold text-muted-foreground tracking-wider uppercase block mb-1.5">
                   پشتیبانی و تنظیمات
                 </span>
@@ -708,17 +701,17 @@ export const UserProfilePage: React.FC = () => {
                           key={tab.id}
                           type="button"
                           onClick={() => handleSelectTab(tab.id)}
-                          className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-all text-right ${
+                          className={`w-full flex items-center justify-between px-3 py-2.5 rounded-control text-xs font-bold transition-all text-right duration-motion ease-motion active:scale-[0.98] ${
                             isActive
-                              ? 'bg-blue-600 text-white shadow-sm shadow-blue-600/25'
-                              : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+                              ? 'bg-primary text-primary-foreground font-black shadow-control'
+                              : 'text-muted-foreground hover:text-foreground hover:bg-muted'
                           }`}
                         >
                           <div className="flex items-center gap-2.5">
                             <Icon
                               className={`h-4 w-4 ${
                                 isActive
-                                  ? 'text-white'
+                                  ? 'text-primary-foreground'
                                   : 'text-muted-foreground'
                               }`}
                             />
@@ -726,7 +719,7 @@ export const UserProfilePage: React.FC = () => {
                           </div>
                           <ChevronLeft
                             className={`h-3.5 w-3.5 opacity-60 ${
-                              isActive ? 'text-white' : ''
+                              isActive ? 'text-primary-foreground' : ''
                             }`}
                           />
                         </button>
@@ -737,8 +730,8 @@ export const UserProfilePage: React.FC = () => {
             </div>
 
             {/* Need Help Card */}
-            <div className="rounded-2xl border border-blue-500/20 bg-gradient-to-br from-blue-500/10 via-indigo-500/5 to-card p-4 text-right space-y-2.5">
-              <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400 font-bold text-xs">
+            <div className="rounded-surface border-line bg-card p-4 text-right space-y-2.5 shadow-surface duration-motion ease-motion">
+              <div className="flex items-center gap-2 text-brand font-bold text-xs">
                 <MessageSquare className="h-4 w-4" />
                 <span>پشتیبانی شبانه‌روزی ۲۴/۷</span>
               </div>
@@ -750,14 +743,14 @@ export const UserProfilePage: React.FC = () => {
                 href="https://t.me/AnahixSupport"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center justify-center w-full py-2 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs transition-colors shadow-sm shadow-blue-600/20"
+                className="inline-flex items-center justify-center w-full py-2 px-3 rounded-control bg-primary text-primary-foreground font-black text-xs duration-motion ease-motion hover:bg-primary-hover active:scale-[0.98] shadow-control"
               >
                 ارتباط با پشتیبان در تلگرام
               </a>
             </div>
           </aside>
 
-          {/* Main Tab Content */}
+          {/* Main Tab Content Panel */}
           <section className="col-span-12 lg:col-span-9">
             {customer ? (
               <>

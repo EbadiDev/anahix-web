@@ -79,6 +79,7 @@ export interface Product {
   stock_count: number
   icon_name?: string
   image_url?: string
+  icon_url?: string
   gallery_json?: string
   is_flash_sale?: boolean
   flash_sale_price_toman?: number
@@ -130,6 +131,7 @@ export interface AdminProduct {
   is_active: boolean
   instructions?: string
   image_url?: string
+  icon_url?: string
   is_flash_sale?: boolean
   flash_sale_price_toman?: number
   flash_sale_stock?: number
@@ -253,6 +255,8 @@ export interface VirtualNumberCountry {
   country: string
   country_name_fa: string
   country_flag: string
+  country_code?: string
+  flag_url?: string
   total_stock: number
   best_rate: number
   cheapest_price_toman: number
@@ -1040,14 +1044,16 @@ export interface AdminUpdateOrderStatusRequest {
 
 export interface ContentCategory {
   id: string
+  parent_id?: string
   name: string
   slug: string
-  type: 'blog' | 'help'
+  type: 'blog' | 'help' | 'product'
   icon: string
   description?: string
   sort_order: number
   is_active: boolean
   article_count?: number
+  children?: ContentCategory[]
 }
 
 export interface TOCItem {

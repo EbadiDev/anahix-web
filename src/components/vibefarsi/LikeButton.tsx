@@ -1,6 +1,6 @@
 import { Heart, Loader2 } from 'lucide-react'
 import type React from 'react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { api } from '../../services/api'
 import { useNotification } from './NotificationContext'
 
@@ -15,43 +15,131 @@ function toPersianDigits(n: number | string): string {
   return String(n).replace(/\d/g, (d) => f[Number(d)])
 }
 
+const LIKED_STORAGE_KEY = 'anahix_liked_articles'
+
+function getLikedArticles(): string[] {
+  try {
+    const raw = localStorage.getItem(LIKED_STORAGE_KEY)
+    if (raw) {
+      const parsed = JSON.parse(raw)
+      if (Array.isArray(parsed)) return parsed
+    }
+  } catch {}
+  return []
+}
+
+function saveLikedArticle(slug: string) {
+  try {
+    const list = getLikedArticles()
+    if (!list.includes(slug)) {
+      list.push(slug)
+      localStorage.setItem(LIKED_STORAGE_KEY, JSON.stringify(list))
+    }
+  } catch {}
+}
+
+function removeLikedArticle(slug: string) {
+  try {
+    const list = getLikedArticles().filter((s) => s !== slug)
+    localStorage.setItem(LIKED_STORAGE_KEY, JSON.stringify(list))
+  } catch {}
+}
+
 export const LikeButton: React.FC<LikeButtonProps> = ({
   slug,
   initialCount = 0,
   className = '',
 }) => {
-  const { error, success } = useNotification()
+  const { error, success, info } = useNotification()
   const [likes, setLikes] = useState<number>(initialCount)
   const [isLiked, setIsLiked] = useState<boolean>(false)
   const [loading, setLoading] = useState<boolean>(false)
+
+  // Sync initial liked state from localStorage on mount or slug change
+  useEffect(() => {
+    const list = getLikedArticles()
+    setIsLiked(list.includes(slug))
+
+    const handleSync = (e: any) => {
+      if (e.detail?.slug === slug) {
+        if (typeof e.detail.isLiked === 'boolean') {
+          setIsLiked(e.detail.isLiked)
+        }
+        if (typeof e.detail.likes === 'number') {
+          setLikes(e.detail.likes)
+        }
+      }
+    }
+
+    window.addEventListener('anahix:article:liked', handleSync)
+    return () => window.removeEventListener('anahix:article:liked', handleSync)
+  }, [slug])
+
+  // Sync initialCount if it updates from API
+  useEffect(() => {
+    if (initialCount > 0) {
+      setLikes(initialCount)
+    }
+  }, [initialCount])
 
   const handleLike = async (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
 
-    if (isLiked || loading) return
+    if (isLiked) {
+      info(
+        'قبلاً ثبت شده است',
+        'شما قبلاً این آموزش را پسندیده‌اید و در سیستم ثبت شده است.',
+      )
+      return
+    }
 
-    // 1. Optimistic UI Update
+    if (loading) return
+
+    // 1. Optimistic UI Update: Fill heart and increment count immediately
     const prevLikes = likes
-    setLikes((prev) => prev + 1)
+    const nextLikes = prevLikes + 1
+    setLikes(nextLikes)
     setIsLiked(true)
+    saveLikedArticle(slug)
     setLoading(true)
 
+    // Broadcast sync to other like button instances on the same page
+    window.dispatchEvent(
+      new CustomEvent('anahix:article:liked', {
+        detail: { slug, likes: nextLikes, isLiked: true },
+      }),
+    )
+
     try {
-      // 2. Persist in database via backend API
+      // 2. Background sync with backend database
       const newCount = await api.likeArticle(slug)
       if (newCount > 0) {
         setLikes(newCount)
+        window.dispatchEvent(
+          new CustomEvent('anahix:article:liked', {
+            detail: { slug, likes: newCount, isLiked: true },
+          }),
+        )
       }
-      success('پسندیده شد', 'نظر و پسند شما با موفقیت در سامانه ثبت گردید.')
+      success(
+        'دیدگاه مثبت شما ثبت شد',
+        'از اینکه نظر ارزشمند خود را با ما به اشتراک گذاشتید سپاسگزاریم.',
+      )
     } catch (err: any) {
-      // 3. Rollback on failure & alert user
+      // 3. Rollback on failure & alert user via Vibe Farsi notification
       setLikes(prevLikes)
       setIsLiked(false)
+      removeLikedArticle(slug)
+      window.dispatchEvent(
+        new CustomEvent('anahix:article:liked', {
+          detail: { slug, likes: prevLikes, isLiked: false },
+        }),
+      )
       error(
-        'خطا در ثبت پسندیدن',
+        'خطا در برقراری ارتباط با سرور',
         err.message ||
-          'ارتباط با سرور برقرار نشد. لطفاً وضعیت اینترنت خود را بررسی نمایید.',
+          'ثبت پسندیدن با خطا مواجه شد. لطفاً اتصال اینترنت خود را بررسی نمایید.',
       )
     } finally {
       setLoading(false)
@@ -62,26 +150,24 @@ export const LikeButton: React.FC<LikeButtonProps> = ({
     <button
       type="button"
       onClick={handleLike}
-      disabled={isLiked || loading}
-      className={`group relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border transition-all duration-200 cursor-pointer ${
+      className={`group relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-control border transition-all duration-motion ease-motion active:scale-[0.98] cursor-pointer shadow-control ${
         isLiked
-          ? 'border-rose-500/40 bg-rose-500/10 text-rose-500 font-bold scale-[1.05]'
-          : 'border-border bg-card/80 text-muted-foreground hover:text-rose-500 hover:border-rose-500/30 hover:bg-rose-500/5'
+          ? 'border-rose-500/50 bg-rose-500/10 text-rose-500 font-bold'
+          : 'border-border/60 bg-card hover:bg-muted text-muted-foreground hover:text-rose-500 hover:border-rose-500/40'
       } ${className}`}
-      style={{ boxShadow: 'var(--depth-surface)' }}
-      title={isLiked ? 'پسندیده شده' : 'پسندیدن مقاله'}
+      title={isLiked ? 'شما این مقاله را پسندیده‌اید' : 'پسندیدن مقاله'}
       aria-label="پسندیدن مقاله"
     >
       {loading ? (
         <Loader2 className="h-4 w-4 animate-spin text-rose-500" />
       ) : (
         <Heart
-          className={`h-4 w-4 transition-transform duration-200 group-hover:scale-125 ${
-            isLiked ? 'fill-rose-500 text-rose-500 animate-bounce' : ''
+          className={`h-4 w-4 transition-transform duration-200 group-hover:scale-115 ${
+            isLiked ? 'fill-rose-500 text-rose-500' : ''
           }`}
         />
       )}
-      <span className="font-latin text-xs font-bold font-sans">
+      <span className="font-latin text-xs font-bold">
         {toPersianDigits(likes)}
       </span>
     </button>

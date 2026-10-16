@@ -434,17 +434,17 @@ export const AdminDashboardPage: React.FC = () => {
           {/* TAB 1: VIRTUAL NUMBERS SETTINGS & MANAGEMENT */}
           {activeTab === 'virtual-numbers' && (
             <div className="space-y-8">
-              {/* Top Info Banner */}
-              <div className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-2xl p-6 shadow-lg shadow-blue-600/10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+              {/* Top Info Banner - Graphite Technical Minimal */}
+              <div className="bg-card border-line text-card-foreground rounded-surface p-6 shadow-surface flex flex-col md:flex-row items-start md:items-center justify-between gap-6 duration-motion ease-motion">
                 <div className="space-y-2">
-                  <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-md px-3 py-1 rounded-full text-xs font-semibold">
+                  <div className="inline-flex items-center gap-2 bg-brand/10 border border-brand/20 text-brand px-3 py-1 rounded-control text-xs font-bold">
                     <Sparkles className="w-3.5 h-3.5" />
                     <span>سامانه شماره‌های مجازی بین‌المللی آناهیکس</span>
                   </div>
-                  <h2 className="text-xl font-bold">
+                  <h2 className="text-xl font-black text-foreground">
                     مدیریت فروش شماره‌های دریافت پیامک (SMS OTP)
                   </h2>
-                  <p className="text-xs text-blue-100 max-w-2xl leading-relaxed">
+                  <p className="text-xs text-muted-foreground max-w-2xl leading-relaxed">
                     بیش از ۵۰۰٬۰۰۰ شماره آماده تحویل از ۱۸۰ کشور دنیا (انگلستان،
                     آلمان، فرانسه، سوئد، هلند، آمریکا و...). با فعال‌سازی زیرساخت
                     شماره‌های مجازی آناهیکس، شماره‌ها را با مارجین و سود دلخواه به
@@ -453,13 +453,13 @@ export const AdminDashboardPage: React.FC = () => {
                 </div>
 
                 {/* Account Live Balance Widget */}
-                <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-xl p-4 shrink-0 min-w-[220px]">
-                  <div className="text-xs text-blue-200 mb-1 flex items-center justify-between">
+                <div className="bg-muted border-line rounded-control p-4 shrink-0 min-w-[220px]">
+                  <div className="text-xs text-muted-foreground mb-1 flex items-center justify-between">
                     <span>موجودی اعتبار سامانه شماره‌ها</span>
                     <button
                       onClick={loadVirtualNumberSettings}
                       disabled={vnLoading}
-                      className="p-1 hover:bg-white/20 rounded transition-colors"
+                      className="p-1 hover:bg-card rounded transition-colors text-foreground"
                       title="بروزرسانی موجودی"
                     >
                       <RefreshCw
@@ -467,15 +467,15 @@ export const AdminDashboardPage: React.FC = () => {
                       />
                     </button>
                   </div>
-                  <div className="text-2xl font-black text-white font-mono tracking-tight">
+                  <div className="text-2xl font-black text-foreground font-mono tracking-tight">
                     $
                     {vnSettings?.balance
                       ? vnSettings.balance.toFixed(2)
                       : '0.00'}
                   </div>
-                  <div className="text-[11px] text-blue-200 mt-2 flex items-center justify-between">
+                  <div className="text-[11px] text-muted-foreground mt-2 flex items-center justify-between">
                     <span>امتیاز کاربری:</span>
-                    <span className="font-bold text-white">
+                    <span className="font-bold text-brand">
                       {vnSettings?.rating || 100}%
                     </span>
                   </div>

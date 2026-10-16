@@ -14,7 +14,6 @@ import { useEffect, useState } from 'react'
 import { api } from '../../services/api'
 import type { BannerItem } from '../../types'
 import { useNotification } from '../vibefarsi/NotificationContext'
-import { ShimmerButton } from '../vibefarsi/ShimmerButton'
 
 export const AdminBannersView: React.FC = () => {
   const { success, error } = useNotification()
@@ -147,13 +146,14 @@ export const AdminBannersView: React.FC = () => {
             />
           </button>
 
-          <ShimmerButton
+          <button
+            type="button"
             onClick={handleOpenCreate}
-            className="text-xs font-bold px-4 py-2.5 rounded-2xl"
+            className="h-9 px-4 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs duration-motion ease-motion active:scale-[0.98] shadow-control flex items-center gap-1.5 cursor-pointer"
           >
             <Plus className="h-4 w-4" />
             <span>ایجاد بنر جدید</span>
-          </ShimmerButton>
+          </button>
         </div>
       </div>
 
@@ -173,13 +173,14 @@ export const AdminBannersView: React.FC = () => {
             برای جذب خریداران و اطلاع‌رسانی جشنواره‌ها، اولین بنر تبلیغاتی را
             ایجاد کنید.
           </p>
-          <ShimmerButton
+          <button
+            type="button"
             onClick={handleOpenCreate}
-            className="text-xs font-bold mx-auto"
+            className="h-9 px-4 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs duration-motion ease-motion active:scale-[0.98] shadow-control flex items-center gap-1.5 cursor-pointer mx-auto"
           >
             <Plus className="h-4 w-4" />
             <span>ثبت اولین بنر</span>
-          </ShimmerButton>
+          </button>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -476,26 +477,26 @@ export const AdminBannersView: React.FC = () => {
                 </div>
               </div>
 
-              <div className="pt-4 flex items-center justify-end gap-2 border-t border-border">
+              <div className="pt-4 flex items-center justify-end gap-2.5 border-t border-border/60">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 rounded-xl border border-border hover:bg-muted text-xs font-bold text-muted-foreground transition-colors"
+                  className="h-9 px-4 rounded-control border-line bg-card hover:bg-muted text-xs font-bold text-muted-foreground hover:text-foreground duration-motion ease-motion active:scale-[0.98] cursor-pointer"
                 >
                   انصراف
                 </button>
 
-                <ShimmerButton
+                <button
                   type="submit"
                   disabled={saveLoading}
-                  className="text-xs font-bold px-6 py-2 rounded-xl"
+                  className="h-9 px-6 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs duration-motion ease-motion active:scale-[0.98] shadow-control flex items-center gap-2 cursor-pointer disabled:opacity-50"
                 >
                   {saveLoading ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
                     <span>ذخیره بنر</span>
                   )}
-                </ShimmerButton>
+                </button>
               </div>
             </form>
           </div>

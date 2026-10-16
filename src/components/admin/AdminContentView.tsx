@@ -131,7 +131,7 @@ export const AdminContentView: React.FC = () => {
     id: '',
     name: '',
     slug: '',
-    type: 'blog' as 'blog' | 'help',
+    type: 'blog' as 'blog' | 'help' | 'product',
     icon: 'BookOpen',
     description: '',
     sort_order: 1,
@@ -1942,6 +1942,9 @@ export const AdminContentView: React.FC = () => {
                 >
                   <option value="blog">وبلاگ و اخبار</option>
                   <option value="help">پایگاه دانش و راهنماها</option>
+                  <option value="product">
+                    محصولات فروشگاه (Product Catalog)
+                  </option>
                 </select>
               </div>
 

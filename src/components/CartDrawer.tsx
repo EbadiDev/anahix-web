@@ -392,28 +392,28 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
       {/* Ambient Backdrop */}
       <div
         onClick={onClose}
-        className="fixed inset-0 bg-slate-950/80 backdrop-blur-md transition-opacity duration-200 animate-in fade-in"
+        className="fixed inset-0 bg-black/80 backdrop-blur-md transition-opacity duration-200 animate-in fade-in"
       />
 
-      {/* Main Centered Workbench Modal (max-w-5xl) */}
-      <div className="relative w-full h-full sm:h-auto sm:max-h-[88vh] sm:max-w-5xl bg-background dark:bg-[#020817] sm:border sm:border-border/80 sm:rounded-3xl sm:shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 fade-in duration-200 z-10">
+      {/* Main Centered Workbench Modal (max-w-5xl) - Graphite Minimal Technical */}
+      <div className="relative w-full h-full sm:h-auto sm:max-h-[88vh] sm:max-w-5xl bg-zinc-950 sm:border sm:border-zinc-800 sm:rounded-surface sm:shadow-overlay flex flex-col overflow-hidden animate-in zoom-in-95 fade-in duration-200 z-10 text-zinc-100">
         {/* 1. Modal Top Bar */}
-        <div className="px-4 sm:px-6 py-3.5 sm:py-4 border-b border-border/70 bg-card/60 dark:bg-slate-900/40 backdrop-blur-md flex items-center justify-between gap-3 shrink-0">
+        <div className="px-4 sm:px-6 py-3.5 sm:py-4 border-b border-zinc-800 bg-zinc-950/90 backdrop-blur-md flex items-center justify-between gap-3 shrink-0">
           <div className="flex items-center gap-3">
-            <div className="relative flex items-center justify-center w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-blue-600/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 shadow-inner shrink-0">
-              <ShoppingBag className="w-5 h-5" />
+            <div className="relative flex items-center justify-center w-10 h-10 sm:w-11 sm:h-11 rounded-control bg-secondary text-secondary-foreground border border-border/60 shadow-control shrink-0">
+              <ShoppingBag className="w-5 h-5 text-brand" />
               {itemCount > 0 && (
-                <span className="absolute -top-1 -right-1 flex h-5 min-w-[20px] px-1.5 items-center justify-center rounded-full bg-blue-600 text-[11px] font-black text-white shadow-xs animate-pulse">
+                <span className="absolute -top-1 -right-1 flex h-5 min-w-[20px] px-1.5 items-center justify-center rounded-control bg-primary text-[11px] font-black text-primary-foreground shadow-control animate-pulse">
                   {itemCount}
                 </span>
               )}
             </div>
             <div>
               <div className="flex items-center gap-2 flex-wrap">
-                <h3 className="font-black text-base sm:text-lg text-foreground">
+                <h3 className="font-black text-base sm:text-lg text-white">
                   سبد خرید شما
                 </h3>
-                <span className="text-[11px] font-mono px-2.5 py-0.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 font-bold">
+                <span className="text-[11px] font-mono px-2.5 py-0.5 rounded-control bg-zinc-900 border border-zinc-800 text-zinc-300 font-bold">
                   {itemCount} محصول دیجیتال
                 </span>
               </div>
@@ -426,7 +426,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 type="button"
                 onClick={clearCart}
                 title="خالی کردن کل سبد"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 transition-colors border border-transparent hover:border-rose-500/20"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-control text-xs text-zinc-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors border border-transparent hover:border-rose-500/20 duration-motion ease-motion active:scale-[0.98] cursor-pointer"
               >
                 <Trash2 className="w-4 h-4" />
                 <span className="hidden sm:inline">خالی کردن سبد</span>
@@ -436,7 +436,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
               type="button"
               onClick={onClose}
               aria-label="بستن پنجره"
-              className="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors border border-border/50"
+              className="p-2 rounded-control text-zinc-400 hover:text-white hover:bg-zinc-900 transition-colors border border-zinc-800 cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -453,33 +453,34 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
 
         {/* 2. Modal Body */}
         {items.length === 0 ? (
-          <div className="flex-1 py-20 flex flex-col items-center justify-center text-center p-6 space-y-5 overflow-y-auto">
+          <div className="flex-1 py-16 sm:py-20 flex flex-col items-center justify-center text-center p-6 space-y-5 overflow-y-auto">
             <div className="relative">
-              <div className="w-24 h-24 rounded-3xl bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 flex items-center justify-center shadow-inner">
-                <ShoppingBag className="w-12 h-12 stroke-[1.5]" />
+              <div className="w-20 h-20 rounded-control bg-secondary text-secondary-foreground border border-border/60 flex items-center justify-center shadow-control">
+                <ShoppingBag className="w-10 h-10 text-brand stroke-[1.5]" />
               </div>
-              <div className="absolute -bottom-1.5 -right-1.5 w-8 h-8 rounded-2xl bg-card border border-border flex items-center justify-center text-amber-500 shadow-md">
-                <Sparkles className="w-4 h-4" />
+              <div className="absolute -bottom-1 -right-1 w-7 h-7 rounded-control bg-zinc-900 border border-zinc-800 flex items-center justify-center text-brand shadow-control">
+                <Sparkles className="w-3.5 h-3.5" />
               </div>
             </div>
 
-            <div className="space-y-2 max-w-sm">
-              <h4 className="font-black text-base sm:text-lg text-foreground">
+            <div className="space-y-1.5 max-w-sm">
+              <h4 className="font-black text-base sm:text-lg text-white">
                 سبد خرید شما در حال حاضر خالی است
               </h4>
-              <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
+              <p className="text-xs text-zinc-400 leading-relaxed">
                 می‌توانید از کاتالوگ فروشگاه اشتراک‌های هوش مصنوعی را به سبد خرید
                 اضافه کرده و سفارش خود را تکمیل کنید.
               </p>
             </div>
 
-            <Button
+            <button
+              type="button"
               onClick={onClose}
-              className="h-11 px-7 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-black text-xs sm:text-sm shadow-lg shadow-blue-600/25 transition-all active:scale-95 flex items-center gap-2"
+              className="h-11 px-7 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs sm:text-sm duration-motion ease-motion active:scale-[0.98] shadow-control flex items-center gap-2 cursor-pointer"
             >
               <Sparkles className="w-4 h-4" />
               <span>مشاهده و انتخاب اشتراک‌ها</span>
-            </Button>
+            </button>
           </div>
         ) : (
           <div className="flex-1 overflow-hidden flex flex-col lg:flex-row relative">
@@ -957,12 +958,13 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 </div>
               </div>
 
-              {/* 5. Checkout CTA Button */}
+              {/* 5. Checkout CTA Button: Graphite Primary Button (White with black text) */}
               <div className="space-y-2 pt-2">
-                <Button
+                <button
+                  type="button"
                   onClick={handleFinalSubmit}
                   disabled={isSubmitting}
-                  className="w-full h-12 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-700 hover:to-indigo-800 text-white font-black text-sm shadow-xl shadow-blue-600/30 flex items-center justify-center gap-2 transition-all hover:scale-[1.01] active:scale-[0.98] disabled:opacity-70"
+                  className="w-full h-11 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs sm:text-sm duration-motion ease-motion active:scale-[0.98] shadow-control flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                 >
                   {isSubmitting ? (
                     <>
@@ -975,7 +977,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                       <ArrowLeft className="w-4 h-4" />
                     </>
                   )}
-                </Button>
+                </button>
               </div>
             </div>
 
@@ -1145,10 +1147,11 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
               </div>
 
               <div className="flex items-center gap-2">
-                <Button
+                <button
+                  type="button"
                   onClick={handleFinalSubmit}
                   disabled={isSubmitting}
-                  className="h-11 px-6 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-black text-xs shadow-md shadow-blue-600/25 flex items-center gap-1.5 active:scale-95 disabled:opacity-70"
+                  className="h-10 px-6 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs duration-motion ease-motion active:scale-[0.98] shadow-control flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
                 >
                   {isSubmitting ? (
                     <>
@@ -1161,7 +1164,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                       <ArrowLeft className="w-3.5 h-3.5" />
                     </>
                   )}
-                </Button>
+                </button>
               </div>
             </div>
           </div>

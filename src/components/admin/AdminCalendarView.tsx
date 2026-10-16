@@ -6,7 +6,6 @@ import {
   PersianJalaliCalendar,
   toPersianDigits,
 } from '../vibefarsi/PersianJalaliCalendar'
-import { ShimmerButton } from '../vibefarsi/ShimmerButton'
 
 export const AdminCalendarView: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState<string>('1405/01/01')
@@ -80,13 +79,14 @@ export const AdminCalendarView: React.FC = () => {
           </p>
         </div>
 
-        <ShimmerButton
+        <button
+          type="button"
           onClick={() => setShowAddModal(true)}
-          className="text-xs font-bold px-4 py-2.5 rounded-2xl"
+          className="h-9 px-4 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs duration-motion ease-motion active:scale-[0.98] shadow-control flex items-center gap-1.5 cursor-pointer"
         >
           <Plus className="h-4 w-4" />
           <span>افزودن رویداد به {toPersianDigits(selectedDate)}</span>
-        </ShimmerButton>
+        </button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
@@ -199,20 +199,20 @@ export const AdminCalendarView: React.FC = () => {
                 </div>
               </div>
 
-              <div className="pt-3 flex items-center justify-end gap-2 border-t border-border">
+              <div className="pt-3 flex items-center justify-end gap-2.5 border-t border-border/60">
                 <button
                   type="button"
                   onClick={() => setShowAddModal(false)}
-                  className="px-4 py-2 rounded-xl border border-border hover:bg-muted text-xs font-bold text-muted-foreground"
+                  className="h-9 px-4 rounded-control border-line bg-card hover:bg-muted text-xs font-bold text-muted-foreground hover:text-foreground duration-motion ease-motion active:scale-[0.98] cursor-pointer"
                 >
                   انصراف
                 </button>
-                <ShimmerButton
+                <button
                   type="submit"
-                  className="text-xs font-bold px-6 py-2 rounded-xl"
+                  className="h-9 px-6 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs duration-motion ease-motion active:scale-[0.98] shadow-control flex items-center gap-2 cursor-pointer"
                 >
                   افزودن رویداد
-                </ShimmerButton>
+                </button>
               </div>
             </form>
           </div>

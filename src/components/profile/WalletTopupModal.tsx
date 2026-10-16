@@ -8,8 +8,6 @@ import {
 } from 'lucide-react'
 import type React from 'react'
 import { useState } from 'react'
-import { Button } from '../ui/button'
-import { Input } from '../ui/input'
 
 interface WalletTopupModalProps {
   isOpen: boolean
@@ -19,6 +17,11 @@ interface WalletTopupModalProps {
 }
 
 const PRESET_AMOUNTS = [50000, 100000, 250000, 500000, 1000000, 2000000]
+
+function toPersianDigits(n: number | string): string {
+  const f = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹']
+  return String(n).replace(/\d/g, (d) => f[Number(d)])
+}
 
 export const WalletTopupModal: React.FC<WalletTopupModalProps> = ({
   isOpen,
@@ -64,21 +67,21 @@ export const WalletTopupModal: React.FC<WalletTopupModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-in fade-in"
       dir="rtl"
     >
-      <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl p-6 space-y-5">
-        <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center">
-              <Wallet className="w-4 h-4" />
+      <div className="w-full max-w-md bg-zinc-950 rounded-surface border border-zinc-800 shadow-overlay p-6 space-y-5 text-zinc-100">
+        <div className="flex items-center justify-between pb-3 border-b border-zinc-800">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-control bg-secondary text-secondary-foreground border border-border/60 flex items-center justify-center">
+              <Wallet className="w-4 h-4 text-brand" />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+              <h3 className="text-sm font-bold text-white">
                 افزایش موجودی کیف پول
               </h3>
-              <p className="text-[11px] text-slate-400">
-                شارژ آنی با کارت‌های بانکی عضو شتاب
+              <p className="text-[11px] text-zinc-400">
+                شارژ آنی با کارت‌های بانکی عضو شبکه شتاب
               </p>
             </div>
           </div>
@@ -86,7 +89,7 @@ export const WalletTopupModal: React.FC<WalletTopupModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+            className="p-1 rounded-control text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -94,35 +97,36 @@ export const WalletTopupModal: React.FC<WalletTopupModalProps> = ({
 
         {success ? (
           <div className="py-8 text-center space-y-2 animate-in zoom-in-95">
-            <div className="w-12 h-12 rounded-full bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 flex items-center justify-center mx-auto">
+            <div className="w-12 h-12 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 flex items-center justify-center mx-auto">
               <CheckCircle2 className="w-6 h-6" />
             </div>
-            <h4 className="text-sm font-bold text-slate-900 dark:text-white">
+            <h4 className="text-sm font-bold text-white">
               کیف پول با موفقیت شارژ شد!
             </h4>
-            <p className="text-xs text-slate-500 font-sans">
-              +{amount.toLocaleString('fa-IR')} تومان به موجودی اضافه گردید
+            <p className="text-xs text-zinc-400 font-latin">
+              +{toPersianDigits(amount.toLocaleString())} تومان به موجودی اضافه
+              گردید
             </p>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4 text-xs">
             {/* Amount input */}
-            <div>
-              <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-2">
+            <div className="space-y-1.5 text-right">
+              <label className="block font-bold text-zinc-300">
                 مبلغ شارژ (تومان)
               </label>
               <div className="relative">
-                <Input
+                <input
                   type="text"
                   dir="ltr"
                   value={
                     customAmount
-                      ? Number(customAmount).toLocaleString('fa-IR')
+                      ? toPersianDigits(Number(customAmount).toLocaleString())
                       : ''
                   }
                   onChange={handleCustomChange}
                   placeholder="۱۰۰,۰۰۰"
-                  className="h-11 text-center text-lg font-bold rounded-xl"
+                  className="w-full h-11 px-3 text-center text-lg font-black font-latin rounded-field bg-zinc-900 border border-zinc-800 text-white outline-none focus:border-foreground/40 transition-colors"
                   required
                 />
               </div>
@@ -130,57 +134,63 @@ export const WalletTopupModal: React.FC<WalletTopupModalProps> = ({
 
             {/* Presets Grid */}
             <div className="grid grid-cols-3 gap-2">
-              {PRESET_AMOUNTS.map((val) => (
-                <button
-                  type="button"
-                  key={val}
-                  onClick={() => handleSelectPreset(val)}
-                  className={`py-2 px-2 rounded-xl border text-center transition-all text-xs ${
-                    amount === val
-                      ? 'border-blue-600 bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 font-bold'
-                      : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 text-slate-700 dark:text-slate-300'
-                  }`}
-                >
-                  {val.toLocaleString('fa-IR')}
-                </button>
-              ))}
+              {PRESET_AMOUNTS.map((val) => {
+                const isSelected = amount === val
+                return (
+                  <button
+                    type="button"
+                    key={`topup-preset-${val}`}
+                    onClick={() => handleSelectPreset(val)}
+                    className={`py-2 px-2 rounded-control border text-center duration-motion ease-motion active:scale-[0.98] transition-all text-xs font-latin cursor-pointer ${
+                      isSelected
+                        ? 'bg-primary text-primary-foreground font-black border-transparent shadow-control'
+                        : 'border-zinc-800 bg-zinc-900 text-zinc-300 hover:text-white hover:bg-zinc-800/80'
+                    }`}
+                  >
+                    {toPersianDigits(val.toLocaleString())}
+                  </button>
+                )
+              })}
             </div>
 
             {/* Gateway Info */}
-            <div className="space-y-2 pt-2">
-              <label className="block font-semibold text-slate-700 dark:text-slate-300">
+            <div className="space-y-1.5 pt-1 text-right">
+              <label className="block font-bold text-zinc-300">
                 درگاه پرداخت الکترونیک
               </label>
-              <div className="p-3 rounded-xl border border-blue-600 bg-blue-50/40 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 font-bold flex items-center justify-between">
+              <div className="p-3 rounded-control border border-zinc-800 bg-zinc-900/60 text-zinc-200 flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
-                  <CreditCard className="w-4 h-4 text-blue-600 shrink-0" />
+                  <CreditCard className="w-4 h-4 text-brand shrink-0" />
                   <div>
-                    <span className="block text-xs">
+                    <span className="block text-xs font-bold">
                       کارت‌های بانکی عضو شتاب
                     </span>
-                    <span className="text-[10px] text-slate-400 font-normal">
+                    <span className="text-[10px] text-zinc-400 font-normal">
                       شاپرک (پرداخت آنلاین با کلیه بانک‌های کشور)
                     </span>
                   </div>
                 </div>
-                <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                <ShieldCheck className="w-4 h-4 text-emerald-400" />
               </div>
             </div>
 
-            <Button
+            {/* Submit button: Graphite style - White with black text */}
+            <button
               type="submit"
               disabled={loading || amount < 10000}
-              className="w-full h-11 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold transition"
+              className="w-full h-11 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs duration-motion ease-motion active:scale-[0.98] shadow-control flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
             >
               {loading ? (
                 <>
-                  <Loader2 className="w-4 h-4 animate-spin ml-2" />
-                  در حال اتصال به درگاه شاپرک...
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>در حال اتصال به درگاه شاپرک...</span>
                 </>
               ) : (
-                `پرداخت و شارژ ${amount.toLocaleString('fa-IR')} تومان`
+                <span>
+                  پرداخت و شارژ {toPersianDigits(amount.toLocaleString())} تومان
+                </span>
               )}
-            </Button>
+            </button>
           </form>
         )}
       </div>

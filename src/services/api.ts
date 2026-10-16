@@ -89,7 +89,7 @@ function normalizeProduct(raw: any): Product {
 
   const defaultFeatures: Record<DeliveryMode, string[]> = {
     INSTANT_LINK: [
-      'تحویل ۰ ثانیه‌ای بلافاصله پس از پرداخت',
+      'تحویل آنی بلافاصله پس از پرداخت',
       'فعال‌سازی با یک کلیک روی اکانت شخصی',
       'تضمین اصالت لایسنس و عدم قطعی',
     ],

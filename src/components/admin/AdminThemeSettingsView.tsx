@@ -679,12 +679,12 @@ export const AdminThemeSettingsView: React.FC = () => {
           </div>
         </div>
 
-        {/* Submit Bar */}
+        {/* Submit Bar: Graphite technical minimal - Primary white button with black text */}
         <div className="flex items-center justify-end gap-3 pt-2">
-          <ShimmerButton
+          <button
             type="submit"
             disabled={saveLoading}
-            className="text-xs sm:text-sm font-bold px-8 py-3 rounded-2xl cursor-pointer"
+            className="h-10 px-8 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs sm:text-sm duration-motion ease-motion active:scale-[0.98] shadow-control flex items-center gap-2 cursor-pointer disabled:opacity-50"
           >
             {saveLoading ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -694,7 +694,7 @@ export const AdminThemeSettingsView: React.FC = () => {
                 <span>ذخیره تمامی تنظیمات</span>
               </div>
             )}
-          </ShimmerButton>
+          </button>
         </div>
       </form>
     </div>

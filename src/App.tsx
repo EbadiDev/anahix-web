@@ -6,6 +6,7 @@ import { AdminDashboardPage } from './pages/admin/AdminDashboardPage'
 import { AdminLoginPage } from './pages/admin/AdminLoginPage'
 import { BlogDetailPage } from './pages/BlogDetailPage'
 import { BlogListPage } from './pages/BlogListPage'
+import { CategoryDetailPage } from './pages/CategoryDetailPage'
 import { HelpDetailPage } from './pages/HelpDetailPage'
 import { HelpListPage } from './pages/HelpListPage'
 import { OrderTrackingPage } from './pages/OrderTrackingPage'
@@ -59,6 +60,9 @@ export function App() {
                 />
               }
             />
+
+            {/* Dedicated Dynamic Category Page */}
+            <Route path="/category/:slug" element={<CategoryDetailPage />} />
 
             {/* Customer Profile */}
             <Route path="/profile" element={<UserProfilePage />} />

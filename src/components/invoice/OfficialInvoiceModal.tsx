@@ -92,36 +92,36 @@ export const OfficialInvoiceModal: React.FC<OfficialInvoiceModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 print:p-0 print:bg-white print:static print:inset-auto">
       <div className="w-full max-w-2xl my-4 flex flex-col gap-3">
-        {/* Action Bar (Hidden during print) */}
-        <div className="flex items-center justify-between gap-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-lg print:hidden">
+        {/* Action Bar (Hidden during print) - Graphite Technical Minimal */}
+        <div className="flex items-center justify-between gap-3 bg-zinc-950 border border-zinc-800 rounded-surface p-4 shadow-surface print:hidden">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
-              <FileText className="w-4 h-4" />
+            <div className="w-9 h-9 rounded-control bg-zinc-900 border border-zinc-800 text-zinc-100 flex items-center justify-center shrink-0">
+              <FileText className="w-4 h-4 text-brand" />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+              <h3 className="text-sm font-bold text-white">
                 {isPaid ? 'رسید و صورتحساب خرید' : 'پیش‌فاکتور سفارش'}
               </h3>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400">
+              <p className="text-[11px] text-zinc-400">
                 فروشگاه هوش مصنوعی آناهیکس
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
-            <Button
-              variant="default"
-              size="sm"
+            <button
+              type="button"
               onClick={handlePrint}
-              className="h-9 text-xs rounded-xl px-4 bg-blue-600 hover:bg-blue-700 text-white shadow-xs gap-1.5"
+              className="h-9 text-xs rounded-control px-4 bg-primary hover:bg-primary-hover text-primary-foreground font-black shadow-control gap-1.5 flex items-center duration-motion ease-motion active:scale-[0.98] cursor-pointer"
             >
               <Printer className="w-3.5 h-3.5" />
               <span>چاپ / ذخیره PDF</span>
-            </Button>
+            </button>
 
             <button
+              type="button"
               onClick={onClose}
-              className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              className="w-9 h-9 rounded-control flex items-center justify-center text-zinc-400 hover:text-white hover:bg-zinc-900 border border-transparent hover:border-zinc-800 transition-colors cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>

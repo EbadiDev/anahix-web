@@ -85,6 +85,8 @@ export const AdminInventoryView: React.FC = () => {
 
   // Product Image & Merchandising Enhancements
   const [pImageURL, setPImageURL] = useState('')
+  const [pIconURL, setPIconURL] = useState('')
+  const [uploadingProductIcon, setUploadingProductIcon] = useState(false)
   const [pIsFlashSale, setPIsFlashSale] = useState(false)
   const [pFlashSalePriceToman, setPFlashSalePriceToman] = useState<number>(0)
   const [pFlashSaleStock, setPFlashSaleStock] = useState<number>(50)
@@ -213,6 +215,7 @@ export const AdminInventoryView: React.FC = () => {
     setPFaqJSON('')
     setPFeaturesText('')
     setPImageURL('')
+    setPIconURL('')
     setPIsFlashSale(false)
     setPFlashSalePriceToman(0)
     setPFlashSaleStock(50)
@@ -243,6 +246,7 @@ export const AdminInventoryView: React.FC = () => {
     setPIsActive(p.is_active !== false)
     setPDeliveryStrategy(p.delivery_strategy || 'manual_operator')
     setPImageURL(p.image_url || '')
+    setPIconURL(p.icon_url || '')
     setPIsFlashSale(p.is_flash_sale || false)
     setPFlashSalePriceToman(p.flash_sale_price_toman || 0)
     setPFlashSaleStock(p.flash_sale_stock || 50)
@@ -328,6 +332,22 @@ export const AdminInventoryView: React.FC = () => {
     }
   }
 
+  const handleUploadProductIcon = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadingProductIcon(true)
+    try {
+      const resp = await apiService.uploadMedia(file)
+      setPIconURL(resp.file_url)
+    } catch (err: any) {
+      setProductFormError(err.message || 'خطا در بارگذاری آیکون محصول')
+    } finally {
+      setUploadingProductIcon(false)
+    }
+  }
+
   const handleProductSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!pTitleFA.trim()) {
@@ -386,6 +406,7 @@ export const AdminInventoryView: React.FC = () => {
       meta_description: pMetaDescription.trim() || undefined,
       og_image_url: pOgImageURL.trim() || undefined,
       image_url: pImageURL.trim() || undefined,
+      icon_url: pIconURL.trim() || undefined,
       is_flash_sale: pIsFlashSale,
       flash_sale_price_toman: Number(pFlashSalePriceToman) || 0,
       flash_sale_stock: Number(pFlashSaleStock) || 0,
@@ -635,7 +656,7 @@ export const AdminInventoryView: React.FC = () => {
                 category: 'نحوه دریافت',
                 values: {
                   free: 'رایگان',
-                  advanced: 'تحویل ۰ ثانیه‌ای لینک بدون نیاز به پسورد',
+                  advanced: 'تحویل آنی لینک بدون نیاز به پسورد',
                 },
               },
             ],
@@ -976,13 +997,13 @@ export const AdminInventoryView: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-2 bg-muted/60 p-1 rounded-xl border border-border">
+        <div className="flex items-center gap-1.5 bg-muted/40 p-1 rounded-control border border-border/40">
           <button
             type="button"
             onClick={() => setActiveSubtab('catalog')}
-            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition ${
+            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-control text-xs duration-motion ease-motion transition-all cursor-pointer ${
               activeSubtab === 'catalog'
-                ? 'bg-card text-blue-600 dark:text-blue-400 shadow-sm border border-border'
+                ? 'bg-primary text-primary-foreground font-black shadow-control'
                 : 'text-muted-foreground hover:text-foreground'
             }`}
           >
@@ -992,9 +1013,9 @@ export const AdminInventoryView: React.FC = () => {
           <button
             type="button"
             onClick={() => setActiveSubtab('inventory')}
-            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition ${
+            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-control text-xs duration-motion ease-motion transition-all cursor-pointer ${
               activeSubtab === 'inventory'
-                ? 'bg-card text-blue-600 dark:text-blue-400 shadow-sm border border-border'
+                ? 'bg-primary text-primary-foreground font-black shadow-control'
                 : 'text-muted-foreground hover:text-foreground'
             }`}
           >
@@ -1004,9 +1025,9 @@ export const AdminInventoryView: React.FC = () => {
           <button
             type="button"
             onClick={() => setActiveSubtab('coupons')}
-            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition ${
+            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-control text-xs duration-motion ease-motion transition-all cursor-pointer ${
               activeSubtab === 'coupons'
-                ? 'bg-card text-blue-600 dark:text-blue-400 shadow-sm border border-border'
+                ? 'bg-primary text-primary-foreground font-black shadow-control'
                 : 'text-muted-foreground hover:text-foreground'
             }`}
           >
@@ -1168,11 +1189,11 @@ export const AdminInventoryView: React.FC = () => {
               </button>
             </div>
 
-            {/* Create Product Button */}
+            {/* Create Product Button: Graphite technical minimal - Primary white button */}
             <button
               type="button"
               onClick={openCreateProductModal}
-              className="h-9 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-sm hover:shadow-blue-500/20"
+              className="h-9 px-4 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground text-xs font-black duration-motion ease-motion active:scale-[0.98] shadow-control transition-all flex items-center gap-1.5 cursor-pointer"
             >
               <Plus className="h-4 w-4" />
               <span>ایجاد محصول جدید</span>
@@ -2103,52 +2124,107 @@ export const AdminInventoryView: React.FC = () => {
                     />
                   </div>
 
-                  {/* Product Cover Image with Direct Upload */}
-                  <div className="space-y-1.5 p-3 rounded-2xl border border-border bg-muted/20">
-                    <div className="flex items-center justify-between">
-                      <label
-                        htmlFor="p-image-url"
-                        className="font-bold text-foreground text-xs block"
-                      >
-                        تصویر باکیفیت محصول (کارت فروشگاه)
-                      </label>
-                      <label className="text-blue-600 hover:underline cursor-pointer flex items-center gap-1 text-xs font-bold">
-                        <Upload className="h-3.5 w-3.5" />
-                        <span>آپلود عکس از سیستم</span>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={handleUploadProductImage}
-                          className="hidden"
-                        />
-                      </label>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <input
-                        id="p-image-url"
-                        type="text"
-                        dir="ltr"
-                        placeholder="https://... یا آپلود از دکمه بالا"
-                        value={pImageURL}
-                        onChange={(e) => setPImageURL(e.target.value)}
-                        className="flex-1 h-9 px-3 rounded-xl border border-border bg-background focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono text-xs"
-                      />
-                      {pImageURL && (
-                        <div className="h-9 w-9 rounded-xl overflow-hidden border border-border shrink-0">
-                          <img
-                            src={pImageURL}
-                            alt="پیش‌نمایش"
-                            className="h-full w-full object-cover"
+                  {/* Product Cover Image & Product Icon with Direct Upload */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Cover Image Upload */}
+                    <div className="space-y-1.5 p-3 rounded-2xl border border-border bg-muted/20">
+                      <div className="flex items-center justify-between">
+                        <label
+                          htmlFor="p-image-url"
+                          className="font-bold text-foreground text-xs block"
+                        >
+                          تصویر کاور محصول (کارت فروشگاه)
+                        </label>
+                        <label className="text-blue-500 hover:underline cursor-pointer flex items-center gap-1 text-xs font-bold">
+                          <Upload className="h-3.5 w-3.5" />
+                          <span>آپلود عکس</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleUploadProductImage}
+                            className="hidden"
                           />
-                        </div>
+                        </label>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <input
+                          id="p-image-url"
+                          type="text"
+                          dir="ltr"
+                          placeholder="https://... یا آپلود از دکمه بالا"
+                          value={pImageURL}
+                          onChange={(e) => setPImageURL(e.target.value)}
+                          className="flex-1 h-9 px-3 rounded-xl border border-border bg-background focus:outline-none focus:ring-1 focus:ring-primary font-mono text-xs"
+                        />
+                        {pImageURL && (
+                          <div className="h-9 w-9 rounded-xl overflow-hidden border border-border shrink-0 bg-zinc-950">
+                            <img
+                              src={pImageURL}
+                              alt="پیش‌نمایش عکس"
+                              className="h-full w-full object-cover"
+                            />
+                          </div>
+                        )}
+                      </div>
+                      {uploadingProductImage && (
+                        <p className="text-[11px] text-blue-500 flex items-center gap-1 pt-1">
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                          <span>در حال بارگذاری عکس روی سرور...</span>
+                        </p>
                       )}
                     </div>
-                    {uploadingProductImage && (
-                      <p className="text-[11px] text-blue-600 flex items-center gap-1 pt-1">
-                        <Loader2 className="h-3 w-3 animate-spin" />
-                        <span>در حال بارگذاری عکس روی سرور...</span>
-                      </p>
-                    )}
+
+                    {/* Product Icon Upload */}
+                    <div className="space-y-1.5 p-3 rounded-2xl border border-border bg-muted/20">
+                      <div className="flex items-center justify-between">
+                        <label
+                          htmlFor="p-icon-url"
+                          className="font-bold text-foreground text-xs block"
+                        >
+                          آیکون اختصاصی محصول (لوگو یا SVG)
+                        </label>
+                        <label className="text-brand hover:underline cursor-pointer flex items-center gap-1 text-xs font-bold">
+                          <Upload className="h-3.5 w-3.5" />
+                          <span>آپلود آیکون</span>
+                          <input
+                            type="file"
+                            accept="image/*,.svg"
+                            onChange={handleUploadProductIcon}
+                            className="hidden"
+                          />
+                        </label>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <input
+                          id="p-icon-url"
+                          type="text"
+                          dir="ltr"
+                          placeholder="https://... یا نام آیکون / آپلود"
+                          value={pIconURL}
+                          onChange={(e) => setPIconURL(e.target.value)}
+                          className="flex-1 h-9 px-3 rounded-xl border border-border bg-background focus:outline-none focus:ring-1 focus:ring-primary font-mono text-xs"
+                        />
+                        {pIconURL && (
+                          <div className="h-9 w-9 rounded-xl overflow-hidden border border-border shrink-0 bg-zinc-900 flex items-center justify-center p-1.5">
+                            <img
+                              src={pIconURL}
+                              alt="پیش‌نمایش آیکون"
+                              className="h-full w-full object-contain"
+                              onError={(e) => {
+                                ;(e.target as HTMLElement).style.display =
+                                  'none'
+                              }}
+                            />
+                          </div>
+                        )}
+                      </div>
+                      {uploadingProductIcon && (
+                        <p className="text-[11px] text-brand flex items-center gap-1 pt-1">
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                          <span>در حال بارگذاری آیکون...</span>
+                        </p>
+                      )}
+                    </div>
                   </div>
 
                   {/* Flash Sale & Promotions Settings Card */}
@@ -2759,12 +2835,12 @@ export const AdminInventoryView: React.FC = () => {
                 </div>
               )}
 
-              {/* Form Buttons */}
-              <div className="flex items-center gap-2 pt-3 border-t border-border">
+              {/* Form Buttons: Graphite technical minimal - Primary white button with black text */}
+              <div className="flex items-center gap-2.5 pt-3 border-t border-border/60">
                 <button
                   type="submit"
                   disabled={productSubmitting}
-                  className="flex-1 h-10 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition flex items-center justify-center gap-2 disabled:opacity-50 shadow-md shadow-blue-600/20"
+                  className="flex-1 h-10 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground text-xs font-black duration-motion ease-motion active:scale-[0.98] shadow-control flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
                 >
                   {productSubmitting && (
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -2778,7 +2854,7 @@ export const AdminInventoryView: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setIsProductModalOpen(false)}
-                  className="h-10 px-5 rounded-xl border border-border text-xs font-semibold hover:bg-muted"
+                  className="h-10 px-5 rounded-control border-line bg-card text-xs font-bold text-muted-foreground hover:text-foreground hover:bg-muted duration-motion ease-motion active:scale-[0.98] cursor-pointer"
                 >
                   انصراف
                 </button>

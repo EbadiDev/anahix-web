@@ -2,10 +2,10 @@ import {
   BookOpen,
   CreditCard,
   Headphones,
+  Heart,
   HelpCircle,
   Lock,
   RefreshCw,
-  Search,
   ShieldCheck,
   Sparkles,
   Star,
@@ -18,7 +18,6 @@ import { BrandIcons } from '../components/BrandIcons'
 import { CartDrawer } from '../components/CartDrawer'
 import { Header } from '../components/Header'
 import { ProductCard } from '../components/ProductCard'
-import { Input } from '../components/ui/input'
 import { Accordion } from '../components/vibefarsi/Accordion'
 import { Alert } from '../components/vibefarsi/Alert'
 import { ArrowLink } from '../components/vibefarsi/ArrowLink'
@@ -28,11 +27,6 @@ import {
 } from '../components/vibefarsi/BannerCarousel'
 import { FlashSaleCountdown } from '../components/vibefarsi/FlashSaleCountdown'
 import { GridPattern } from '../components/vibefarsi/GridPattern'
-import { LikeButton } from '../components/vibefarsi/LikeButton'
-import { QuickServicesGrid } from '../components/vibefarsi/QuickServicesGrid'
-import { RangeSlider } from '../components/vibefarsi/RangeSlider'
-import { ShimmerButton } from '../components/vibefarsi/ShimmerButton'
-import { Stepper } from '../components/vibefarsi/Stepper'
 import { TypewriterText } from '../components/vibefarsi/TypewriterText'
 import { useCart } from '../lib/cartStore'
 import { api, apiService } from '../services/api'
@@ -68,9 +62,6 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
   const [articles, setArticles] = useState<ArticleListItem[]>([])
   const [payments, setPayments] = useState<PaymentGateway[]>([])
   const [isCartOpen, setIsCartOpen] = useState(false)
-  const [selectedCategory, setSelectedCategory] = useState<string>('all')
-  const [searchQuery, setSearchQuery] = useState('')
-  const [maxPriceFilter, setMaxPriceFilter] = useState<number>(10000000)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -150,26 +141,7 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
     navigate(`/track?order_no=${encodeURIComponent(newOrder.order_no)}`)
   }
 
-  const categories = [
-    { id: 'all', label: 'همه سرویس‌ها' },
-    { id: 'ai_chat', label: 'هوش مصنوعی و چت‌بات' },
-    { id: 'coding_ai', label: 'دستیار کدنویسی' },
-    { id: 'personal_upgrade', label: 'ارتقای اکانت شخصی' },
-    { id: 'cloud_storage', label: 'فضای ابری و گوگل وان' },
-  ]
-
-  const filteredProducts = products.filter((p) => {
-    const matchesCategory =
-      selectedCategory === 'all' || p.category === selectedCategory
-    const query = searchQuery.trim().toLowerCase()
-    const matchesSearch =
-      !query ||
-      p.title_fa.toLowerCase().includes(query) ||
-      p.title_en.toLowerCase().includes(query) ||
-      p.description_fa.toLowerCase().includes(query)
-    const matchesPrice = p.price_toman <= maxPriceFilter
-    return matchesCategory && matchesSearch && matchesPrice
-  })
+  const filteredProducts = products
 
   // Flash Sale Products
   const flashSaleProducts = products.filter(
@@ -208,27 +180,6 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
     },
   ]
 
-  const workflowSteps = [
-    {
-      number: 1,
-      title: 'انتخاب پلن و مدت زمان',
-      description: 'انتخاب هوش مصنوعی، ظرفیت یا شماره مجازی دلخواه',
-      status: 'completed' as const,
-    },
-    {
-      number: 2,
-      title: 'پرداخت امن عضو شتاب و تتر',
-      description: 'تسویه حساب فوری با کلیه کارت‌های بانکی یا رمز ارز',
-      status: 'current' as const,
-    },
-    {
-      number: 3,
-      title: 'تحویل ۰ ثانیه‌ای لایسنس',
-      description: 'صدور آنی اکانت و فعال‌سازی قانونی بدون معطلی',
-      status: 'upcoming' as const,
-    },
-  ]
-
   // End time for Flash Sale countdown (48 hours from now)
   const flashSaleTargetDate = new Date(Date.now() + 48 * 3600 * 1000)
 
@@ -254,10 +205,7 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
         </Alert>
 
         {/* HERO SECTION WITH TYPEWRITER & VIBE FARSI GRID */}
-        <section
-          className="relative overflow-hidden rounded-2xl border border-border bg-card p-6 sm:p-10"
-          style={{ boxShadow: 'var(--depth-surface)' }}
-        >
+        <section className="relative overflow-hidden rounded-surface border-line bg-card p-6 sm:p-10 shadow-surface duration-motion ease-motion">
           <GridPattern
             squares={[
               [2, 1],
@@ -270,9 +218,9 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
           <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
             {/* Hero Left/Right Content */}
             <div className="lg:col-span-7 space-y-4 text-right">
-              <div className="inline-flex items-center gap-2 rounded-full border border-blue-500/20 bg-blue-500/10 px-3 py-1 text-xs font-semibold text-blue-500">
+              <div className="inline-flex items-center gap-2 rounded-control border border-brand/30 bg-brand/10 px-3 py-1 text-xs font-bold text-brand">
                 <Zap className="h-3.5 w-3.5" />
-                <span>تحویل ۰ ثانیه‌ای لایسنس و اکانت‌های هوش مصنوعی</span>
+                <span>تحویل آنی لایسنس و اکانت‌های هوش مصنوعی</span>
               </div>
 
               <h1 className="text-2xl sm:text-4xl md:text-5xl font-black tracking-tight text-foreground leading-tight">
@@ -285,7 +233,7 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
                     'Cursor AI Pro',
                     'Google One 2TB',
                   ]}
-                  className="text-blue-500 font-latin"
+                  className="text-foreground font-latin underline decoration-brand/60 underline-offset-8"
                 />
               </h1>
 
@@ -297,29 +245,33 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
 
               <div className="pt-2 flex flex-wrap items-center gap-3 sm:gap-4 text-xs text-muted-foreground">
                 <div className="flex items-center gap-1.5">
-                  <ShieldCheck className="h-4 w-4 text-blue-500" />
+                  <ShieldCheck className="h-4 w-4 text-brand" />
                   <span>ضمانت کامل بازگشت وجه</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <Lock className="h-4 w-4 text-blue-500" />
+                  <Lock className="h-4 w-4 text-brand" />
                   <span>پروتکل امنیت کلمه عبور (Zeroize)</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <CreditCard className="h-4 w-4 text-blue-500" />
+                  <CreditCard className="h-4 w-4 text-brand" />
                   <span>پرداخت عضو شتاب و تتر</span>
                 </div>
               </div>
 
+              {/* Graphite buttons: Primary is white with black text */}
               <div className="pt-3 flex items-center gap-3">
                 <a href="#products-catalog">
-                  <ShimmerButton className="text-xs sm:text-sm font-bold px-6 py-3">
+                  <button
+                    type="button"
+                    className="h-10 px-5 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs sm:text-sm duration-motion ease-motion active:scale-[0.98] flex items-center gap-1.5 shadow-control cursor-pointer"
+                  >
                     <span>مشاهده کاتالوگ اشتراک‌ها</span>
                     <span>←</span>
-                  </ShimmerButton>
+                  </button>
                 </a>
                 <Link
                   to="/virtual-numbers"
-                  className="px-5 py-3 rounded-2xl border border-border bg-card hover:bg-muted text-xs sm:text-sm font-bold text-foreground transition-all hover:scale-[1.01]"
+                  className="h-10 px-5 rounded-control border-line bg-card hover:bg-muted text-xs sm:text-sm font-bold text-foreground duration-motion ease-motion active:scale-[0.98] flex items-center"
                 >
                   شماره مجازی (SMS)
                 </Link>
@@ -331,11 +283,8 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
               {banners.length > 0 ? (
                 <BannerCarousel banners={banners} />
               ) : (
-                <div
-                  className="relative overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-blue-600/10 via-indigo-600/10 to-zinc-900/40 p-6 text-right space-y-3"
-                  style={{ boxShadow: 'var(--depth-surface)' }}
-                >
-                  <div className="inline-flex items-center gap-1.5 rounded-full bg-blue-500/20 text-blue-400 px-3 py-1 text-xs font-bold">
+                <div className="relative overflow-hidden rounded-surface border-line bg-card p-6 text-right space-y-3 shadow-surface">
+                  <div className="inline-flex items-center gap-1.5 rounded-control border border-brand/30 bg-brand/10 text-brand px-3 py-1 text-xs font-bold">
                     <Sparkles className="h-3.5 w-3.5" />
                     <span>پیشنهاد برگزیده ماه</span>
                   </div>
@@ -355,27 +304,12 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
           </div>
 
           {/* Supported Brand Logos Strip */}
-          <div className="mt-8 pt-6 border-t border-border/60">
+          <div className="mt-6 pt-2">
             <div className="text-[11px] font-bold text-muted-foreground mb-3">
               پشتیبانی از برترین سرویس‌ها و پلتفرم‌های جهان:
             </div>
             <BrandIcons />
           </div>
-        </section>
-
-        {/* WORKFLOW STEPS STEPPER */}
-        <section
-          className="rounded-2xl border border-border bg-card p-5 sm:p-6"
-          style={{ boxShadow: 'var(--depth-surface)' }}
-        >
-          <Stepper steps={workflowSteps} />
-        </section>
-
-        {/* QUICK SERVICES ACCESS GRID */}
-        <section>
-          <QuickServicesGrid
-            onSelectCategory={(cat) => setSelectedCategory(cat)}
-          />
         </section>
 
         {/* FLASH SALE / TIMED DISCOUNTS SECTION */}
@@ -388,7 +322,7 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
                 <ProductCard
                   key={`flash-${product.id}`}
                   product={product}
-                  onSelect={() => setIsCartOpen(true)}
+                  onSelect={() => {}}
                 />
               ))}
             </div>
@@ -415,61 +349,24 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
                 <ProductCard
                   key={`bestseller-${product.id}`}
                   product={product}
-                  onSelect={() => setIsCartOpen(true)}
+                  onSelect={() => {}}
                 />
               ))}
             </div>
           </section>
         )}
 
-        {/* MAIN PRODUCTS CATALOG & FILTER BAR (WITH CATEGORIES + RANGE SLIDER) */}
+        {/* MAIN PRODUCTS CATALOG */}
         <section id="products-catalog" className="space-y-6">
-          <div
-            className="rounded-2xl border border-border bg-card p-5 space-y-4"
-            style={{ boxShadow: 'var(--depth-surface)' }}
-          >
-            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-              {/* Category tabs */}
-              <div className="flex items-center gap-2 overflow-x-auto w-full md:w-auto pb-2 md:pb-0 scrollbar-none">
-                {categories.map((cat) => (
-                  <button
-                    key={cat.id}
-                    type="button"
-                    onClick={() => setSelectedCategory(cat.id)}
-                    className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
-                      selectedCategory === cat.id
-                        ? 'bg-blue-600 text-white shadow-sm'
-                        : 'bg-zinc-900 border border-zinc-800 text-muted-foreground hover:text-foreground hover:bg-zinc-800'
-                    }`}
-                  >
-                    {cat.label}
-                  </button>
-                ))}
-              </div>
-
-              {/* Search Input */}
-              <div className="relative w-full md:w-80">
-                <Input
-                  type="text"
-                  placeholder="جستجوی سرویس (مثلاً Gemini، ChatGPT)..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pr-10 text-xs rounded-xl bg-zinc-900 border-zinc-800 h-10"
-                />
-                <Search className="h-4 w-4 text-muted-foreground absolute right-3.5 top-3 pointer-events-none" />
-              </div>
-            </div>
-
-            {/* Range Slider for Price Filtering */}
-            <div className="pt-3 border-t border-border/60 max-w-sm">
-              <RangeSlider
-                min={200000}
-                max={10000000}
-                step={100000}
-                value={maxPriceFilter}
-                onChange={(val) => setMaxPriceFilter(val)}
-                label="فیلتر بر اساس سقف قیمت:"
-              />
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-base sm:text-lg font-black text-foreground flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-brand" />
+                <span>کاتالوگ اشتراک‌ها و سرویس‌های هوش مصنوعی</span>
+              </h3>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                دسترسی به کلیه ابزارهای پریمیوم با تحویل آنی و تضمین اصالت
+              </p>
             </div>
           </div>
 
@@ -477,23 +374,19 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
           <div>
             {loading ? (
               <div className="py-20 text-center space-y-3">
-                <RefreshCw className="h-8 w-8 text-blue-500 animate-spin mx-auto" />
+                <RefreshCw className="h-8 w-8 text-foreground animate-spin mx-auto" />
                 <p className="text-xs text-muted-foreground">
                   در حال بارگذاری اشتراک‌ها و موجودی لایسنس‌ها...
                 </p>
               </div>
             ) : filteredProducts.length === 0 ? (
-              <div
-                className="rounded-2xl border border-border bg-card p-12 text-center text-muted-foreground space-y-2"
-                style={{ boxShadow: 'var(--depth-surface)' }}
-              >
+              <div className="rounded-surface border border-border/60 bg-card p-12 text-center text-muted-foreground space-y-2 shadow-surface">
                 <HelpCircle className="h-8 w-8 mx-auto text-muted-foreground/60" />
                 <div className="font-bold text-sm text-foreground">
-                  محصولی با این مشخصات یافت نشد
+                  محصولی یافت نشد
                 </div>
                 <p className="text-xs">
-                  لطفاً کلمه کلیدی دیگری را جستجو کنید یا فیلتر قیمت را افزایش
-                  دهید.
+                  در حال حاضر محصول فعالی در این بخش موجود نیست.
                 </p>
               </div>
             ) : (
@@ -502,7 +395,7 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
                   <ProductCard
                     key={product.id}
                     product={product}
-                    onSelect={() => setIsCartOpen(true)}
+                    onSelect={() => {}}
                   />
                 ))}
               </div>
@@ -516,7 +409,7 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-base sm:text-lg font-black text-foreground flex items-center gap-2">
-                  <BookOpen className="h-5 w-5 text-blue-500" />
+                  <BookOpen className="h-5 w-5 text-brand" />
                   <span>آموزش‌ها و آخرین اخبار هوش مصنوعی</span>
                 </h3>
                 <p className="text-xs text-muted-foreground mt-0.5">
@@ -530,33 +423,38 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
               {articles.map((art) => (
                 <div
                   key={art.id}
-                  className="group rounded-2xl border border-border bg-card overflow-hidden hover:border-zinc-700 transition-all flex flex-col justify-between"
-                  style={{ boxShadow: 'var(--depth-surface)' }}
+                  className="group rounded-surface border border-border/50 bg-card overflow-hidden hover:border-border duration-motion ease-motion transition-all flex flex-col justify-between shadow-surface hover:-translate-y-1"
                 >
-                  <Link to={`/blog/${art.slug}`}>
+                  <Link to={`/blog/${art.slug}`} className="block">
                     {art.cover_image && (
-                      <div className="h-40 w-full overflow-hidden bg-zinc-950">
+                      <div className="relative h-44 w-full overflow-hidden bg-zinc-950">
                         <img
                           src={art.cover_image}
                           alt={art.title}
-                          className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-200"
+                          className="h-full w-full object-cover group-hover:scale-105 duration-motion ease-motion transition-transform"
                         />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
+                        {art.category_name && (
+                          <div className="absolute top-3 right-3">
+                            <span className="px-2.5 py-1 rounded-control bg-zinc-900/90 backdrop-blur-md border border-zinc-800 text-[10px] font-bold text-zinc-200">
+                              {art.category_name}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     )}
                     <div className="p-4 sm:p-5 space-y-2 text-right">
                       <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-                        {art.category_name && (
-                          <span className="font-bold text-blue-400">
-                            {art.category_name}
-                          </span>
-                        )}
-                        <span>•</span>
                         <span>
                           {toPersianDigits(art.reading_time_minutes || 5)} دقیقه
                           مطالعه
                         </span>
+                        <span>•</span>
+                        <span>
+                          {toPersianDigits(art.view_count || 120)} بازدید
+                        </span>
                       </div>
-                      <h4 className="text-sm font-bold text-foreground group-hover:text-blue-400 transition-colors line-clamp-1">
+                      <h4 className="text-sm sm:text-base font-black text-foreground group-hover:text-primary-foreground/90 transition-colors line-clamp-2 leading-snug">
                         {art.title}
                       </h4>
                       <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
@@ -565,13 +463,15 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
                     </div>
                   </Link>
 
-                  {/* Footer with LikeButton and Arrow Link */}
-                  <div className="p-4 pt-0 flex items-center justify-between text-xs font-bold border-t border-border/80 mt-2">
+                  {/* Clean Footer: Arrow Link & Like Count indicator without harsh dividing lines */}
+                  <div className="p-4 sm:p-5 pt-0 flex items-center justify-between text-xs font-bold mt-1">
                     <ArrowLink to={`/blog/${art.slug}`}>مطالعه مقاله</ArrowLink>
-                    <LikeButton
-                      slug={art.slug}
-                      initialCount={art.like_count || 0}
-                    />
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/30 px-2 py-1 rounded-control border border-border/30">
+                      <Heart className="h-3.5 w-3.5 text-rose-500 fill-rose-500/20" />
+                      <span className="font-latin">
+                        {toPersianDigits(art.like_count || 0)}
+                      </span>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -580,10 +480,7 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
         )}
 
         {/* 4-PILLAR REASSURANCE TRUST GRID */}
-        <section
-          className="rounded-2xl border border-border bg-card p-6 sm:p-8"
-          style={{ boxShadow: 'var(--depth-surface)' }}
-        >
+        <section className="rounded-surface border-line bg-card p-6 sm:p-8 shadow-surface">
           <div className="text-center mb-8">
             <h3 className="text-lg font-black text-foreground">
               چرا آناهیکس را برای خرید اکانت‌های هوش مصنوعی انتخاب می‌کنند؟
@@ -594,8 +491,8 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 text-right">
-            <div className="p-4 rounded-xl bg-zinc-900/60 border border-zinc-800 space-y-2">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-500/10 text-blue-400 font-black">
+            <div className="p-4 rounded-control bg-muted/60 border-line space-y-2">
+              <div className="flex h-9 w-9 items-center justify-center rounded-control bg-card text-brand font-black border-line">
                 <Zap className="h-4 w-4" />
               </div>
               <h4 className="font-bold text-xs sm:text-sm text-foreground">
@@ -607,8 +504,8 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
               </p>
             </div>
 
-            <div className="p-4 rounded-xl bg-zinc-900/60 border border-zinc-800 space-y-2">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-500/10 text-blue-400 font-black">
+            <div className="p-4 rounded-control bg-muted/60 border-line space-y-2">
+              <div className="flex h-9 w-9 items-center justify-center rounded-control bg-card text-brand font-black border-line">
                 <ShieldCheck className="h-4 w-4" />
               </div>
               <h4 className="font-bold text-xs sm:text-sm text-foreground">
@@ -620,8 +517,8 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
               </p>
             </div>
 
-            <div className="p-4 rounded-xl bg-zinc-900/60 border border-zinc-800 space-y-2">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-500/10 text-blue-400 font-black">
+            <div className="p-4 rounded-control bg-muted/60 border-line space-y-2">
+              <div className="flex h-9 w-9 items-center justify-center rounded-control bg-card text-brand font-black border-line">
                 <Lock className="h-4 w-4" />
               </div>
               <h4 className="font-bold text-xs sm:text-sm text-foreground">
@@ -633,8 +530,8 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
               </p>
             </div>
 
-            <div className="p-4 rounded-xl bg-zinc-900/60 border border-zinc-800 space-y-2">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-500/10 text-blue-400 font-black">
+            <div className="p-4 rounded-control bg-muted/60 border-line space-y-2">
+              <div className="flex h-9 w-9 items-center justify-center rounded-control bg-card text-brand font-black border-line">
                 <Headphones className="h-4 w-4" />
               </div>
               <h4 className="font-bold text-xs sm:text-sm text-foreground">
@@ -649,10 +546,7 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
         </section>
 
         {/* FAQ ACCORDION SECTION (VIBE FARSI ACCORDION) */}
-        <section
-          className="rounded-2xl border border-border bg-card p-6 sm:p-8 space-y-5"
-          style={{ boxShadow: 'var(--depth-surface)' }}
-        >
+        <section className="rounded-surface border-line bg-card p-6 sm:p-8 space-y-5 shadow-surface">
           <div className="text-center space-y-1">
             <h3 className="text-lg font-black text-foreground">
               پرسش‌های متداول خریداران
@@ -669,7 +563,7 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
       </main>
 
       {/* FOOTER */}
-      <footer className="border-t border-border bg-card mt-12 py-10 text-muted-foreground transition-colors">
+      <footer className="border-t border-line bg-card mt-12 py-10 text-muted-foreground duration-motion ease-motion transition-colors">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-8">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8 text-right text-xs">
             <div className="space-y-3">

@@ -20,6 +20,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { CartDrawer } from '../components/CartDrawer'
 import { MarkdownRenderer } from '../components/content/MarkdownRenderer'
 import { Header } from '../components/Header'
+import { LikeButton } from '../components/vibefarsi/LikeButton'
 import { api } from '../services/api'
 import type { ArticleDetail } from '../types'
 
@@ -74,7 +75,7 @@ export const BlogDetailPage: React.FC = () => {
       })
       setCommentSuccess(true)
       setCommentText('')
-      setTimeout(() => setCommentSuccess(false), 5000)
+      setTimeout(() => setCommentSuccess(false), 6000)
     } catch (err) {
       console.error(err)
     } finally {
@@ -111,9 +112,13 @@ export const BlogDetailPage: React.FC = () => {
       <CartDrawer isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
 
       <main className="flex-1 pb-20">
-        {/* Breadcrumb Navigation */}
-        <div className="border-b border-border bg-muted/20 py-3 text-xs text-muted-foreground">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center gap-2">
+        {/* Framed Article Container (Breadcrumb + Header + Content) */}
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 space-y-6">
+          {/* Vibe Farsi Breadcrumb Navigation */}
+          <nav
+            aria-label="Breadcrumb"
+            className="border-b border-border/40 pb-3 text-xs text-muted-foreground flex items-center gap-2 flex-wrap"
+          >
             <Link to="/" className="hover:text-primary transition-colors">
               خانه
             </Link>
@@ -132,18 +137,15 @@ export const BlogDetailPage: React.FC = () => {
             <span className="text-foreground font-medium truncate max-w-xs">
               {article.title}
             </span>
-          </div>
-        </div>
+          </nav>
 
-        {/* Article Header Container */}
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 space-y-6">
           <div className="space-y-4">
             <div className="flex flex-wrap items-center gap-2 text-xs">
-              <span className="px-3 py-1 rounded-full bg-blue-500/10 text-primary font-semibold">
+              <span className="px-3 py-1 rounded-control bg-primary/10 text-primary font-bold">
                 {article.category_name}
               </span>
               <span className="flex items-center gap-1 text-muted-foreground">
-                <Clock className="h-3.5 w-3.5 text-blue-500" />
+                <Clock className="h-3.5 w-3.5 text-brand" />
                 <span>
                   زمان تخمینی مطالعه: {article.reading_time_minutes} دقیقه
                 </span>
@@ -160,13 +162,13 @@ export const BlogDetailPage: React.FC = () => {
             </h1>
 
             {article.excerpt && (
-              <p className="text-sm md:text-base text-slate-600 dark:text-slate-300 leading-relaxed bg-muted/30 p-4 rounded-2xl border border-border/60">
+              <p className="text-sm md:text-base text-muted-foreground leading-relaxed bg-muted/20 p-4 rounded-control border border-border/40">
                 {article.excerpt}
               </p>
             )}
 
-            {/* Author & Share Bar */}
-            <div className="flex flex-wrap items-center justify-between gap-4 py-4 border-y border-border">
+            {/* Author & Share Bar (Clean without harsh border-y) */}
+            <div className="flex flex-wrap items-center justify-between gap-4 py-2">
               <div className="flex items-center gap-3">
                 {article.author_avatar ? (
                   <img
@@ -189,8 +191,12 @@ export const BlogDetailPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Share buttons */}
+              {/* Share & Like buttons in Header */}
               <div className="flex items-center gap-2">
+                <LikeButton
+                  slug={article.slug}
+                  initialCount={article.like_count || 0}
+                />
                 <a
                   href={`https://t.me/share/url?url=${shareUrl}&text=${shareTitle}`}
                   target="_blank"
@@ -234,14 +240,14 @@ export const BlogDetailPage: React.FC = () => {
         </div>
 
         {/* Content Layout with Sticky TOC Sidebar */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
             {/* Main Article Body */}
-            <div className="lg:col-span-8 space-y-8">
+            <div className="lg:col-span-8 space-y-6">
               {/* Table of Contents for Mobile View */}
               {article.table_of_contents &&
                 article.table_of_contents.length > 0 && (
-                  <div className="lg:hidden bg-card border border-border rounded-2xl p-4 shadow-xs space-y-2">
+                  <div className="lg:hidden bg-card border border-border/60 rounded-control p-4 shadow-control space-y-2">
                     <h3 className="font-bold text-xs text-foreground flex items-center gap-2">
                       <ListOrdered className="h-4 w-4 text-primary" />
                       فهرست دسترسی سریع به بخش‌ها
@@ -265,8 +271,8 @@ export const BlogDetailPage: React.FC = () => {
                   </div>
                 )}
 
-              {/* Rich Markdown Render */}
-              <div className="bg-card border border-border rounded-3xl p-6 sm:p-8 shadow-xs">
+              {/* Rich Markdown Render - Clean Graphite Container Without Awkward Top Margin */}
+              <div className="bg-card border border-border/60 rounded-surface p-5 sm:p-7 shadow-surface">
                 <MarkdownRenderer content={article.content} />
               </div>
 
@@ -288,6 +294,25 @@ export const BlogDetailPage: React.FC = () => {
                   ))}
                 </div>
               )}
+
+              {/* Interactive Like & Rating Box at end of article */}
+              <div className="rounded-surface border border-border/40 bg-card p-5 sm:p-6 shadow-surface flex flex-col sm:flex-row items-center justify-between gap-4 text-right">
+                <div className="space-y-1">
+                  <h4 className="text-sm font-black text-foreground">
+                    آیا این مقاله و آموزش برای شما مفید بود؟
+                  </h4>
+                  <p className="text-xs text-muted-foreground">
+                    با پسندیدن این مطلب به ارتقای محتوای آموزشی آناهیکس کمک
+                    می‌کنید.
+                  </p>
+                </div>
+                <div className="flex items-center gap-3 shrink-0">
+                  <LikeButton
+                    slug={article.slug}
+                    initialCount={article.like_count || 0}
+                  />
+                </div>
+              </div>
 
               {/* Store Integration CTA Box (Related Product) */}
               {article.related_product_title && (
@@ -373,9 +398,10 @@ export const BlogDetailPage: React.FC = () => {
                   />
                   <div className="flex items-center justify-between">
                     {commentSuccess && (
-                      <span className="text-xs text-emerald-600 font-semibold flex items-center gap-1">
+                      <span className="text-xs text-emerald-400 font-semibold flex items-center gap-1">
                         <Check className="h-4 w-4" />
-                        دیدگاه شما با موفقیت ثبت شد.
+                        دیدگاه شما با موفقیت ثبت شد و پس از بررسی و تایید مدیر
+                        منتشر خواهد شد.
                       </span>
                     )}
                     <button
@@ -391,39 +417,46 @@ export const BlogDetailPage: React.FC = () => {
                   </div>
                 </form>
 
-                {/* Comments List */}
-                {article.comments && article.comments.length > 0 && (
-                  <div className="space-y-4 pt-6 border-t border-border">
-                    {article.comments.map((c) => (
-                      <div
-                        key={c.id}
-                        className="p-4 rounded-2xl bg-muted/30 border border-border/60 space-y-2 text-xs"
-                      >
-                        <div className="flex items-center justify-between text-muted-foreground">
-                          <strong className="text-foreground font-semibold">
-                            {c.author_name}
-                          </strong>
-                          <span>
-                            {new Date(c.created_at).toLocaleDateString('fa-IR')}
-                          </span>
-                        </div>
-                        <p className="text-slate-700 dark:text-slate-300 leading-relaxed">
-                          {c.content}
-                        </p>
-                        {c.admin_reply && (
-                          <div className="mr-3 p-3 rounded-xl bg-blue-50/60 dark:bg-blue-950/30 border-r-2 border-primary mt-2">
-                            <span className="font-bold text-primary block mb-0.5">
-                              پاسخ تحریریه آناهیکس:
-                            </span>
-                            <p className="text-slate-600 dark:text-slate-300">
-                              {c.admin_reply}
+                {/* Comments List - Only approved comments */}
+                {article.comments &&
+                  article.comments.filter(
+                    (c) => c.status === 'approved' || !c.status,
+                  ).length > 0 && (
+                    <div className="space-y-4 pt-6 border-t border-border">
+                      {article.comments
+                        .filter((c) => c.status === 'approved' || !c.status)
+                        .map((c) => (
+                          <div
+                            key={c.id}
+                            className="p-4 rounded-2xl bg-muted/30 border border-border/60 space-y-2 text-xs"
+                          >
+                            <div className="flex items-center justify-between text-muted-foreground">
+                              <strong className="text-foreground font-semibold">
+                                {c.author_name}
+                              </strong>
+                              <span>
+                                {new Date(c.created_at).toLocaleDateString(
+                                  'fa-IR',
+                                )}
+                              </span>
+                            </div>
+                            <p className="text-slate-700 dark:text-slate-300 leading-relaxed">
+                              {c.content}
                             </p>
+                            {c.admin_reply && (
+                              <div className="mr-3 p-3 rounded-xl bg-blue-50/60 dark:bg-blue-950/30 border-r-2 border-primary mt-2">
+                                <span className="font-bold text-primary block mb-0.5">
+                                  پاسخ تحریریه آناهیکس:
+                                </span>
+                                <p className="text-slate-600 dark:text-slate-300">
+                                  {c.admin_reply}
+                                </p>
+                              </div>
+                            )}
                           </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
+                        ))}
+                    </div>
+                  )}
               </div>
             </div>
 

@@ -5,6 +5,7 @@ import {
   Clock,
   Eye,
   Flame,
+  Heart,
   Search,
   Sparkles,
   Tag,
@@ -318,9 +319,17 @@ export const BlogListPage: React.FC = () => {
 
                     {/* Footer */}
                     <div className="px-5 pb-5 pt-2 border-t border-border/60 flex items-center justify-between text-xs">
-                      <span className="text-[11px] text-muted-foreground font-medium">
-                        {art.author_name}
-                      </span>
+                      <div className="flex items-center gap-3">
+                        <span className="text-[11px] text-muted-foreground font-medium">
+                          {art.author_name}
+                        </span>
+                        <div className="flex items-center gap-1 text-[11px] font-bold text-muted-foreground">
+                          <Heart className="h-3 w-3 text-rose-500 fill-rose-500/20" />
+                          <span className="font-latin">
+                            {art.like_count || 0}
+                          </span>
+                        </div>
+                      </div>
                       <Link
                         to={`/blog/${art.slug}`}
                         className="inline-flex items-center gap-1 font-semibold text-primary group-hover:underline text-xs"

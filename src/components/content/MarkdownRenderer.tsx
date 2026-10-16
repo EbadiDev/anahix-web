@@ -331,7 +331,7 @@ const BlockRenderer: React.FC<{ block: Block }> = ({ block }) => {
       return (
         <h2
           id={id}
-          className="scroll-mt-24 text-xl md:text-2xl font-bold text-foreground border-b border-border/50 pb-2.5 pt-6 group flex items-center justify-between"
+          className="scroll-mt-24 text-xl md:text-2xl font-bold text-foreground border-b border-border/50 pb-2.5 pt-6 first:pt-0 first:mt-0 group flex items-center justify-between"
         >
           <span className="flex items-center gap-2">
             <span className="w-1.5 h-5 rounded-full bg-primary inline-block" />
@@ -352,7 +352,7 @@ const BlockRenderer: React.FC<{ block: Block }> = ({ block }) => {
       return (
         <h3
           id={id}
-          className="scroll-mt-24 text-lg md:text-xl font-semibold text-foreground pt-4 pb-1 group flex items-center justify-between"
+          className="scroll-mt-24 text-lg md:text-xl font-semibold text-foreground pt-4 pb-1 first:pt-0 first:mt-0 group flex items-center justify-between"
         >
           <span className="flex items-center gap-1.5">
             <span className="w-1 h-3.5 rounded-full bg-blue-500/70 inline-block" />

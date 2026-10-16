@@ -136,12 +136,57 @@
   /* کارت و پنل گرافیت: بدون سایه سنگین، با خط روشن ملایم در بالای کارت */
   .graphite-card {
     background-color: var(--card);
-    border: 1px solid var(--border);
+    border: var(--line) var(--line-style) var(--border);
     box-shadow: var(--depth-surface);
-    border-radius: var(--radius);
+    border-radius: var(--shape-surface);
     transition:
       transform var(--motion) var(--motion-ease),
       border-color var(--motion) var(--motion-ease);
+  }
+
+  /* توکن‌های نگاشت فرم و ساختار سیستم گرافیت */
+  .rounded-control {
+    border-radius: var(--shape-control);
+  }
+  .rounded-field {
+    border-radius: var(--shape-field);
+  }
+  .rounded-surface {
+    border-radius: var(--shape-surface);
+  }
+  .rounded-overlay {
+    border-radius: var(--shape-overlay);
+  }
+  .border-line {
+    border-width: var(--line);
+    border-style: var(--line-style);
+    border-color: var(--border);
+  }
+  .border-line-field {
+    border-width: var(--line-field);
+    border-style: var(--line-style);
+    border-color: var(--input);
+  }
+  .shadow-control {
+    box-shadow: var(--depth-control);
+  }
+  .shadow-surface {
+    box-shadow: var(--depth-surface);
+  }
+  .shadow-overlay {
+    box-shadow: var(--depth-overlay);
+  }
+  .shadow-press {
+    box-shadow: var(--depth-press);
+  }
+  .duration-motion {
+    transition-duration: var(--motion);
+  }
+  .ease-motion {
+    transition-timing-function: var(--motion-ease);
+  }
+  .font-display {
+    font-weight: var(--type-display-weight);
   }
 
   .glass-panel {

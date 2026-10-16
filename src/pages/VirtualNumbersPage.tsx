@@ -1,5 +1,6 @@
 import {
   AlertCircle,
+  ArrowLeft,
   ArrowRight,
   Check,
   CheckCircle2,
@@ -8,20 +9,29 @@ import {
   Copy,
   Flame,
   Globe,
-  Info,
+  HelpCircle,
   Loader2,
-  MessageSquare,
   Radio,
+  RefreshCw,
   Search,
   ShieldCheck,
   Smartphone,
   Sparkles,
-  XCircle,
+  TrendingDown,
+  TrendingUp,
+  X,
   Zap,
 } from 'lucide-react'
 import type React from 'react'
 import { useEffect, useMemo, useState } from 'react'
+import {
+  ClaudeIcon,
+  CursorIcon,
+  GeminiIcon,
+  OpenAIIcon,
+} from '../components/BrandIcons'
 import { Header } from '../components/Header'
+import { useNotification } from '../components/vibefarsi/NotificationContext'
 import { apiService } from '../services/api'
 import type {
   VirtualNumberCountry,
@@ -29,12 +39,12 @@ import type {
   VirtualNumberService,
 } from '../types'
 
-// Helper for Persian currency formatting
-function formatToman(num: number): string {
-  return new Intl.NumberFormat('fa-IR').format(num)
+function toPersianDigits(n: number | string): string {
+  const f = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹']
+  return String(n).replace(/\d/g, (d) => f[Number(d)])
 }
 
-// Branded Icon for Services
+// Brand Service Icons
 const ServiceIcon: React.FC<{ slug: string; className?: string }> = ({
   slug,
   className = 'w-6 h-6',
@@ -43,7 +53,7 @@ const ServiceIcon: React.FC<{ slug: string; className?: string }> = ({
     case 'telegram':
       return (
         <div
-          className={`flex items-center justify-center rounded-xl bg-sky-500/10 text-sky-500 ${className}`}
+          className={`flex items-center justify-center rounded-control bg-sky-500/10 text-sky-400 ${className}`}
         >
           <svg
             className="w-5 h-5 fill-current"
@@ -59,15 +69,15 @@ const ServiceIcon: React.FC<{ slug: string; className?: string }> = ({
     case 'openai':
       return (
         <div
-          className={`flex items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-500 ${className}`}
+          className={`flex items-center justify-center rounded-control bg-emerald-500/10 text-emerald-400 ${className}`}
         >
-          <Sparkles className="w-5 h-5" />
+          <OpenAIIcon className="w-5 h-5" />
         </div>
       )
     case 'whatsapp':
       return (
         <div
-          className={`flex items-center justify-center rounded-xl bg-green-500/10 text-green-500 ${className}`}
+          className={`flex items-center justify-center rounded-control bg-emerald-500/10 text-emerald-400 ${className}`}
         >
           <svg
             className="w-5 h-5 fill-current"
@@ -83,23 +93,31 @@ const ServiceIcon: React.FC<{ slug: string; className?: string }> = ({
     case 'google':
       return (
         <div
-          className={`flex items-center justify-center rounded-xl bg-blue-500/10 text-blue-500 ${className}`}
+          className={`flex items-center justify-center rounded-control bg-blue-500/10 text-blue-400 ${className}`}
         >
-          <span className="text-base font-bold">G</span>
+          <GeminiIcon className="w-5 h-5" />
         </div>
       )
     case 'claude':
       return (
         <div
-          className={`flex items-center justify-center rounded-xl bg-amber-500/10 text-amber-500 ${className}`}
+          className={`flex items-center justify-center rounded-control bg-amber-500/10 text-amber-400 ${className}`}
         >
-          <Zap className="w-5 h-5" />
+          <ClaudeIcon className="w-5 h-5" />
+        </div>
+      )
+    case 'cursor':
+      return (
+        <div
+          className={`flex items-center justify-center rounded-control bg-sky-500/10 text-sky-400 ${className}`}
+        >
+          <CursorIcon className="w-5 h-5" />
         </div>
       )
     case 'discord':
       return (
         <div
-          className={`flex items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-500 ${className}`}
+          className={`flex items-center justify-center rounded-control bg-indigo-500/10 text-indigo-400 ${className}`}
         >
           <Radio className="w-5 h-5" />
         </div>
@@ -107,7 +125,7 @@ const ServiceIcon: React.FC<{ slug: string; className?: string }> = ({
     case 'apple':
       return (
         <div
-          className={`flex items-center justify-center rounded-xl bg-slate-500/10 text-slate-700 dark:text-slate-300 ${className}`}
+          className={`flex items-center justify-center rounded-control bg-zinc-800 text-zinc-100 ${className}`}
         >
           <span className="text-base font-bold"></span>
         </div>
@@ -115,15 +133,17 @@ const ServiceIcon: React.FC<{ slug: string; className?: string }> = ({
     default:
       return (
         <div
-          className={`flex items-center justify-center rounded-xl bg-blue-500/10 text-blue-500 ${className}`}
+          className={`flex items-center justify-center rounded-control bg-brand/10 text-brand ${className}`}
         >
-          <MessageSquare className="w-5 h-5" />
+          <Smartphone className="w-5 h-5" />
         </div>
       )
   }
 }
 
 export const VirtualNumbersPage: React.FC = () => {
+  const { success, error } = useNotification()
+
   // Services & Countries from live API
   const [services, setServices] = useState<VirtualNumberService[]>([])
   const [servicesLoading, setServicesLoading] = useState(true)
@@ -140,9 +160,15 @@ export const VirtualNumbersPage: React.FC = () => {
     'all',
   )
   const [countrySearch, setCountrySearch] = useState('')
-  const [countryFilter, setCountryFilter] = useState<
-    'all' | 'in_stock' | 'cheapest'
+  const [countryStockFilter, setCountryStockFilter] = useState<
+    'all' | 'in_stock'
   >('all')
+  const [countrySort, setCountrySort] = useState<
+    'default' | 'price_asc' | 'price_desc' | 'stock_desc'
+  >('default')
+
+  // Pagination / Chunked rendering state
+  const [visibleCount, setVisibleCount] = useState<number>(18)
 
   // Selected operator state for each country (countryCode -> operatorName)
   const [selectedOperators, setSelectedOperators] = useState<
@@ -196,6 +222,7 @@ export const VirtualNumbersPage: React.FC = () => {
     let isMounted = true
     setCountriesLoading(true)
     setCountrySearch('')
+    setVisibleCount(18)
 
     apiService
       .getVirtualCountries(selectedService.slug)
@@ -269,26 +296,40 @@ export const VirtualNumbersPage: React.FC = () => {
     })
   }, [services, serviceSearch, serviceFilter])
 
-  // Filtered Countries List for chosen Service
+  // Filtered & Sorted Countries List
   const filteredCountries = useMemo(() => {
     const q = countrySearch.trim().toLowerCase()
     let list = [...countries]
 
-    if (countryFilter === 'in_stock') {
+    if (countryStockFilter === 'in_stock') {
       list = list.filter((c) => c.total_stock > 0)
-    } else if (countryFilter === 'cheapest') {
-      list = list.sort(
-        (a, b) => a.cheapest_price_toman - b.cheapest_price_toman,
+    }
+
+    if (q) {
+      list = list.filter(
+        (c) =>
+          c.country.toLowerCase().includes(q) ||
+          c.country_name_fa.toLowerCase().includes(q) ||
+          c.country_code?.toLowerCase().includes(q),
       )
     }
 
-    if (!q) return list
-    return list.filter(
-      (c) =>
-        c.country.toLowerCase().includes(q) ||
-        c.country_name_fa.toLowerCase().includes(q),
-    )
-  }, [countries, countrySearch, countryFilter])
+    // Apply Sorting: price_asc, price_desc, stock_desc, default
+    if (countrySort === 'price_asc') {
+      list.sort((a, b) => a.cheapest_price_toman - b.cheapest_price_toman)
+    } else if (countrySort === 'price_desc') {
+      list.sort((a, b) => b.cheapest_price_toman - a.cheapest_price_toman)
+    } else if (countrySort === 'stock_desc') {
+      list.sort((a, b) => b.total_stock - a.total_stock)
+    }
+
+    return list
+  }, [countries, countrySearch, countryStockFilter, countrySort])
+
+  // Chunked countries to render for high performance without DOM lag
+  const displayedCountries = useMemo(() => {
+    return filteredCountries.slice(0, visibleCount)
+  }, [filteredCountries, visibleCount])
 
   // Handle instant buy
   const handleConfirmPurchase = async (
@@ -315,10 +356,15 @@ export const VirtualNumbersPage: React.FC = () => {
       setActiveOrder(order)
       apiService.saveCustomerVirtualOrder(order)
       setBuyingCountry(null)
-      // Scroll to active order
+      success(
+        'شماره مجازی با موفقیت صادر شد',
+        `شماره ${order.phone} آماده دریافت پیامک است.`,
+      )
       window.scrollTo({ top: 0, behavior: 'smooth' })
     } catch (err: any) {
-      setBuyError(err?.message || 'خطا در خرید شماره مجازی')
+      const msg = err?.message || 'خطا در صدور شماره مجازی'
+      setBuyError(msg)
+      error('خطا در خرید شماره', msg)
     } finally {
       setBuyLoading(false)
     }
@@ -332,6 +378,12 @@ export const VirtualNumbersPage: React.FC = () => {
       const updated = await apiService.getVirtualOrderDetail(activeOrder.id)
       setActiveOrder(updated)
       apiService.updateCustomerVirtualOrder(updated)
+      success(
+        'سفارش لغو شد',
+        'وجه پرداختی به طور آنی به کیف پول شما استرداد گردید.',
+      )
+    } catch (err: any) {
+      error('خطا در لغو سفارش', err.message || 'عملیات لغو انجام نشد')
     } finally {
       setCancelling(false)
     }
@@ -345,6 +397,7 @@ export const VirtualNumbersPage: React.FC = () => {
       const updated = await apiService.getVirtualOrderDetail(activeOrder.id)
       setActiveOrder(updated)
       apiService.updateCustomerVirtualOrder(updated)
+      success('سفارش تکمیل شد', 'از خرید شما سپاسگزاریم.')
     } finally {
       setFinishing(false)
     }
@@ -354,6 +407,7 @@ export const VirtualNumbersPage: React.FC = () => {
     if (!activeOrder?.phone) return
     navigator.clipboard.writeText(activeOrder.phone)
     setCopiedPhone(true)
+    success('شماره تلفن کپی شد', activeOrder.phone)
     setTimeout(() => setCopiedPhone(false), 2000)
   }
 
@@ -361,21 +415,22 @@ export const VirtualNumbersPage: React.FC = () => {
     if (!activeOrder?.sms_code) return
     navigator.clipboard.writeText(activeOrder.sms_code)
     setCopiedCode(true)
+    success('کد پیامک کپی شد', activeOrder.sms_code)
     setTimeout(() => setCopiedCode(false), 2000)
   }
 
   return (
     <div
       dir="rtl"
-      className="min-h-screen bg-slate-50 dark:bg-[#020817] text-slate-900 dark:text-slate-100 transition-colors"
+      className="min-h-screen bg-background text-foreground transition-colors font-sans"
     >
       <Header />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-        {/* ACTIVE ORDER WORKBENCH (if an order is currently active) */}
+        {/* ACTIVE ORDER WORKBENCH (Graphite Technical Minimal) */}
         {activeOrder && (
-          <section className="relative overflow-hidden rounded-2xl bg-white dark:bg-slate-900 border-2 border-blue-500/30 dark:border-blue-500/40 p-6 shadow-xl shadow-blue-500/5 transition-all">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-slate-100 dark:border-slate-800">
+          <section className="relative overflow-hidden rounded-surface bg-card border border-brand/50 p-5 sm:p-7 shadow-surface duration-motion ease-motion transition-all">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-5 border-b border-border/60">
               <div className="flex items-center gap-3">
                 <span className="flex h-3.5 w-3.5 relative">
                   <span
@@ -383,8 +438,8 @@ export const VirtualNumbersPage: React.FC = () => {
                       activeOrder.status === 'RECEIVED'
                         ? 'bg-emerald-400'
                         : activeOrder.status === 'PENDING'
-                          ? 'bg-blue-400'
-                          : 'bg-slate-400'
+                          ? 'bg-brand'
+                          : 'bg-muted-foreground'
                     }`}
                   />
                   <span
@@ -392,34 +447,39 @@ export const VirtualNumbersPage: React.FC = () => {
                       activeOrder.status === 'RECEIVED'
                         ? 'bg-emerald-500'
                         : activeOrder.status === 'PENDING'
-                          ? 'bg-blue-600'
-                          : 'bg-slate-500'
+                          ? 'bg-brand'
+                          : 'bg-muted-foreground'
                     }`}
                   />
                 </span>
                 <div>
-                  <h2 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
+                  <h2 className="text-lg sm:text-xl font-black text-foreground flex items-center gap-2">
                     میز کار شماره مجازی فعال
-                    <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
-                      {activeOrder.order_no}
+                    <span className="text-xs font-mono px-2 py-0.5 rounded-control bg-muted text-foreground border border-border/60">
+                      #{activeOrder.order_no}
                     </span>
                   </h2>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                  <p className="text-xs text-muted-foreground mt-0.5">
                     سرویس {activeOrder.service_name_fa} •{' '}
                     {activeOrder.country_name_fa} {activeOrder.country_flag}
                   </p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-2 text-xs font-medium px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
-                  <Clock className="w-4 h-4 text-blue-500 animate-spin" />
+              <div className="flex items-center gap-2.5 flex-wrap">
+                <div className="flex items-center gap-2 text-xs font-bold px-3 py-1.5 rounded-control bg-muted/60 border border-border/60 text-foreground">
+                  <Clock className="w-3.5 h-3.5 text-brand animate-spin" />
                   <span>
                     زمان باقی‌مانده:{' '}
-                    {Math.floor(activeOrder.seconds_remaining / 60)}:
-                    {(activeOrder.seconds_remaining % 60)
-                      .toString()
-                      .padStart(2, '0')}
+                    {toPersianDigits(
+                      Math.floor(activeOrder.seconds_remaining / 60),
+                    )}
+                    :
+                    {toPersianDigits(
+                      (activeOrder.seconds_remaining % 60)
+                        .toString()
+                        .padStart(2, '0'),
+                    )}
                   </span>
                 </div>
 
@@ -428,7 +488,7 @@ export const VirtualNumbersPage: React.FC = () => {
                     type="button"
                     onClick={handleCancelOrder}
                     disabled={cancelling}
-                    className="text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 px-3 py-1.5 rounded-xl border border-rose-200 dark:border-rose-900/40 transition-colors disabled:opacity-50"
+                    className="h-8 px-3 rounded-control text-xs font-bold text-destructive hover:bg-destructive/10 border border-destructive/30 duration-motion ease-motion active:scale-[0.98] cursor-pointer disabled:opacity-50"
                   >
                     {cancelling ? 'در حال لغو...' : 'لغو سفارش و استرداد وجه'}
                   </button>
@@ -439,35 +499,35 @@ export const VirtualNumbersPage: React.FC = () => {
                     type="button"
                     onClick={handleFinishOrder}
                     disabled={finishing}
-                    className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 px-3 py-1.5 rounded-xl border border-emerald-200 dark:border-emerald-900/40 transition-colors"
+                    className="h-8 px-3 rounded-control text-xs font-bold bg-primary hover:bg-primary-hover text-primary-foreground duration-motion ease-motion active:scale-[0.98] shadow-control cursor-pointer"
                   >
-                    {finishing ? 'در حال بستن...' : 'تکمیل و پایان'}
+                    {finishing ? 'در حال ثبت...' : 'تکمیل و پایان'}
                   </button>
                 )}
               </div>
             </div>
 
-            {/* Main Phone & OTP Display */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6">
-              {/* Phone box */}
-              <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 p-5 space-y-3">
-                <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+            {/* Phone & OTP Display */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-5">
+              {/* Phone Display Box */}
+              <div className="rounded-control border border-border/60 bg-muted/20 p-4 space-y-3">
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
                   <span>شماره تلفن اختصاصی شما:</span>
-                  <span className="font-mono text-slate-400">
+                  <span className="font-bold text-foreground">
                     {activeOrder.country_name_fa}
                   </span>
                 </div>
                 <div className="flex items-center justify-between gap-3">
                   <div
                     dir="ltr"
-                    className="font-mono text-2xl font-bold tracking-wider text-blue-600 dark:text-blue-400"
+                    className="font-mono text-xl sm:text-2xl font-black tracking-wider text-foreground"
                   >
                     {activeOrder.phone}
                   </div>
                   <button
                     type="button"
                     onClick={handleCopyPhone}
-                    className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-all active:scale-95"
+                    className="h-8 px-3 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs duration-motion ease-motion active:scale-[0.98] shadow-control flex items-center gap-1.5 cursor-pointer"
                   >
                     {copiedPhone ? (
                       <Check className="w-3.5 h-3.5" />
@@ -477,42 +537,42 @@ export const VirtualNumbersPage: React.FC = () => {
                     <span>{copiedPhone ? 'کپی شد' : 'کپی شماره'}</span>
                   </button>
                 </div>
-                <p className="text-[11px] text-slate-500 leading-relaxed">
-                  شماره را در فیلد ورود یا ثبت‌نام سرویس مورد نظر وارد کنید و
-                  دکمه ارسال پیامک را بزنید.
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  شماره را در فیلد ورود یا ثبت‌نام سرویس وارد کرده و دکمه ارسال
+                  پیامک را بزنید.
                 </p>
               </div>
 
-              {/* SMS Code Box */}
+              {/* SMS Code Display Box */}
               <div
-                className={`rounded-xl border p-5 transition-all flex flex-col justify-center ${
+                className={`rounded-control border p-4 transition-all flex flex-col justify-center ${
                   activeOrder.sms_code
-                    ? 'border-emerald-500 bg-emerald-50/20 dark:bg-emerald-950/20 shadow-lg shadow-emerald-500/5'
-                    : 'border-dashed border-slate-300 dark:border-slate-700 bg-white/50 dark:bg-slate-900/50'
+                    ? 'border-emerald-500/50 bg-emerald-500/10 shadow-control'
+                    : 'border-dashed border-border/80 bg-muted/10'
                 }`}
               >
                 {activeOrder.sms_code ? (
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+                      <span className="text-xs font-black text-emerald-400 flex items-center gap-1.5">
                         <CheckCircle2 className="w-4 h-4" />
-                        پیامک دریافت شد!
+                        پیامک تایید دریافت شد!
                       </span>
-                      <span className="text-[11px] text-slate-400">
-                        کد تایید ورود
+                      <span className="text-[11px] text-muted-foreground font-mono">
+                        SMS OTP
                       </span>
                     </div>
                     <div className="flex items-center justify-between gap-3">
                       <div
                         dir="ltr"
-                        className="font-mono text-3xl font-black text-slate-900 dark:text-white tracking-widest"
+                        className="font-mono text-3xl font-black text-white tracking-widest"
                       >
                         {activeOrder.sms_code}
                       </div>
                       <button
                         type="button"
                         onClick={handleCopyCode}
-                        className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white transition-all active:scale-95"
+                        className="h-8 px-3 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs duration-motion ease-motion active:scale-[0.98] shadow-control flex items-center gap-1.5 cursor-pointer"
                       >
                         {copiedCode ? (
                           <Check className="w-3.5 h-3.5" />
@@ -523,22 +583,25 @@ export const VirtualNumbersPage: React.FC = () => {
                       </button>
                     </div>
                     {activeOrder.sms_text && (
-                      <div className="text-xs text-slate-600 dark:text-slate-400 p-2 rounded bg-slate-100 dark:bg-slate-800/60 font-sans">
+                      <div
+                        className="text-xs text-muted-foreground p-2 rounded-control bg-muted/40 font-mono text-left"
+                        dir="ltr"
+                      >
                         {activeOrder.sms_text}
                       </div>
                     )}
                   </div>
                 ) : (
-                  <div className="py-3 text-center space-y-2">
-                    <div className="inline-flex items-center justify-center p-2 rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 animate-pulse">
-                      <Loader2 className="w-5 h-5 animate-spin" />
+                  <div className="py-2 text-center space-y-2">
+                    <div className="inline-flex items-center justify-center p-2 rounded-control bg-brand/10 text-brand animate-pulse">
+                      <Loader2 className="w-4 h-4 animate-spin" />
                     </div>
-                    <div className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                    <div className="text-xs font-bold text-foreground">
                       در حال گوش دادن به پیامک‌های دریافتی...
                     </div>
-                    <p className="text-[11px] text-slate-500 max-w-sm mx-auto">
-                      به محض ارسال پیامک توسط اپلیکیشن یا سرویس، کد به‌طور
-                      اتوماتیک در اینجا ظاهر می‌شود.
+                    <p className="text-[11px] text-muted-foreground max-w-sm mx-auto">
+                      به محض ارسال پیامک توسط اپلیکیشن، کد تایید به‌طور خودکار در
+                      اینجا نمایش داده می‌شود.
                     </p>
                   </div>
                 )}
@@ -551,71 +614,71 @@ export const VirtualNumbersPage: React.FC = () => {
         {!selectedService ? (
           <div className="space-y-8">
             {/* Header banner */}
-            <div className="text-center space-y-3 max-w-3xl mx-auto pt-4">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-950/50 border border-blue-200 dark:border-blue-800 text-blue-600 dark:text-blue-400 text-xs font-semibold">
+            <div className="text-center space-y-3 max-w-3xl mx-auto pt-2">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-control bg-brand/10 border border-brand/30 text-brand text-xs font-bold">
                 <ShieldCheck className="w-3.5 h-3.5" />
                 <span>
-                  اتصال زنده به زیرساخت بین‌المللی با موجودی بیش از ۱۸۰ کشور
+                  ارائه زنده شماره‌های مجازی با موجودی بیش از ۱۸۰ کشور جهان
                 </span>
               </div>
-              <h1 className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white tracking-tight">
-                خرید شماره مجازی دریافت پیامک (SMS)
+              <h1 className="text-2xl sm:text-4xl font-black text-foreground tracking-tight">
+                خرید شماره مجازی دریافت پیامک (SMS OTP)
               </h1>
-              <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
-                ابتدا سرویس مورد نظر خود را برای دریافت پیامک انتخاب کنید، سپس
-                کشور و اپراتور دلخواه را برگزینید.
+              <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
+                سرویس مورد نظر خود را برای دریافت پیامک انتخاب کنید تا لیست
+                کشورها، اپراتورها و کمترین قیمت‌های زنده نمایش داده شوند.
               </p>
             </div>
 
             {/* Filter & Search Bar */}
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
-              <div className="relative w-full sm:w-96">
-                <Search className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2" />
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 p-4 rounded-surface border border-border/60 bg-card shadow-surface duration-motion ease-motion">
+              <div className="relative flex-1 max-w-md">
+                <Search className="w-4 h-4 text-muted-foreground absolute right-3.5 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
-                  placeholder="جستجوی سرویس (مثلاً تلگرام، OpenAI، واتساپ، گوگل...)"
+                  placeholder="جستجوی سرویس (تلگرام، OpenAI، واتساپ، گوگل...)"
                   value={serviceSearch}
                   onChange={(e) => setServiceSearch(e.target.value)}
-                  className="w-full pr-10 pl-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                  className="w-full pr-10 pl-4 h-10 rounded-field border border-border/60 bg-muted/30 text-xs text-foreground outline-none focus:border-foreground/40 transition-colors"
                 />
               </div>
 
               {/* Category chips */}
-              <div className="flex items-center gap-2 overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0">
+              <div className="flex items-center gap-1.5 self-start sm:self-auto bg-muted/40 p-1 rounded-control border border-border/40 overflow-x-auto">
                 <button
                   type="button"
                   onClick={() => setServiceFilter('all')}
-                  className={`text-xs px-3 py-2 rounded-xl font-medium transition-all ${
+                  className={`text-xs px-3 py-1.5 rounded-control font-bold duration-motion ease-motion transition-all cursor-pointer ${
                     serviceFilter === 'all'
-                      ? 'bg-blue-600 text-white shadow-sm'
-                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+                      ? 'bg-primary text-primary-foreground font-black shadow-control'
+                      : 'text-muted-foreground hover:text-foreground'
                   }`}
                 >
-                  همه سرویس‌ها ({services.length})
+                  همه سرویس‌ها ({toPersianDigits(services.length)})
                 </button>
                 <button
                   type="button"
                   onClick={() => setServiceFilter('popular')}
-                  className={`text-xs px-3 py-2 rounded-xl font-medium flex items-center gap-1.5 transition-all ${
+                  className={`text-xs px-3 py-1.5 rounded-control font-bold duration-motion ease-motion flex items-center gap-1.5 transition-all cursor-pointer ${
                     serviceFilter === 'popular'
-                      ? 'bg-blue-600 text-white shadow-sm'
-                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+                      ? 'bg-primary text-primary-foreground font-black shadow-control'
+                      : 'text-muted-foreground hover:text-foreground'
                   }`}
                 >
-                  <Flame className="w-3.5 h-3.5 text-amber-500" />
-                  محبوب‌ترین‌ها
+                  <Flame className="w-3 h-3 text-brand" />
+                  <span>محبوب‌ترین‌ها</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setServiceFilter('ai')}
-                  className={`text-xs px-3 py-2 rounded-xl font-medium flex items-center gap-1.5 transition-all ${
+                  className={`text-xs px-3 py-1.5 rounded-control font-bold duration-motion ease-motion flex items-center gap-1.5 transition-all cursor-pointer ${
                     serviceFilter === 'ai'
-                      ? 'bg-blue-600 text-white shadow-sm'
-                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+                      ? 'bg-primary text-primary-foreground font-black shadow-control'
+                      : 'text-muted-foreground hover:text-foreground'
                   }`}
                 >
-                  <Sparkles className="w-3.5 h-3.5 text-emerald-500" />
-                  هوش مصنوعی
+                  <Sparkles className="w-3 h-3 text-brand" />
+                  <span>هوش مصنوعی</span>
                 </button>
               </div>
             </div>
@@ -623,15 +686,15 @@ export const VirtualNumbersPage: React.FC = () => {
             {/* Services Grid */}
             {servicesLoading ? (
               <div className="py-24 text-center space-y-3">
-                <Loader2 className="w-8 h-8 text-blue-600 animate-spin mx-auto" />
-                <p className="text-sm font-medium text-slate-500">
-                  در حال دریافت لیست زنده سرویس‌ها...
+                <RefreshCw className="w-8 h-8 text-foreground animate-spin mx-auto" />
+                <p className="text-xs text-muted-foreground">
+                  در حال دریافت لیست زنده سرویس‌های فعال...
                 </p>
               </div>
             ) : filteredServices.length === 0 ? (
-              <div className="py-20 text-center space-y-2 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
-                <Info className="w-8 h-8 text-slate-400 mx-auto" />
-                <p className="text-sm text-slate-600 dark:text-slate-400">
+              <div className="py-16 text-center space-y-2 rounded-surface border border-border/60 bg-card p-8">
+                <HelpCircle className="w-8 h-8 text-muted-foreground mx-auto" />
+                <p className="text-sm font-bold text-foreground">
                   سرویسی با این عنوان یافت نشد.
                 </p>
               </div>
@@ -642,7 +705,7 @@ export const VirtualNumbersPage: React.FC = () => {
                     key={service.slug}
                     type="button"
                     onClick={() => setSelectedService(service)}
-                    className="text-right p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-blue-500 dark:hover:border-blue-500 hover:shadow-lg hover:shadow-blue-500/5 transition-all group flex flex-col justify-between space-y-4"
+                    className="text-right p-4 rounded-surface border border-border/60 bg-card hover:border-border duration-motion ease-motion transition-all hover:-translate-y-1 group flex flex-col justify-between space-y-4 shadow-surface cursor-pointer"
                   >
                     <div className="flex items-start justify-between w-full">
                       <div className="flex items-center gap-3">
@@ -651,36 +714,39 @@ export const VirtualNumbersPage: React.FC = () => {
                           className="w-10 h-10"
                         />
                         <div>
-                          <h3 className="text-sm font-bold text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                          <h3 className="text-sm font-bold text-foreground group-hover:text-primary-foreground/90 transition-colors">
                             {service.name_fa}
                           </h3>
-                          <span className="text-[11px] text-slate-400 font-mono">
+                          <span className="text-[11px] text-muted-foreground font-latin">
                             {service.name}
                           </span>
                         </div>
                       </div>
 
                       {service.is_popular && (
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-500 flex items-center gap-1">
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-control bg-brand/10 text-brand border border-brand/20 flex items-center gap-1">
                           <Flame className="w-2.5 h-2.5" />
                           محبوب
                         </span>
                       )}
                     </div>
 
-                    <div className="w-full pt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-xs">
+                    <div className="w-full pt-2 flex items-center justify-between text-xs">
                       <div>
-                        <span className="text-slate-400 text-[10px] block">
-                          قیمت شروع از
+                        <span className="text-muted-foreground text-[10px] block">
+                          شروع قیمت از
                         </span>
-                        <span className="font-bold text-slate-900 dark:text-white">
-                          {formatToman(service.min_price_toman)} تومان
+                        <span className="font-bold text-foreground font-latin">
+                          {toPersianDigits(
+                            service.min_price_toman.toLocaleString(),
+                          )}{' '}
+                          تومان
                         </span>
                       </div>
 
-                      <div className="flex items-center gap-1 text-blue-600 dark:text-blue-400 font-semibold group-hover:translate-x-[-4px] transition-transform">
+                      <div className="flex items-center gap-1 text-xs font-bold text-brand group-hover:translate-x-[-3px] transition-transform">
                         <span>انتخاب کشور</span>
-                        <ArrowRight className="w-3.5 h-3.5 rotate-180" />
+                        <ArrowLeft className="w-3.5 h-3.5" />
                       </div>
                     </div>
                   </button>
@@ -691,19 +757,19 @@ export const VirtualNumbersPage: React.FC = () => {
         ) : (
           /* STEP 2: COUNTRY & OPERATOR SELECTION (For Chosen Service) */
           <div className="space-y-6">
-            {/* Navigation & Active Service Header */}
-            <div className="p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
+            {/* Header & Back Button */}
+            <div className="p-5 sm:p-6 rounded-surface border border-border/60 bg-card shadow-surface flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="flex items-center gap-3.5">
                 <button
                   type="button"
                   onClick={() => setSelectedService(null)}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                  className="h-9 px-3 rounded-control border border-border/60 bg-muted/30 hover:bg-muted text-xs font-bold text-foreground duration-motion ease-motion active:scale-[0.98] flex items-center gap-1.5 cursor-pointer"
                 >
                   <ArrowRight className="w-3.5 h-3.5" />
                   <span>تغییر سرویس</span>
                 </button>
 
-                <div className="h-6 w-px bg-slate-200 dark:bg-slate-800 hidden sm:block" />
+                <div className="h-5 w-px bg-border/60 hidden sm:block" />
 
                 <div className="flex items-center gap-3">
                   <ServiceIcon
@@ -711,216 +777,328 @@ export const VirtualNumbersPage: React.FC = () => {
                     className="w-10 h-10"
                   />
                   <div>
-                    <h2 className="text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
+                    <h2 className="text-base sm:text-lg font-black text-foreground flex items-center gap-2">
                       شماره مجازی {selectedService.name_fa}
                     </h2>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">
-                      کشور و اپراتور دلخواه خود را برای دریافت پیامک تایید
-                      انتخاب کنید
+                    <p className="text-xs text-muted-foreground">
+                      کشور و اپراتور دلخواه خود را برای دریافت پیامک انتخاب کنید
                     </p>
                   </div>
                 </div>
               </div>
 
               <div className="flex items-center gap-2">
-                <span className="text-xs font-medium px-3 py-1.5 rounded-xl bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
-                  {countries.length} کشور فعال
+                <span className="text-xs font-bold px-3 py-1 rounded-control bg-muted/60 text-foreground border border-border/60">
+                  {toPersianDigits(countries.length)} کشور فعال
                 </span>
-                <span className="text-xs font-medium px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400">
-                  دریافت آنی پیامک
+                <span className="text-xs font-bold px-3 py-1 rounded-control bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                  تحویل آنی
                 </span>
               </div>
             </div>
 
-            {/* Country Filters & Search */}
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
-              <div className="relative w-full sm:w-96">
-                <Search className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2" />
+            {/* Country Filters: Search, Stock, and Price Sorting */}
+            <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 p-4 rounded-surface border border-border/60 bg-card shadow-surface duration-motion ease-motion">
+              {/* Search within countries */}
+              <div className="relative flex-1 max-w-md">
+                <Search className="w-4 h-4 text-muted-foreground absolute right-3.5 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
-                  placeholder="جستجوی نام کشور (مثلاً انگلستان، آمریکا، آلمان، اندونزی...)"
+                  placeholder="جستجوی نام کشور (انگلستان، آمریکا، آلمان، اندونزی...)"
                   value={countrySearch}
-                  onChange={(e) => setCountrySearch(e.target.value)}
-                  className="w-full pr-10 pl-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                  onChange={(e) => {
+                    setCountrySearch(e.target.value)
+                    setVisibleCount(18)
+                  }}
+                  className="w-full pr-10 pl-4 h-10 rounded-field border border-border/60 bg-muted/30 text-xs text-foreground outline-none focus:border-foreground/40 transition-colors"
                 />
               </div>
 
-              <div className="flex items-center gap-2 overflow-x-auto w-full sm:w-auto">
-                <button
-                  type="button"
-                  onClick={() => setCountryFilter('all')}
-                  className={`text-xs px-3 py-2 rounded-xl font-medium transition-all ${
-                    countryFilter === 'all'
-                      ? 'bg-blue-600 text-white shadow-sm'
-                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
-                  }`}
-                >
-                  همه کشورها ({countries.length})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setCountryFilter('in_stock')}
-                  className={`text-xs px-3 py-2 rounded-xl font-medium transition-all ${
-                    countryFilter === 'in_stock'
-                      ? 'bg-blue-600 text-white shadow-sm'
-                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
-                  }`}
-                >
-                  فقط موجودی فعال
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setCountryFilter('cheapest')}
-                  className={`text-xs px-3 py-2 rounded-xl font-medium transition-all ${
-                    countryFilter === 'cheapest'
-                      ? 'bg-blue-600 text-white shadow-sm'
-                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
-                  }`}
-                >
-                  ارزان‌ترین‌ها
-                </button>
+              {/* Filters & Sorting Toolbar */}
+              <div className="flex flex-wrap items-center gap-2">
+                {/* Stock filter pill */}
+                <div className="flex items-center gap-1 bg-muted/40 p-1 rounded-control border border-border/40">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCountryStockFilter('all')
+                      setVisibleCount(18)
+                    }}
+                    className={`text-xs px-2.5 py-1.5 rounded-control font-bold duration-motion ease-motion transition-all cursor-pointer ${
+                      countryStockFilter === 'all'
+                        ? 'bg-primary text-primary-foreground font-black shadow-control'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    همه ({toPersianDigits(countries.length)})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCountryStockFilter('in_stock')
+                      setVisibleCount(18)
+                    }}
+                    className={`text-xs px-2.5 py-1.5 rounded-control font-bold duration-motion ease-motion transition-all cursor-pointer ${
+                      countryStockFilter === 'in_stock'
+                        ? 'bg-primary text-primary-foreground font-black shadow-control'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    فقط موجود
+                  </button>
+                </div>
+
+                {/* Price & Stock Sorting Pills */}
+                <div className="flex items-center gap-1 bg-muted/40 p-1 rounded-control border border-border/40">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCountrySort('default')
+                      setVisibleCount(18)
+                    }}
+                    className={`text-xs px-2.5 py-1.5 rounded-control font-bold duration-motion ease-motion transition-all cursor-pointer ${
+                      countrySort === 'default'
+                        ? 'bg-primary text-primary-foreground font-black shadow-control'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                    title="مرتب‌سازی پیشنهادی"
+                  >
+                    پیشنهادی
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCountrySort('price_asc')
+                      setVisibleCount(18)
+                    }}
+                    className={`text-xs px-2.5 py-1.5 rounded-control font-bold duration-motion ease-motion flex items-center gap-1 transition-all cursor-pointer ${
+                      countrySort === 'price_asc'
+                        ? 'bg-primary text-primary-foreground font-black shadow-control'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                    title="مرتب‌سازی از ارزان‌ترین به گران‌ترین"
+                  >
+                    <TrendingDown className="w-3.5 h-3.5" />
+                    <span>ارزان به گران</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCountrySort('price_desc')
+                      setVisibleCount(18)
+                    }}
+                    className={`text-xs px-2.5 py-1.5 rounded-control font-bold duration-motion ease-motion flex items-center gap-1 transition-all cursor-pointer ${
+                      countrySort === 'price_desc'
+                        ? 'bg-primary text-primary-foreground font-black shadow-control'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                    title="مرتب‌سازی از گران‌ترین به ارزان‌ترین"
+                  >
+                    <TrendingUp className="w-3.5 h-3.5" />
+                    <span>گران به ارزان</span>
+                  </button>
+                </div>
               </div>
             </div>
 
-            {/* Country Cards with Live Operator / Number Selector */}
+            {/* Country Cards Grid with Live Flags & Progressive Pagination */}
             {countriesLoading ? (
               <div className="py-24 text-center space-y-3">
-                <Loader2 className="w-8 h-8 text-blue-600 animate-spin mx-auto" />
-                <p className="text-sm font-medium text-slate-500">
+                <RefreshCw className="w-8 h-8 text-foreground animate-spin mx-auto" />
+                <p className="text-xs text-muted-foreground">
                   در حال استعلام قیمت و موجودی زنده اپراتورها...
                 </p>
               </div>
             ) : filteredCountries.length === 0 ? (
-              <div className="py-20 text-center space-y-2 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
-                <Info className="w-8 h-8 text-slate-400 mx-auto" />
-                <p className="text-sm text-slate-600 dark:text-slate-400">
+              <div className="py-16 text-center space-y-2 rounded-surface border border-border/60 bg-card p-8">
+                <HelpCircle className="w-8 h-8 text-muted-foreground mx-auto" />
+                <p className="text-sm font-bold text-foreground">
                   کشوری با این مشخصات یافت نشد.
                 </p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                {filteredCountries.map((c) => {
-                  const currentOpName =
-                    selectedOperators[c.country] || c.default_operator
-                  const activeOp =
-                    c.operators.find((op) => op.operator === currentOpName) ||
-                    c.operators[0]
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {displayedCountries.map((c) => {
+                    const currentOpName =
+                      selectedOperators[c.country] || c.default_operator
+                    const activeOp =
+                      c.operators.find((op) => op.operator === currentOpName) ||
+                      c.operators[0]
+                    const isAvailable = activeOp && activeOp.count > 0
 
-                  const isAvailable = activeOp && activeOp.count > 0
+                    return (
+                      <div
+                        key={c.country}
+                        className="p-4 sm:p-5 rounded-surface border border-border/60 bg-card shadow-surface duration-motion ease-motion hover:border-border transition-all flex flex-col justify-between space-y-4"
+                      >
+                        {/* Country Flag & Title */}
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-center gap-3 min-w-0">
+                            {c.flag_url ? (
+                              <img
+                                src={c.flag_url}
+                                alt={c.country_name_fa}
+                                className="w-7 h-5 object-cover rounded-sm border border-border/50 shrink-0 shadow-xs"
+                                onError={(e) => {
+                                  ;(e.target as HTMLElement).style.display =
+                                    'none'
+                                }}
+                              />
+                            ) : (
+                              <span className="text-2xl shrink-0">
+                                {c.country_flag || '🌐'}
+                              </span>
+                            )}
+                            <div className="min-w-0">
+                              <h3 className="text-sm font-bold text-foreground truncate">
+                                {c.country_name_fa}
+                              </h3>
+                              <span className="text-[11px] text-muted-foreground font-latin block">
+                                {c.country}
+                              </span>
+                            </div>
+                          </div>
 
-                  return (
-                    <div
-                      key={c.country}
-                      className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-blue-500/50 dark:hover:border-blue-500/50 hover:shadow-lg hover:shadow-blue-500/5 transition-all space-y-4 flex flex-col justify-between"
-                    >
-                      {/* Country Title & Flag */}
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-3">
-                          <span className="text-3xl">{c.country_flag}</span>
-                          <div>
-                            <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                              {c.country_name_fa}
-                            </h3>
-                            <span className="text-xs text-slate-400 font-mono">
-                              {c.country}
+                          <div className="text-left shrink-0">
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-control bg-muted text-muted-foreground border border-border/40 block">
+                              {c.total_stock > 0
+                                ? `${toPersianDigits(c.total_stock)} شماره`
+                                : 'ناموجود'}
                             </span>
+                            {c.best_rate > 0 && (
+                              <span className="text-[10px] text-emerald-400 font-bold block mt-0.5 font-latin">
+                                موفقیت:{' '}
+                                {toPersianDigits(Math.round(c.best_rate))}٪
+                              </span>
+                            )}
                           </div>
                         </div>
 
-                        <div className="text-left space-y-0.5">
-                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 block">
-                            {c.total_stock > 0
-                              ? `${formatToman(c.total_stock)} شماره`
-                              : 'ناموجود'}
-                          </span>
-                          {c.best_rate > 0 && (
-                            <span className="text-[10px] text-emerald-500 font-semibold block">
-                              موفقیت: {Math.round(c.best_rate)}٪
-                            </span>
+                        {/* Operator / Tier Selection */}
+                        <div className="space-y-1.5 pt-1">
+                          <label className="text-[10px] font-bold text-muted-foreground block">
+                            اپراتور و رده شماره:
+                          </label>
+
+                          {c.operators.length > 1 ? (
+                            <div className="relative">
+                              <select
+                                value={currentOpName}
+                                onChange={(e) =>
+                                  setSelectedOperators((prev) => ({
+                                    ...prev,
+                                    [c.country]: e.target.value,
+                                  }))
+                                }
+                                className="w-full text-xs font-latin py-2 pr-3 pl-8 rounded-control border border-border/60 bg-muted/30 text-foreground appearance-none outline-none focus:border-foreground/40 cursor-pointer"
+                              >
+                                {c.operators.map((op) => (
+                                  <option key={op.operator} value={op.operator}>
+                                    {op.operator} |{' '}
+                                    {toPersianDigits(
+                                      op.price_toman.toLocaleString(),
+                                    )}{' '}
+                                    تومان (موجودی: {toPersianDigits(op.count)})
+                                  </option>
+                                ))}
+                              </select>
+                              <ChevronDown className="w-3.5 h-3.5 text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                            </div>
+                          ) : (
+                            <div className="text-xs font-latin text-muted-foreground px-3 py-1.5 rounded-control bg-muted/20 border border-border/40">
+                              {activeOp?.operator || 'اپراتور استاندارد'}{' '}
+                              (موجودی: {toPersianDigits(activeOp?.count || 0)})
+                            </div>
                           )}
                         </div>
-                      </div>
 
-                      {/* OPERATOR / NUMBER SELECTION DROPDOWN */}
-                      <div className="space-y-1.5 pt-2 border-t border-slate-100 dark:border-slate-800">
-                        <label className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 block">
-                          انتخاب اپراتور / شماره این کشور:
-                        </label>
-
-                        {c.operators.length > 1 ? (
-                          <div className="relative">
-                            <select
-                              value={currentOpName}
-                              onChange={(e) =>
-                                setSelectedOperators((prev) => ({
-                                  ...prev,
-                                  [c.country]: e.target.value,
-                                }))
-                              }
-                              className="w-full text-xs font-mono py-2 pr-3 pl-8 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
-                            >
-                              {c.operators.map((op) => (
-                                <option key={op.operator} value={op.operator}>
-                                  {op.operator} | {formatToman(op.price_toman)}{' '}
-                                  تومان (موجودی: {formatToman(op.count)})
-                                </option>
-                              ))}
-                            </select>
-                            <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                        {/* Price & Buy Button */}
+                        <div className="pt-2 flex items-center justify-between gap-3">
+                          <div>
+                            <span className="text-[10px] text-muted-foreground block">
+                              قیمت نهایی
+                            </span>
+                            <span className="text-sm font-black text-foreground font-latin">
+                              {toPersianDigits(
+                                (activeOp?.price_toman || 0).toLocaleString(),
+                              )}{' '}
+                              تومان
+                            </span>
                           </div>
-                        ) : (
-                          <div className="text-xs font-mono text-slate-600 dark:text-slate-400 px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-                            {activeOp?.operator || 'اپراتور استاندارد'} (موجودی:{' '}
-                            {formatToman(activeOp?.count || 0)})
-                          </div>
-                        )}
-                      </div>
 
-                      {/* Price and Instant Buy CTA */}
-                      <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3">
-                        <div>
-                          <span className="text-[10px] text-slate-400 block">
-                            قیمت نهایی
-                          </span>
-                          <span className="text-sm font-black text-blue-600 dark:text-blue-400">
-                            {formatToman(activeOp?.price_toman || 0)} تومان
-                          </span>
+                          <button
+                            type="button"
+                            disabled={!isAvailable}
+                            onClick={() => setBuyingCountry(c)}
+                            className={`h-9 px-4 rounded-control text-xs font-black duration-motion ease-motion active:scale-[0.98] transition-all flex items-center gap-1.5 shadow-control ${
+                              isAvailable
+                                ? 'bg-primary hover:bg-primary-hover text-primary-foreground cursor-pointer'
+                                : 'bg-muted text-muted-foreground cursor-not-allowed opacity-50'
+                            }`}
+                          >
+                            <Smartphone className="w-3.5 h-3.5" />
+                            <span>
+                              {isAvailable ? 'خرید شماره' : 'ناموجود'}
+                            </span>
+                          </button>
                         </div>
-
-                        <button
-                          type="button"
-                          disabled={!isAvailable}
-                          onClick={() => setBuyingCountry(c)}
-                          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-                            isAvailable
-                              ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm shadow-blue-500/20 active:scale-95 cursor-pointer'
-                              : 'bg-slate-100 dark:bg-slate-800 text-slate-400 cursor-not-allowed'
-                          }`}
-                        >
-                          <Smartphone className="w-3.5 h-3.5" />
-                          <span>{isAvailable ? 'خرید شماره' : 'ناموجود'}</span>
-                        </button>
                       </div>
-                    </div>
-                  )
-                })}
+                    )
+                  })}
+                </div>
+
+                {/* Progressive Loading ("بارگذاری بیشتر") to prevent DOM overload */}
+                {filteredCountries.length > visibleCount && (
+                  <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setVisibleCount((prev) => prev + 18)}
+                      className="h-10 px-6 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs duration-motion ease-motion active:scale-[0.98] shadow-control flex items-center gap-2 cursor-pointer"
+                    >
+                      <span>
+                        بارگذاری شماره‌های بیشتر (نمایش{' '}
+                        {toPersianDigits(displayedCountries.length)} از{' '}
+                        {toPersianDigits(filteredCountries.length)} کشور)
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setVisibleCount(filteredCountries.length)}
+                      className="h-10 px-5 rounded-control border border-border/60 bg-card hover:bg-muted text-xs font-bold text-foreground duration-motion ease-motion active:scale-[0.98] cursor-pointer"
+                    >
+                      نمایش تمامی {toPersianDigits(filteredCountries.length)}{' '}
+                      کشور
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>
         )}
 
-        {/* CHECKOUT MODAL CONFIRMATION */}
+        {/* CHECKOUT CONFIRMATION MODAL (Graphite Overlay) */}
         {buyingCountry && selectedService && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-            <div className="w-full max-w-md rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 shadow-2xl space-y-5">
-              <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in">
+            <div className="w-full max-w-md rounded-surface bg-zinc-950 border border-zinc-800 p-6 shadow-overlay space-y-5 text-zinc-100">
+              <div className="flex items-center justify-between pb-3 border-b border-zinc-800">
                 <div className="flex items-center gap-2.5">
-                  <span className="text-2xl">{buyingCountry.country_flag}</span>
+                  {buyingCountry.flag_url ? (
+                    <img
+                      src={buyingCountry.flag_url}
+                      alt={buyingCountry.country_name_fa}
+                      className="w-7 h-5 object-cover rounded-sm border border-zinc-800"
+                    />
+                  ) : (
+                    <span className="text-2xl">
+                      {buyingCountry.country_flag}
+                    </span>
+                  )}
                   <div>
-                    <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                    <h3 className="text-sm font-bold text-white">
                       تایید خرید شماره {selectedService.name_fa}
                     </h3>
-                    <p className="text-xs text-slate-500">
+                    <p className="text-xs text-zinc-400">
                       کشور {buyingCountry.country_name_fa} (
                       {selectedOperators[buyingCountry.country] ||
                         buyingCountry.default_operator}
@@ -932,41 +1110,47 @@ export const VirtualNumbersPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setBuyingCountry(null)}
-                  className="p-1 rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+                  className="p-1 rounded-control text-zinc-400 hover:text-white hover:bg-zinc-900 transition-colors cursor-pointer"
                 >
-                  <XCircle className="w-5 h-5" />
+                  <X className="w-5 h-5" />
                 </button>
               </div>
 
-              {/* Order Info */}
-              <div className="space-y-2 text-xs bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-200 dark:border-slate-800">
+              {/* Order Info Summary */}
+              <div className="space-y-2 text-xs bg-zinc-900/60 p-4 rounded-control border border-zinc-800">
                 <div className="flex justify-between py-1">
-                  <span className="text-slate-500">سرویس درخواستی:</span>
-                  <span className="font-bold">{selectedService.name_fa}</span>
-                </div>
-                <div className="flex justify-between py-1">
-                  <span className="text-slate-500">کشور:</span>
-                  <span className="font-bold">
-                    {buyingCountry.country_name_fa} {buyingCountry.country_flag}
+                  <span className="text-zinc-400">سرویس درخواستی:</span>
+                  <span className="font-bold text-white">
+                    {selectedService.name_fa}
                   </span>
                 </div>
                 <div className="flex justify-between py-1">
-                  <span className="text-slate-500">اپراتور انتخابی:</span>
-                  <span className="font-mono font-bold text-blue-600 dark:text-blue-400">
+                  <span className="text-zinc-400">کشور:</span>
+                  <span className="font-bold text-white">
+                    {buyingCountry.country_name_fa}
+                  </span>
+                </div>
+                <div className="flex justify-between py-1">
+                  <span className="text-zinc-400">اپراتور انتخابی:</span>
+                  <span className="font-mono font-bold text-brand">
                     {selectedOperators[buyingCountry.country] ||
                       buyingCountry.default_operator}
                   </span>
                 </div>
-                <div className="flex justify-between py-1 border-t border-slate-200 dark:border-slate-700/60 pt-2 text-sm">
-                  <span className="font-bold">مبلغ قابل پرداخت:</span>
-                  <span className="font-black text-blue-600 dark:text-blue-400">
-                    {formatToman(
-                      buyingCountry.operators.find(
-                        (op) =>
-                          op.operator ===
-                          (selectedOperators[buyingCountry.country] ||
-                            buyingCountry.default_operator),
-                      )?.price_toman || buyingCountry.cheapest_price_toman,
+                <div className="flex justify-between py-2 border-t border-zinc-800 pt-2 text-sm">
+                  <span className="font-bold text-white">
+                    مبلغ قابل پرداخت:
+                  </span>
+                  <span className="font-black text-white font-latin">
+                    {toPersianDigits(
+                      (
+                        buyingCountry.operators.find(
+                          (op) =>
+                            op.operator ===
+                            (selectedOperators[buyingCountry.country] ||
+                              buyingCountry.default_operator),
+                        )?.price_toman || buyingCountry.cheapest_price_toman
+                      ).toLocaleString(),
                     )}{' '}
                     تومان
                   </span>
@@ -975,7 +1159,7 @@ export const VirtualNumbersPage: React.FC = () => {
 
               {/* Customer Phone for Receipt */}
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block">
+                <label className="text-xs font-bold text-zinc-300 block">
                   شماره موبایل جهت پیگیری پیامکی (اختیاری):
                 </label>
                 <input
@@ -983,23 +1167,23 @@ export const VirtualNumbersPage: React.FC = () => {
                   dir="ltr"
                   value={customerPhone}
                   onChange={(e) => setCustomerPhone(e.target.value)}
-                  className="w-full px-3 py-2 text-xs font-mono rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  className="w-full h-10 px-3 text-xs font-mono rounded-field border border-zinc-800 bg-zinc-900 text-white outline-none focus:border-foreground/40 transition-colors"
                 />
               </div>
 
               {buyError && (
-                <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/40 text-xs text-rose-600 dark:text-rose-400 flex items-center gap-2">
+                <div className="p-3 rounded-control bg-destructive/10 border border-destructive/30 text-xs text-destructive flex items-center gap-2">
                   <AlertCircle className="w-4 h-4 shrink-0" />
                   <span>{buyError}</span>
                 </div>
               )}
 
               {/* Refund policy notice */}
-              <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/30 text-[11px] text-emerald-700 dark:text-emerald-400 flex items-center gap-2">
+              <div className="p-3 rounded-control bg-emerald-500/10 border border-emerald-500/20 text-[11px] text-emerald-400 flex items-center gap-2">
                 <ShieldCheck className="w-4 h-4 shrink-0" />
                 <span>
-                  ضمانت بازگشت وجه: در صورتی که پیامکی دریافت نشود، وجه به صورت
-                  آنی استرداد می‌گردد.
+                  ضمانت کامل بازگشت وجه: در صورتی که پیامکی دریافت نشود، وجه به
+                  طور خودکار به کیف پول استرداد می‌گردد.
                 </span>
               </div>
 
@@ -1009,12 +1193,12 @@ export const VirtualNumbersPage: React.FC = () => {
                   type="button"
                   disabled={buyLoading}
                   onClick={() => handleConfirmPurchase(buyingCountry)}
-                  className="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all shadow-md shadow-blue-500/20 active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="flex-1 h-10 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground text-xs font-black duration-motion ease-motion active:scale-[0.98] shadow-control disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
                 >
                   {buyLoading ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>در حال صدور و دریافت شماره مجازی...</span>
+                      <span>در حال صدور و دریافت شماره...</span>
                     </>
                   ) : (
                     <>
@@ -1026,7 +1210,7 @@ export const VirtualNumbersPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setBuyingCountry(null)}
-                  className="px-4 py-2.5 rounded-xl text-xs font-medium text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                  className="h-10 px-4 rounded-control border border-zinc-800 hover:bg-zinc-900 text-xs font-bold text-zinc-400 hover:text-white transition-colors cursor-pointer"
                 >
                   انصراف
                 </button>
@@ -1036,35 +1220,39 @@ export const VirtualNumbersPage: React.FC = () => {
         )}
 
         {/* Feature Highlights Footer */}
-        <section className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-12 border-t border-slate-200 dark:border-slate-800 text-center">
-          <div className="p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-2">
-            <div className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-500 flex items-center justify-center mx-auto">
-              <Zap className="w-5 h-5" />
+        <section className="grid grid-cols-1 md:grid-cols-3 gap-5 pt-8 text-center">
+          <div className="p-5 rounded-surface border border-border/60 bg-card shadow-surface space-y-2">
+            <div className="w-9 h-9 rounded-control bg-brand/10 text-brand flex items-center justify-center mx-auto border border-brand/20">
+              <Zap className="w-4 h-4" />
             </div>
-            <h3 className="text-sm font-bold">تحویل آنی ۰ ثانیه‌ای</h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
+            <h3 className="text-sm font-bold text-foreground">تحویل آنی</h3>
+            <p className="text-xs text-muted-foreground leading-relaxed">
               شماره مجازی بلافاصله پس از سفارش تحویل داده شده و آماده دریافت
               پیامک است.
             </p>
           </div>
 
-          <div className="p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-2">
-            <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center mx-auto">
-              <ShieldCheck className="w-5 h-5" />
+          <div className="p-5 rounded-surface border border-border/60 bg-card shadow-surface space-y-2">
+            <div className="w-9 h-9 rounded-control bg-emerald-500/10 text-emerald-400 flex items-center justify-center mx-auto border border-emerald-500/20">
+              <ShieldCheck className="w-4 h-4" />
             </div>
-            <h3 className="text-sm font-bold">ضمانت ۱۰۰٪ بازگشت وجه</h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
+            <h3 className="text-sm font-bold text-foreground">
+              ضمانت ۱۰۰٪ بازگشت وجه
+            </h3>
+            <p className="text-xs text-muted-foreground leading-relaxed">
               اگر به هر دلیلی کد تایید پیامک نشود، سفارش لغو شده و مبلغ بلافاصله
               استرداد می‌شود.
             </p>
           </div>
 
-          <div className="p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-2">
-            <div className="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-500 flex items-center justify-center mx-auto">
-              <Globe className="w-5 h-5" />
+          <div className="p-5 rounded-surface border border-border/60 bg-card shadow-surface space-y-2">
+            <div className="w-9 h-9 rounded-control bg-brand/10 text-brand flex items-center justify-center mx-auto border border-brand/20">
+              <Globe className="w-4 h-4" />
             </div>
-            <h3 className="text-sm font-bold">بیش از ۱۸۰ کشور جهان</h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
+            <h3 className="text-sm font-bold text-foreground">
+              بیش از ۱۸۰ کشور جهان
+            </h3>
+            <p className="text-xs text-muted-foreground leading-relaxed">
               پشتیبانی از شماره‌های معتبر کشورهای اروپایی، آمریکایی و آسیایی بدون
               مسدودی.
             </p>

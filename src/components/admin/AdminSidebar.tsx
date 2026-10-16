@@ -25,7 +25,6 @@ import {
 } from 'lucide-react'
 import type React from 'react'
 import { Link } from 'react-router-dom'
-import { ThemeToggle } from '../ThemeToggle'
 
 export type AdminTabType =
   | 'bi-analytics'
@@ -282,11 +281,11 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
         <Link
           to="/"
           target="_blank"
-          className="mt-3.5 flex items-center justify-between px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800/80 text-xs font-bold text-zinc-300 hover:text-white hover:border-zinc-700 transition-all group"
+          className="mt-3.5 flex items-center justify-between px-3 py-2 rounded-control border-line bg-card hover:bg-muted text-xs font-bold text-foreground duration-motion ease-motion active:scale-[0.98] shadow-control transition-all group"
         >
           <span className="flex items-center gap-2">
-            <Sparkles className="w-3.5 h-3.5 text-blue-400 group-hover:rotate-12 transition-transform" />
-            مشاهده ویترین فروشگاه
+            <Sparkles className="w-3.5 h-3.5 text-brand group-hover:rotate-12 transition-transform" />
+            <span>مشاهده ویترین فروشگاه</span>
           </span>
           <ExternalLink className="w-3.5 h-3.5 opacity-60 group-hover:opacity-100 transition-opacity" />
         </Link>
@@ -309,18 +308,18 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
                     key={item.id}
                     type="button"
                     onClick={() => handleNavClick(item.id)}
-                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-right transition-all group relative cursor-pointer ${
+                    className={`w-full flex items-center justify-between px-3 py-2 rounded-control text-right duration-motion ease-motion transition-all group relative cursor-pointer active:scale-[0.98] ${
                       isActive
-                        ? 'bg-blue-600 text-white font-bold shadow-md shadow-blue-600/20'
-                        : 'text-zinc-300 hover:bg-zinc-900 hover:text-white'
+                        ? 'bg-primary text-primary-foreground font-black shadow-control'
+                        : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                     }`}
                   >
                     <div className="flex items-center gap-2.5 min-w-0 flex-1">
                       <div
                         className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
                           isActive
-                            ? 'bg-white/20 text-white'
-                            : 'bg-zinc-900 text-zinc-400 group-hover:text-blue-400'
+                            ? 'bg-primary-foreground/15 text-primary-foreground'
+                            : 'bg-muted text-muted-foreground group-hover:text-foreground'
                         }`}
                       >
                         <Icon className="w-3.5 h-3.5" />
@@ -331,7 +330,9 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
                         </div>
                         <div
                           className={`text-[10px] leading-tight mt-0.5 truncate ${
-                            isActive ? 'text-blue-100' : 'text-zinc-400'
+                            isActive
+                              ? 'text-primary-foreground/75'
+                              : 'text-muted-foreground'
                           }`}
                         >
                           {item.subtitle}
@@ -342,10 +343,10 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
                     <div className="flex items-center gap-1.5 shrink-0 pr-1.5">
                       {item.badge !== undefined && (
                         <span
-                          className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                          className={`px-1.5 py-0.2 rounded-control text-[10px] font-bold ${
                             isActive
-                              ? 'bg-white text-blue-600'
-                              : 'bg-amber-500 text-zinc-950 font-black'
+                              ? 'bg-primary-foreground/20 text-primary-foreground'
+                              : 'bg-brand/20 text-brand border border-brand/30 font-black'
                           }`}
                         >
                           {item.badge}
@@ -399,7 +400,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
             <span>سرور آنلاین (:8080)</span>
           </span>
-          <ThemeToggle />
+          <span className="font-latin text-[10px] text-zinc-500">v2.5 Pro</span>
         </div>
       </div>
     </div>

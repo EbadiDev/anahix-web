@@ -1,5 +1,6 @@
 import {
   AlertCircle,
+  ArrowLeft,
   ArrowRight,
   Calendar,
   Check,
@@ -35,8 +36,8 @@ import { CartDrawer } from '../components/CartDrawer'
 import { Header } from '../components/Header'
 import { ProductReviewsSection } from '../components/reviews/ProductReviewsSection'
 import { Badge } from '../components/ui/badge'
-import { Button } from '../components/ui/button'
 import { Card } from '../components/ui/card'
+import { QuantitySelector } from '../components/vibefarsi/QuantitySelector'
 import { cartStore, useCart } from '../lib/cartStore'
 import { apiService } from '../services/api'
 import type {
@@ -46,6 +47,11 @@ import type {
   ProductDetail,
   ProductPlan,
 } from '../types'
+
+function toPersianDigits(n: number | string): string {
+  const f = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹']
+  return String(n).replace(/\d/g, (d) => f[Number(d)])
+}
 
 interface ProductDetailPageProps {
   orders: Order[]
@@ -212,6 +218,16 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
     cartStore.addItem(product, 1, selectedPlan || undefined)
     setAddedToast(true)
     setTimeout(() => setAddedToast(false), 3000)
+  }
+
+  // Handle in-place quantity changes
+  const handleQuantityChange = (newQty: number) => {
+    if (!product) return
+    if (newQty <= 0) {
+      cartStore.removeItem(product.id, selectedPlan?.id)
+    } else {
+      cartStore.updateQuantity(product.id, newQty, selectedPlan?.id)
+    }
   }
 
   // Handle Instant Buy (Add and open cart drawer)
@@ -402,10 +418,10 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
               ) : (
                 <Badge
                   variant="blue"
-                  className="gap-1.5 text-xs font-bold py-1 px-3 bg-blue-50 dark:bg-blue-950/80 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800"
+                  className="gap-1.5 text-xs font-bold py-1 px-3 bg-muted text-foreground border border-border/60"
                 >
-                  <Zap className="h-3.5 w-3.5 text-blue-600" />
-                  تحویل آنی خودکار (۰ ثانیه)
+                  <Zap className="h-3.5 w-3.5 text-brand" />
+                  تحویل آنی
                 </Badge>
               )}
 
@@ -510,21 +526,21 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                         key={plan.id}
                         type="button"
                         onClick={() => setSelectedPlan(plan)}
-                        className={`w-full p-3.5 rounded-2xl border text-right transition-all flex items-center justify-between gap-3 ${
+                        className={`w-full p-3.5 rounded-control border text-right duration-motion ease-motion transition-all flex items-center justify-between gap-3 cursor-pointer ${
                           isSelected
-                            ? 'border-blue-600 bg-blue-500/5 ring-2 ring-blue-500/20 shadow-sm'
-                            : 'border-border bg-background hover:bg-muted/40 hover:border-border/80'
+                            ? 'border-foreground/40 bg-muted/70 ring-1 ring-foreground/20'
+                            : 'border-border/30 bg-muted/20 hover:bg-muted/50 hover:border-border/60'
                         }`}
                       >
                         <div className="flex items-center gap-3">
                           <div
-                            className={`h-5 w-5 rounded-full border flex items-center justify-center transition ${
+                            className={`h-4.5 w-4.5 rounded-full border flex items-center justify-center transition-colors ${
                               isSelected
-                                ? 'border-blue-600 bg-blue-600 text-white'
+                                ? 'border-primary bg-primary text-primary-foreground'
                                 : 'border-muted-foreground/40'
                             }`}
                           >
-                            {isSelected && <Check className="h-3 w-3" />}
+                            {isSelected && <Check className="h-2.5 w-2.5" />}
                           </div>
                           <div>
                             <div className="flex items-center gap-2">
@@ -532,7 +548,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                                 {plan.title}
                               </span>
                               {plan.badge && (
-                                <span className="px-2 py-0.5 rounded-md text-[10px] font-black bg-amber-500/15 text-amber-600 dark:text-amber-400">
+                                <span className="px-2 py-0.5 rounded-control text-[10px] font-black bg-brand/15 text-brand border border-brand/20">
                                   {plan.badge}
                                 </span>
                               )}
@@ -546,13 +562,13 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                         <div className="text-left shrink-0">
                           {plan.original_price_toman &&
                             plan.original_price_toman > plan.price_toman && (
-                              <div className="text-[10px] text-muted-foreground line-through">
+                              <div className="text-[10px] text-muted-foreground line-through font-latin">
                                 {plan.original_price_toman.toLocaleString(
                                   'fa-IR',
                                 )}
                               </div>
                             )}
-                          <div className="font-black text-sm text-foreground font-mono">
+                          <div className="font-black text-sm text-foreground font-latin">
                             {plan.price_toman.toLocaleString('fa-IR')}{' '}
                             <span className="text-[10px] font-normal text-muted-foreground font-sans">
                               تومان
@@ -599,27 +615,74 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                 </div>
               </div>
 
-              {/* Actions: Instant Buy & Add to Cart */}
-              <div className="space-y-2.5 pt-1">
-                <Button
-                  onClick={handleInstantBuy}
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm h-12 rounded-2xl shadow-lg shadow-blue-600/25 transition-all hover:scale-[1.01] active:scale-[0.98] flex items-center justify-center gap-2"
-                >
-                  <Zap className="h-4 w-4" />
-                  <span>خرید آنی و تسویه‌حساب</span>
-                </Button>
+              {/* Actions: In-Place Quantity Counter or Buy Buttons (Graphite System) */}
+              <div className="space-y-2 pt-1">
+                {(() => {
+                  const currentCartItem = cart.items.find(
+                    (item) =>
+                      String(item.product.id) === String(product.id) &&
+                      (selectedPlan
+                        ? item.plan?.id === selectedPlan.id
+                        : !item.plan),
+                  )
+                  const currentQuantity = currentCartItem
+                    ? currentCartItem.quantity
+                    : 0
 
-                <Button
-                  variant="outline"
-                  onClick={handleAddToCart}
-                  className="w-full border-border hover:bg-muted text-foreground font-bold text-xs h-11 rounded-2xl transition-all flex items-center justify-center gap-2"
-                >
-                  <ShoppingCart className="h-4 w-4 text-blue-600" />
-                  <span>افزودن به سبد خرید</span>
-                </Button>
+                  if (currentQuantity > 0) {
+                    return (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between p-2.5 rounded-control bg-muted/40 border border-border/40 text-xs">
+                          <span className="font-bold text-foreground">
+                            تعداد در سبد خرید:
+                          </span>
+                          <QuantitySelector
+                            value={currentQuantity}
+                            onChange={handleQuantityChange}
+                            size="md"
+                          />
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => setIsCartOpen(true)}
+                          className="w-full h-11 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs sm:text-sm duration-motion ease-motion active:scale-[0.98] shadow-control flex items-center justify-center gap-2 cursor-pointer"
+                        >
+                          <span>
+                            تکمیل سفارش و تسویه‌حساب (
+                            {toPersianDigits(currentQuantity)} عدد)
+                          </span>
+                          <ArrowLeft className="h-4 w-4" />
+                        </button>
+                      </div>
+                    )
+                  }
+
+                  return (
+                    <div className="space-y-2">
+                      <button
+                        type="button"
+                        onClick={handleInstantBuy}
+                        className="w-full h-11 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs sm:text-sm duration-motion ease-motion active:scale-[0.98] shadow-control flex items-center justify-center gap-2 cursor-pointer"
+                      >
+                        <Zap className="h-4 w-4" />
+                        <span>خرید آنی و تسویه‌حساب</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={handleAddToCart}
+                        className="w-full h-10 rounded-control border border-border/40 bg-card hover:bg-muted text-foreground font-bold text-xs duration-motion ease-motion active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer"
+                      >
+                        <ShoppingCart className="h-3.5 w-3.5 text-muted-foreground" />
+                        <span>افزودن به سبد خرید</span>
+                      </button>
+                    </div>
+                  )
+                })()}
 
                 {addedToast && (
-                  <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-center text-xs font-bold flex items-center justify-center gap-1.5 animate-in fade-in">
+                  <div className="p-2.5 rounded-control bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-center text-xs font-bold flex items-center justify-center gap-1.5 animate-in fade-in">
                     <CheckCircle2 className="h-4 w-4" />
                     <span>پلن مورد نظر به سبد خرید افزوده شد!</span>
                   </div>
@@ -627,17 +690,17 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
               </div>
 
               {/* Guarantee Mini Footer */}
-              <div className="border-t border-border/60 pt-4 flex items-center justify-around text-[11px] text-muted-foreground text-center">
+              <div className="pt-3 flex items-center justify-around text-[11px] text-muted-foreground text-center">
                 <div className="flex flex-col items-center gap-1">
-                  <ShieldCheck className="h-4 w-4 text-blue-600" />
+                  <ShieldCheck className="h-4 w-4 text-brand" />
                   <span>ضمانت بازگشت وجه</span>
                 </div>
                 <div className="flex flex-col items-center gap-1">
-                  <CreditCard className="h-4 w-4 text-blue-600" />
+                  <CreditCard className="h-4 w-4 text-brand" />
                   <span>پرداخت امن شاپرک</span>
                 </div>
                 <div className="flex flex-col items-center gap-1">
-                  <Headphones className="h-4 w-4 text-blue-600" />
+                  <Headphones className="h-4 w-4 text-brand" />
                   <span>پشتیبانی تلگرام</span>
                 </div>
               </div>
