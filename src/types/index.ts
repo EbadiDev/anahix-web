@@ -78,6 +78,18 @@ export interface Product {
   in_stock: boolean
   stock_count: number
   icon_name?: string
+  image_url?: string
+  gallery_json?: string
+  is_flash_sale?: boolean
+  flash_sale_price_toman?: number
+  flash_sale_end_at?: string
+  flash_sale_stock?: number
+  flash_sale_sold?: number
+  is_best_seller?: boolean
+  is_featured?: boolean
+  rating_average?: number
+  sales_count?: number
+  badges_json?: string
   group_tag?: string
   group_title_fa?: string
   plans?: ProductPlan[]
@@ -117,6 +129,15 @@ export interface AdminProduct {
   price_toman: number
   is_active: boolean
   instructions?: string
+  image_url?: string
+  is_flash_sale?: boolean
+  flash_sale_price_toman?: number
+  flash_sale_stock?: number
+  flash_sale_sold?: number
+  is_best_seller?: boolean
+  is_featured?: boolean
+  rating_average?: number
+  sales_count?: number
   group_tag: string
   group_title_fa?: string
   delivery_strategy?: string
@@ -386,6 +407,7 @@ export interface CustomerProfile {
   last_name?: string
   full_name?: string
   email?: string
+  avatar_url?: string
   balance_toman: number
   balance: number
   referral_code?: string
@@ -420,6 +442,34 @@ export interface VerifyOTPResponse {
   token: string
   is_new?: boolean
   customer: CustomerProfile
+}
+
+export interface ThemeSettings {
+  event_name: string
+  event_active: boolean
+  primary_color: string
+  accent_color: string
+  header_announcement: string
+  event_effect: 'none' | 'snow' | 'confetti' | 'stars'
+  event_icon?: string
+  auth_google_enabled: boolean
+  auth_github_enabled: boolean
+  auth_password_enabled: boolean
+  auth_otp_required: boolean
+}
+
+export interface BannerItem {
+  id: string
+  title: string
+  subtitle?: string
+  badge_text?: string
+  image_url: string
+  link_url?: string
+  position?: string
+  bg_gradient?: string
+  button_text?: string
+  sort_order?: number
+  is_active?: boolean
 }
 
 export interface SMSTemplateItem {

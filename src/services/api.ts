@@ -20,6 +20,7 @@ import type {
   ArticleComment,
   ArticleDetail,
   ArticleListItem,
+  BannerItem,
   BillingSettings,
   ContentCategory,
   ContentListResponse,
@@ -56,6 +57,7 @@ import type {
   SMSSettings,
   SubmitReviewRequest,
   SubmitReviewResponse,
+  ThemeSettings,
   TicketAttachment,
   TicketDetailResponse,
   TicketItem,
@@ -910,6 +912,7 @@ export const apiService = {
     last_name?: string
     full_name?: string
     email?: string
+    avatar_url?: string
     is_corporate?: boolean
     company_name?: string
     national_id?: string
@@ -2831,6 +2834,218 @@ export const apiService = {
       throw new Error(json.msg || 'خطا در دریافت سطوح وفاداری')
     }
     return json.data || []
+  },
+
+  // ==========================================
+  // Promotional Banners & Flash Deals
+  // ==========================================
+  async getBanners(position?: string): Promise<BannerItem[]> {
+    const query = position ? `?position=${encodeURIComponent(position)}` : ''
+    const res = await fetch(`/api/v1/banners${query}`)
+    const json = await res.json()
+    if (res.ok && json.code === 200 && json.data) {
+      return json.data
+    }
+    return []
+  },
+
+  async getAdminBanners(): Promise<BannerItem[]> {
+    const token = this.getAdminToken()
+    const res = await fetch('/api/v1/admin/banners', {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    const json = await res.json()
+    if (res.ok && json.code === 200 && json.data) {
+      return json.data
+    }
+    return []
+  },
+
+  async createBanner(data: Partial<BannerItem>): Promise<BannerItem> {
+    const token = this.getAdminToken()
+    const res = await fetch('/api/v1/admin/banners', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    })
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'خطا در ثبت بنر جدید')
+    }
+    return json.data
+  },
+
+  async updateBanner(
+    id: string,
+    data: Partial<BannerItem>,
+  ): Promise<BannerItem> {
+    const token = this.getAdminToken()
+    const res = await fetch(`/api/v1/admin/banners/${id}`, {
+      method: 'PUT',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    })
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'خطا در ویرایش بنر')
+    }
+    return json.data
+  },
+
+  async deleteBanner(id: string): Promise<void> {
+    const token = this.getAdminToken()
+    const res = await fetch(`/api/v1/admin/banners/${id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'خطا در حذف بنر')
+    }
+  },
+
+  // ==========================================
+  // Dynamic Holiday Theme & System Settings
+  // ==========================================
+  async getThemeSettings(): Promise<ThemeSettings> {
+    const res = await fetch('/api/v1/system/theme')
+    const json = await res.json()
+    if (res.ok && json.code === 200 && json.data) {
+      return json.data
+    }
+    return {
+      event_name: 'عادی',
+      event_active: false,
+      primary_color: '#2563eb',
+      accent_color: '#3b82f6',
+      header_announcement:
+        'تمامی سرویس‌ها و شماره‌های مجازی فعال و تحویل آنی برقرار است',
+      event_effect: 'none',
+      event_icon: 'sparkles',
+      auth_google_enabled: true,
+      auth_github_enabled: true,
+      auth_password_enabled: true,
+      auth_otp_required: false,
+    }
+  },
+
+  async getAdminThemeSettings(): Promise<ThemeSettings> {
+    const token = this.getAdminToken()
+    const res = await fetch('/api/v1/admin/settings/theme', {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    const json = await res.json()
+    if (res.ok && json.code === 200 && json.data) {
+      return json.data
+    }
+    return this.getThemeSettings()
+  },
+
+  async updateAdminThemeSettings(data: Partial<ThemeSettings>): Promise<void> {
+    const token = this.getAdminToken()
+    const res = await fetch('/api/v1/admin/settings/theme', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    })
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'خطا در ذخیره تنظیمات تم و رویداد')
+    }
+  },
+
+  // ==========================================
+  // Multi-Method Customer Authentication
+  // ==========================================
+  async loginWithPassword(
+    identifier: string,
+    password: string,
+  ): Promise<VerifyOTPResponse> {
+    const res = await fetch('/api/v1/auth/password/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ identifier, password }),
+    })
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'کلمه عبور وارد شده نادرست است')
+    }
+    if (json.data?.token) {
+      this.setCustomerToken(json.data.token)
+    }
+    return json.data
+  },
+
+  async loginWithSocial(
+    provider: 'google' | 'github',
+    id: string,
+    email: string,
+    name?: string,
+    avatar?: string,
+  ): Promise<VerifyOTPResponse> {
+    const res = await fetch('/api/v1/auth/social/simulate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ provider, id, email, name, avatar }),
+    })
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'خطا در ورود از طریق حساب کاربری')
+    }
+    if (json.data?.token) {
+      this.setCustomerToken(json.data.token)
+    }
+    return json.data
+  },
+
+  async setCustomerPassword(
+    newPassword: string,
+    currentPassword?: string,
+  ): Promise<void> {
+    const token = this.getCustomerToken()
+    const res = await fetch('/api/v1/auth/password/set', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        new_password: newPassword,
+        current_password: currentPassword,
+      }),
+    })
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'خطا در تنظیم کلمه عبور')
+    }
+  },
+
+  async uploadMedia(
+    file: File,
+  ): Promise<{ file_url: string; file_name: string }> {
+    const token = this.getAdminToken()
+    const formData = new FormData()
+    formData.append('file', file)
+
+    const res = await fetch('/api/v1/admin/upload/media', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData,
+    })
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'خطا در آپلود تصویر')
+    }
+    return json.data
   },
 }
 

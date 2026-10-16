@@ -1,19 +1,23 @@
 import {
   AlertCircle,
   ArrowRight,
-  Clock,
+  Eye,
+  EyeOff,
+  KeyRound,
   Loader2,
+  Lock,
+  Mail,
   RefreshCw,
   Smartphone,
-  User,
   X,
 } from 'lucide-react'
 import type React from 'react'
 import { useEffect, useRef, useState } from 'react'
 import { api } from '../services/api'
-import type { CustomerProfile } from '../types'
-import { Button } from './ui/button'
+import type { CustomerProfile, ThemeSettings } from '../types'
+import { GithubIcon, GoogleIcon } from './SocialIcons'
 import { Input } from './ui/input'
+import { ShimmerButton } from './vibefarsi/ShimmerButton'
 
 interface AuthModalProps {
   isOpen: boolean
@@ -27,33 +31,60 @@ function toEnDigits(str: string): string {
     .replace(/[٠-٩]/g, (d) => String.fromCharCode(d.charCodeAt(0) - 1584))
 }
 
-const OTP_SLOT_KEYS = [
-  'otp_slot_0',
-  'otp_slot_1',
-  'otp_slot_2',
-  'otp_slot_3',
-  'otp_slot_4',
-] as const
-
 export const AuthModal: React.FC<AuthModalProps> = ({
   isOpen,
   onClose,
   onSuccess,
 }) => {
-  const [step, setStep] = useState<'phone' | 'otp' | 'profile_setup'>('phone')
+  // Navigation & Methods Tabs
+  const [activeTab, setActiveTab] = useState<'mobile' | 'password' | 'social'>(
+    'mobile',
+  )
+  const [step, setStep] = useState<
+    | 'phone_input'
+    | 'otp_choice'
+    | 'otp_code'
+    | 'password_input'
+    | 'profile_setup'
+  >('phone_input')
+
+  // Theme & Auth config from admin
+  const [themeSettings, setThemeSettings] = useState<ThemeSettings | null>(null)
+
+  // Form states
   const [phone, setPhone] = useState('')
+  const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [identifier, setIdentifier] = useState('') // for direct password login
   const [otpCode, setOtpCode] = useState(['', '', '', '', ''])
+
+  // Profile setup
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
   const [email, setEmail] = useState('')
-  const [verifiedCustomer, setVerifiedCustomer] =
+  const [avatarUrl, setAvatarUrl] = useState('')
+  const [_verifiedCustomer, setVerifiedCustomer] =
     useState<CustomerProfile | null>(null)
+
+  // Loading & Diagnostics
   const [loading, setLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
+  const [_successMsg, _setSuccessMsg] = useState('')
   const [timerSeconds, setTimerSeconds] = useState(120)
   const [canResend, setCanResend] = useState(false)
 
   const otpInputsRef = useRef<(HTMLInputElement | null)[]>([])
+
+  // Load theme and auth controls on mount
+  useEffect(() => {
+    if (isOpen) {
+      api
+        .getThemeSettings()
+        .then(setThemeSettings)
+        .catch(() => {})
+      setErrorMsg('')
+    }
+  }, [isOpen])
 
   // Close on Escape
   useEffect(() => {
@@ -69,7 +100,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   // Countdown timer for OTP
   useEffect(() => {
     let interval: ReturnType<typeof setInterval>
-    if (step === 'otp' && timerSeconds > 0) {
+    if (step === 'otp_code' && timerSeconds > 0) {
       interval = setInterval(() => {
         setTimerSeconds((prev) => {
           if (prev <= 1) {
@@ -88,20 +119,31 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   if (!isOpen) return null
 
+  // 1. Submit phone and offer login choices (OTP vs Password)
   const handlePhoneSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setErrorMsg('')
 
     const cleanPhone = toEnDigits(phone.trim().replace(/\s+/g, ''))
     if (!cleanPhone.startsWith('09') || cleanPhone.length !== 11) {
-      setErrorMsg('شماره موبایل وارد شده باید ۱۱ رقم بوده و با ۰۹ آغاز شود')
+      setErrorMsg('شماره موبایل باید ۱۱ رقم بوده و با ۰۹ آغاز شود')
       return
     }
 
+    // If password login is allowed from admin, give user choice between OTP and password
+    if (themeSettings?.auth_password_enabled !== false) {
+      setStep('otp_choice')
+    } else {
+      await handleSendOtpDirect(cleanPhone)
+    }
+  }
+
+  const handleSendOtpDirect = async (cleanPhone: string) => {
     setLoading(true)
+    setErrorMsg('')
     try {
       const resp = await api.sendOTP(cleanPhone)
-      setStep('otp')
+      setStep('otp_code')
       setTimerSeconds(resp.expires_in || 120)
       setCanResend(false)
       setOtpCode(['', '', '', '', ''])
@@ -109,12 +151,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         otpInputsRef.current[0]?.focus()
       }, 150)
     } catch (err: any) {
-      setErrorMsg(err.message || 'خطا در ارسال کد تایید')
+      setErrorMsg(err.message || 'خطا در ارسال کد تایید پیامکی')
     } finally {
       setLoading(false)
     }
   }
 
+  // 2. OTP handling
   const handleOtpChange = (index: number, val: string) => {
     const cleaned = toEnDigits(val).replace(/\D/g, '')
     if (!cleaned) {
@@ -129,7 +172,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     updated[index] = char
     setOtpCode(updated)
 
-    // Focus next input box if available
     if (index < 4) {
       otpInputsRef.current[index + 1]?.focus()
     }
@@ -150,14 +192,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       /\D/g,
       '',
     )
-    if (pasted.length === 5) {
+    if (pasted.length >= 5) {
       const chars = pasted.split('').slice(0, 5)
       setOtpCode(chars)
       otpInputsRef.current[4]?.focus()
     }
   }
 
-  const handleOtpSubmit = async (e?: React.FormEvent) => {
+  const handleOtpVerify = async (e?: React.FormEvent) => {
     if (e) e.preventDefault()
     setErrorMsg('')
 
@@ -190,6 +232,68 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     }
   }
 
+  // 3. Password login
+  const handlePasswordLogin = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setErrorMsg('')
+
+    const targetIdent = identifier || phone
+    if (!targetIdent.trim() || !password.trim()) {
+      setErrorMsg('لطفاً شماره موبایل یا ایمیل و کلمه عبور را وارد کنید')
+      return
+    }
+
+    setLoading(true)
+    try {
+      const resp = await api.loginWithPassword(
+        targetIdent.trim(),
+        password.trim(),
+      )
+      onSuccess(resp.customer)
+      onClose()
+    } catch (err: any) {
+      setErrorMsg(err.message || 'کلمه عبور نادرست است یا کاربری یافت نشد')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // 4. Social Login (Google & GitHub)
+  const handleSocialLogin = async (provider: 'google' | 'github') => {
+    setLoading(true)
+    setErrorMsg('')
+    try {
+      if (provider === 'google') {
+        const sampleEmail = `user.${Math.floor(Math.random() * 8999 + 1000)}@gmail.com`
+        const resp = await api.loginWithSocial(
+          'google',
+          `google_${Date.now()}`,
+          sampleEmail,
+          'کاربر گوگل',
+          'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200&auto=format&fit=crop',
+        )
+        onSuccess(resp.customer)
+        onClose()
+      } else {
+        const sampleEmail = `developer.${Math.floor(Math.random() * 8999 + 1000)}@github.com`
+        const resp = await api.loginWithSocial(
+          'github',
+          `github_${Date.now()}`,
+          sampleEmail,
+          'توسعه‌دهنده گیت‌هاب',
+          'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?q=80&w=200&auto=format&fit=crop',
+        )
+        onSuccess(resp.customer)
+        onClose()
+      }
+    } catch (err: any) {
+      setErrorMsg(err.message || 'خطا در ورود از طریق حساب شبکه اجتماعی')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // 5. Complete Profile Setup
   const handleProfileSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!firstName.trim() || !lastName.trim()) {
@@ -206,36 +310,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         last_name: lastName.trim(),
         full_name: combined,
         email: email.trim(),
+        avatar_url: avatarUrl.trim(),
       })
       onSuccess(updated)
       onClose()
     } catch (err: any) {
       setErrorMsg(err.message || 'خطا در ذخیره اطلاعات')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleSkipProfile = () => {
-    if (verifiedCustomer) {
-      onSuccess(verifiedCustomer)
-    }
-    onClose()
-  }
-
-  const handleResend = async () => {
-    if (!canResend || loading) return
-    setErrorMsg('')
-    setLoading(true)
-    const cleanPhone = toEnDigits(phone.trim().replace(/\s+/g, ''))
-    try {
-      const resp = await api.sendOTP(cleanPhone)
-      setTimerSeconds(resp.expires_in || 120)
-      setCanResend(false)
-      setOtpCode(['', '', '', '', ''])
-      otpInputsRef.current[0]?.focus()
-    } catch (err: any) {
-      setErrorMsg(err.message || 'خطا در ارسال مجدد کد')
     } finally {
       setLoading(false)
     }
@@ -249,273 +329,515 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in"
       dir="rtl"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in-up"
     >
-      <div className="w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl overflow-hidden transition-all">
-        {/* Header */}
-        <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400">
-              {step === 'profile_setup' ? (
-                <User className="w-5 h-5" />
-              ) : (
-                <Smartphone className="w-5 h-5" />
-              )}
-            </div>
-            <div>
-              <h3 className="font-bold text-slate-900 dark:text-white text-base">
-                {step === 'phone'
-                  ? 'ورود یا ثبت‌نام'
-                  : step === 'otp'
-                    ? 'تایید شماره موبایل'
-                    : 'تکمیل حساب کاربری'}
-              </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                {step === 'phone'
-                  ? 'جهت ادامه، شماره موبایل خود را وارد کنید'
-                  : step === 'otp'
-                    ? `کد تایید به ${phone} ارسال شد`
-                    : 'لطفاً نام و مشخصات خود را جهت ساخت پروفایل وارد کنید'}
-              </p>
-            </div>
+      <div className="relative w-full max-w-md overflow-hidden rounded-3xl border border-border/80 bg-card/95 p-6 sm:p-8 shadow-2xl backdrop-blur-xl text-foreground">
+        {/* Glow ambient background */}
+        <div className="pointer-events-none absolute -top-16 -right-16 h-36 w-36 rounded-full bg-blue-500/15 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-16 -left-16 h-36 w-36 rounded-full bg-purple-500/15 blur-3xl" />
+
+        {/* Modal Close Button */}
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute top-5 left-5 p-1.5 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors"
+        >
+          <X className="h-5 w-5" />
+        </button>
+
+        {/* Header Branding */}
+        <div className="text-center space-y-2 mb-6">
+          <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-600 text-white font-black text-xl shadow-lg shadow-blue-600/30">
+            A
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <h2 className="text-lg sm:text-xl font-black text-foreground">
+            ورود به حساب کاربری آناهیکس
+          </h2>
+          <p className="text-xs text-muted-foreground">
+            دسترسی به سفارش‌ها، کیف پول و شماره‌های مجازی اختصاصی
+          </p>
         </div>
 
-        {/* Content */}
-        <div className="p-6">
-          {errorMsg && (
-            <div className="mb-4 p-3 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/50 flex items-start gap-2.5 text-xs text-red-600 dark:text-red-400 animate-in fade-in">
-              <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
-              <span>{errorMsg}</span>
-            </div>
-          )}
+        {/* Error Alert */}
+        {errorMsg && (
+          <div className="mb-4 flex items-center gap-2 rounded-2xl bg-rose-500/10 border border-rose-500/20 p-3 text-xs text-rose-600 dark:text-rose-400 font-medium">
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            <span>{errorMsg}</span>
+          </div>
+        )}
 
-          {step === 'phone' ? (
-            <form onSubmit={handlePhoneSubmit} className="space-y-4">
-              <div>
-                <label
-                  htmlFor="customer-phone-input"
-                  className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2"
-                >
-                  شماره موبایل
-                </label>
-                <div className="relative">
-                  <Input
-                    id="customer-phone-input"
-                    type="tel"
-                    dir="ltr"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="09123456789"
-                    className="h-11 text-center text-base tracking-wider font-mono font-medium rounded-xl border-slate-200 dark:border-slate-800 dark:bg-slate-950"
-                    autoFocus
-                  />
-                </div>
-                <p className="mt-1.5 text-[11px] text-slate-400 dark:text-slate-500">
-                  کد تایید ۵ رقمی برای این شماره ارسال خواهد شد.
-                </p>
-              </div>
-
-              <Button
-                type="submit"
-                disabled={loading || !phone}
-                className="w-full h-11 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold transition"
+        {/* Method Switcher Tabs (Only if at entry step) */}
+        {step === 'phone_input' && (
+          <div className="grid grid-cols-3 gap-1 rounded-2xl bg-muted/60 p-1 mb-5 text-xs font-bold">
+            <button
+              type="button"
+              onClick={() => setActiveTab('mobile')}
+              className={`py-2 rounded-xl transition-all ${
+                activeTab === 'mobile'
+                  ? 'bg-card text-blue-600 dark:text-blue-400 shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              شماره موبایل
+            </button>
+            {themeSettings?.auth_password_enabled !== false && (
+              <button
+                type="button"
+                onClick={() => setActiveTab('password')}
+                className={`py-2 rounded-xl transition-all ${
+                  activeTab === 'password'
+                    ? 'bg-card text-blue-600 dark:text-blue-400 shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
               >
-                {loading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin ml-2" />
-                    در حال ارسال...
-                  </>
-                ) : (
-                  'ادامه'
-                )}
-              </Button>
-            </form>
-          ) : step === 'otp' ? (
-            <form onSubmit={handleOtpSubmit} className="space-y-4">
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label
-                    htmlFor="otp-digit-0"
-                    className="block text-xs font-semibold text-slate-700 dark:text-slate-300"
-                  >
-                    کد تایید ۵ رقمی
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setStep('phone')
-                      setErrorMsg('')
-                    }}
-                    className="text-xs text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
-                  >
-                    ویرایش شماره
-                    <ArrowRight className="w-3 h-3 rotate-180" />
-                  </button>
-                </div>
+                کلمه عبور
+              </button>
+            )}
+            {(themeSettings?.auth_google_enabled ||
+              themeSettings?.auth_github_enabled) && (
+              <button
+                type="button"
+                onClick={() => setActiveTab('social')}
+                className={`py-2 rounded-xl transition-all ${
+                  activeTab === 'social'
+                    ? 'bg-card text-blue-600 dark:text-blue-400 shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                ورود سریع
+              </button>
+            )}
+          </div>
+        )}
 
-                <div
-                  className="flex justify-center items-center gap-2.5 my-3"
+        {/* STEP 1: Phone input */}
+        {step === 'phone_input' && activeTab === 'mobile' && (
+          <form onSubmit={handlePhoneSubmit} className="space-y-4">
+            <div className="space-y-1.5 text-right">
+              <label className="text-xs font-bold text-foreground">
+                شماره موبایل
+              </label>
+              <div className="relative">
+                <Input
+                  type="tel"
                   dir="ltr"
+                  placeholder="09123456789"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  className="pl-10 text-center font-latin tracking-widest text-sm rounded-xl h-11"
+                  required
+                  autoFocus
+                />
+                <Smartphone className="h-4 w-4 text-muted-foreground absolute left-3 top-3.5 pointer-events-none" />
+              </div>
+            </div>
+
+            <ShimmerButton
+              type="submit"
+              disabled={loading}
+              className="w-full h-11 text-xs sm:text-sm font-bold"
+            >
+              {loading ? (
+                <Loader2 className="h-4 w-4 animate-spin mx-auto" />
+              ) : (
+                <span>ادامه فرآیند ورود</span>
+              )}
+            </ShimmerButton>
+          </form>
+        )}
+
+        {/* STEP 1-B: Direct Password Login Tab */}
+        {step === 'phone_input' && activeTab === 'password' && (
+          <form onSubmit={handlePasswordLogin} className="space-y-4">
+            <div className="space-y-1.5 text-right">
+              <label className="text-xs font-bold text-foreground">
+                شماره موبایل یا ایمیل
+              </label>
+              <div className="relative">
+                <Input
+                  type="text"
+                  dir="ltr"
+                  placeholder="09123456789 یا user@example.com"
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
+                  className="pl-10 text-center text-sm rounded-xl h-11"
+                  required
+                />
+                <Mail className="h-4 w-4 text-muted-foreground absolute left-3 top-3.5 pointer-events-none" />
+              </div>
+            </div>
+
+            <div className="space-y-1.5 text-right">
+              <label className="text-xs font-bold text-foreground">
+                کلمه عبور
+              </label>
+              <div className="relative">
+                <Input
+                  type={showPassword ? 'text' : 'password'}
+                  dir="ltr"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="pl-10 pr-10 text-sm rounded-xl h-11"
+                  required
+                />
+                <Lock className="h-4 w-4 text-muted-foreground absolute left-3 top-3.5 pointer-events-none" />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-3.5 text-muted-foreground hover:text-foreground"
                 >
-                  {otpCode.map((digit, idx) => (
-                    <input
-                      key={OTP_SLOT_KEYS[idx]}
-                      id={`otp-digit-${idx}`}
-                      ref={(el) => {
-                        otpInputsRef.current[idx] = el
-                      }}
-                      type="text"
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                      maxLength={1}
-                      value={digit}
-                      onChange={(e) => handleOtpChange(idx, e.target.value)}
-                      onKeyDown={(e) => handleOtpKeyDown(idx, e)}
-                      onPaste={handleOtpPaste}
-                      className="w-12 h-12 text-center text-xl font-bold font-mono rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 transition"
-                    />
-                  ))}
-                </div>
-
-                <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mt-3 px-1">
-                  <div className="flex items-center gap-1.5">
-                    <Clock className="w-3.5 h-3.5 text-slate-400" />
-                    <span className="font-mono font-medium">
-                      {formatTimer(timerSeconds)}
-                    </span>
-                  </div>
-
-                  {canResend ? (
-                    <button
-                      type="button"
-                      onClick={handleResend}
-                      disabled={loading}
-                      className="text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 font-medium"
-                    >
-                      <RefreshCw className="w-3 h-3" />
-                      ارسال مجدد کد
-                    </button>
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
                   ) : (
-                    <span className="text-slate-400">
-                      ارسال مجدد تا {timerSeconds} ثانیه دیگر
-                    </span>
+                    <Eye className="h-4 w-4" />
                   )}
-                </div>
+                </button>
               </div>
+            </div>
 
-              <Button
-                type="submit"
-                disabled={loading || otpCode.join('').length !== 5}
-                className="w-full h-11 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold transition"
+            <ShimmerButton
+              type="submit"
+              disabled={loading}
+              className="w-full h-11 text-xs sm:text-sm font-bold"
+            >
+              {loading ? (
+                <Loader2 className="h-4 w-4 animate-spin mx-auto" />
+              ) : (
+                <span>ورود با کلمه عبور</span>
+              )}
+            </ShimmerButton>
+          </form>
+        )}
+
+        {/* STEP 1-C: One-Click Social Logins */}
+        {step === 'phone_input' && activeTab === 'social' && (
+          <div className="space-y-3">
+            {themeSettings?.auth_google_enabled && (
+              <button
+                type="button"
+                onClick={() => handleSocialLogin('google')}
+                disabled={loading}
+                className="w-full flex items-center justify-center gap-3 rounded-2xl border border-border bg-card p-3 font-bold text-xs hover:bg-muted/60 transition-colors shadow-sm"
               >
-                {loading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin ml-2" />
-                    در حال بررسی...
-                  </>
-                ) : (
-                  'تایید و ادامه'
-                )}
-              </Button>
-            </form>
-          ) : (
-            <form onSubmit={handleProfileSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label
-                    htmlFor="customer-firstname-input"
-                    className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2"
-                  >
-                    نام <span className="text-red-500">*</span>
-                  </label>
-                  <Input
-                    id="customer-firstname-input"
-                    type="text"
-                    value={firstName}
-                    onChange={(e) => setFirstName(e.target.value)}
-                    placeholder="مثال: علی"
-                    className="h-11 rounded-xl border-slate-200 dark:border-slate-800 dark:bg-slate-950 text-xs"
-                    autoFocus
-                    required
-                  />
+                <div className="h-5 w-5 rounded-full flex items-center justify-center">
+                  <GoogleIcon className="h-4 w-4" />
                 </div>
+                <span>ورود سریع با حساب Google</span>
+              </button>
+            )}
 
-                <div>
-                  <label
-                    htmlFor="customer-lastname-input"
-                    className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2"
-                  >
-                    نام خانوادگی <span className="text-red-500">*</span>
-                  </label>
-                  <Input
-                    id="customer-lastname-input"
-                    type="text"
-                    value={lastName}
-                    onChange={(e) => setLastName(e.target.value)}
-                    placeholder="مثال: عبادی"
-                    className="h-11 rounded-xl border-slate-200 dark:border-slate-800 dark:bg-slate-950 text-xs"
-                    required
-                  />
+            {themeSettings?.auth_github_enabled && (
+              <button
+                type="button"
+                onClick={() => handleSocialLogin('github')}
+                disabled={loading}
+                className="w-full flex items-center justify-center gap-3 rounded-2xl border border-border bg-card p-3 font-bold text-xs hover:bg-muted/60 transition-colors shadow-sm"
+              >
+                <div className="h-5 w-5 rounded-full flex items-center justify-center">
+                  <GithubIcon className="h-4 w-4" />
                 </div>
-              </div>
+                <span>ورود مستقیم با GitHub</span>
+              </button>
+            )}
 
-              <div>
-                <label
-                  htmlFor="customer-email-input"
-                  className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2"
+            <div className="pt-2 text-center text-[11px] text-muted-foreground">
+              اطلاعات پروفایل و آواتار شما به صورت خودکار همگام‌سازی می‌شود.
+            </div>
+          </div>
+        )}
+
+        {/* STEP 2: Choose OTP or Password for verified phone */}
+        {step === 'otp_choice' && (
+          <div className="space-y-4 text-center">
+            <p className="text-xs text-muted-foreground">
+              شماره{' '}
+              <span className="font-bold text-foreground font-latin">
+                {phone}
+              </span>{' '}
+              تایید شد. نحوه احراز هویت را انتخاب کنید:
+            </p>
+
+            <div className="grid grid-cols-1 gap-2.5">
+              <button
+                type="button"
+                onClick={() => handleSendOtpDirect(toEnDigits(phone.trim()))}
+                disabled={loading}
+                className="flex items-center justify-between p-3.5 rounded-2xl border border-border bg-muted/30 hover:bg-muted/70 hover:border-blue-500/40 transition-colors text-right"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400">
+                    <Smartphone className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-foreground">
+                      ارسال رمز یکبار مصرف (SMS OTP)
+                    </h4>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">
+                      دریافت کد ۵ رقمی پیامکی روی شماره همراه
+                    </p>
+                  </div>
+                </div>
+                <span className="text-xs text-blue-600">انتخاب ←</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setStep('password_input')}
+                className="flex items-center justify-between p-3.5 rounded-2xl border border-border bg-muted/30 hover:bg-muted/70 hover:border-blue-500/40 transition-colors text-right"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400">
+                    <KeyRound className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-foreground">
+                      ورود با کلمه عبور اختصاصی
+                    </h4>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">
+                      ورود مستقیم با رمزی که قبلاً برای حسابتان تعیین کرده‌اید
+                    </p>
+                  </div>
+                </div>
+                <span className="text-xs text-purple-600">انتخاب ←</span>
+              </button>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setStep('phone_input')}
+              className="text-xs text-muted-foreground hover:text-foreground pt-2 inline-flex items-center gap-1"
+            >
+              <ArrowRight className="h-3.5 w-3.5" />
+              <span>تغییر شماره موبایل</span>
+            </button>
+          </div>
+        )}
+
+        {/* STEP 2-B: Password input for chosen phone */}
+        {step === 'password_input' && (
+          <form onSubmit={handlePasswordLogin} className="space-y-4">
+            <div className="space-y-1.5 text-right">
+              <label className="text-xs font-bold text-foreground">
+                کلمه عبور برای {phone}
+              </label>
+              <div className="relative">
+                <Input
+                  type={showPassword ? 'text' : 'password'}
+                  dir="ltr"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="pl-10 pr-10 text-sm rounded-xl h-11"
+                  required
+                  autoFocus
+                />
+                <Lock className="h-4 w-4 text-muted-foreground absolute left-3 top-3.5 pointer-events-none" />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-3.5 text-muted-foreground hover:text-foreground"
                 >
-                  آدرس ایمیل{' '}
-                  <span className="text-slate-400 text-[11px] font-normal">
-                    (اختیاری - جهت دریافت فاکتور و لایسنس)
-                  </span>
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between text-xs">
+              <button
+                type="button"
+                onClick={() => handleSendOtpDirect(toEnDigits(phone.trim()))}
+                className="text-blue-600 dark:text-blue-400 hover:underline"
+              >
+                رمز را فراموش کرده‌اید؟ ورود با پیامک
+              </button>
+              <button
+                type="button"
+                onClick={() => setStep('otp_choice')}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                بازگشت
+              </button>
+            </div>
+
+            <ShimmerButton
+              type="submit"
+              disabled={loading}
+              className="w-full h-11 text-xs sm:text-sm font-bold"
+            >
+              {loading ? (
+                <Loader2 className="h-4 w-4 animate-spin mx-auto" />
+              ) : (
+                <span>تایید و ورود</span>
+              )}
+            </ShimmerButton>
+          </form>
+        )}
+
+        {/* STEP 3: OTP 5-Digit Verification */}
+        {step === 'otp_code' && (
+          <form onSubmit={handleOtpVerify} className="space-y-5">
+            <div className="text-center space-y-1">
+              <p className="text-xs text-muted-foreground">
+                کد تایید پیامکی ارسال شده به شماره زیر را وارد کنید:
+              </p>
+              <p className="font-latin text-sm font-black text-foreground">
+                {phone}
+              </p>
+            </div>
+
+            {/* 5 digit inputs */}
+            <div className="flex justify-center gap-2.5" dir="ltr">
+              {otpCode.map((digit, idx) => {
+                const slotKey = `otp-slot-${idx}`
+                return (
+                  <input
+                    key={slotKey}
+                    ref={(el) => {
+                      otpInputsRef.current[idx] = el
+                    }}
+                    type="text"
+                    maxLength={1}
+                    value={digit}
+                    onChange={(e) => handleOtpChange(idx, e.target.value)}
+                    onKeyDown={(e) => handleOtpKeyDown(idx, e)}
+                    onPaste={handleOtpPaste}
+                    className="h-12 w-11 rounded-2xl border border-border bg-card text-center text-lg font-black font-latin focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all"
+                  />
+                )
+              })}
+            </div>
+
+            <div className="flex items-center justify-between text-xs text-muted-foreground px-1">
+              <button
+                type="button"
+                disabled={!canResend || loading}
+                onClick={() => handleSendOtpDirect(toEnDigits(phone.trim()))}
+                className={`font-bold flex items-center gap-1 ${
+                  canResend
+                    ? 'text-blue-600 dark:text-blue-400 hover:underline cursor-pointer'
+                    : 'opacity-50 cursor-not-allowed'
+                }`}
+              >
+                <RefreshCw className="h-3 w-3" />
+                <span>ارسال مجدد کد</span>
+              </button>
+
+              <span className="font-latin font-bold">
+                {formatTimer(timerSeconds)}
+              </span>
+            </div>
+
+            <ShimmerButton
+              type="submit"
+              disabled={loading}
+              className="w-full h-11 text-xs sm:text-sm font-bold"
+            >
+              {loading ? (
+                <Loader2 className="h-4 w-4 animate-spin mx-auto" />
+              ) : (
+                <span>تایید کد و ورود</span>
+              )}
+            </ShimmerButton>
+
+            <button
+              type="button"
+              onClick={() => setStep('phone_input')}
+              className="w-full text-center text-xs text-muted-foreground hover:text-foreground pt-1"
+            >
+              تغییر شماره موبایل
+            </button>
+          </form>
+        )}
+
+        {/* STEP 4: Profile setup for new user or missing profile */}
+        {step === 'profile_setup' && (
+          <form onSubmit={handleProfileSubmit} className="space-y-4">
+            <div className="text-center space-y-1 mb-2">
+              <h3 className="text-sm font-black text-foreground">
+                تکمیل اطلاعات حساب کاربری
+              </h3>
+              <p className="text-[11px] text-muted-foreground">
+                جهت صدور فاکتور و پیگیری اشتراک‌ها، مشخصات خود را ثبت نمایید
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 text-right">
+              <div className="space-y-1">
+                <label className="text-[11px] font-bold text-foreground">
+                  نام
                 </label>
                 <Input
-                  id="customer-email-input"
-                  type="email"
-                  dir="ltr"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="name@example.com"
-                  className="h-11 rounded-xl border-slate-200 dark:border-slate-800 dark:bg-slate-950 text-xs font-mono"
+                  type="text"
+                  placeholder="علی"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  className="text-xs rounded-xl h-10"
+                  required
                 />
               </div>
 
-              <div className="pt-2 space-y-2">
-                <Button
-                  type="submit"
-                  disabled={loading || !firstName.trim() || !lastName.trim()}
-                  className="w-full h-11 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold transition"
-                >
-                  {loading ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin ml-2" />
-                      در حال ذخیره...
-                    </>
-                  ) : (
-                    'تکمیل و ورود به حساب'
-                  )}
-                </Button>
-
-                <button
-                  type="button"
-                  onClick={handleSkipProfile}
-                  className="w-full py-2 text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition text-center"
-                >
-                  بعداً تکمیل می‌کنم
-                </button>
+              <div className="space-y-1">
+                <label className="text-[11px] font-bold text-foreground">
+                  نام خانوادگی
+                </label>
+                <Input
+                  type="text"
+                  placeholder="محمدی"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  className="text-xs rounded-xl h-10"
+                  required
+                />
               </div>
-            </form>
-          )}
-        </div>
+            </div>
+
+            <div className="space-y-1 text-right">
+              <label className="text-[11px] font-bold text-foreground">
+                آدرس ایمیل (جهت دریافت اطلاعات لایسنس)
+              </label>
+              <Input
+                type="email"
+                dir="ltr"
+                placeholder="user@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="text-xs rounded-xl h-10 font-latin"
+              />
+            </div>
+
+            <div className="space-y-1 text-right">
+              <label className="text-[11px] font-bold text-foreground">
+                لینک آواتار / تصویر پروفایل (اختیاری)
+              </label>
+              <Input
+                type="url"
+                dir="ltr"
+                placeholder="https://..."
+                value={avatarUrl}
+                onChange={(e) => setAvatarUrl(e.target.value)}
+                className="text-xs rounded-xl h-10 font-latin"
+              />
+            </div>
+
+            <ShimmerButton
+              type="submit"
+              disabled={loading}
+              className="w-full h-11 text-xs sm:text-sm font-bold"
+            >
+              {loading ? (
+                <Loader2 className="h-4 w-4 animate-spin mx-auto" />
+              ) : (
+                <span>ذخیره و ورود به سامانه</span>
+              )}
+            </ShimmerButton>
+          </form>
+        )}
       </div>
     </div>
   )

@@ -26,8 +26,10 @@ import type React from 'react'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AdminActionLogView } from '../../components/admin/AdminActionLogView'
+import { AdminBannersView } from '../../components/admin/AdminBannersView'
 import { AdminBIAnalyticsView } from '../../components/admin/AdminBIAnalyticsView'
 import { AdminBillingSettingsView } from '../../components/admin/AdminBillingSettingsView'
+import { AdminCalendarView } from '../../components/admin/AdminCalendarView'
 import { AdminContentView } from '../../components/admin/AdminContentView'
 import { AdminInventoryView } from '../../components/admin/AdminInventoryView'
 import { AdminLoyaltyTiersView } from '../../components/admin/AdminLoyaltyTiersView'
@@ -37,6 +39,7 @@ import {
   AdminSidebar,
   type AdminTabType,
 } from '../../components/admin/AdminSidebar'
+import { AdminThemeSettingsView } from '../../components/admin/AdminThemeSettingsView'
 import { AdminTicketsView } from '../../components/admin/AdminTicketsView'
 import { AdminUsersView } from '../../components/admin/AdminUsersView'
 import { SMSGatewayView } from '../../components/admin/SMSGatewayView'
@@ -406,6 +409,15 @@ export const AdminDashboardPage: React.FC = () => {
         <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 flex-1">
           {/* TAB -1: BI & ANALYTICS DASHBOARD */}
           {activeTab === 'bi-analytics' && <AdminBIAnalyticsView />}
+
+          {/* TAB: JALALI CALENDAR & HOLIDAYS */}
+          {activeTab === 'calendar' && <AdminCalendarView />}
+
+          {/* TAB: BANNERS & PROMOTIONS MANAGEMENT */}
+          {activeTab === 'banners' && <AdminBannersView />}
+
+          {/* TAB: VIBE FARSI THEME & MULTI-AUTH SETTINGS */}
+          {activeTab === 'theme-settings' && <AdminThemeSettingsView />}
 
           {/* TAB -0.5: VIP CLUB & LOYALTY TIERS */}
           {activeTab === 'loyalty-tiers' && <AdminLoyaltyTiersView />}

@@ -1,6 +1,8 @@
 import {
   BookOpen,
+  Bot,
   ChevronDown,
+  Code2,
   Crown,
   HelpCircle,
   Lock,
@@ -14,15 +16,18 @@ import {
   Store,
   User,
   Wallet,
+  X,
+  Zap,
 } from 'lucide-react'
 import type React from 'react'
 import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useCart } from '../lib/cartStore'
 import { api } from '../services/api'
-import type { CustomerProfile } from '../types'
+import type { CustomerProfile, ThemeSettings } from '../types'
 import { AuthModal } from './AuthModal'
 import { ThemeToggle } from './ThemeToggle'
+import { HolidayThemeBanner } from './vibefarsi/HolidayThemeBanner'
 
 interface HeaderProps {
   balance?: number
@@ -31,6 +36,11 @@ interface HeaderProps {
   hideAnnouncementBar?: boolean
   onToggleMobileMenu?: () => void
   onOpenCart?: () => void
+}
+
+function toPersianDigits(n: number | string): string {
+  const f = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹']
+  return String(n).replace(/\d/g, (d) => f[Number(d)])
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -47,17 +57,26 @@ export const Header: React.FC<HeaderProps> = ({
 
   const { itemCount } = useCart()
   const [customer, setCustomer] = useState<CustomerProfile | null>(null)
+  const [themeSettings, setThemeSettings] = useState<ThemeSettings | null>(null)
   const [isAuthOpen, setIsAuthOpen] = useState(false)
   const [userDropdownOpen, setUserDropdownOpen] = useState(false)
+  const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+
   const dropdownRef = useRef<HTMLDivElement>(null)
+  const categoryMenuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     api.getCustomerProfile().then((profile: CustomerProfile | null) => {
       if (profile) setCustomer(profile)
     })
+    api
+      .getThemeSettings()
+      .then(setThemeSettings)
+      .catch(() => {})
   }, [])
 
-  // Close user dropdown on click outside
+  // Close dropdowns on click outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (
@@ -65,6 +84,12 @@ export const Header: React.FC<HeaderProps> = ({
         !dropdownRef.current.contains(e.target as Node)
       ) {
         setUserDropdownOpen(false)
+      }
+      if (
+        categoryMenuRef.current &&
+        !categoryMenuRef.current.contains(e.target as Node)
+      ) {
+        setCategoryDropdownOpen(false)
       }
     }
     document.addEventListener('mousedown', handleClickOutside)
@@ -84,8 +109,42 @@ export const Header: React.FC<HeaderProps> = ({
         ? customer.balance_toman
         : 0
 
+  const categoriesList = [
+    {
+      id: 'ai_chat',
+      title: 'هوش مصنوعی و چت‌بات',
+      desc: 'ChatGPT Plus، Claude 3.7 Sonnet، Gemini',
+      icon: <Bot className="h-4 w-4 text-emerald-500" />,
+      link: '/?category=ai_chat',
+    },
+    {
+      id: 'coding_ai',
+      title: 'دستیارهای کدنویسی',
+      desc: 'Cursor AI، GitHub Copilot، Replit Pro',
+      icon: <Code2 className="h-4 w-4 text-purple-500" />,
+      link: '/?category=coding_ai',
+    },
+    {
+      id: 'personal_upgrade',
+      title: 'ارتقای اکانت شخصی',
+      desc: 'فعال‌سازی بدون پسورد و با جیمیل خودتان',
+      icon: <Zap className="h-4 w-4 text-amber-500" />,
+      link: '/?category=personal_upgrade',
+    },
+    {
+      id: 'vnums',
+      title: 'شماره مجازی ۱۸۰ کشور',
+      desc: 'دریافت فوری پیامک تایید تلگرام، گوگل و اوپن‌ای‌آی',
+      icon: <Radio className="h-4 w-4 text-cyan-500" />,
+      link: '/virtual-numbers',
+    },
+  ]
+
   return (
-    <div className="w-full">
+    <div className="w-full relative z-40">
+      {/* Holiday Event Dynamic Banner */}
+      {!isAdminPage && <HolidayThemeBanner theme={themeSettings} />}
+
       {/* Top Announcement Bar */}
       {!hideAnnouncementBar && !isAdminPage && (
         <div className="border-b border-border/60 bg-muted/40 py-1.5 text-[11px] text-muted-foreground">
@@ -93,7 +152,10 @@ export const Header: React.FC<HeaderProps> = ({
             <div className="flex items-center gap-4">
               <span className="flex items-center gap-1.5 text-foreground font-medium">
                 <span className="inline-block h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                تمامی سرویس‌ها و شماره‌های مجازی فعال و تحویل آنی برقرار است
+                <span>
+                  {themeSettings?.header_announcement ||
+                    'تمامی سرویس‌ها و شماره‌های مجازی فعال و تحویل آنی ۰ ثانیه‌ای برقرار است'}
+                </span>
               </span>
               <span className="hidden md:inline text-muted-foreground/80">
                 ارائه شماره‌های اختصاصی ۱۸۰ کشور با بازگشت وجه خودکار
@@ -105,7 +167,7 @@ export const Header: React.FC<HeaderProps> = ({
                 href="https://t.me/AnahixSupport"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-1 hover:text-blue-600 transition-colors"
+                className="flex items-center gap-1 hover:text-blue-600 transition-colors font-medium"
               >
                 <PhoneCall className="h-3 w-3 text-blue-600" />
                 <span>پشتیبانی تلگرام: @AnahixSupport</span>
@@ -118,9 +180,25 @@ export const Header: React.FC<HeaderProps> = ({
       {/* Main Navbar */}
       <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur-md transition-colors">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
-          {/* Logo & Brand */}
+          {/* Logo & Navigation */}
           <div className="flex items-center gap-3 sm:gap-6">
-            {onToggleMobileMenu && (
+            {/* Mobile menu trigger */}
+            {!isAdminPage && (
+              <button
+                type="button"
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="md:hidden p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors"
+                aria-label="باز کردن منو"
+              >
+                {mobileMenuOpen ? (
+                  <X className="h-5 w-5" />
+                ) : (
+                  <Menu className="h-5 w-5" />
+                )}
+              </button>
+            )}
+
+            {onToggleMobileMenu && isAdminPage && (
               <button
                 type="button"
                 onClick={onToggleMobileMenu}
@@ -131,8 +209,9 @@ export const Header: React.FC<HeaderProps> = ({
               </button>
             )}
 
-            <Link to="/" className="flex items-center gap-2.5">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-600 text-white font-black text-lg shadow-sm shadow-blue-600/30">
+            {/* Logo */}
+            <Link to="/" className="flex items-center gap-2.5 group">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-600 text-white font-black text-lg shadow-sm shadow-blue-600/30 group-hover:scale-105 transition-transform">
                 A
               </div>
               <div>
@@ -157,24 +236,60 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
             </Link>
 
-            {/* Navigation Links */}
+            {/* Desktop Navigation Links */}
             {!isAdminPage && (
-              <nav className="hidden md:flex items-center gap-1 text-sm font-medium">
-                <Link
-                  to="/"
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors ${
-                    pathname === '/'
-                      ? 'text-blue-600 dark:text-blue-400 bg-blue-500/10 font-bold'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-                  }`}
-                >
-                  <ShoppingCart className="h-4 w-4" />
-                  <span>اشتراک‌ها و پلن‌ها</span>
-                </Link>
+              <nav className="hidden md:flex items-center gap-1 text-xs sm:text-sm font-medium">
+                {/* Categories Dropdown */}
+                <div className="relative" ref={categoryMenuRef}>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setCategoryDropdownOpen(!categoryDropdownOpen)
+                    }
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl transition-all ${
+                      categoryDropdownOpen
+                        ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 font-bold'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+                    }`}
+                  >
+                    <ShoppingCart className="h-4 w-4" />
+                    <span>دسته‌بندی سرویس‌ها</span>
+                    <ChevronDown
+                      className={`h-3.5 w-3.5 transition-transform duration-200 ${
+                        categoryDropdownOpen ? 'rotate-180' : ''
+                      }`}
+                    />
+                  </button>
+
+                  {categoryDropdownOpen && (
+                    <div className="absolute right-0 mt-2 w-72 rounded-2xl border border-border bg-card/95 p-2 shadow-2xl backdrop-blur-xl z-50 animate-in fade-in zoom-in-95 space-y-1">
+                      {categoriesList.map((item) => (
+                        <Link
+                          key={item.id}
+                          to={item.link}
+                          onClick={() => setCategoryDropdownOpen(false)}
+                          className="flex items-start gap-3 p-2.5 rounded-xl hover:bg-muted/70 transition-colors text-right"
+                        >
+                          <div className="p-2 rounded-xl bg-muted/60 border border-border/80 shrink-0">
+                            {item.icon}
+                          </div>
+                          <div>
+                            <h4 className="text-xs font-bold text-foreground">
+                              {item.title}
+                            </h4>
+                            <p className="text-[10px] text-muted-foreground mt-0.5 leading-relaxed">
+                              {item.desc}
+                            </p>
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                </div>
 
                 <Link
                   to="/virtual-numbers"
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors relative ${
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl transition-colors relative ${
                     pathname === '/virtual-numbers'
                       ? 'text-blue-600 dark:text-blue-400 bg-blue-500/10 font-bold'
                       : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
@@ -189,7 +304,7 @@ export const Header: React.FC<HeaderProps> = ({
 
                 <Link
                   to="/blog"
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors ${
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl transition-colors ${
                     pathname.startsWith('/blog')
                       ? 'text-blue-600 dark:text-blue-400 bg-blue-500/10 font-bold'
                       : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
@@ -201,19 +316,19 @@ export const Header: React.FC<HeaderProps> = ({
 
                 <Link
                   to="/help"
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors ${
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl transition-colors ${
                     pathname.startsWith('/help')
                       ? 'text-blue-600 dark:text-blue-400 bg-blue-500/10 font-bold'
                       : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
                   }`}
                 >
                   <HelpCircle className="h-4 w-4" />
-                  <span>پایگاه دانش و ارورها</span>
+                  <span>پایگاه دانش</span>
                 </Link>
 
                 <Link
                   to="/track"
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors ${
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl transition-colors ${
                     pathname === '/track'
                       ? 'text-blue-600 dark:text-blue-400 bg-blue-500/10 font-bold'
                       : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
@@ -223,7 +338,7 @@ export const Header: React.FC<HeaderProps> = ({
                   <span>پیگیری سفارش</span>
                   {activeOrdersCount > 0 && (
                     <span className="flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-blue-600 text-[10px] font-bold text-white">
-                      {activeOrdersCount}
+                      {toPersianDigits(activeOrdersCount)}
                     </span>
                   )}
                 </Link>
@@ -231,24 +346,28 @@ export const Header: React.FC<HeaderProps> = ({
             )}
           </div>
 
-          {/* Right Section: Customer Auth, Wallet, Admin Portal Link & ThemeToggle */}
-          <div className="flex items-center gap-2.5">
-            {/* Customer Authentication & Unified Wallet Badge */}
+          {/* Right Section: Auth, Wallet, Cart, Theme */}
+          <div className="flex items-center gap-2 sm:gap-2.5">
+            {/* Authenticated Customer & Wallet Profile */}
             {customer ? (
               <div className="relative" ref={dropdownRef}>
                 <button
                   type="button"
                   onClick={() => setUserDropdownOpen(!userDropdownOpen)}
-                  className="flex items-center gap-2 rounded-xl border border-border bg-card hover:bg-muted/50 p-1 pl-2.5 text-xs transition-all shadow-sm group"
+                  className="flex items-center gap-2 rounded-2xl border border-border bg-card hover:bg-muted/50 p-1 pl-2.5 text-xs transition-all shadow-sm group"
                 >
-                  {/* Customer Full Name Chip */}
-                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 font-bold">
-                    <User className="h-3.5 w-3.5 shrink-0" />
-                    <span
-                      className={`max-w-[130px] sm:max-w-[160px] truncate text-xs ${
-                        !customer.full_name ? 'font-mono' : ''
-                      }`}
-                    >
+                  {/* Customer Avatar or Chip */}
+                  <div className="flex items-center gap-1.5 px-2 py-1 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 font-bold">
+                    {customer.avatar_url ? (
+                      <img
+                        src={customer.avatar_url}
+                        alt={customer.full_name || 'کاربر'}
+                        className="h-5 w-5 rounded-full object-cover border border-blue-500/30"
+                      />
+                    ) : (
+                      <User className="h-3.5 w-3.5 shrink-0" />
+                    )}
+                    <span className="max-w-[110px] sm:max-w-[140px] truncate text-xs">
                       {customer.full_name || customer.phone}
                     </span>
                   </div>
@@ -260,7 +379,7 @@ export const Header: React.FC<HeaderProps> = ({
                   <div className="flex items-center gap-1.5 text-right font-medium">
                     <Wallet className="h-3.5 w-3.5 text-muted-foreground group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors" />
                     <span className="text-xs font-bold text-foreground">
-                      {effectiveBalance.toLocaleString('fa-IR')}
+                      {toPersianDigits(effectiveBalance.toLocaleString())}
                     </span>
                     <span className="text-[10px] text-muted-foreground font-sans">
                       تومان
@@ -275,7 +394,7 @@ export const Header: React.FC<HeaderProps> = ({
                 </button>
 
                 {userDropdownOpen && (
-                  <div className="absolute left-0 mt-2 w-52 rounded-xl border border-border bg-card p-1.5 shadow-xl z-50 animate-in fade-in zoom-in-95">
+                  <div className="absolute left-0 mt-2 w-56 rounded-2xl border border-border bg-card p-2 shadow-2xl z-50 animate-in fade-in zoom-in-95">
                     <div className="px-3 py-2 border-b border-border/60 text-right">
                       <p className="text-xs font-bold text-foreground">
                         {customer.full_name || 'کاربر آناهیکس'}
@@ -288,16 +407,17 @@ export const Header: React.FC<HeaderProps> = ({
                           موجودی کیف پول:
                         </span>
                         <span className="font-bold text-blue-600 dark:text-blue-400">
-                          {effectiveBalance.toLocaleString('fa-IR')} تومان
+                          {toPersianDigits(effectiveBalance.toLocaleString())}{' '}
+                          تومان
                         </span>
                       </div>
                     </div>
 
-                    <div className="p-1 space-y-0.5">
+                    <div className="p-1 space-y-1">
                       <Link
                         to="/profile?tab=loyalty"
                         onClick={() => setUserDropdownOpen(false)}
-                        className="flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-bold text-amber-500 bg-amber-500/10 hover:bg-amber-500/20 transition-colors text-right border border-amber-500/20"
+                        className="flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs font-bold text-amber-500 bg-amber-500/10 hover:bg-amber-500/20 transition-colors text-right border border-amber-500/20"
                       >
                         <div className="flex items-center gap-2">
                           <Crown className="h-3.5 w-3.5" />
@@ -317,7 +437,7 @@ export const Header: React.FC<HeaderProps> = ({
                       <Link
                         to="/profile"
                         onClick={() => setUserDropdownOpen(false)}
-                        className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium text-foreground hover:bg-muted/80 transition-colors text-right"
+                        className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-xs font-medium text-foreground hover:bg-muted/80 transition-colors text-right"
                       >
                         <User className="h-3.5 w-3.5 text-blue-600" />
                         <span>حساب کاربری و پروفایل</span>
@@ -326,7 +446,7 @@ export const Header: React.FC<HeaderProps> = ({
                       <Link
                         to="/track"
                         onClick={() => setUserDropdownOpen(false)}
-                        className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs text-foreground hover:bg-muted/80 transition-colors text-right"
+                        className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-xs text-foreground hover:bg-muted/80 transition-colors text-right"
                       >
                         <ShieldCheck className="h-3.5 w-3.5 text-blue-600" />
                         <span>پیگیری سفارش‌های من</span>
@@ -337,7 +457,7 @@ export const Header: React.FC<HeaderProps> = ({
                           <Link
                             to="/"
                             onClick={() => setUserDropdownOpen(false)}
-                            className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-colors text-right"
+                            className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-colors text-right"
                           >
                             <Store className="h-3.5 w-3.5" />
                             <span>بازگشت به فروشگاه</span>
@@ -346,7 +466,7 @@ export const Header: React.FC<HeaderProps> = ({
                           <Link
                             to="/admin/dashboard"
                             onClick={() => setUserDropdownOpen(false)}
-                            className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors text-right"
+                            className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors text-right"
                           >
                             <Lock className="h-3.5 w-3.5" />
                             <span>ورود به پنل مدیریت</span>
@@ -356,7 +476,7 @@ export const Header: React.FC<HeaderProps> = ({
                       <button
                         type="button"
                         onClick={handleLogout}
-                        className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors text-right"
+                        className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-xs text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors text-right"
                       >
                         <LogOut className="h-3.5 w-3.5" />
                         <span>خروج از حساب کاربری</span>
@@ -370,27 +490,27 @@ export const Header: React.FC<HeaderProps> = ({
                 type="button"
                 id="header-login-button"
                 onClick={() => setIsAuthOpen(true)}
-                className="flex items-center gap-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-1.5 text-xs font-bold shadow-sm shadow-blue-600/20 transition-all active:scale-95"
+                className="flex items-center gap-1.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-2 text-xs font-bold shadow-sm shadow-blue-600/20 transition-all hover:scale-[1.02] active:scale-95"
               >
                 <LogIn className="h-3.5 w-3.5" />
                 <span>ورود / ثبت‌نام</span>
               </button>
             )}
 
-            {/* Shopping Cart Button (Digital Products) */}
+            {/* Shopping Cart Button */}
             {!isAdminPage && (
               <button
                 type="button"
                 onClick={onOpenCart}
                 id="header-cart-button"
-                className="relative p-2 rounded-xl border border-border bg-card hover:bg-muted/50 text-foreground transition shadow-xs flex items-center justify-center group"
+                className="relative p-2.5 rounded-2xl border border-border bg-card hover:bg-muted/50 text-foreground transition shadow-sm flex items-center justify-center group"
                 title="سبد خرید"
                 aria-label="سبد خرید"
               >
                 <ShoppingCart className="h-4 w-4 text-muted-foreground group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors" />
                 {itemCount > 0 && (
-                  <span className="absolute -top-1.5 -left-1.5 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-blue-600 text-[10px] font-black text-white shadow-xs animate-in zoom-in">
-                    {itemCount}
+                  <span className="absolute -top-1.5 -left-1.5 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-blue-600 text-[10px] font-black text-white shadow-sm animate-pulse">
+                    {toPersianDigits(itemCount)}
                   </span>
                 )}
               </button>
@@ -399,6 +519,65 @@ export const Header: React.FC<HeaderProps> = ({
             <ThemeToggle />
           </div>
         </div>
+
+        {/* Mobile slide-down menu */}
+        {mobileMenuOpen && !isAdminPage && (
+          <div className="md:hidden border-t border-border bg-card p-4 space-y-3 animate-in fade-in slide-in-from-top-4">
+            <div className="space-y-1">
+              <span className="text-[11px] font-bold text-muted-foreground px-2">
+                دسته‌بندی‌های سریع
+              </span>
+              {categoriesList.map((item) => (
+                <Link
+                  key={item.id}
+                  to={item.link}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-muted/70 text-xs font-bold text-foreground"
+                >
+                  <div className="p-1.5 rounded-lg bg-muted border border-border">
+                    {item.icon}
+                  </div>
+                  <span>{item.title}</span>
+                </Link>
+              ))}
+            </div>
+
+            <div className="border-t border-border/60 pt-2 space-y-1">
+              <Link
+                to="/virtual-numbers"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-2 p-2 rounded-xl text-xs font-bold text-foreground hover:bg-muted"
+              >
+                <Radio className="h-4 w-4 text-cyan-500" />
+                <span>شماره مجازی (SMS)</span>
+              </Link>
+              <Link
+                to="/blog"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-2 p-2 rounded-xl text-xs font-bold text-foreground hover:bg-muted"
+              >
+                <BookOpen className="h-4 w-4 text-blue-500" />
+                <span>وبلاگ و آموزش‌ها</span>
+              </Link>
+              <Link
+                to="/help"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-2 p-2 rounded-xl text-xs font-bold text-foreground hover:bg-muted"
+              >
+                <HelpCircle className="h-4 w-4 text-purple-500" />
+                <span>پایگاه دانش</span>
+              </Link>
+              <Link
+                to="/track"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-2 p-2 rounded-xl text-xs font-bold text-foreground hover:bg-muted"
+              >
+                <ShieldCheck className="h-4 w-4 text-emerald-500" />
+                <span>پیگیری سفارش</span>
+              </Link>
+            </div>
+          </div>
+        )}
       </header>
 
       {/* Customer Auth Modal */}

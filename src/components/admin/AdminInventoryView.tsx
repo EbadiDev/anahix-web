@@ -6,6 +6,7 @@ import {
   Download,
   Edit2,
   ExternalLink,
+  Flame,
   Globe,
   HelpCircle,
   Key,
@@ -18,6 +19,7 @@ import {
   Table,
   Ticket,
   Trash2,
+  Upload,
   X,
 } from 'lucide-react'
 import type React from 'react'
@@ -80,6 +82,15 @@ export const AdminInventoryView: React.FC = () => {
   const [pInstructions, setPInstructions] = useState('')
   const [pIsActive, setPIsActive] = useState(true)
   const [pDeliveryStrategy, setPDeliveryStrategy] = useState('manual_operator')
+
+  // Product Image & Merchandising Enhancements
+  const [pImageURL, setPImageURL] = useState('')
+  const [pIsFlashSale, setPIsFlashSale] = useState(false)
+  const [pFlashSalePriceToman, setPFlashSalePriceToman] = useState<number>(0)
+  const [pFlashSaleStock, setPFlashSaleStock] = useState<number>(50)
+  const [pIsBestSeller, setPIsBestSeller] = useState(false)
+  const [pIsFeatured, setPIsFeatured] = useState(false)
+  const [uploadingProductImage, setUploadingProductImage] = useState(false)
 
   // PDP specific form fields
   const [pMetaTitle, setPMetaTitle] = useState('')
@@ -201,6 +212,12 @@ export const AdminInventoryView: React.FC = () => {
     setPGuideJSON('')
     setPFaqJSON('')
     setPFeaturesText('')
+    setPImageURL('')
+    setPIsFlashSale(false)
+    setPFlashSalePriceToman(0)
+    setPFlashSaleStock(50)
+    setPIsBestSeller(false)
+    setPIsFeatured(false)
     setProductFormError('')
     setIsProductModalOpen(true)
   }
@@ -225,6 +242,12 @@ export const AdminInventoryView: React.FC = () => {
     setPInstructions(p.instructions || '')
     setPIsActive(p.is_active !== false)
     setPDeliveryStrategy(p.delivery_strategy || 'manual_operator')
+    setPImageURL(p.image_url || '')
+    setPIsFlashSale(p.is_flash_sale || false)
+    setPFlashSalePriceToman(p.flash_sale_price_toman || 0)
+    setPFlashSaleStock(p.flash_sale_stock || 50)
+    setPIsBestSeller(p.is_best_seller || false)
+    setPIsFeatured(p.is_featured || false)
     setPMetaTitle(p.meta_title || '')
     setPMetaDescription(p.meta_description || '')
     setPOgImageURL(p.og_image_url || '')
@@ -289,6 +312,22 @@ export const AdminInventoryView: React.FC = () => {
       .catch(() => {})
   }
 
+  const handleUploadProductImage = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadingProductImage(true)
+    try {
+      const resp = await apiService.uploadMedia(file)
+      setPImageURL(resp.file_url)
+    } catch (err: any) {
+      setProductFormError(err.message || 'خطا در بارگذاری عکس محصول')
+    } finally {
+      setUploadingProductImage(false)
+    }
+  }
+
   const handleProductSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!pTitleFA.trim()) {
@@ -346,6 +385,12 @@ export const AdminInventoryView: React.FC = () => {
       meta_title: pMetaTitle.trim() || undefined,
       meta_description: pMetaDescription.trim() || undefined,
       og_image_url: pOgImageURL.trim() || undefined,
+      image_url: pImageURL.trim() || undefined,
+      is_flash_sale: pIsFlashSale,
+      flash_sale_price_toman: Number(pFlashSalePriceToman) || 0,
+      flash_sale_stock: Number(pFlashSaleStock) || 0,
+      is_best_seller: pIsBestSeller,
+      is_featured: pIsFeatured,
       plans_json: finalPlansJSON || undefined,
       comparison_json: pComparisonJSON.trim() || undefined,
       guide_json: pGuideJSON.trim() || undefined,
@@ -2056,6 +2101,140 @@ export const AdminInventoryView: React.FC = () => {
                       onChange={(e) => setPInstructions(e.target.value)}
                       className="w-full p-3 rounded-xl border border-border bg-background focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none"
                     />
+                  </div>
+
+                  {/* Product Cover Image with Direct Upload */}
+                  <div className="space-y-1.5 p-3 rounded-2xl border border-border bg-muted/20">
+                    <div className="flex items-center justify-between">
+                      <label
+                        htmlFor="p-image-url"
+                        className="font-bold text-foreground text-xs block"
+                      >
+                        تصویر باکیفیت محصول (کارت فروشگاه)
+                      </label>
+                      <label className="text-blue-600 hover:underline cursor-pointer flex items-center gap-1 text-xs font-bold">
+                        <Upload className="h-3.5 w-3.5" />
+                        <span>آپلود عکس از سیستم</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleUploadProductImage}
+                          className="hidden"
+                        />
+                      </label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        id="p-image-url"
+                        type="text"
+                        dir="ltr"
+                        placeholder="https://... یا آپلود از دکمه بالا"
+                        value={pImageURL}
+                        onChange={(e) => setPImageURL(e.target.value)}
+                        className="flex-1 h-9 px-3 rounded-xl border border-border bg-background focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono text-xs"
+                      />
+                      {pImageURL && (
+                        <div className="h-9 w-9 rounded-xl overflow-hidden border border-border shrink-0">
+                          <img
+                            src={pImageURL}
+                            alt="پیش‌نمایش"
+                            className="h-full w-full object-cover"
+                          />
+                        </div>
+                      )}
+                    </div>
+                    {uploadingProductImage && (
+                      <p className="text-[11px] text-blue-600 flex items-center gap-1 pt-1">
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        <span>در حال بارگذاری عکس روی سرور...</span>
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Flash Sale & Promotions Settings Card */}
+                  <div className="p-3.5 rounded-2xl border border-rose-500/30 bg-rose-500/5 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="p-1.5 rounded-xl bg-rose-500/10 text-rose-500">
+                          <Flame className="h-4 w-4" />
+                        </div>
+                        <div>
+                          <h4 className="text-xs font-bold text-foreground">
+                            تخفیف شگفت‌انگیز زمان‌دار (Flash Sale)
+                          </h4>
+                          <p className="text-[10px] text-muted-foreground">
+                            نمایش در سکشن شگفت‌انگیز با تایمر معکوس و نشان آتشین
+                          </p>
+                        </div>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={pIsFlashSale}
+                          onChange={(e) => setPIsFlashSale(e.target.checked)}
+                          className="sr-only peer"
+                        />
+                        <div className="w-9 h-5 bg-muted peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-border after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-rose-600" />
+                      </label>
+                    </div>
+
+                    {pIsFlashSale && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-rose-500/20">
+                        <div>
+                          <label className="text-xs font-bold text-foreground block mb-1">
+                            قیمت جشنواره (تومان)
+                          </label>
+                          <input
+                            type="number"
+                            min={1000}
+                            step={1000}
+                            value={pFlashSalePriceToman || ''}
+                            onChange={(e) =>
+                              setPFlashSalePriceToman(Number(e.target.value))
+                            }
+                            placeholder="مثال: ۱۲۰۰۰۰۰"
+                            className="w-full h-8 px-3 rounded-xl border border-rose-500/40 bg-background text-xs font-mono"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs font-bold text-foreground block mb-1">
+                            سقف موجودی جشنواره
+                          </label>
+                          <input
+                            type="number"
+                            min={1}
+                            value={pFlashSaleStock || 50}
+                            onChange={(e) =>
+                              setPFlashSaleStock(Number(e.target.value))
+                            }
+                            className="w-full h-8 px-3 rounded-xl border border-rose-500/40 bg-background text-xs font-mono"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Badges & Merchandising Options */}
+                  <div className="grid grid-cols-2 gap-3 p-3 rounded-2xl bg-muted/30 border border-border">
+                    <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-foreground">
+                      <input
+                        type="checkbox"
+                        checked={pIsBestSeller}
+                        onChange={(e) => setPIsBestSeller(e.target.checked)}
+                        className="h-4 w-4 rounded accent-blue-600"
+                      />
+                      <span>محصول پرفروش‌ترین (Best Seller)</span>
+                    </label>
+
+                    <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-foreground">
+                      <input
+                        type="checkbox"
+                        checked={pIsFeatured}
+                        onChange={(e) => setPIsFeatured(e.target.checked)}
+                        className="h-4 w-4 rounded accent-blue-600"
+                      />
+                      <span>محصول ویژه ویترین (Featured)</span>
+                    </label>
                   </div>
 
                   {/* Active Toggle */}

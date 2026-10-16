@@ -1,12 +1,15 @@
 import {
   BookOpen,
+  Calendar as CalendarIcon,
   Crown,
   ExternalLink,
   History,
+  Image as ImageIcon,
   Layers,
   LifeBuoy,
   LogOut,
   MessageSquare,
+  Palette,
   Radio,
   ReceiptText,
   Settings,
@@ -26,6 +29,9 @@ import { ThemeToggle } from '../ThemeToggle'
 
 export type AdminTabType =
   | 'bi-analytics'
+  | 'calendar'
+  | 'banners'
+  | 'theme-settings'
   | 'loyalty-tiers'
   | 'users'
   | 'all-orders'
@@ -85,13 +91,31 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
 }) => {
   const groups: NavGroup[] = [
     {
-      label: 'هوش تجاری و باشگاه مشتریان',
+      label: 'هوش تجاری و سیستم طراحی (Vibe Farsi)',
       items: [
         {
           id: 'bi-analytics',
           title: 'داشبورد هوش تجاری (BI Analytics)',
           subtitle: 'سود ناخالص، فروش تومان/تتر، AOV و نرخ تبدیل',
           icon: TrendingUp,
+        },
+        {
+          id: 'calendar',
+          title: 'تقویم شمسی و رویدادها (Calendar)',
+          subtitle: 'مناسبت‌ها، جشنواره‌ها و زمان‌بندی تخفیف‌ها',
+          icon: CalendarIcon,
+        },
+        {
+          id: 'banners',
+          title: 'مدیریت بنرها و اسلایدرها',
+          subtitle: 'اسلایدر هیرو، بنرهای جشنواره و تخفیف‌ها',
+          icon: ImageIcon,
+        },
+        {
+          id: 'theme-settings',
+          title: 'تم مناسبتی و روش‌های ورود',
+          subtitle: 'افکت‌های نوری، رنگ برند، ورود گوگل و پسورد',
+          icon: Palette,
         },
         {
           id: 'loyalty-tiers',

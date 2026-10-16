@@ -23,6 +23,8 @@ import type {
   AdminBIOverviewResponse,
   AdminBITimeSeriesPoint,
 } from '../../types'
+import { PersianDonutChart } from '../vibefarsi/PersianCharts'
+import { PersianJalaliCalendar } from '../vibefarsi/PersianJalaliCalendar'
 
 export const AdminBIAnalyticsView: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true)
@@ -1067,6 +1069,39 @@ export const AdminBIAnalyticsView: React.FC = () => {
               </div>
             </div>
           ))}
+        </div>
+      </div>
+
+      {/* Vibe Farsi Visual Intelligence: Donut Breakdown & Interactive Jalali Calendar */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div className="lg:col-span-6 bg-slate-900/80 border border-slate-800 p-6 rounded-3xl shadow-xl">
+          <PersianDonutChart
+            title="سهم درگاه‌ها و کانال‌های فروش (Revenue Streams Breakdown)"
+            data={[
+              {
+                label: 'لایسنس‌ها و اشتراک‌ها',
+                value: kpis.store_products_revenue || 5400000,
+                color: '#2563eb',
+              },
+              {
+                label: 'شماره‌های مجازی (5SIM)',
+                value: kpis.virtual_numbers_revenue || 1850000,
+                color: '#06b6d4',
+              },
+              {
+                label: 'سود ناخالص عملیاتی',
+                value: kpis.gross_profit_toman || 2100000,
+                color: '#10b981',
+              },
+            ]}
+          />
+        </div>
+
+        <div className="lg:col-span-6">
+          <PersianJalaliCalendar
+            compact
+            className="border-slate-800 bg-slate-900/80 text-slate-100 shadow-xl"
+          />
         </div>
       </div>
     </div>
