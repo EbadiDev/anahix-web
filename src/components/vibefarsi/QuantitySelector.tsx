@@ -1,5 +1,6 @@
 import { Minus, Plus, Trash2 } from 'lucide-react'
 import type React from 'react'
+import { toPersianDigits } from '../../utils/formatters'
 
 interface QuantitySelectorProps {
   value: number
@@ -9,11 +10,6 @@ interface QuantitySelectorProps {
   size?: 'sm' | 'md' | 'lg'
   allowZero?: boolean
   className?: string
-}
-
-function toPersianDigits(n: number | string): string {
-  const f = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹']
-  return String(n).replace(/\d/g, (d) => f[Number(d)])
 }
 
 export const QuantitySelector: React.FC<QuantitySelectorProps> = ({

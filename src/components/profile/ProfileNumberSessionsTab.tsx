@@ -4,8 +4,8 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { apiService } from '../../services/api'
 import type { VirtualNumberOrder } from '../../types'
-import { Badge } from '../ui/badge'
-import { Button } from '../ui/button'
+import { toPersianDigits } from '../../utils/formatters'
+import { useNotification } from '../vibefarsi/NotificationContext'
 
 interface ProfileNumberSessionsTabProps {
   virtualOrders: VirtualNumberOrder[]
@@ -15,6 +15,7 @@ interface ProfileNumberSessionsTabProps {
 export const ProfileNumberSessionsTab: React.FC<
   ProfileNumberSessionsTabProps
 > = ({ virtualOrders, onUpdateVirtualOrders }) => {
+  const { success, error } = useNotification()
   const [sessions, setSessions] = useState<VirtualNumberOrder[]>(virtualOrders)
   const [copiedKey, setCopiedKey] = useState('')
   const [actionLoading, setActionLoading] = useState<string | null>(null)
@@ -52,9 +53,10 @@ export const ProfileNumberSessionsTab: React.FC<
     return () => clearInterval(timer)
   }, [sessions])
 
-  const copyToClipboard = (text: string, key: string) => {
+  const copyToClipboard = (text: string, key: string, label: string) => {
     navigator.clipboard.writeText(text)
     setCopiedKey(key)
+    success(`${label} کپی شد`, text)
     setTimeout(() => setCopiedKey(''), 2000)
   }
 
@@ -69,8 +71,12 @@ export const ProfileNumberSessionsTab: React.FC<
         onUpdateVirtualOrders?.(next)
         return next
       })
+      success(
+        'سفارش لغو شد',
+        'مبلغ شماره به صورت خودکار به کیف پول استرداد گردید.',
+      )
     } catch (err: any) {
-      alert(err.message || 'خطا در لغو شماره')
+      error('خطا در لغو شماره', err.message || 'عملیات لغو ناموفق بود')
     } finally {
       setActionLoading(null)
     }
@@ -87,8 +93,9 @@ export const ProfileNumberSessionsTab: React.FC<
         onUpdateVirtualOrders?.(next)
         return next
       })
+      success('نشست تکمیل شد', 'از خرید و همراهی شما سپاسگزاریم.')
     } catch (err: any) {
-      alert(err.message || 'خطا در تکمیل سفارش')
+      error('خطا در تکمیل نشست', err.message || 'عملیات پایان نشست ناموفق بود')
     } finally {
       setActionLoading(null)
     }
@@ -103,59 +110,62 @@ export const ProfileNumberSessionsTab: React.FC<
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
-      {/* 1. Header Banner */}
-      <div className="rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      {/* 1. Header Banner - Graphite Minimal Technical */}
+      <div className="rounded-surface border border-border/60 bg-card p-5 sm:p-6 shadow-surface flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center">
-              <Radio className="w-4 h-4" />
+            <div className="w-8 h-8 rounded-control bg-secondary text-secondary-foreground border border-border/60 flex items-center justify-center shadow-control">
+              <Radio className="w-4 h-4 text-brand" />
             </div>
-            <h3 className="text-base font-bold text-slate-900 dark:text-white">
-              میزکار نشست‌های شماره مجازی (Virtual Number Sessions)
+            <h3 className="text-base font-bold text-foreground">
+              میزکار شماره‌های مجازی من (Virtual Numbers)
             </h3>
           </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            دریافت لحظه‌ای پیامک، کد تایید یکبارمصرف (OTP)، تایمر ۱۵ دقیقه‌ای و
-            ضمانت بازگشت وجه
+          <p className="text-xs text-muted-foreground mt-0.5">
+            دریافت لحظه‌ای پیامک، کد تایید یکبارمصرف (OTP) و ضمانت بازگشت وجه
+            خودکار
           </p>
         </div>
 
         <Link to="/virtual-numbers">
-          <Button className="h-9 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold flex items-center gap-1.5 shadow-sm shadow-blue-500/20">
-            <Radio className="w-3.5 h-3.5" />+ دریافت شماره جدید
-          </Button>
+          <button
+            type="button"
+            className="h-9 px-4 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground text-xs font-black flex items-center gap-1.5 duration-motion ease-motion active:scale-[0.98] shadow-control cursor-pointer"
+          >
+            <Radio className="w-3.5 h-3.5" />
+            <span>دریافت شماره جدید</span>
+          </button>
         </Link>
       </div>
 
       {/* 2. Active Number Sessions Section */}
-      <div>
-        <div className="flex items-center justify-between mb-3">
-          <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h4 className="text-sm font-bold text-foreground flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
             نشست‌های فعال (در حال انتظار برای پیامک)
           </h4>
-          <span className="text-xs text-slate-400 font-mono">
-            {activeSessions.length} نشست فعال
+          <span className="text-xs text-muted-foreground font-mono">
+            {toPersianDigits(activeSessions.length)} شماره فعال
           </span>
         </div>
 
         {activeSessions.length === 0 ? (
-          <div className="p-8 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 text-center">
-            <Radio className="w-8 h-8 text-slate-300 dark:text-slate-700 mx-auto mb-2" />
-            <p className="text-xs font-bold text-slate-700 dark:text-slate-300">
+          <div className="p-8 rounded-surface border border-dashed border-border/60 bg-card/40 text-center space-y-2">
+            <Radio className="w-8 h-8 text-muted-foreground/60 mx-auto" />
+            <p className="text-xs font-bold text-foreground">
               هم‌اکنون شماره مجازی فعالی در انتظار پیامک ندارید
             </p>
-            <p className="text-[11px] text-slate-400 mt-0.5">
+            <p className="text-[11px] text-muted-foreground">
               جهت فعال‌سازی تلگرام، واتس‌اپ، گوگل یا OpenAI شماره موقت دریافت کنید
             </p>
-            <Link to="/virtual-numbers" className="inline-block mt-3">
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-8 text-xs rounded-xl"
+            <Link to="/virtual-numbers" className="inline-block mt-2">
+              <button
+                type="button"
+                className="h-8 px-4 rounded-control border border-border/60 bg-card hover:bg-muted text-xs font-bold text-foreground duration-motion ease-motion active:scale-[0.98] cursor-pointer"
               >
-                مشاهده لیست سرویس‌ها و کشورها
-              </Button>
+                مشاهده لیست کشورها
+              </button>
             </Link>
           </div>
         ) : (
@@ -163,107 +173,119 @@ export const ProfileNumberSessionsTab: React.FC<
             {activeSessions.map((session) => (
               <div
                 key={session.id}
-                className="p-5 rounded-2xl border border-blue-200 dark:border-blue-900/80 bg-gradient-to-br from-white to-blue-50/20 dark:from-slate-900 dark:to-blue-950/20 shadow-md space-y-4 relative overflow-hidden"
+                className="p-5 rounded-surface border border-border/60 bg-card shadow-surface space-y-4 relative overflow-hidden duration-motion ease-motion"
               >
                 {/* Header info */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
                     <span className="text-2xl">{session.country_flag}</span>
                     <div>
-                      <h4 className="text-xs font-bold text-slate-900 dark:text-white">
+                      <h4 className="text-xs font-bold text-foreground">
                         {session.country_name_fa} • {session.service_name_fa}
                       </h4>
-                      <span className="text-[10px] font-mono text-slate-400">
+                      <span className="text-[10px] font-mono text-muted-foreground">
                         سفارش #{session.order_no}
                       </span>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-50 dark:bg-blue-950/80 border border-blue-200 dark:border-blue-800 text-[11px] font-mono font-bold text-blue-700 dark:text-blue-300">
-                    <Clock className="w-3.5 h-3.5 text-blue-600" />
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-control bg-muted/60 border border-border/60 text-[11px] font-mono font-bold text-foreground">
+                    <Clock className="w-3.5 h-3.5 text-brand" />
                     <span>
-                      {Math.floor(session.seconds_remaining / 60)}:
-                      {(session.seconds_remaining % 60)
-                        .toString()
-                        .padStart(2, '0')}
+                      {toPersianDigits(
+                        Math.floor(session.seconds_remaining / 60),
+                      )}
+                      :
+                      {toPersianDigits(
+                        (session.seconds_remaining % 60)
+                          .toString()
+                          .padStart(2, '0'),
+                      )}
                     </span>
                   </div>
                 </div>
 
                 {/* Phone Number Display */}
-                <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                <div className="p-3 rounded-control bg-muted/20 border border-border/60 flex items-center justify-between">
                   <div>
-                    <span className="text-[10px] text-slate-400 block mb-0.5">
+                    <span className="text-[10px] text-muted-foreground block mb-0.5">
                       شماره اختصاص داده شده:
                     </span>
                     <span
                       dir="ltr"
-                      className="text-base font-bold font-mono tracking-wider text-slate-900 dark:text-white"
+                      className="text-base font-bold font-mono tracking-wider text-foreground font-latin"
                     >
                       {session.phone}
                     </span>
                   </div>
 
-                  <Button
-                    size="sm"
-                    variant="outline"
+                  <button
+                    type="button"
                     onClick={() =>
-                      copyToClipboard(session.phone, `phone_${session.id}`)
+                      copyToClipboard(
+                        session.phone,
+                        `phone_${session.id}`,
+                        'شماره تلفن',
+                      )
                     }
-                    className="h-8 text-xs rounded-lg px-2.5"
+                    className="h-8 text-xs rounded-control px-3 border border-border/60 bg-card hover:bg-muted text-foreground duration-motion ease-motion active:scale-[0.98] flex items-center gap-1 cursor-pointer"
                   >
                     {copiedKey === `phone_${session.id}` ? (
                       <>
-                        <Check className="w-3.5 h-3.5 ml-1 text-emerald-500" />
-                        کپی شد
+                        <Check className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>کپی شد</span>
                       </>
                     ) : (
                       <>
-                        <Copy className="w-3.5 h-3.5 ml-1" />
-                        کپی شماره
+                        <Copy className="w-3.5 h-3.5" />
+                        <span>کپی</span>
                       </>
                     )}
-                  </Button>
+                  </button>
                 </div>
 
                 {/* OTP & SMS Status */}
                 {session.sms_code ? (
-                  <div className="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 space-y-2.5 animate-in zoom-in-95">
+                  <div className="p-4 rounded-control bg-emerald-500/10 border border-emerald-500/20 space-y-2.5 animate-in zoom-in-95">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5">
-                        <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                      <span className="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                         پیامک تایید دریافت شد:
                       </span>
 
-                      <Button
-                        size="sm"
+                      <button
+                        type="button"
                         onClick={() =>
                           copyToClipboard(
                             session.sms_code || '',
                             `code_${session.id}`,
+                            'کد تایید پیامکی',
                           )
                         }
-                        className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg px-3"
+                        className="h-7 text-xs bg-primary hover:bg-primary-hover text-primary-foreground font-black rounded-control px-3 duration-motion ease-motion active:scale-[0.98] shadow-control cursor-pointer"
                       >
                         {copiedKey === `code_${session.id}`
                           ? 'کپی شد!'
                           : 'کپی کد OTP'}
-                      </Button>
+                      </button>
                     </div>
 
-                    <div className="text-center py-2 bg-white dark:bg-slate-900 rounded-lg border border-emerald-200 dark:border-emerald-800/80 font-mono text-2xl font-black tracking-widest text-emerald-600 dark:text-emerald-400">
+                    <div className="text-center py-2 bg-card rounded-control border border-emerald-500/30 font-mono text-2xl font-black tracking-widest text-emerald-400 font-latin">
                       {session.sms_code}
                     </div>
 
                     {session.sms_text && (
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400 font-mono bg-slate-50 dark:bg-slate-950/60 p-2 rounded border border-slate-100 dark:border-slate-800 truncate">
+                      <p
+                        className="text-[11px] text-muted-foreground font-mono bg-muted/40 p-2 rounded-control border border-border/40 truncate text-left"
+                        dir="ltr"
+                      >
                         {session.sms_text}
                       </p>
                     )}
                   </div>
                 ) : (
-                  <div className="p-3.5 rounded-xl bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200/70 dark:border-amber-900/40 flex items-center gap-2.5 text-xs text-amber-800 dark:text-amber-300">
-                    <Loader2 className="w-4 h-4 animate-spin text-amber-600 shrink-0" />
+                  <div className="p-3.5 rounded-control bg-brand/5 border border-brand/20 flex items-center gap-2.5 text-xs text-foreground">
+                    <Loader2 className="w-4 h-4 animate-spin text-brand shrink-0" />
                     <span>
                       منتظر دریافت پیامک از سرویس {session.service_name_fa}...
                     </span>
@@ -272,25 +294,24 @@ export const ProfileNumberSessionsTab: React.FC<
 
                 {/* Actions */}
                 <div className="flex items-center justify-between pt-1 gap-2">
-                  <Button
-                    size="sm"
-                    variant="ghost"
+                  <button
+                    type="button"
                     disabled={actionLoading === session.id}
                     onClick={() => handleCancelOrder(session.id)}
-                    className="h-8 text-xs text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg px-2.5"
+                    className="h-8 text-xs text-destructive hover:bg-destructive/10 border border-destructive/20 rounded-control px-3 duration-motion ease-motion active:scale-[0.98] cursor-pointer disabled:opacity-50"
                   >
                     لغو و استرداد وجه
-                  </Button>
+                  </button>
 
                   {session.sms_code && (
-                    <Button
-                      size="sm"
+                    <button
+                      type="button"
                       disabled={actionLoading === session.id}
                       onClick={() => handleFinishOrder(session.id)}
-                      className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg px-3"
+                      className="h-8 text-xs bg-primary hover:bg-primary-hover text-primary-foreground font-black rounded-control px-3 duration-motion ease-motion active:scale-[0.98] shadow-control cursor-pointer"
                     >
                       تکمیل و پایان نشست
-                    </Button>
+                    </button>
                   )}
                 </div>
               </div>
@@ -301,8 +322,8 @@ export const ProfileNumberSessionsTab: React.FC<
 
       {/* 3. Past Sessions History */}
       {historySessions.length > 0 && (
-        <div className="rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-xs">
-          <h4 className="text-sm font-bold text-slate-900 dark:text-white mb-3">
+        <div className="rounded-surface border border-border/60 bg-card p-5 shadow-surface space-y-3">
+          <h4 className="text-sm font-bold text-foreground">
             تاریخچه نشست‌های قبلی
           </h4>
 
@@ -310,16 +331,16 @@ export const ProfileNumberSessionsTab: React.FC<
             {historySessions.map((hist) => (
               <div
                 key={hist.id}
-                className="p-3 rounded-xl border border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs"
+                className="p-3 rounded-control border border-border/40 bg-muted/20 flex items-center justify-between text-xs"
               >
                 <div className="flex items-center gap-3">
                   <span className="text-lg">{hist.country_flag}</span>
                   <div>
-                    <span className="font-bold text-slate-800 dark:text-slate-200">
+                    <span className="font-bold text-foreground">
                       {hist.country_name_fa} • {hist.service_name_fa}
                     </span>
                     <span
-                      className="text-[11px] font-mono text-slate-400 block"
+                      className="text-[11px] font-mono text-muted-foreground block font-latin"
                       dir="ltr"
                     >
                       {hist.phone}
@@ -329,16 +350,19 @@ export const ProfileNumberSessionsTab: React.FC<
 
                 <div className="flex items-center gap-2">
                   {hist.sms_code && (
-                    <span className="font-mono text-xs px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                    <span className="font-mono text-xs px-2 py-0.5 rounded-control bg-muted text-foreground border border-border/40 font-latin">
                       کد: {hist.sms_code}
                     </span>
                   )}
-                  <Badge
-                    variant="outline"
-                    className="text-[10px] text-slate-500 border-slate-200 dark:border-slate-800"
+                  <span
+                    className={`text-[10px] font-bold px-2 py-0.5 rounded-control border ${
+                      hist.status === 'FINISHED'
+                        ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                        : 'bg-muted text-muted-foreground border-border/40'
+                    }`}
                   >
                     {hist.status === 'FINISHED' ? 'تکمیل شده' : 'لغو شده'}
-                  </Badge>
+                  </span>
                 </div>
               </div>
             ))}

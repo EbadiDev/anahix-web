@@ -26,6 +26,7 @@ import {
 import type React from 'react'
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import { AuthModal } from '../components/AuthModal'
 import {
   ClaudeIcon,
   CursorIcon,
@@ -37,7 +38,9 @@ import { Header } from '../components/Header'
 import { ProductReviewsSection } from '../components/reviews/ProductReviewsSection'
 import { Badge } from '../components/ui/badge'
 import { Card } from '../components/ui/card'
+import { useNotification } from '../components/vibefarsi/NotificationContext'
 import { QuantitySelector } from '../components/vibefarsi/QuantitySelector'
+import { ScrollReveal } from '../components/vibefarsi/ScrollReveal'
 import { cartStore, useCart } from '../lib/cartStore'
 import { apiService } from '../services/api'
 import type {
@@ -78,6 +81,8 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
   const [selectedPlan, setSelectedPlan] = useState<ProductPlan | null>(null)
   const [isCartOpen, setIsCartOpen] = useState(false)
   const [addedToast, setAddedToast] = useState(false)
+  const [isAuthOpen, setIsAuthOpen] = useState(false)
+  const { warning } = useNotification()
 
   // FAQ accordion state
   const [openFaqs, setOpenFaqs] = useState<Record<number, boolean>>({
@@ -233,6 +238,14 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
   // Handle Instant Buy (Add and open cart drawer)
   const handleInstantBuy = () => {
     if (!product) return
+    if (!apiService.isCustomerLoggedIn()) {
+      warning(
+        'نیاز به ورود به حساب کاربری',
+        'برای خرید آنی و نهایی‌سازی سفارش، لطفاً ابتدا وارد حساب کاربری خود شوید یا ثبت‌نام کنید.',
+      )
+      setIsAuthOpen(true)
+      return
+    }
     cartStore.addItem(product, 1, selectedPlan || undefined)
     setIsCartOpen(true)
   }
@@ -387,606 +400,618 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
         </nav>
 
         {/* TOP SECTION: PRODUCT HERO & PLAN SWITCHER */}
-        <section className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          {/* Right/Main Column: Product Overview & Info (7 cols) */}
-          <div className="lg:col-span-7 space-y-6 text-right">
-            {/* Badges row */}
-            <div className="flex items-center gap-2.5 flex-wrap">
-              <div
-                className={`flex h-12 w-12 items-center justify-center rounded-2xl border ${brand.bg}`}
-              >
-                {brand.icon}
-              </div>
-              <div>
-                <span className="text-xs font-bold text-muted-foreground font-latin">
-                  {brand.brandName}
-                </span>
-                <div className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5">
-                  <ShieldCheck className="h-3.5 w-3.5 text-blue-600" />
-                  <span>لایسنس ۱۰۰٪ قانونی و دائمی</span>
+        <ScrollReveal>
+          <section className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            {/* Right/Main Column: Product Overview & Info (7 cols) */}
+            <div className="lg:col-span-7 space-y-6 text-right">
+              {/* Badges row */}
+              <div className="flex items-center gap-2.5 flex-wrap">
+                <div
+                  className={`flex h-12 w-12 items-center justify-center rounded-2xl border ${brand.bg}`}
+                >
+                  {brand.icon}
                 </div>
-              </div>
-
-              {product.delivery_mode === 'UPGRADE_EXISTING' ? (
-                <Badge
-                  variant="amber"
-                  className="gap-1.5 text-xs font-bold py-1 px-3"
-                >
-                  <UserCheck className="h-3.5 w-3.5" />
-                  ارتقا روی اکانت شخصی (Mode C)
-                </Badge>
-              ) : (
-                <Badge
-                  variant="blue"
-                  className="gap-1.5 text-xs font-bold py-1 px-3 bg-muted text-foreground border border-border/60"
-                >
-                  <Zap className="h-3.5 w-3.5 text-brand" />
-                  تحویل آنی
-                </Badge>
-              )}
-
-              <a
-                href="#product-reviews"
-                className="inline-flex items-center gap-1.5 text-xs text-amber-700 dark:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 px-3 py-1 rounded-full border border-amber-500/20 font-bold transition mr-auto"
-              >
-                <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
-                <span>نظرات خریداران قطعی</span>
-              </a>
-            </div>
-
-            {/* Titles */}
-            <div className="space-y-1.5">
-              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight text-foreground leading-tight">
-                {product.title_fa}
-              </h1>
-              <p
-                className="text-sm sm:text-base text-muted-foreground font-latin text-left"
-                dir="ltr"
-              >
-                {product.title_en}
-              </p>
-            </div>
-
-            {/* Description */}
-            <p className="text-sm text-muted-foreground/90 leading-relaxed">
-              {product.description || product.description_fa}
-            </p>
-
-            {/* Features Checklist */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 bg-card border border-border/80 rounded-2xl p-4">
-              {(product.features || []).map((feat) => (
-                <div key={feat} className="flex items-start gap-2.5">
-                  <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 mt-0.5">
-                    <Check className="h-3 w-3" />
+                <div>
+                  <span className="text-xs font-bold text-muted-foreground font-latin">
+                    {brand.brandName}
+                  </span>
+                  <div className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5">
+                    <ShieldCheck className="h-3.5 w-3.5 text-blue-600" />
+                    <span>لایسنس ۱۰۰٪ قانونی و دائمی</span>
                   </div>
-                  <span className="text-xs text-foreground/90 font-medium leading-relaxed">
-                    {feat}
-                  </span>
-                </div>
-              ))}
-            </div>
-
-            {/* Delivery & SLA Specifications */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
-              <div className="p-3 rounded-xl border border-border bg-card/60 space-y-1">
-                <span className="text-muted-foreground flex items-center gap-1">
-                  <Clock className="h-3.5 w-3.5 text-blue-600" />
-                  <span>زمان فعال‌سازی:</span>
-                </span>
-                <span className="font-bold text-foreground block">
-                  {product.sla_display_text ||
-                    (product.delivery_mode === 'UPGRADE_EXISTING'
-                      ? `${product.sla_min_minutes || 15} الی ${product.sla_max_minutes || 30} دقیقه`
-                      : 'تحویل خودکار ۰ ثانیه‌ای')}
-                </span>
-              </div>
-
-              <div className="p-3 rounded-xl border border-border bg-card/60 space-y-1">
-                <span className="text-muted-foreground flex items-center gap-1">
-                  <Lock className="h-3.5 w-3.5 text-blue-600" />
-                  <span>امنیت پسورد:</span>
-                </span>
-                <span className="font-bold text-emerald-600 dark:text-emerald-400 block">
-                  پروتکل Zeroize
-                </span>
-              </div>
-
-              <div className="p-3 rounded-xl border border-border bg-card/60 space-y-1 col-span-2 sm:col-span-1">
-                <span className="text-muted-foreground flex items-center gap-1">
-                  <ShieldCheck className="h-3.5 w-3.5 text-blue-600" />
-                  <span>ضمانت اصالت:</span>
-                </span>
-                <span className="font-bold text-foreground block">
-                  گارانتی کامل ۳۰ روزه
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Left Column: Interactive Plan Switcher & Checkout Card (5 cols) */}
-          <div className="lg:col-span-5">
-            <Card className="rounded-3xl border-2 border-blue-500/30 bg-card p-6 shadow-xl shadow-blue-600/5 space-y-6 sticky top-24">
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-black text-foreground flex items-center gap-1.5">
-                    <Calendar className="h-4 w-4 text-blue-600" />
-                    <span>انتخاب پلن و دوره زمانی:</span>
-                  </span>
-                  <span className="text-[11px] text-muted-foreground">
-                    {(product.plans || []).length} دوره قابل انتخاب
-                  </span>
                 </div>
 
-                {/* Plan Options Selector Grid */}
-                <div className="space-y-2.5 pt-1">
-                  {(product.plans || []).map((plan) => {
-                    const isSelected = selectedPlan?.id === plan.id
-                    return (
-                      <button
-                        key={plan.id}
-                        type="button"
-                        onClick={() => setSelectedPlan(plan)}
-                        className={`w-full p-3.5 rounded-control border text-right duration-motion ease-motion transition-all flex items-center justify-between gap-3 cursor-pointer ${
-                          isSelected
-                            ? 'border-foreground/40 bg-muted/70 ring-1 ring-foreground/20'
-                            : 'border-border/30 bg-muted/20 hover:bg-muted/50 hover:border-border/60'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div
-                            className={`h-4.5 w-4.5 rounded-full border flex items-center justify-center transition-colors ${
-                              isSelected
-                                ? 'border-primary bg-primary text-primary-foreground'
-                                : 'border-muted-foreground/40'
-                            }`}
-                          >
-                            {isSelected && <Check className="h-2.5 w-2.5" />}
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span className="font-bold text-xs sm:text-sm text-foreground">
-                                {plan.title}
-                              </span>
-                              {plan.badge && (
-                                <span className="px-2 py-0.5 rounded-control text-[10px] font-black bg-brand/15 text-brand border border-brand/20">
-                                  {plan.badge}
-                                </span>
-                              )}
+                {product.delivery_mode === 'UPGRADE_EXISTING' ? (
+                  <Badge
+                    variant="amber"
+                    className="gap-1.5 text-xs font-bold py-1 px-3"
+                  >
+                    <UserCheck className="h-3.5 w-3.5" />
+                    ارتقا روی اکانت شخصی (Mode C)
+                  </Badge>
+                ) : (
+                  <Badge
+                    variant="blue"
+                    className="gap-1.5 text-xs font-bold py-1 px-3 bg-muted text-foreground border border-border/60"
+                  >
+                    <Zap className="h-3.5 w-3.5 text-brand" />
+                    تحویل آنی
+                  </Badge>
+                )}
+
+                <a
+                  href="#product-reviews"
+                  className="inline-flex items-center gap-1.5 text-xs text-amber-700 dark:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 px-3 py-1 rounded-full border border-amber-500/20 font-bold transition mr-auto"
+                >
+                  <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
+                  <span>نظرات خریداران قطعی</span>
+                </a>
+              </div>
+
+              {/* Titles */}
+              <div className="space-y-1.5">
+                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight text-foreground leading-tight">
+                  {product.title_fa}
+                </h1>
+                <p
+                  className="text-sm sm:text-base text-muted-foreground font-latin text-left"
+                  dir="ltr"
+                >
+                  {product.title_en}
+                </p>
+              </div>
+
+              {/* Description */}
+              <p className="text-sm text-muted-foreground/90 leading-relaxed">
+                {product.description || product.description_fa}
+              </p>
+
+              {/* Features Checklist */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 bg-card border border-border/80 rounded-2xl p-4">
+                {(product.features || []).map((feat) => (
+                  <div key={feat} className="flex items-start gap-2.5">
+                    <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 mt-0.5">
+                      <Check className="h-3 w-3" />
+                    </div>
+                    <span className="text-xs text-foreground/90 font-medium leading-relaxed">
+                      {feat}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Delivery & SLA Specifications */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
+                <div className="p-3 rounded-xl border border-border bg-card/60 space-y-1">
+                  <span className="text-muted-foreground flex items-center gap-1">
+                    <Clock className="h-3.5 w-3.5 text-blue-600" />
+                    <span>زمان فعال‌سازی:</span>
+                  </span>
+                  <span className="font-bold text-foreground block">
+                    {product.sla_display_text ||
+                      (product.delivery_mode === 'UPGRADE_EXISTING'
+                        ? `${product.sla_min_minutes || 15} الی ${product.sla_max_minutes || 30} دقیقه`
+                        : 'تحویل خودکار ۰ ثانیه‌ای')}
+                  </span>
+                </div>
+
+                <div className="p-3 rounded-xl border border-border bg-card/60 space-y-1">
+                  <span className="text-muted-foreground flex items-center gap-1">
+                    <Lock className="h-3.5 w-3.5 text-blue-600" />
+                    <span>امنیت پسورد:</span>
+                  </span>
+                  <span className="font-bold text-emerald-600 dark:text-emerald-400 block">
+                    پروتکل Zeroize
+                  </span>
+                </div>
+
+                <div className="p-3 rounded-xl border border-border bg-card/60 space-y-1 col-span-2 sm:col-span-1">
+                  <span className="text-muted-foreground flex items-center gap-1">
+                    <ShieldCheck className="h-3.5 w-3.5 text-blue-600" />
+                    <span>ضمانت اصالت:</span>
+                  </span>
+                  <span className="font-bold text-foreground block">
+                    گارانتی کامل ۳۰ روزه
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Left Column: Interactive Plan Switcher & Checkout Card (5 cols) */}
+            <div className="lg:col-span-5">
+              <Card className="rounded-3xl border-2 border-blue-500/30 bg-card p-6 shadow-xl shadow-blue-600/5 space-y-6 sticky top-24">
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-black text-foreground flex items-center gap-1.5">
+                      <Calendar className="h-4 w-4 text-blue-600" />
+                      <span>انتخاب پلن و دوره زمانی:</span>
+                    </span>
+                    <span className="text-[11px] text-muted-foreground">
+                      {(product.plans || []).length} دوره قابل انتخاب
+                    </span>
+                  </div>
+
+                  {/* Plan Options Selector Grid */}
+                  <div className="space-y-2.5 pt-1">
+                    {(product.plans || []).map((plan) => {
+                      const isSelected = selectedPlan?.id === plan.id
+                      return (
+                        <button
+                          key={plan.id}
+                          type="button"
+                          onClick={() => setSelectedPlan(plan)}
+                          className={`w-full p-3.5 rounded-control border text-right duration-motion ease-motion transition-all flex items-center justify-between gap-3 cursor-pointer ${
+                            isSelected
+                              ? 'border-foreground/40 bg-muted/70 ring-1 ring-foreground/20'
+                              : 'border-border/30 bg-muted/20 hover:bg-muted/50 hover:border-border/60'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div
+                              className={`h-4.5 w-4.5 rounded-full border flex items-center justify-center transition-colors ${
+                                isSelected
+                                  ? 'border-primary bg-primary text-primary-foreground'
+                                  : 'border-muted-foreground/40'
+                              }`}
+                            >
+                              {isSelected && <Check className="h-2.5 w-2.5" />}
                             </div>
-                            <span className="text-[11px] text-muted-foreground block mt-0.5">
-                              مدت اعتبار: {plan.duration_text}
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="text-left shrink-0">
-                          {plan.original_price_toman &&
-                            plan.original_price_toman > plan.price_toman && (
-                              <div className="text-[10px] text-muted-foreground line-through font-latin">
-                                {plan.original_price_toman.toLocaleString(
-                                  'fa-IR',
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-xs sm:text-sm text-foreground">
+                                  {plan.title}
+                                </span>
+                                {plan.badge && (
+                                  <span className="px-2 py-0.5 rounded-control text-[10px] font-black bg-brand/15 text-brand border border-brand/20">
+                                    {plan.badge}
+                                  </span>
                                 )}
                               </div>
-                            )}
-                          <div className="font-black text-sm text-foreground font-latin">
-                            {plan.price_toman.toLocaleString('fa-IR')}{' '}
-                            <span className="text-[10px] font-normal text-muted-foreground font-sans">
-                              تومان
-                            </span>
+                              <span className="text-[11px] text-muted-foreground block mt-0.5">
+                                مدت اعتبار: {plan.duration_text}
+                              </span>
+                            </div>
                           </div>
-                        </div>
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
 
-              {/* Selected Plan Details & Pricing Banner */}
-              <div className="p-4 rounded-2xl bg-muted/40 border border-border/70 space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-foreground">
-                    پلن انتخابی شما:
-                  </span>
-                  <span className="text-xs font-bold text-blue-600 dark:text-blue-400 font-mono">
-                    {selectedPlan?.title || product.title_fa}
-                  </span>
+                          <div className="text-left shrink-0">
+                            {plan.original_price_toman &&
+                              plan.original_price_toman > plan.price_toman && (
+                                <div className="text-[10px] text-muted-foreground line-through font-latin">
+                                  {plan.original_price_toman.toLocaleString(
+                                    'fa-IR',
+                                  )}
+                                </div>
+                              )}
+                            <div className="font-black text-sm text-foreground font-latin">
+                              {plan.price_toman.toLocaleString('fa-IR')}{' '}
+                              <span className="text-[10px] font-normal text-muted-foreground font-sans">
+                                تومان
+                              </span>
+                            </div>
+                          </div>
+                        </button>
+                      )
+                    })}
+                  </div>
                 </div>
 
-                <div className="border-t border-border/50 pt-3 flex items-baseline justify-between">
-                  <div>
-                    <span className="text-[11px] text-muted-foreground block">
-                      مبلغ قابل پرداخت:
+                {/* Selected Plan Details & Pricing Banner */}
+                <div className="p-4 rounded-2xl bg-muted/40 border border-border/70 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-foreground">
+                      پلن انتخابی شما:
                     </span>
-                    {savingsToman > 0 && (
-                      <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
-                        تخفیف ویژه ({savingsPercent}%):{' '}
-                        {savingsToman.toLocaleString('fa-IR')} تومان
+                    <span className="text-xs font-bold text-blue-600 dark:text-blue-400 font-mono">
+                      {selectedPlan?.title || product.title_fa}
+                    </span>
+                  </div>
+
+                  <div className="border-t border-border/50 pt-3 flex items-baseline justify-between">
+                    <div>
+                      <span className="text-[11px] text-muted-foreground block">
+                        مبلغ قابل پرداخت:
                       </span>
-                    )}
-                  </div>
-                  <div className="text-left">
-                    <span className="text-2xl font-black text-foreground tracking-tight font-mono">
-                      {effectivePrice.toLocaleString('fa-IR')}
-                    </span>
-                    <span className="text-xs text-muted-foreground font-sans mr-1">
-                      تومان
-                    </span>
+                      {savingsToman > 0 && (
+                        <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
+                          تخفیف ویژه ({savingsPercent}%):{' '}
+                          {savingsToman.toLocaleString('fa-IR')} تومان
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-left">
+                      <span className="text-2xl font-black text-foreground tracking-tight font-mono">
+                        {effectivePrice.toLocaleString('fa-IR')}
+                      </span>
+                      <span className="text-xs text-muted-foreground font-sans mr-1">
+                        تومان
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Actions: In-Place Quantity Counter or Buy Buttons (Graphite System) */}
-              <div className="space-y-2 pt-1">
-                {(() => {
-                  const currentCartItem = cart.items.find(
-                    (item) =>
-                      String(item.product.id) === String(product.id) &&
-                      (selectedPlan
-                        ? item.plan?.id === selectedPlan.id
-                        : !item.plan),
-                  )
-                  const currentQuantity = currentCartItem
-                    ? currentCartItem.quantity
-                    : 0
+                {/* Actions: In-Place Quantity Counter or Buy Buttons (Graphite System) */}
+                <div className="space-y-2 pt-1">
+                  {(() => {
+                    const currentCartItem = cart.items.find(
+                      (item) =>
+                        String(item.product.id) === String(product.id) &&
+                        (selectedPlan
+                          ? item.plan?.id === selectedPlan.id
+                          : !item.plan),
+                    )
+                    const currentQuantity = currentCartItem
+                      ? currentCartItem.quantity
+                      : 0
 
-                  if (currentQuantity > 0) {
+                    if (currentQuantity > 0) {
+                      return (
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between p-2.5 rounded-control bg-muted/40 border border-border/40 text-xs">
+                            <span className="font-bold text-foreground">
+                              تعداد در سبد خرید:
+                            </span>
+                            <QuantitySelector
+                              value={currentQuantity}
+                              onChange={handleQuantityChange}
+                              size="md"
+                            />
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => setIsCartOpen(true)}
+                            className="w-full h-11 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs sm:text-sm duration-motion ease-motion active:scale-[0.98] shadow-control flex items-center justify-center gap-2 cursor-pointer"
+                          >
+                            <span>
+                              تکمیل سفارش و تسویه‌حساب (
+                              {toPersianDigits(currentQuantity)} عدد)
+                            </span>
+                            <ArrowLeft className="h-4 w-4" />
+                          </button>
+                        </div>
+                      )
+                    }
+
                     return (
                       <div className="space-y-2">
-                        <div className="flex items-center justify-between p-2.5 rounded-control bg-muted/40 border border-border/40 text-xs">
-                          <span className="font-bold text-foreground">
-                            تعداد در سبد خرید:
-                          </span>
-                          <QuantitySelector
-                            value={currentQuantity}
-                            onChange={handleQuantityChange}
-                            size="md"
-                          />
-                        </div>
+                        <button
+                          type="button"
+                          onClick={handleInstantBuy}
+                          className="w-full h-11 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs sm:text-sm duration-motion ease-motion active:scale-[0.98] shadow-control flex items-center justify-center gap-2 cursor-pointer"
+                        >
+                          <Zap className="h-4 w-4" />
+                          <span>خرید آنی و تسویه‌حساب</span>
+                        </button>
 
                         <button
                           type="button"
-                          onClick={() => setIsCartOpen(true)}
-                          className="w-full h-11 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs sm:text-sm duration-motion ease-motion active:scale-[0.98] shadow-control flex items-center justify-center gap-2 cursor-pointer"
+                          onClick={handleAddToCart}
+                          className="w-full h-10 rounded-control border border-border/40 bg-card hover:bg-muted text-foreground font-bold text-xs duration-motion ease-motion active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer"
                         >
-                          <span>
-                            تکمیل سفارش و تسویه‌حساب (
-                            {toPersianDigits(currentQuantity)} عدد)
-                          </span>
-                          <ArrowLeft className="h-4 w-4" />
+                          <ShoppingCart className="h-3.5 w-3.5 text-muted-foreground" />
+                          <span>افزودن به سبد خرید</span>
                         </button>
                       </div>
                     )
-                  }
+                  })()}
 
-                  return (
-                    <div className="space-y-2">
-                      <button
-                        type="button"
-                        onClick={handleInstantBuy}
-                        className="w-full h-11 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs sm:text-sm duration-motion ease-motion active:scale-[0.98] shadow-control flex items-center justify-center gap-2 cursor-pointer"
-                      >
-                        <Zap className="h-4 w-4" />
-                        <span>خرید آنی و تسویه‌حساب</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={handleAddToCart}
-                        className="w-full h-10 rounded-control border border-border/40 bg-card hover:bg-muted text-foreground font-bold text-xs duration-motion ease-motion active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer"
-                      >
-                        <ShoppingCart className="h-3.5 w-3.5 text-muted-foreground" />
-                        <span>افزودن به سبد خرید</span>
-                      </button>
+                  {addedToast && (
+                    <div className="p-2.5 rounded-control bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-center text-xs font-bold flex items-center justify-center gap-1.5 animate-in fade-in">
+                      <CheckCircle2 className="h-4 w-4" />
+                      <span>پلن مورد نظر به سبد خرید افزوده شد!</span>
                     </div>
-                  )
-                })()}
+                  )}
+                </div>
 
-                {addedToast && (
-                  <div className="p-2.5 rounded-control bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-center text-xs font-bold flex items-center justify-center gap-1.5 animate-in fade-in">
-                    <CheckCircle2 className="h-4 w-4" />
-                    <span>پلن مورد نظر به سبد خرید افزوده شد!</span>
+                {/* Guarantee Mini Footer */}
+                <div className="pt-3 flex items-center justify-around text-[11px] text-muted-foreground text-center">
+                  <div className="flex flex-col items-center gap-1">
+                    <ShieldCheck className="h-4 w-4 text-brand" />
+                    <span>ضمانت بازگشت وجه</span>
                   </div>
-                )}
-              </div>
-
-              {/* Guarantee Mini Footer */}
-              <div className="pt-3 flex items-center justify-around text-[11px] text-muted-foreground text-center">
-                <div className="flex flex-col items-center gap-1">
-                  <ShieldCheck className="h-4 w-4 text-brand" />
-                  <span>ضمانت بازگشت وجه</span>
+                  <div className="flex flex-col items-center gap-1">
+                    <CreditCard className="h-4 w-4 text-brand" />
+                    <span>پرداخت امن شاپرک</span>
+                  </div>
+                  <div className="flex flex-col items-center gap-1">
+                    <Headphones className="h-4 w-4 text-brand" />
+                    <span>پشتیبانی تلگرام</span>
+                  </div>
                 </div>
-                <div className="flex flex-col items-center gap-1">
-                  <CreditCard className="h-4 w-4 text-brand" />
-                  <span>پرداخت امن شاپرک</span>
-                </div>
-                <div className="flex flex-col items-center gap-1">
-                  <Headphones className="h-4 w-4 text-brand" />
-                  <span>پشتیبانی تلگرام</span>
-                </div>
-              </div>
-            </Card>
-          </div>
-        </section>
+              </Card>
+            </div>
+          </section>
+        </ScrollReveal>
 
         {/* SECTION 2: COMPARISON MATRIX TABLE */}
         {product.comparison_table?.columns &&
           product.comparison_table.columns.length > 0 && (
-            <section className="rounded-3xl border border-border bg-card p-6 sm:p-8 space-y-6">
-              <div className="text-right space-y-1">
-                <div className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-600 dark:text-blue-400 bg-blue-500/10 px-3 py-1 rounded-full border border-blue-500/20">
-                  <Table className="h-3.5 w-3.5" />
-                  <span>بررسی فنی و تفاوت پلن‌ها</span>
+            <ScrollReveal>
+              <section className="rounded-3xl border border-border bg-card p-6 sm:p-8 space-y-6">
+                <div className="text-right space-y-1">
+                  <div className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-600 dark:text-blue-400 bg-blue-500/10 px-3 py-1 rounded-full border border-blue-500/20">
+                    <Table className="h-3.5 w-3.5" />
+                    <span>بررسی فنی و تفاوت پلن‌ها</span>
+                  </div>
+                  <h3 className="text-xl sm:text-2xl font-black text-foreground">
+                    جدول مقایسه قابلیت‌ها و نسخه‌های مختلف
+                  </h3>
+                  <p className="text-xs sm:text-sm text-muted-foreground">
+                    تفاوت دقیق امکانات نسخه رایگان با اشتراک‌های حرفه‌ای و تیمی
+                  </p>
                 </div>
-                <h3 className="text-xl sm:text-2xl font-black text-foreground">
-                  جدول مقایسه قابلیت‌ها و نسخه‌های مختلف
-                </h3>
-                <p className="text-xs sm:text-sm text-muted-foreground">
-                  تفاوت دقیق امکانات نسخه رایگان با اشتراک‌های حرفه‌ای و تیمی
-                </p>
-              </div>
 
-              <div className="overflow-x-auto">
-                <table className="w-full text-right text-xs">
-                  <thead className="border-b border-border">
-                    <tr>
-                      <th className="p-4 font-bold text-muted-foreground w-1/3">
-                        ویژگی / قابلیت
-                      </th>
-                      {product.comparison_table.columns.map((col) => (
-                        <th
-                          key={col.key}
-                          className={`p-4 text-center rounded-2xl transition ${
-                            col.highlight
-                              ? 'bg-blue-600/10 border-2 border-blue-500/30 text-blue-600 dark:text-blue-400'
-                              : 'text-foreground'
-                          }`}
-                        >
-                          <div className="space-y-1">
-                            {col.badge && (
-                              <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-black bg-blue-600 text-white">
-                                {col.badge}
-                              </span>
-                            )}
-                            <div className="font-black text-sm">
-                              {col.title}
-                            </div>
-                            {col.subtitle && (
-                              <div className="text-[10px] text-muted-foreground font-normal">
-                                {col.subtitle}
-                              </div>
-                            )}
-                          </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-right text-xs">
+                    <thead className="border-b border-border">
+                      <tr>
+                        <th className="p-4 font-bold text-muted-foreground w-1/3">
+                          ویژگی / قابلیت
                         </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border/60">
-                    {product.comparison_table.features.map((feat) => (
-                      <tr
-                        key={feat.name}
-                        className="hover:bg-muted/30 transition"
-                      >
-                        <td className="p-4 font-bold text-foreground">
-                          {feat.name}
-                        </td>
-                        {product.comparison_table?.columns.map((col) => {
-                          const val = feat.values[col.key] || '-'
-                          return (
-                            <td
-                              key={`${feat.name}-${col.key}`}
-                              className={`p-4 text-center ${
-                                col.highlight
-                                  ? 'bg-blue-500/5 font-bold text-foreground'
-                                  : 'text-muted-foreground'
-                              }`}
-                            >
-                              {val === 'فعال' || val === 'نامحدود' ? (
-                                <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-bold">
-                                  <Check className="h-4 w-4" />
-                                  <span>{val}</span>
+                        {product.comparison_table.columns.map((col) => (
+                          <th
+                            key={col.key}
+                            className={`p-4 text-center rounded-2xl transition ${
+                              col.highlight
+                                ? 'bg-blue-600/10 border-2 border-blue-500/30 text-blue-600 dark:text-blue-400'
+                                : 'text-foreground'
+                            }`}
+                          >
+                            <div className="space-y-1">
+                              {col.badge && (
+                                <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-black bg-blue-600 text-white">
+                                  {col.badge}
                                 </span>
-                              ) : val === 'غیرفعال' || val === 'ندارد' ? (
-                                <span className="text-muted-foreground/60">
-                                  {val}
-                                </span>
-                              ) : (
-                                <span>{val}</span>
                               )}
-                            </td>
-                          )
-                        })}
+                              <div className="font-black text-sm">
+                                {col.title}
+                              </div>
+                              {col.subtitle && (
+                                <div className="text-[10px] text-muted-foreground font-normal">
+                                  {col.subtitle}
+                                </div>
+                              )}
+                            </div>
+                          </th>
+                        ))}
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </section>
+                    </thead>
+                    <tbody className="divide-y divide-border/60">
+                      {product.comparison_table.features.map((feat) => (
+                        <tr
+                          key={feat.name}
+                          className="hover:bg-muted/30 transition"
+                        >
+                          <td className="p-4 font-bold text-foreground">
+                            {feat.name}
+                          </td>
+                          {product.comparison_table?.columns.map((col) => {
+                            const val = feat.values[col.key] || '-'
+                            return (
+                              <td
+                                key={`${feat.name}-${col.key}`}
+                                className={`p-4 text-center ${
+                                  col.highlight
+                                    ? 'bg-blue-500/5 font-bold text-foreground'
+                                    : 'text-muted-foreground'
+                                }`}
+                              >
+                                {val === 'فعال' || val === 'نامحدود' ? (
+                                  <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-bold">
+                                    <Check className="h-4 w-4" />
+                                    <span>{val}</span>
+                                  </span>
+                                ) : val === 'غیرفعال' || val === 'ندارد' ? (
+                                  <span className="text-muted-foreground/60">
+                                    {val}
+                                  </span>
+                                ) : (
+                                  <span>{val}</span>
+                                )}
+                              </td>
+                            )
+                          })}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+            </ScrollReveal>
           )}
 
         {/* SECTION 3: STEP-BY-STEP ACTIVATION & ANTI-SANCTION / DNS GUIDE */}
         {product.activation_guide && product.activation_guide.length > 0 && (
-          <section className="rounded-3xl border border-border bg-card p-6 sm:p-8 space-y-8">
-            <div className="text-right space-y-1">
-              <div className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-600 dark:text-blue-400 bg-blue-500/10 px-3 py-1 rounded-full border border-blue-500/20">
-                <Sparkles className="h-3.5 w-3.5" />
-                <span>راهنمای گام‌به‌گام تحویل</span>
+          <ScrollReveal>
+            <section className="rounded-3xl border border-border bg-card p-6 sm:p-8 space-y-8">
+              <div className="text-right space-y-1">
+                <div className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-600 dark:text-blue-400 bg-blue-500/10 px-3 py-1 rounded-full border border-blue-500/20">
+                  <Sparkles className="h-3.5 w-3.5" />
+                  <span>راهنمای گام‌به‌گام تحویل</span>
+                </div>
+                <h3 className="text-xl sm:text-2xl font-black text-foreground">
+                  مراحل فعال‌سازی و آموزش استفاده پس از خرید
+                </h3>
+                <p className="text-xs sm:text-sm text-muted-foreground">
+                  از لحظه پرداخت ریالی تا شروع کار با دستیار هوش مصنوعی
+                </p>
               </div>
-              <h3 className="text-xl sm:text-2xl font-black text-foreground">
-                مراحل فعال‌سازی و آموزش استفاده پس از خرید
-              </h3>
-              <p className="text-xs sm:text-sm text-muted-foreground">
-                از لحظه پرداخت ریالی تا شروع کار با دستیار هوش مصنوعی
-              </p>
-            </div>
 
-            {/* 4 Steps Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {product.activation_guide.map((step) => (
-                <div
-                  key={step.step_number}
-                  className="p-5 rounded-2xl border border-border bg-background space-y-3 relative overflow-hidden group hover:border-blue-500/40 transition-all"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="h-8 w-8 rounded-xl bg-blue-600 text-white font-black text-xs flex items-center justify-center shadow-sm">
-                      {step.step_number}
-                    </span>
-                    <span className="text-[11px] font-bold text-muted-foreground font-mono">
-                      مرحله {step.step_number}
-                    </span>
-                  </div>
-
-                  <h4 className="font-bold text-sm text-foreground">
-                    {step.title}
-                  </h4>
-
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    {step.description}
-                  </p>
-
-                  {step.tip && (
-                    <div className="p-2.5 rounded-xl bg-muted/50 border border-border/60 text-[11px] text-muted-foreground flex items-start gap-1.5 leading-relaxed">
-                      <HelpCircle className="h-3.5 w-3.5 text-blue-600 shrink-0 mt-0.5" />
-                      <span>{step.tip}</span>
+              {/* 4 Steps Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {product.activation_guide.map((step) => (
+                  <div
+                    key={step.step_number}
+                    className="p-5 rounded-2xl border border-border bg-background space-y-3 relative overflow-hidden group hover:border-blue-500/40 transition-all"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="h-8 w-8 rounded-xl bg-blue-600 text-white font-black text-xs flex items-center justify-center shadow-sm">
+                        {step.step_number}
+                      </span>
+                      <span className="text-[11px] font-bold text-muted-foreground font-mono">
+                        مرحله {step.step_number}
+                      </span>
                     </div>
-                  )}
-                </div>
-              ))}
-            </div>
 
-            {/* Anti-Sanction & Recommended DNS Helper Card */}
-            <div className="rounded-2xl border border-blue-500/30 bg-blue-500/5 p-5 sm:p-6 space-y-4">
-              <div className="flex items-center justify-between flex-wrap gap-2">
-                <div className="flex items-center gap-2">
-                  <Globe className="h-5 w-5 text-blue-600" />
-                  <h4 className="font-bold text-sm text-foreground">
-                    راهنمای رفع تحریم و دی‌ان‌اس‌های پیشنهادی (Anti-Sanction DNS)
-                  </h4>
-                </div>
-                <span className="text-[11px] text-blue-600 dark:text-blue-400 font-semibold">
-                  بدون نیاز به افت سرعت
-                </span>
+                    <h4 className="font-bold text-sm text-foreground">
+                      {step.title}
+                    </h4>
+
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      {step.description}
+                    </p>
+
+                    {step.tip && (
+                      <div className="p-2.5 rounded-xl bg-muted/50 border border-border/60 text-[11px] text-muted-foreground flex items-start gap-1.5 leading-relaxed">
+                        <HelpCircle className="h-3.5 w-3.5 text-blue-600 shrink-0 mt-0.5" />
+                        <span>{step.tip}</span>
+                      </div>
+                    )}
+                  </div>
+                ))}
               </div>
 
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                سرویس‌های بین‌المللی نظیر OpenAI و Google ممکن است دسترسی آی‌پی‌های
-                ایران را محدود کرده باشند. با تنظیم رایگان DNSهای زیر روی سیستم،
-                موبایل یا مودم، بدون ارور ۴۰۳ وارد شوید:
-              </p>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
-                {/* Shecan */}
-                <div className="p-3.5 rounded-xl border border-border bg-card flex items-center justify-between gap-3">
-                  <div>
-                    <span className="font-bold text-xs text-foreground block">
-                      سامانه تحریم‌شکن شکن (Shecan)
-                    </span>
-                    <span className="font-mono text-xs text-blue-600 dark:text-blue-400 block mt-0.5">
-                      178.22.122.100 | 185.51.200.2
-                    </span>
+              {/* Anti-Sanction & Recommended DNS Helper Card */}
+              <div className="rounded-2xl border border-blue-500/30 bg-blue-500/5 p-5 sm:p-6 space-y-4">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-2">
+                    <Globe className="h-5 w-5 text-blue-600" />
+                    <h4 className="font-bold text-sm text-foreground">
+                      راهنمای رفع تحریم و دی‌ان‌اس‌های پیشنهادی (Anti-Sanction DNS)
+                    </h4>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      handleCopyDNS('178.22.122.100, 185.51.200.2', 'shecan')
-                    }
-                    className="h-8 px-3 rounded-lg border border-border hover:bg-muted text-xs font-semibold flex items-center gap-1 transition"
-                  >
-                    {copiedDns === 'shecan' ? (
-                      <Check className="h-3.5 w-3.5 text-emerald-600" />
-                    ) : (
-                      <Copy className="h-3.5 w-3.5" />
-                    )}
-                    <span>{copiedDns === 'shecan' ? 'کپی شد' : 'کپی DNS'}</span>
-                  </button>
+                  <span className="text-[11px] text-blue-600 dark:text-blue-400 font-semibold">
+                    بدون نیاز به افت سرعت
+                  </span>
                 </div>
 
-                {/* Electro */}
-                <div className="p-3.5 rounded-xl border border-border bg-card flex items-center justify-between gap-3">
-                  <div>
-                    <span className="font-bold text-xs text-foreground block">
-                      سامانه دی‌ان‌اس الکترو (Electro)
-                    </span>
-                    <span className="font-mono text-xs text-blue-600 dark:text-blue-400 block mt-0.5">
-                      78.157.42.101 | 78.157.42.100
-                    </span>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  سرویس‌های بین‌المللی نظیر OpenAI و Google ممکن است دسترسی
+                  آی‌پی‌های ایران را محدود کرده باشند. با تنظیم رایگان DNSهای زیر
+                  روی سیستم، موبایل یا مودم، بدون ارور ۴۰۳ وارد شوید:
+                </p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+                  {/* Shecan */}
+                  <div className="p-3.5 rounded-xl border border-border bg-card flex items-center justify-between gap-3">
+                    <div>
+                      <span className="font-bold text-xs text-foreground block">
+                        سامانه تحریم‌شکن شکن (Shecan)
+                      </span>
+                      <span className="font-mono text-xs text-blue-600 dark:text-blue-400 block mt-0.5">
+                        178.22.122.100 | 185.51.200.2
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleCopyDNS('178.22.122.100, 185.51.200.2', 'shecan')
+                      }
+                      className="h-8 px-3 rounded-lg border border-border hover:bg-muted text-xs font-semibold flex items-center gap-1 transition"
+                    >
+                      {copiedDns === 'shecan' ? (
+                        <Check className="h-3.5 w-3.5 text-emerald-600" />
+                      ) : (
+                        <Copy className="h-3.5 w-3.5" />
+                      )}
+                      <span>
+                        {copiedDns === 'shecan' ? 'کپی شد' : 'کپی DNS'}
+                      </span>
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      handleCopyDNS('78.157.42.101, 78.157.42.100', 'electro')
-                    }
-                    className="h-8 px-3 rounded-lg border border-border hover:bg-muted text-xs font-semibold flex items-center gap-1 transition"
-                  >
-                    {copiedDns === 'electro' ? (
-                      <Check className="h-3.5 w-3.5 text-emerald-600" />
-                    ) : (
-                      <Copy className="h-3.5 w-3.5" />
-                    )}
-                    <span>
-                      {copiedDns === 'electro' ? 'کپی شد' : 'کپی DNS'}
-                    </span>
-                  </button>
+
+                  {/* Electro */}
+                  <div className="p-3.5 rounded-xl border border-border bg-card flex items-center justify-between gap-3">
+                    <div>
+                      <span className="font-bold text-xs text-foreground block">
+                        سامانه دی‌ان‌اس الکترو (Electro)
+                      </span>
+                      <span className="font-mono text-xs text-blue-600 dark:text-blue-400 block mt-0.5">
+                        78.157.42.101 | 78.157.42.100
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleCopyDNS('78.157.42.101, 78.157.42.100', 'electro')
+                      }
+                      className="h-8 px-3 rounded-lg border border-border hover:bg-muted text-xs font-semibold flex items-center gap-1 transition"
+                    >
+                      {copiedDns === 'electro' ? (
+                        <Check className="h-3.5 w-3.5 text-emerald-600" />
+                      ) : (
+                        <Copy className="h-3.5 w-3.5" />
+                      )}
+                      <span>
+                        {copiedDns === 'electro' ? 'کپی شد' : 'کپی DNS'}
+                      </span>
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          </section>
+            </section>
+          </ScrollReveal>
         )}
 
         {/* SECTION 4: FREQUENTLY ASKED QUESTIONS (FAQ) */}
         {product.faqs && product.faqs.length > 0 && (
-          <section className="rounded-3xl border border-border bg-card p-6 sm:p-8 space-y-6">
-            <div className="text-right space-y-1">
-              <div className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-600 dark:text-blue-400 bg-blue-500/10 px-3 py-1 rounded-full border border-blue-500/20">
-                <HelpCircle className="h-3.5 w-3.5" />
-                <span>پاسخ به سوالات پرتکرار</span>
+          <ScrollReveal>
+            <section className="rounded-3xl border border-border bg-card p-6 sm:p-8 space-y-6">
+              <div className="text-right space-y-1">
+                <div className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-600 dark:text-blue-400 bg-blue-500/10 px-3 py-1 rounded-full border border-blue-500/20">
+                  <HelpCircle className="h-3.5 w-3.5" />
+                  <span>پاسخ به سوالات پرتکرار</span>
+                </div>
+                <h3 className="text-xl sm:text-2xl font-black text-foreground">
+                  سوالات متداول خریداران {product.title_fa}
+                </h3>
+                <p className="text-xs sm:text-sm text-muted-foreground">
+                  شفاف‌سازی کامل در مورد اصالت لایسنس، گارانتی و نحوه پشتیبانی
+                </p>
               </div>
-              <h3 className="text-xl sm:text-2xl font-black text-foreground">
-                سوالات متداول خریداران {product.title_fa}
-              </h3>
-              <p className="text-xs sm:text-sm text-muted-foreground">
-                شفاف‌سازی کامل در مورد اصالت لایسنس، گارانتی و نحوه پشتیبانی
-              </p>
-            </div>
 
-            <div className="space-y-3">
-              {product.faqs.map((faq, idx) => {
-                const isOpen = openFaqs[idx]
-                return (
-                  <div
-                    key={faq.question}
-                    className="rounded-2xl border border-border bg-background overflow-hidden transition-all"
-                  >
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setOpenFaqs((prev) => ({
-                          ...prev,
-                          [idx]: !prev[idx],
-                        }))
-                      }
-                      className="w-full p-4 sm:p-5 text-right font-bold text-xs sm:text-sm text-foreground flex items-center justify-between gap-3 hover:bg-muted/40 transition"
+              <div className="space-y-3">
+                {product.faqs.map((faq, idx) => {
+                  const isOpen = openFaqs[idx]
+                  return (
+                    <div
+                      key={faq.question}
+                      className="rounded-2xl border border-border bg-background overflow-hidden transition-all"
                     >
-                      <span>{faq.question}</span>
-                      {isOpen ? (
-                        <ChevronUp className="h-4 w-4 text-blue-600 shrink-0" />
-                      ) : (
-                        <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setOpenFaqs((prev) => ({
+                            ...prev,
+                            [idx]: !prev[idx],
+                          }))
+                        }
+                        className="w-full p-4 sm:p-5 text-right font-bold text-xs sm:text-sm text-foreground flex items-center justify-between gap-3 hover:bg-muted/40 transition"
+                      >
+                        <span>{faq.question}</span>
+                        {isOpen ? (
+                          <ChevronUp className="h-4 w-4 text-blue-600 shrink-0" />
+                        ) : (
+                          <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+                        )}
+                      </button>
+                      {isOpen && (
+                        <div className="px-5 pb-5 pt-1 text-xs text-muted-foreground leading-relaxed border-t border-border/50 animate-in fade-in">
+                          {faq.answer}
+                        </div>
                       )}
-                    </button>
-                    {isOpen && (
-                      <div className="px-5 pb-5 pt-1 text-xs text-muted-foreground leading-relaxed border-t border-border/50 animate-in fade-in">
-                        {faq.answer}
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          </section>
+                    </div>
+                  )
+                })}
+              </div>
+            </section>
+          </ScrollReveal>
         )}
 
         {/* SECTION 4.5: BUYER REVIEWS & SOCIAL PROOF */}
-        <ProductReviewsSection product={product} customer={customer} />
+        <ScrollReveal>
+          <ProductReviewsSection product={product} customer={customer} />
+        </ScrollReveal>
 
         {/* SECTION 5: 4-PILLAR REASSURANCE TRUST GRID */}
         <section className="rounded-3xl border border-border bg-card p-6 sm:p-8">
@@ -1059,6 +1084,20 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
         customer={customer}
         payments={payments}
         onSubmit={handleCartCheckoutSubmit}
+      />
+
+      {/* Customer Auth Modal for Gated Instant Buy Action */}
+      <AuthModal
+        isOpen={isAuthOpen}
+        initialMode="login"
+        onClose={() => setIsAuthOpen(false)}
+        onSuccess={() => {
+          setIsAuthOpen(false)
+          if (product) {
+            cartStore.addItem(product, 1, selectedPlan || undefined)
+            setIsCartOpen(true)
+          }
+        }}
       />
     </div>
   )

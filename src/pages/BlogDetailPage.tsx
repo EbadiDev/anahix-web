@@ -17,10 +17,12 @@ import {
 import type React from 'react'
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import { AuthModal } from '../components/AuthModal'
 import { CartDrawer } from '../components/CartDrawer'
 import { MarkdownRenderer } from '../components/content/MarkdownRenderer'
 import { Header } from '../components/Header'
 import { LikeButton } from '../components/vibefarsi/LikeButton'
+import { useNotification } from '../components/vibefarsi/NotificationContext'
 import { api } from '../services/api'
 import type { ArticleDetail } from '../types'
 
@@ -31,6 +33,8 @@ export const BlogDetailPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true)
   const [isCopied, setIsCopied] = useState(false)
   const [isCartOpen, setIsCartOpen] = useState(false)
+  const [isAuthOpen, setIsAuthOpen] = useState(false)
+  const { warning } = useNotification()
 
   // Comment submission form
   const [commentName, setCommentName] = useState('')
@@ -65,6 +69,15 @@ export const BlogDetailPage: React.FC = () => {
   const handleCommentSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!slug || !commentName.trim() || !commentText.trim()) return
+
+    if (!api.isCustomerLoggedIn()) {
+      warning(
+        'نیاز به ورود به حساب کاربری',
+        'برای ارسال دیدگاه یا پرسش درباره این مقاله، لطفاً ابتدا وارد حساب کاربری خود شوید یا ثبت‌نام کنید.',
+      )
+      setIsAuthOpen(true)
+      return
+    }
 
     setCommentSubmitting(true)
     try {
@@ -548,6 +561,14 @@ export const BlogDetailPage: React.FC = () => {
           </div>
         </div>
       </main>
+
+      {/* Customer Auth Modal for Gated Comment Action */}
+      <AuthModal
+        isOpen={isAuthOpen}
+        initialMode="login"
+        onClose={() => setIsAuthOpen(false)}
+        onSuccess={() => setIsAuthOpen(false)}
+      />
     </div>
   )
 }

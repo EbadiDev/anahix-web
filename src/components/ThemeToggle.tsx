@@ -1,14 +1,15 @@
 import { Moon, Sun } from 'lucide-react'
 import type React from 'react'
 import { useEffect, useState } from 'react'
+import { THEME_STORAGE_KEY, type ThemeMode } from '../constants/theme'
 
 export const ThemeToggle: React.FC<{ className?: string }> = ({
   className = '',
 }) => {
-  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+  const [theme, setTheme] = useState<ThemeMode>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('anahix-theme')
-      if (saved === 'light' || saved === 'dark') return saved
+      const saved = localStorage.getItem(THEME_STORAGE_KEY)
+      if (saved === 'light' || saved === 'dark') return saved as ThemeMode
       return 'dark'
     }
     return 'dark'
@@ -21,7 +22,7 @@ export const ThemeToggle: React.FC<{ className?: string }> = ({
     } else {
       root.classList.remove('dark')
     }
-    localStorage.setItem('anahix-theme', theme)
+    localStorage.setItem(THEME_STORAGE_KEY, theme)
   }, [theme])
 
   const toggleTheme = () => {

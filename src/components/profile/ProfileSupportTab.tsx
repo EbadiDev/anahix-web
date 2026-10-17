@@ -30,7 +30,7 @@ import type {
   TicketStatusType,
   VirtualNumberOrder,
 } from '../../types'
-import { Badge } from '../ui/badge'
+import { toPersianDigits } from '../../utils/formatters'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 
@@ -356,57 +356,57 @@ export const ProfileSupportTab: React.FC<ProfileSupportTabProps> = ({
     switch (status) {
       case 'awaiting_admin':
         return (
-          <Badge className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 text-[11px] font-medium">
+          <span className="bg-brand/10 text-brand border border-brand/30 rounded-control px-2.5 py-0.5 text-[11px] font-bold">
             در انتظار پاسخ کارشناس
-          </Badge>
+          </span>
         )
       case 'awaiting_user':
         return (
-          <Badge className="bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 text-[11px] font-medium animate-pulse">
+          <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 rounded-control px-2.5 py-0.5 text-[11px] font-bold animate-pulse">
             پاسخ کارشناس دریافت شد
-          </Badge>
+          </span>
         )
       case 'in_progress':
         return (
-          <Badge className="bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20 text-[11px] font-medium">
+          <span className="bg-secondary text-secondary-foreground border border-border/60 rounded-control px-2.5 py-0.5 text-[11px] font-bold">
             در حال بررسی فنی
-          </Badge>
+          </span>
         )
       case 'resolved':
         return (
-          <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-[11px] font-medium">
+          <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 rounded-control px-2.5 py-0.5 text-[11px] font-bold">
             حل شده / پاسخ داده شده
-          </Badge>
+          </span>
         )
       case 'closed':
         return (
-          <Badge className="bg-slate-500/10 text-slate-600 dark:text-slate-400 border border-slate-500/20 text-[11px] font-medium">
+          <span className="bg-muted text-muted-foreground border border-border/40 rounded-control px-2.5 py-0.5 text-[11px] font-bold">
             بسته شده
-          </Badge>
+          </span>
         )
     }
   }
 
   return (
     <div
-      className="space-y-6 animate-in fade-in duration-300 max-w-5xl"
+      className="space-y-6 animate-in fade-in duration-300 max-w-5xl text-right"
       dir="rtl"
     >
-      {/* 1. Header Banner */}
-      <div className="rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-linear-to-r from-blue-50/60 via-white to-purple-50/40 dark:from-slate-900 dark:via-slate-900/90 dark:to-blue-950/20 p-6 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      {/* 1. Header Banner - Graphite Minimal Technical */}
+      <div className="rounded-surface border border-border/60 bg-card p-5 sm:p-6 shadow-surface flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 duration-motion ease-motion">
         <div>
           <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-2xl bg-blue-600 text-white flex items-center justify-center shadow-md shadow-blue-500/20">
-              <LifeBuoy className="w-5 h-5" />
+            <div className="w-10 h-10 rounded-control bg-secondary text-secondary-foreground border border-border/60 flex items-center justify-center shadow-control">
+              <LifeBuoy className="w-5 h-5 text-brand" />
             </div>
             <div>
-              <h3 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
+              <h3 className="text-base font-black text-foreground flex items-center gap-2">
                 مرکز تیکتینگ و پشتیبانی هوشمند آناهیکس
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-control bg-brand/10 text-brand border border-brand/20">
                   متصل به دیتابیس زنده
                 </span>
               </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+              <p className="text-xs text-muted-foreground mt-0.5">
                 پاسخگویی سریع توسط اپراتورهای ارشد • امکان پیوست فایل و
                 اسکرین‌شات • اطلاع‌رسانی خودکار پیامکی
               </p>
@@ -415,26 +415,26 @@ export const ProfileSupportTab: React.FC<ProfileSupportTabProps> = ({
         </div>
 
         <div className="flex items-center gap-2 self-stretch sm:self-auto">
-          <Button
+          <button
+            type="button"
             onClick={() => loadTickets(true)}
-            variant="outline"
-            size="sm"
             disabled={refreshing}
-            className="h-10 px-3 rounded-xl border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:text-blue-600 text-xs font-semibold"
+            className="h-10 px-3.5 rounded-control border border-border/60 bg-card hover:bg-muted text-foreground text-xs font-semibold duration-motion ease-motion active:scale-[0.98] cursor-pointer"
             title="به‌روزرسانی لیست تیکت‌ها"
           >
             <RefreshCw
-              className={`w-4 h-4 ${refreshing ? 'animate-spin text-blue-600' : ''}`}
+              className={`w-4 h-4 ${refreshing ? 'animate-spin text-brand' : ''}`}
             />
-          </Button>
+          </button>
 
-          <Button
+          <button
+            type="button"
             onClick={() => setIsCreateOpen(true)}
-            className="h-10 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex-1 sm:flex-none flex items-center justify-center gap-2 shadow-md shadow-blue-600/20 active:scale-98 transition-all"
+            className="h-10 px-5 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs duration-motion ease-motion active:scale-[0.98] shadow-control flex items-center justify-center gap-2 cursor-pointer"
           >
             <Plus className="w-4 h-4" />
-            ارسال تیکت پشتیبانی جدید
-          </Button>
+            <span>ارسال تیکت پشتیبانی جدید</span>
+          </button>
         </div>
       </div>
 
@@ -464,121 +464,123 @@ export const ProfileSupportTab: React.FC<ProfileSupportTabProps> = ({
 
       {/* 2. Filter & Search Controls */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-        <div className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-800/80 rounded-xl w-full sm:w-auto overflow-x-auto">
+        <div className="flex items-center gap-1.5 p-1 bg-muted/40 rounded-control border border-border/40 w-full sm:w-auto overflow-x-auto text-xs">
           <button
             type="button"
             onClick={() => setStatusFilter('all')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${
+            className={`px-3 py-1.5 rounded-control font-bold duration-motion ease-motion transition-all whitespace-nowrap cursor-pointer ${
               statusFilter === 'all'
-                ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                ? 'bg-primary text-primary-foreground font-black shadow-control'
+                : 'text-muted-foreground hover:text-foreground'
             }`}
           >
-            همه تیکت‌ها ({tickets.length})
+            همه تیکت‌ها ({toPersianDigits(tickets.length)})
           </button>
           <button
             type="button"
             onClick={() => setStatusFilter('open')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${
+            className={`px-3 py-1.5 rounded-control font-bold duration-motion ease-motion transition-all whitespace-nowrap cursor-pointer ${
               statusFilter === 'open'
-                ? 'bg-white dark:bg-slate-900 text-amber-600 dark:text-amber-400 shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                ? 'bg-primary text-primary-foreground font-black shadow-control'
+                : 'text-muted-foreground hover:text-foreground'
             }`}
           >
             در انتظار پاسخ (
-            {
+            {toPersianDigits(
               tickets.filter(
                 (t) =>
                   t.status === 'awaiting_admin' || t.status === 'in_progress',
-              ).length
-            }
+              ).length,
+            )}
             )
           </button>
           <button
             type="button"
             onClick={() => setStatusFilter('resolved')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${
+            className={`px-3 py-1.5 rounded-control font-bold duration-motion ease-motion transition-all whitespace-nowrap cursor-pointer ${
               statusFilter === 'resolved'
-                ? 'bg-white dark:bg-slate-900 text-emerald-600 dark:text-emerald-400 shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                ? 'bg-primary text-primary-foreground font-black shadow-control'
+                : 'text-muted-foreground hover:text-foreground'
             }`}
           >
             پاسخ دریافت شده (
-            {
+            {toPersianDigits(
               tickets.filter(
                 (t) => t.status === 'awaiting_user' || t.status === 'resolved',
-              ).length
-            }
+              ).length,
+            )}
             )
           </button>
           <button
             type="button"
             onClick={() => setStatusFilter('closed')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${
+            className={`px-3 py-1.5 rounded-control font-bold duration-motion ease-motion transition-all whitespace-nowrap cursor-pointer ${
               statusFilter === 'closed'
-                ? 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                ? 'bg-primary text-primary-foreground font-black shadow-control'
+                : 'text-muted-foreground hover:text-foreground'
             }`}
           >
-            بسته‌شده ({tickets.filter((t) => t.status === 'closed').length})
+            بسته‌شده (
+            {toPersianDigits(
+              tickets.filter((t) => t.status === 'closed').length,
+            )}
+            )
           </button>
         </div>
 
         <div className="w-full sm:w-64">
-          <Input
+          <input
             type="text"
             placeholder="جستجو در شناسه یا موضوع تیکت..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="h-9 text-xs rounded-xl border-slate-200 dark:border-slate-800"
+            className="w-full h-10 px-3.5 text-xs rounded-field bg-muted/20 border border-border/60 text-foreground outline-none focus:border-foreground/40 transition-colors"
           />
         </div>
       </div>
 
       {/* 3. Tickets List View */}
       {loading ? (
-        <div className="p-16 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 text-center space-y-3">
-          <RefreshCw className="w-8 h-8 text-blue-600 animate-spin mx-auto" />
-          <p className="text-xs text-slate-500 font-medium">
+        <div className="p-16 rounded-surface border border-border/60 bg-card text-center space-y-3 shadow-surface">
+          <RefreshCw className="w-8 h-8 text-brand animate-spin mx-auto" />
+          <p className="text-xs text-muted-foreground font-medium">
             در حال دریافت تیکت‌های پشتیبانی شما...
           </p>
         </div>
       ) : errorMsg ? (
-        <div className="p-8 rounded-2xl border border-rose-200 dark:border-rose-900/50 bg-rose-50/50 dark:bg-rose-950/20 text-center space-y-3">
-          <AlertCircle className="w-8 h-8 text-rose-500 mx-auto" />
-          <p className="text-xs text-rose-600 dark:text-rose-400 font-bold">
-            {errorMsg}
-          </p>
-          <Button
+        <div className="p-8 rounded-surface border border-destructive/30 bg-destructive/10 text-center space-y-3">
+          <AlertCircle className="w-8 h-8 text-destructive mx-auto" />
+          <p className="text-xs text-destructive font-bold">{errorMsg}</p>
+          <button
+            type="button"
             onClick={() => loadTickets()}
-            size="sm"
-            variant="outline"
-            className="text-xs rounded-xl"
+            className="h-9 px-4 rounded-control border border-border/60 bg-card hover:bg-muted text-xs font-bold text-foreground"
           >
             تلاش مجدد
-          </Button>
+          </button>
         </div>
       ) : filteredTickets.length === 0 ? (
-        <div className="p-16 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 text-center bg-white dark:bg-slate-900/40">
-          <div className="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 flex items-center justify-center mx-auto mb-3">
-            <MessageSquare className="w-6 h-6" />
+        <div className="p-16 rounded-surface border border-dashed border-border/60 text-center bg-card shadow-surface space-y-3">
+          <div className="w-12 h-12 rounded-control bg-secondary text-secondary-foreground border border-border/60 flex items-center justify-center mx-auto shadow-control">
+            <MessageSquare className="w-6 h-6 text-brand" />
           </div>
-          <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">
+          <h4 className="text-sm font-bold text-foreground">
             {searchQuery || statusFilter !== 'all'
               ? 'تیکتی با این فیلترها یافت نشد'
               : 'هنوز هیچ تیکت پشتیبانی ثبت نکرده‌اید'}
           </h4>
-          <p className="text-xs text-slate-400 mt-1 max-w-md mx-auto">
+          <p className="text-xs text-muted-foreground mt-1 max-w-md mx-auto">
             در صورت بروز هرگونه سوال پیرامون فعال‌سازی لایسنس، تحویل آنی اکانت‌ها،
             یا تاخیر پیامک شماره مجازی، پشتیبانان ما پاسخگوی شما هستند.
           </p>
-          <Button
+          <button
+            type="button"
             onClick={() => setIsCreateOpen(true)}
-            className="mt-4 h-9 px-5 rounded-xl bg-blue-600 text-white text-xs font-semibold inline-flex items-center gap-1.5 shadow-sm shadow-blue-500/20"
+            className="mt-3 h-10 px-5 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs duration-motion ease-motion active:scale-[0.98] shadow-control inline-flex items-center gap-2 cursor-pointer"
           >
             <Plus className="w-4 h-4" />
-            ارسال تیکت جدید
-          </Button>
+            <span>ارسال تیکت جدید</span>
+          </button>
         </div>
       ) : (
         <div className="space-y-3">
@@ -586,24 +588,24 @@ export const ProfileSupportTab: React.FC<ProfileSupportTabProps> = ({
             <div
               key={ticket.id}
               onClick={() => setActiveTicketId(ticket.id)}
-              className="p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs hover:border-blue-300 dark:hover:border-blue-700 hover:shadow-md transition-all cursor-pointer flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 group"
+              className="p-5 rounded-surface border border-border/60 bg-card text-card-foreground shadow-surface hover:border-border duration-motion ease-motion transition-all cursor-pointer flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 group"
             >
               <div className="flex items-start gap-3.5">
-                <div className="w-11 h-11 rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                  <MessageSquare className="w-5 h-5" />
+                <div className="w-11 h-11 rounded-control bg-secondary text-secondary-foreground border border-border/60 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform shadow-control">
+                  <MessageSquare className="w-5 h-5 text-brand" />
                 </div>
 
                 <div className="space-y-1">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <h4 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                    <h4 className="text-xs sm:text-sm font-bold text-foreground group-hover:text-foreground/80 transition-colors">
                       {ticket.subject}
                     </h4>
-                    <span className="text-[11px] font-mono font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/80 px-2 py-0.5 rounded-md">
+                    <span className="text-[11px] font-mono font-bold text-brand bg-brand/10 border border-brand/20 px-2 py-0.5 rounded-control">
                       #{ticket.ticket_number}
                     </span>
                     {ticket.notify_via_sms && (
                       <span
-                        className="inline-flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 px-1.5 py-0.5 rounded-md"
+                        className="inline-flex items-center gap-1 text-[10px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded-control"
                         title="اطلاع‌رسانی پیامکی فعال است"
                       >
                         <Phone className="w-2.5 h-2.5" />
@@ -612,21 +614,21 @@ export const ProfileSupportTab: React.FC<ProfileSupportTabProps> = ({
                     )}
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-500 dark:text-slate-400">
-                    <span className="font-medium text-slate-700 dark:text-slate-300">
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+                    <span className="font-medium text-foreground">
                       دپارتمان: {getDepartmentLabel(ticket.department)}
                     </span>
                     {ticket.related_order_no && (
                       <>
                         <span>•</span>
-                        <span className="text-purple-600 dark:text-purple-400 font-mono font-bold">
+                        <span className="text-brand font-mono font-bold">
                           سفارش #{ticket.related_order_no}
                         </span>
                       </>
                     )}
                     <span>•</span>
-                    <span className="flex items-center gap-1 font-mono">
-                      <Clock className="w-3 h-3" />
+                    <span className="flex items-center gap-1 font-mono font-latin">
+                      <Clock className="w-3 h-3 text-brand" />
                       آخرین پاسخ:{' '}
                       {formatPersianDate(
                         ticket.last_reply_at || ticket.created_at,
@@ -635,9 +637,9 @@ export const ProfileSupportTab: React.FC<ProfileSupportTabProps> = ({
                     {ticket.satisfaction_rating ? (
                       <>
                         <span>•</span>
-                        <span className="inline-flex items-center gap-0.5 text-amber-500 font-bold">
-                          <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
-                          {ticket.satisfaction_rating}/۵
+                        <span className="inline-flex items-center gap-0.5 text-brand font-bold font-latin">
+                          <Star className="w-3 h-3 fill-brand text-brand" />
+                          {toPersianDigits(ticket.satisfaction_rating)}/۵
                         </span>
                       </>
                     ) : null}
@@ -645,16 +647,15 @@ export const ProfileSupportTab: React.FC<ProfileSupportTabProps> = ({
                 </div>
               </div>
 
-              <div className="w-full sm:w-auto flex items-center justify-between sm:justify-end gap-3 pt-3 sm:pt-0 border-t sm:border-0 border-slate-100 dark:border-slate-800">
+              <div className="w-full sm:w-auto flex items-center justify-between sm:justify-end gap-3 pt-3 sm:pt-0 border-t sm:border-0 border-border/40">
                 {getStatusBadge(ticket.status)}
 
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-8 text-xs rounded-xl px-3 group-hover:bg-blue-600 group-hover:text-white group-hover:border-blue-600 transition-colors"
+                <button
+                  type="button"
+                  className="h-8 text-xs rounded-control px-3.5 border border-border/60 bg-muted/30 hover:bg-muted text-foreground font-bold duration-motion ease-motion active:scale-[0.98] transition-colors"
                 >
-                  مشاهده گفتگو ({ticket.messages_count})
-                </Button>
+                  مشاهده گفتگو ({toPersianDigits(ticket.messages_count)})
+                </button>
               </div>
             </div>
           ))}

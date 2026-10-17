@@ -1,4 +1,6 @@
 import {
+  Check,
+  Clock,
   Eye,
   FileText,
   Package,
@@ -6,16 +8,16 @@ import {
   Search,
   Sparkles,
   Star,
+  X,
 } from 'lucide-react'
 import type React from 'react'
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import type { CustomerProfile, Order, VirtualNumberOrder } from '../../types'
+import { formatToman, toPersianDigits } from '../../utils/formatters'
 import { OfficialInvoiceModal } from '../invoice/OfficialInvoiceModal'
 import { SubmitReviewModal } from '../reviews/SubmitReviewModal'
-import { Badge } from '../ui/badge'
-import { Button } from '../ui/button'
-import { Input } from '../ui/input'
+import { useNotification } from '../vibefarsi/NotificationContext'
 
 interface ProfileOrdersTabProps {
   orders: Order[]
@@ -35,6 +37,7 @@ export const ProfileOrdersTab: React.FC<ProfileOrdersTabProps> = ({
   virtualOrders,
   customer,
 }) => {
+  const { success } = useNotification()
   const [activeFilter, setActiveFilter] = useState<OrderFilterType>('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
@@ -144,116 +147,133 @@ export const ProfileOrdersTab: React.FC<ProfileOrdersTabProps> = ({
     })
   }, [unifiedItems, activeFilter, searchQuery])
 
-  const copyToClipboard = (text: string, key: string) => {
+  const copyToClipboard = (text: string, key: string, label?: string) => {
     navigator.clipboard.writeText(text)
     setCopiedKey(key)
+    success(`${label || 'اطلاعات'} کپی شد`, text)
     setTimeout(() => setCopiedKey(''), 2000)
   }
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
-      {/* 1. Header and Filters */}
-      <div className="rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-xs space-y-4">
+      {/* 1. Header and Filters - Graphite Tokens */}
+      <div className="rounded-surface border border-border/60 bg-card p-5 shadow-surface space-y-4">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
-            <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-              <Package className="w-4 h-4 text-blue-600" />
+            <h3 className="text-base font-bold text-foreground flex items-center gap-2">
+              <Package className="w-4 h-4 text-brand" />
               تاریخچه و پیگیری سفارش‌ها
             </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              مجموع {unifiedItems.length} سفارش در حساب کاربری شما ثبت شده است
+            <p className="text-xs text-muted-foreground mt-0.5">
+              مجموع {toPersianDigits(unifiedItems.length)} سفارش در حساب کاربری
+              شما ثبت شده است
             </p>
           </div>
 
           <div className="w-full sm:w-64 relative">
-            <Input
+            <input
               type="text"
               placeholder="جستجو با شماره سفارش یا عنوان..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="h-9 text-xs rounded-xl pr-9 pl-3"
+              className="w-full h-10 pr-9 pl-3 text-xs rounded-field bg-muted/20 border border-border/60 text-foreground outline-none focus:border-foreground/40 transition-colors"
             />
-            <Search className="w-4 h-4 absolute right-3 top-2.5 text-slate-400" />
+            <Search className="w-4 h-4 absolute right-3 top-3 text-muted-foreground pointer-events-none" />
           </div>
         </div>
 
         {/* Filter Pills */}
-        <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-100 dark:border-slate-800">
-          <Button
-            variant={activeFilter === 'all' ? 'default' : 'outline'}
-            size="sm"
+        <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-border/40">
+          <button
+            type="button"
             onClick={() => setActiveFilter('all')}
-            className="h-7 text-xs rounded-lg px-3"
+            className={`text-xs px-3 py-1.5 rounded-control font-bold duration-motion ease-motion transition-all cursor-pointer ${
+              activeFilter === 'all'
+                ? 'bg-primary text-primary-foreground font-black shadow-control'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+            }`}
           >
-            همه سفارش‌ها ({unifiedItems.length})
-          </Button>
+            همه سفارش‌ها ({toPersianDigits(unifiedItems.length)})
+          </button>
 
-          <Button
-            variant={
-              activeFilter === 'digital_products' ? 'default' : 'outline'
-            }
-            size="sm"
+          <button
+            type="button"
             onClick={() => setActiveFilter('digital_products')}
-            className="h-7 text-xs rounded-lg px-3"
+            className={`text-xs px-3 py-1.5 rounded-control font-bold duration-motion ease-motion transition-all cursor-pointer ${
+              activeFilter === 'digital_products'
+                ? 'bg-primary text-primary-foreground font-black shadow-control'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+            }`}
           >
             اشتراک‌های هوش مصنوعی
-          </Button>
+          </button>
 
-          <Button
-            variant={activeFilter === 'virtual_numbers' ? 'default' : 'outline'}
-            size="sm"
+          <button
+            type="button"
             onClick={() => setActiveFilter('virtual_numbers')}
-            className="h-7 text-xs rounded-lg px-3"
+            className={`text-xs px-3 py-1.5 rounded-control font-bold duration-motion ease-motion transition-all cursor-pointer ${
+              activeFilter === 'virtual_numbers'
+                ? 'bg-primary text-primary-foreground font-black shadow-control'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+            }`}
           >
             شماره‌های مجازی (SMS)
-          </Button>
+          </button>
 
-          <Button
-            variant={activeFilter === 'completed' ? 'default' : 'outline'}
-            size="sm"
+          <button
+            type="button"
             onClick={() => setActiveFilter('completed')}
-            className="h-7 text-xs rounded-lg px-3"
+            className={`text-xs px-3 py-1.5 rounded-control font-bold duration-motion ease-motion transition-all cursor-pointer ${
+              activeFilter === 'completed'
+                ? 'bg-primary text-primary-foreground font-black shadow-control'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+            }`}
           >
             تکمیل شده
-          </Button>
+          </button>
 
-          <Button
-            variant={activeFilter === 'processing' ? 'default' : 'outline'}
-            size="sm"
+          <button
+            type="button"
             onClick={() => setActiveFilter('processing')}
-            className="h-7 text-xs rounded-lg px-3"
+            className={`text-xs px-3 py-1.5 rounded-control font-bold duration-motion ease-motion transition-all cursor-pointer ${
+              activeFilter === 'processing'
+                ? 'bg-primary text-primary-foreground font-black shadow-control'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+            }`}
           >
             در حال پردازش
-          </Button>
+          </button>
         </div>
       </div>
 
       {/* 2. Order Items List */}
       <div className="space-y-3">
         {filteredItems.length === 0 ? (
-          <div className="p-12 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 text-center">
-            <Package className="w-10 h-10 text-slate-300 dark:text-slate-700 mx-auto mb-3" />
-            <h4 className="text-sm font-bold text-slate-700 dark:text-slate-300">
+          <div className="p-12 rounded-surface border border-dashed border-border/60 bg-card/40 text-center">
+            <Package className="w-10 h-10 text-muted-foreground/60 mx-auto mb-3" />
+            <h4 className="text-sm font-bold text-foreground">
               سفارشی در این دسته‌بندی یافت نشد
             </h4>
-            <p className="text-xs text-slate-400 mt-1">
+            <p className="text-xs text-muted-foreground mt-1">
               جهت ثبت سفارش جدید می‌توانید به فروشگاه یا بخش شماره‌های مجازی
               مراجعه فرمایید.
             </p>
             <div className="mt-4 flex items-center justify-center gap-3">
               <Link to="/">
-                <Button size="sm" className="h-8 text-xs rounded-xl">
+                <button
+                  type="button"
+                  className="h-9 px-4 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground text-xs font-black duration-motion ease-motion active:scale-[0.98] shadow-control cursor-pointer"
+                >
                   خرید اشتراک
-                </Button>
+                </button>
               </Link>
               <Link to="/virtual-numbers">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-8 text-xs rounded-xl"
+                <button
+                  type="button"
+                  className="h-9 px-4 rounded-control border border-border/60 bg-card hover:bg-muted text-xs font-bold text-foreground duration-motion ease-motion active:scale-[0.98] cursor-pointer"
                 >
                   دریافت شماره
-                </Button>
+                </button>
               </Link>
             </div>
           </div>
@@ -261,38 +281,32 @@ export const ProfileOrdersTab: React.FC<ProfileOrdersTabProps> = ({
           filteredItems.map((item) => (
             <div
               key={item.id}
-              className="p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs hover:border-blue-300 dark:hover:border-blue-700 transition-all flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
+              className="p-4 rounded-surface border border-border/60 bg-card text-card-foreground shadow-surface hover:border-border duration-motion ease-motion transition-all flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
             >
               <div className="flex items-start gap-3.5">
-                <div
-                  className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${
-                    item.type === 'virtual_number'
-                      ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-400'
-                      : 'bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400'
-                  }`}
-                >
+                <div className="w-11 h-11 rounded-control bg-secondary text-secondary-foreground border border-border/60 flex items-center justify-center shrink-0 shadow-control">
                   {item.type === 'virtual_number' ? (
-                    <Radio className="w-5 h-5" />
+                    <Radio className="w-5 h-5 text-brand" />
                   ) : (
-                    <Sparkles className="w-5 h-5" />
+                    <Sparkles className="w-5 h-5 text-brand" />
                   )}
                 </div>
 
                 <div>
                   <div className="flex items-center gap-2">
-                    <h4 className="text-xs font-bold text-slate-900 dark:text-white">
+                    <h4 className="text-xs sm:text-sm font-bold text-foreground">
                       {item.title}
                     </h4>
-                    <span className="font-mono text-[11px] text-slate-400">
+                    <span className="font-mono text-[11px] text-muted-foreground">
                       #{item.orderNo}
                     </span>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-y-1 gap-x-3 text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                  <div className="flex flex-wrap items-center gap-y-1 gap-x-3 text-[11px] text-muted-foreground mt-1">
                     <span>{item.subtitle}</span>
                     <span>•</span>
-                    <span className="font-bold text-slate-700 dark:text-slate-300">
-                      {item.amount.toLocaleString('fa-IR')} تومان
+                    <span className="font-bold text-foreground font-latin">
+                      {formatToman(item.amount)} تومان
                     </span>
                     <span>•</span>
                     <span className="font-mono">
@@ -302,59 +316,44 @@ export const ProfileOrdersTab: React.FC<ProfileOrdersTabProps> = ({
                 </div>
               </div>
 
-              <div className="w-full sm:w-auto flex items-center justify-between sm:justify-end gap-3 pt-3 sm:pt-0 border-t sm:border-0 border-slate-100 dark:border-slate-800">
-                <Badge
-                  variant="outline"
-                  className={`text-xs px-2.5 py-1 ${
+              {/* Status and Action: Standalone Invoice removed as requested, put inside details modal */}
+              <div className="w-full sm:w-auto flex items-center justify-between sm:justify-end gap-3 pt-3 sm:pt-0 border-t sm:border-0 border-border/40">
+                <span
+                  className={`text-xs px-2.5 py-1 rounded-control font-bold border ${
                     item.status === 'COMPLETED' ||
                     item.status === 'FINISHED' ||
                     item.status === 'RECEIVED'
-                      ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800/60'
-                      : 'bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-400 border-blue-200 dark:border-blue-800/60'
+                      ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                      : 'bg-brand/10 text-brand border-brand/30'
                   }`}
                 >
                   {item.statusLabel}
-                </Badge>
+                </span>
 
                 {item.rawProductOrder && (
                   <div className="flex items-center gap-1.5">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        setInvoiceOrder(item.rawProductOrder || null)
-                      }
-                      className="h-8 text-xs rounded-xl px-2.5 border-blue-200 dark:border-blue-900 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 gap-1 font-medium"
-                      title="مشاهده و چاپ فاکتور رسمی"
-                    >
-                      <FileText className="w-3.5 h-3.5" />
-                      <span className="hidden sm:inline">فاکتور رسمی</span>
-                    </Button>
-
                     {item.rawProductOrder.status === 'COMPLETED' && (
-                      <Button
-                        variant="outline"
-                        size="sm"
+                      <button
+                        type="button"
                         onClick={() =>
                           setReviewOrder(item.rawProductOrder || null)
                         }
-                        className="h-8 text-xs rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 border-amber-500/30 gap-1 font-bold"
+                        className="h-8 text-xs rounded-control bg-brand/10 hover:bg-brand/20 text-brand border border-brand/30 px-2.5 gap-1 font-bold flex items-center duration-motion ease-motion active:scale-[0.98] cursor-pointer"
                       >
-                        <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                        <Star className="w-3.5 h-3.5 fill-brand text-brand" />
                         <span>ثبت نظر</span>
-                      </Button>
+                      </button>
                     )}
-                    <Button
-                      variant="outline"
-                      size="sm"
+                    <button
+                      type="button"
                       onClick={() =>
                         setSelectedOrder(item.rawProductOrder || null)
                       }
-                      className="h-8 text-xs rounded-xl"
+                      className="h-8 text-xs rounded-control border border-border/60 bg-muted/30 hover:bg-muted text-foreground px-3 gap-1.5 font-bold flex items-center duration-motion ease-motion active:scale-[0.98] cursor-pointer"
                     >
-                      <Eye className="w-3.5 h-3.5 ml-1.5" />
-                      جزئیات
-                    </Button>
+                      <Eye className="w-3.5 h-3.5" />
+                      <span>جزئیات کامل</span>
+                    </button>
                   </div>
                 )}
               </div>
@@ -363,73 +362,140 @@ export const ProfileOrdersTab: React.FC<ProfileOrdersTabProps> = ({
         )}
       </div>
 
-      {/* Order Detail Modal */}
+      {/* 3. Comprehensive Order Detail Modal - Graphite Minimal Technical */}
       {selectedOrder && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-in fade-in"
           dir="rtl"
         >
-          <div className="w-full max-w-lg bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl p-6 space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
-              <div>
-                <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                  جزئیات سفارش #{selectedOrder.order_no}
-                </h3>
-                <p className="text-xs text-slate-400 mt-0.5">
-                  {selectedOrder.product_title}
-                </p>
+          <div className="w-full max-w-lg bg-card text-card-foreground rounded-surface border border-border/80 shadow-overlay p-6 space-y-5 animate-in zoom-in-95">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-border/60">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-control bg-secondary text-secondary-foreground border border-border/60 flex items-center justify-center shrink-0 shadow-control">
+                  <Package className="w-4 h-4 text-brand" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-foreground">
+                    جزئیات سفارش #{selectedOrder.order_no}
+                  </h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {selectedOrder.product_title}
+                  </p>
+                </div>
               </div>
+
               <button
                 type="button"
                 onClick={() => setSelectedOrder(null)}
-                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                className="p-1 rounded-control text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
+                aria-label="بستن"
               >
-                ✕
+                <X className="w-5 h-5" />
               </button>
+            </div>
+
+            {/* Order Status Stepper */}
+            <div className="p-3.5 rounded-control bg-muted/20 border border-border/60 space-y-3">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">وضعیت سفارش:</span>
+                <span
+                  className={`font-black text-xs px-2.5 py-0.5 rounded-control ${
+                    selectedOrder.status === 'COMPLETED'
+                      ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
+                      : 'bg-brand/10 text-brand border border-brand/30'
+                  }`}
+                >
+                  {selectedOrder.status === 'COMPLETED'
+                    ? 'تحویل داده شده'
+                    : 'در صف اپراتور / در حال پردازش'}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2 text-center text-[10px] font-bold pt-1 border-t border-border/40">
+                <div className="text-emerald-400 space-y-0.5">
+                  <div className="w-5 h-5 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 mx-auto flex items-center justify-center">
+                    <Check className="w-3 h-3" />
+                  </div>
+                  <span>ثبت سفارش</span>
+                </div>
+                <div className="text-emerald-400 space-y-0.5">
+                  <div className="w-5 h-5 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 mx-auto flex items-center justify-center">
+                    <Check className="w-3 h-3" />
+                  </div>
+                  <span>پرداخت موفق</span>
+                </div>
+                <div
+                  className={`space-y-0.5 ${
+                    selectedOrder.status === 'COMPLETED'
+                      ? 'text-emerald-400'
+                      : 'text-brand'
+                  }`}
+                >
+                  <div
+                    className={`w-5 h-5 rounded-full mx-auto flex items-center justify-center ${
+                      selectedOrder.status === 'COMPLETED'
+                        ? 'bg-emerald-500/20 border border-emerald-500/40 text-emerald-400'
+                        : 'bg-brand/20 border border-brand/40 text-brand animate-pulse'
+                    }`}
+                  >
+                    {selectedOrder.status === 'COMPLETED' ? (
+                      <Check className="w-3 h-3" />
+                    ) : (
+                      <Clock className="w-3 h-3" />
+                    )}
+                  </div>
+                  <span>تحویل لایسنس</span>
+                </div>
+              </div>
             </div>
 
             {/* Delivered Credentials or Link */}
             {selectedOrder.delivered_link && (
-              <div className="p-3.5 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/60">
-                <span className="text-xs font-semibold text-blue-800 dark:text-blue-300 block mb-1.5">
-                  لینک دعوت اشتراک:
+              <div className="p-3.5 rounded-control bg-muted/30 border border-border/60 space-y-2">
+                <span className="text-xs font-bold text-foreground block">
+                  لینک دعوت اختصاصی اشتراک:
                 </span>
-                <div className="flex items-center justify-between gap-2 bg-white dark:bg-slate-950 p-2 rounded-lg border border-blue-100 dark:border-blue-900/50">
-                  <span className="text-xs font-mono truncate text-slate-700 dark:text-slate-300">
+                <div className="flex items-center justify-between gap-2 bg-card p-2.5 rounded-control border border-border/60">
+                  <span className="text-xs font-mono truncate text-brand font-latin">
                     {selectedOrder.delivered_link}
                   </span>
-                  <Button
-                    size="sm"
-                    variant="ghost"
+                  <button
+                    type="button"
                     onClick={() =>
                       copyToClipboard(
                         selectedOrder.delivered_link || '',
                         'link',
+                        'لینک اشتراک',
                       )
                     }
-                    className="h-7 text-xs px-2"
+                    className="h-7 text-xs px-3 rounded-control bg-primary text-primary-foreground font-black shrink-0 duration-motion ease-motion active:scale-[0.98] cursor-pointer shadow-control"
                   >
                     {copiedKey === 'link' ? 'کپی شد!' : 'کپی لینک'}
-                  </Button>
+                  </button>
                 </div>
               </div>
             )}
 
             {selectedOrder.delivered_credentials && (
-              <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 space-y-2">
-                <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 block">
+              <div className="p-3.5 rounded-control bg-muted/30 border border-border/60 space-y-2.5 text-xs">
+                <span className="font-bold text-foreground block">
                   اطلاعات اکانت تحویل‌شده:
                 </span>
-                <div className="text-xs space-y-1 font-mono">
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Email:</span>
-                    <span className="text-slate-800 dark:text-slate-200">
+                <div className="space-y-2 font-mono">
+                  <div className="flex justify-between items-center bg-card p-2 rounded-control border border-border/40">
+                    <span className="text-muted-foreground font-sans">
+                      نام کاربری / ایمیل:
+                    </span>
+                    <span className="text-foreground font-bold font-latin">
                       {selectedOrder.delivered_credentials.email}
                     </span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Password:</span>
-                    <span className="text-slate-800 dark:text-slate-200">
+                  <div className="flex justify-between items-center bg-card p-2 rounded-control border border-border/40">
+                    <span className="text-muted-foreground font-sans">
+                      کلمه عبور:
+                    </span>
+                    <span className="text-foreground font-bold font-latin">
                       {selectedOrder.delivered_credentials.password}
                     </span>
                   </div>
@@ -437,44 +503,73 @@ export const ProfileOrdersTab: React.FC<ProfileOrdersTabProps> = ({
               </div>
             )}
 
-            <div className="pt-2 flex flex-wrap items-center justify-between gap-2">
-              <Button
-                variant="outline"
-                size="sm"
+            {/* Order Payment & Financial Summary */}
+            <div className="p-3.5 rounded-control bg-muted/20 border border-border/40 space-y-2 text-xs">
+              <div className="flex justify-between text-muted-foreground">
+                <span>شیوه تحویل:</span>
+                <span className="font-bold text-foreground">
+                  {selectedOrder.delivery_mode === 'INSTANT_LINK'
+                    ? 'لینک دعوت اختصاصی'
+                    : selectedOrder.delivery_mode === 'UPGRADE_EXISTING'
+                      ? 'ارتقای اکانت شخصی'
+                      : 'اکانت آماده اختصاصی'}
+                </span>
+              </div>
+              <div className="flex justify-between text-muted-foreground">
+                <span>تاریخ و زمان ثبت:</span>
+                <span className="font-mono text-foreground font-latin">
+                  {new Date(selectedOrder.created_at).toLocaleString('fa-IR')}
+                </span>
+              </div>
+              <div className="flex justify-between text-muted-foreground border-t border-border/40 pt-2 text-sm">
+                <span className="font-bold text-foreground">
+                  مبلغ پرداخت‌شده:
+                </span>
+                <span className="font-black text-foreground font-latin">
+                  {formatToman(selectedOrder.amount_toman)} تومان
+                </span>
+              </div>
+            </div>
+
+            {/* Action Buttons: Invoice moved INSIDE Details modal as requested! */}
+            <div className="pt-2 flex flex-wrap items-center justify-between gap-2.5 border-t border-border/60">
+              <button
+                type="button"
                 onClick={() => {
                   const ord = selectedOrder
                   setSelectedOrder(null)
                   setInvoiceOrder(ord)
                 }}
-                className="rounded-xl text-xs h-9 px-3 border-blue-200 dark:border-blue-900 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 gap-1.5 font-semibold"
+                className="h-10 px-4 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs duration-motion ease-motion active:scale-[0.98] shadow-control flex items-center gap-1.5 cursor-pointer"
               >
-                <FileText className="w-3.5 h-3.5" />
+                <FileText className="w-4 h-4" />
                 <span>مشاهده و چاپ فاکتور رسمی</span>
-              </Button>
+              </button>
 
-              {selectedOrder.status === 'COMPLETED' && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    const ord = selectedOrder
-                    setSelectedOrder(null)
-                    setReviewOrder(ord)
-                  }}
-                  className="rounded-xl text-xs h-9 px-3 bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 border-amber-500/30 gap-1.5 font-bold"
+              <div className="flex items-center gap-2">
+                {selectedOrder.status === 'COMPLETED' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const ord = selectedOrder
+                      setSelectedOrder(null)
+                      setReviewOrder(ord)
+                    }}
+                    className="h-10 px-3.5 rounded-control bg-brand/10 hover:bg-brand/20 text-brand border border-brand/30 text-xs font-bold duration-motion ease-motion active:scale-[0.98] flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Star className="w-3.5 h-3.5 fill-brand text-brand" />
+                    <span>ثبت نظر</span>
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => setSelectedOrder(null)}
+                  className="h-10 px-4 rounded-control border border-border/60 bg-card hover:bg-muted text-xs font-bold text-muted-foreground hover:text-foreground duration-motion ease-motion active:scale-[0.98] cursor-pointer"
                 >
-                  <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                  <span>ثبت نظر و امتیاز برای این محصول</span>
-                </Button>
-              )}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setSelectedOrder(null)}
-                className="rounded-xl text-xs h-9 px-4 mr-auto"
-              >
-                بستن
-              </Button>
+                  بستن
+                </button>
+              </div>
             </div>
           </div>
         </div>

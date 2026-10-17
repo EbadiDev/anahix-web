@@ -18,6 +18,8 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { apiService } from '../../services/api'
 import type { CustomerLoyaltyProfile, CustomerProfile } from '../../types'
+import { formatToman, toPersianDigits } from '../../utils/formatters'
+import { FlipCard3D } from '../vibefarsi/FlipCard3D'
 
 interface ProfileLoyaltyTabProps {
   customer: CustomerProfile
@@ -71,39 +73,35 @@ export const ProfileLoyaltyTab: React.FC<ProfileLoyaltyTabProps> = ({
     switch (code) {
       case 'gold':
         return {
-          bg: 'from-amber-600 via-yellow-500 to-amber-700',
-          border: 'border-yellow-400/60 shadow-yellow-500/20',
-          chip: 'bg-gradient-to-br from-yellow-200 to-amber-400',
+          bg: 'from-amber-600 via-amber-700 to-amber-900',
+          border: 'border-amber-400/50 shadow-amber-500/20',
+          chip: 'bg-gradient-to-br from-amber-200 to-amber-400',
           text: 'text-amber-950',
           accent: 'text-amber-100',
-          glow: 'bg-yellow-400/20',
         }
       case 'silver':
         return {
-          bg: 'from-slate-600 via-zinc-400 to-slate-700',
-          border: 'border-slate-300/60 shadow-slate-400/20',
-          chip: 'bg-gradient-to-br from-slate-100 to-zinc-300',
-          text: 'text-slate-950',
-          accent: 'text-slate-100',
-          glow: 'bg-slate-300/20',
+          bg: 'from-zinc-600 via-zinc-700 to-zinc-900',
+          border: 'border-zinc-300/50 shadow-zinc-400/20',
+          chip: 'bg-gradient-to-br from-zinc-100 to-zinc-300',
+          text: 'text-zinc-950',
+          accent: 'text-zinc-100',
         }
       case 'diamond':
         return {
-          bg: 'from-sky-700 via-cyan-500 to-blue-800',
-          border: 'border-cyan-300/60 shadow-cyan-500/25',
-          chip: 'bg-gradient-to-br from-cyan-100 to-sky-300',
-          text: 'text-cyan-950',
-          accent: 'text-cyan-100',
-          glow: 'bg-cyan-400/20',
+          bg: 'from-sky-700 via-blue-800 to-zinc-950',
+          border: 'border-sky-400/50 shadow-sky-500/25',
+          chip: 'bg-gradient-to-br from-sky-100 to-blue-300',
+          text: 'text-sky-950',
+          accent: 'text-sky-100',
         }
       default: // bronze
         return {
-          bg: 'from-amber-800 via-amber-700 to-stone-800',
+          bg: 'from-amber-800 via-amber-900 to-stone-950',
           border: 'border-amber-600/50 shadow-amber-700/20',
           chip: 'bg-gradient-to-br from-amber-300 to-amber-600',
           text: 'text-amber-950',
           accent: 'text-amber-100',
-          glow: 'bg-amber-600/20',
         }
     }
   }
@@ -111,8 +109,8 @@ export const ProfileLoyaltyTab: React.FC<ProfileLoyaltyTabProps> = ({
   if (loading && !profile) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[360px] p-8 space-y-4">
-        <div className="w-12 h-12 border-4 border-amber-500/20 border-t-amber-500 rounded-full animate-spin" />
-        <p className="text-xs text-slate-400 font-medium animate-pulse">
+        <div className="w-12 h-12 border-4 border-brand/20 border-t-brand rounded-full animate-spin" />
+        <p className="text-xs text-muted-foreground font-medium animate-pulse">
           در حال بررسی سوابق خرید و سطح کاربری VIP شما...
         </p>
       </div>
@@ -121,12 +119,13 @@ export const ProfileLoyaltyTab: React.FC<ProfileLoyaltyTabProps> = ({
 
   if (error && !profile) {
     return (
-      <div className="bg-red-500/10 border border-red-500/30 rounded-2xl p-6 text-center text-red-400 space-y-3">
-        <AlertCircle className="w-8 h-8 mx-auto text-red-500" />
+      <div className="bg-destructive/10 border border-destructive/30 rounded-surface p-6 text-center text-destructive space-y-3">
+        <AlertCircle className="w-8 h-8 mx-auto text-destructive" />
         <p className="text-sm font-bold">{error}</p>
         <button
+          type="button"
           onClick={loadLoyaltyData}
-          className="px-4 py-2 bg-red-600 text-white rounded-xl text-xs font-semibold hover:bg-red-500 transition"
+          className="px-4 py-2 bg-destructive text-destructive-foreground rounded-control text-xs font-semibold hover:opacity-90 transition cursor-pointer"
         >
           تلاش دوباره
         </button>
@@ -140,17 +139,17 @@ export const ProfileLoyaltyTab: React.FC<ProfileLoyaltyTabProps> = ({
 
   return (
     <div className="space-y-8 animate-in fade-in duration-300">
-      {/* Header Banner */}
-      <div className="bg-gradient-to-r from-amber-950/40 via-slate-900 to-slate-900 border border-amber-500/30 p-6 rounded-2xl shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      {/* Header Banner - Graphite Minimal Technical */}
+      <div className="rounded-surface border border-border/60 bg-card p-6 shadow-surface flex flex-col md:flex-row items-start md:items-center justify-between gap-4 duration-motion ease-motion">
         <div className="space-y-1">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-bold">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-control bg-brand/10 border border-brand/30 text-brand text-xs font-bold">
             <Sparkles className="w-3.5 h-3.5" />
             <span>باشگاه مشتریان و وفاداری اختصاصی آناهیکس</span>
           </div>
-          <h2 className="text-xl font-black text-slate-100 flex items-center gap-2">
+          <h2 className="text-xl font-black text-foreground flex items-center gap-2">
             امتیازات VIP و تخفیف‌های خودکار
           </h2>
-          <p className="text-xs text-slate-400 leading-relaxed max-w-xl">
+          <p className="text-xs text-muted-foreground leading-relaxed max-w-xl">
             با افزایش حجم خریدهای خود در آناهیکس، سطح کاربری شما به صورت خودکار
             ارتقا یافته و از تخفیف‌های دائمی روی تمام سفارش‌ها و اولویت در تحویل
             اپراتور بهره‌مند می‌شوید.
@@ -158,130 +157,182 @@ export const ProfileLoyaltyTab: React.FC<ProfileLoyaltyTabProps> = ({
         </div>
 
         <button
+          type="button"
           onClick={() => {
             loadLoyaltyData()
             onReloadCustomer?.()
           }}
-          className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition flex items-center gap-1.5 shrink-0"
+          className="h-9 px-4 rounded-control border border-border/60 bg-card hover:bg-muted text-foreground text-xs font-bold duration-motion ease-motion active:scale-[0.98] flex items-center gap-1.5 shrink-0 cursor-pointer"
         >
           <RefreshCw
             className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`}
           />
-          بروزرسانی وضعیت
+          <span>بروزرسانی وضعیت</span>
         </button>
       </div>
 
       {/* Main Section: Digital VIP Metal Card + Progression Engine */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
-        {/* Digital Luxury Membership Card */}
+        {/* Digital Luxury Membership Card with 3D Flip & Tilt Animation */}
         <div className="lg:col-span-5 flex flex-col justify-center">
-          <div
-            className={`relative overflow-hidden rounded-2xl p-6 bg-gradient-to-br ${cardTheme.bg} border ${cardTheme.border} shadow-2xl text-white aspect-[1.586/1] flex flex-col justify-between select-none group transition-all duration-300 hover:scale-[1.01]`}
-          >
-            {/* Top Row: Brand & Chip */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-black/20 backdrop-blur-md flex items-center justify-center font-black text-sm border border-white/20">
-                  AX
-                </div>
-                <div>
-                  <span className="font-black text-xs tracking-wider block">
-                    ANAHIX VIP
-                  </span>
-                  <span className="text-[9px] uppercase tracking-widest opacity-80">
-                    CLUB MEMBER
-                  </span>
-                </div>
-              </div>
-
-              {/* Tier Badge on Card */}
-              <div className="px-3 py-1 rounded-full bg-black/30 backdrop-blur-md border border-white/30 text-xs font-bold flex items-center gap-1.5 shadow-sm">
-                {renderTierIcon(currentTier?.icon || 'medal', 'w-3.5 h-3.5')}
-                <span>{currentTier?.name}</span>
-              </div>
-            </div>
-
-            {/* Smart EMV Chip simulation */}
-            <div className="my-2">
+          <FlipCard3D
+            front={
               <div
-                className={`w-11 h-8 rounded-md ${cardTheme.chip} border border-amber-900/30 flex items-center justify-around px-1 shadow-inner opacity-90`}
+                className={`relative w-full h-full p-6 bg-gradient-to-br ${cardTheme.bg} border ${cardTheme.border} shadow-2xl text-white flex flex-col justify-between`}
               >
-                <div className="w-1.5 h-full border-r border-amber-900/20" />
-                <div className="w-1.5 h-full border-r border-amber-900/20" />
-              </div>
-            </div>
+                {/* Top Row: Brand & Chip */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-control bg-black/20 backdrop-blur-md flex items-center justify-center font-black text-sm border border-white/20">
+                      AX
+                    </div>
+                    <div>
+                      <span className="font-black text-xs tracking-wider block font-latin">
+                        ANAHIX VIP
+                      </span>
+                      <span className="text-[9px] uppercase tracking-widest opacity-80 font-latin">
+                        CLUB MEMBER
+                      </span>
+                    </div>
+                  </div>
 
-            {/* Card Middle: Discount Highlights */}
-            <div className="space-y-0.5">
-              <span className="text-[10px] uppercase tracking-wider text-white/80 block">
-                ACTIVE PRIVILEGE
-              </span>
-              <p className="text-xl font-black tracking-tight flex items-baseline gap-1.5">
-                {currentTier?.discount_percent &&
-                currentTier.discount_percent > 0 ? (
-                  <>
-                    <span>{currentTier.discount_percent}٪ تخفیف نقدی دائم</span>
-                    <span className="text-xs font-normal text-white/80">
-                      (روی تمام سفارش‌ها)
+                  {/* Tier Badge on Card */}
+                  <div className="px-3 py-1 rounded-control bg-black/30 backdrop-blur-md border border-white/30 text-xs font-bold flex items-center gap-1.5 shadow-sm">
+                    {renderTierIcon(
+                      currentTier?.icon || 'medal',
+                      'w-3.5 h-3.5 text-brand',
+                    )}
+                    <span>{currentTier?.name}</span>
+                  </div>
+                </div>
+
+                {/* Smart EMV Chip simulation */}
+                <div className="my-2">
+                  <div
+                    className={`w-11 h-8 rounded-control ${cardTheme.chip} border border-amber-900/30 flex items-center justify-around px-1 shadow-inner opacity-90`}
+                  >
+                    <div className="w-1.5 h-full border-r border-amber-900/20" />
+                    <div className="w-1.5 h-full border-r border-amber-900/20" />
+                  </div>
+                </div>
+
+                {/* Card Middle: Discount Highlights */}
+                <div className="space-y-0.5">
+                  <span className="text-[10px] uppercase tracking-wider text-white/80 block font-latin">
+                    ACTIVE PRIVILEGE
+                  </span>
+                  <p className="text-xl font-black tracking-tight flex items-baseline gap-1.5 font-latin">
+                    {currentTier?.discount_percent &&
+                    currentTier.discount_percent > 0 ? (
+                      <>
+                        <span>
+                          {toPersianDigits(currentTier.discount_percent)}٪ تخفیف
+                          نقدی دائم
+                        </span>
+                        <span className="text-xs font-normal text-white/80 font-sans">
+                          (روی تمام سفارش‌ها)
+                        </span>
+                      </>
+                    ) : (
+                      <span>قیمت استاندارد پایه</span>
+                    )}
+                  </p>
+                </div>
+
+                {/* Card Bottom: Customer Info & Code */}
+                <div className="flex items-end justify-between pt-2 border-t border-white/20 text-xs">
+                  <div>
+                    <span className="text-[9px] uppercase text-white/70 block font-latin">
+                      MEMBER NAME
                     </span>
-                  </>
-                ) : (
-                  <span>قیمت استاندارد پایه</span>
-                )}
-              </p>
-            </div>
+                    <span className="font-bold text-sm block">
+                      {customer.full_name || customer.phone}
+                    </span>
+                  </div>
 
-            {/* Card Bottom: Customer Info & Code */}
-            <div className="flex items-end justify-between pt-2 border-t border-white/20 text-xs">
-              <div>
-                <span className="text-[9px] uppercase text-white/70 block">
-                  MEMBER NAME
-                </span>
-                <span className="font-bold text-sm block">
-                  {customer.full_name || customer.phone}
-                </span>
+                  <div className="text-left font-mono">
+                    <span className="text-[9px] uppercase text-white/70 block font-latin">
+                      REFERRAL / ID
+                    </span>
+                    <span className="font-black tracking-widest text-sm font-latin">
+                      {customer.referral_code || 'ANX-VIP'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Glow Decorative Elements */}
+                <div className="absolute -right-12 -bottom-12 w-36 h-36 bg-white/10 rounded-full blur-2xl pointer-events-none" />
               </div>
+            }
+            back={
+              <div
+                className={`relative w-full h-full p-5 bg-gradient-to-br ${cardTheme.bg} border ${cardTheme.border} shadow-2xl text-white flex flex-col justify-between`}
+              >
+                {/* Magnetic Stripe */}
+                <div className="-mx-5 h-9 bg-zinc-950/85 border-y border-white/10 shadow-inner" />
 
-              <div className="text-left font-mono">
-                <span className="text-[9px] uppercase text-white/70 block">
-                  REFERRAL / ID
-                </span>
-                <span className="font-black tracking-widest text-sm">
-                  {customer.referral_code || 'ANX-VIP'}
-                </span>
+                {/* Signature Strip & CVV Security */}
+                <div className="space-y-1.5 my-1">
+                  <div className="flex items-center justify-between text-[9px] text-white/70 uppercase font-latin">
+                    <span>SECURITY SEAL / VERIFIED BY ANAHIX</span>
+                    <span>CVV / SEC</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 h-7 bg-white/90 rounded-control px-2 flex items-center justify-between text-zinc-900 font-mono text-xs font-bold">
+                      <span className="truncate">
+                        {customer.phone || '09835c3f7f0'}
+                      </span>
+                      <span className="text-zinc-600 font-latin text-[10px]">
+                        AUTHORIZED
+                      </span>
+                    </div>
+                    <div className="w-12 h-7 bg-zinc-900 rounded-control border border-white/20 flex items-center justify-center font-mono font-black text-xs text-amber-400">
+                      ۷۸۶
+                    </div>
+                  </div>
+                </div>
+
+                {/* Perks Terms & Seal */}
+                <div className="space-y-1 text-right">
+                  <p className="text-[9px] text-white/80 leading-relaxed">
+                    این کارت شناسایی دیجیتال اعضای ویژه آناهیکس است و تخفیف‌های
+                    نقدی آن به صورت خودکار روی هر سفارش اعمال می‌گردد.
+                  </p>
+                  <div className="flex items-center justify-between text-[9px] text-white/60 pt-1 border-t border-white/20 font-latin">
+                    <span>anahix.com</span>
+                    <span>ALL RIGHTS RESERVED</span>
+                  </div>
+                </div>
               </div>
-            </div>
-
-            {/* Glow Decorative Elements */}
-            <div className="absolute -right-12 -bottom-12 w-36 h-36 bg-white/10 rounded-full blur-2xl pointer-events-none" />
-          </div>
+            }
+          />
         </div>
 
         {/* Progression to Next Tier Card */}
-        <div className="lg:col-span-7 bg-slate-900/90 border border-slate-800 p-6 rounded-2xl shadow-xl flex flex-col justify-between space-y-5">
+        <div className="lg:col-span-7 rounded-surface border border-border/60 bg-card p-6 shadow-surface flex flex-col justify-between space-y-5 duration-motion ease-motion">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <span className="text-xs text-slate-400 font-semibold block mb-1">
+              <span className="text-xs text-muted-foreground font-semibold block mb-1">
                 مسیر رشد و ارتقای سطح شما
               </span>
-              <h3 className="text-lg font-black text-slate-100 flex items-center gap-2">
+              <h3 className="text-lg font-black text-foreground flex items-center gap-2">
                 {nextTier ? (
                   <>
                     <span>سطح بعدی: {nextTier.name}</span>
-                    <span className="text-xs font-bold text-emerald-400 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
-                      {nextTier.discount_percent}٪ تخفیف
+                    <span className="text-xs font-bold text-emerald-400 px-2 py-0.5 rounded-control bg-emerald-500/10 border border-emerald-500/20 font-latin">
+                      {toPersianDigits(nextTier.discount_percent)}٪ تخفیف
                     </span>
                   </>
                 ) : (
                   <span className="text-emerald-400 flex items-center gap-1.5">
-                    <Crown className="w-5 h-5 text-amber-400" />
+                    <Crown className="w-5 h-5 text-brand" />
                     شما در بالاترین سطح باشگاه (VIP کلاب) قرار دارید!
                   </span>
                 )}
               </h3>
             </div>
 
-            <span className="text-xs text-slate-400 font-mono">
+            <span className="text-xs text-muted-foreground font-mono">
               دوره:{' '}
               {profile?.period === 'monthly_30d' ? '۳۰ روز اخیر' : 'کل تاریخچه'}
             </span>
@@ -289,62 +340,61 @@ export const ProfileLoyaltyTab: React.FC<ProfileLoyaltyTabProps> = ({
 
           {/* Progress Bar Component */}
           {nextTier ? (
-            <div className="space-y-2 bg-slate-950/70 p-4 rounded-xl border border-slate-800/80">
+            <div className="space-y-2 bg-muted/20 p-4 rounded-control border border-border/60">
               <div className="flex items-center justify-between text-xs">
-                <span className="font-bold text-slate-300">
+                <span className="font-bold text-foreground">
                   پیشرفت تا سطح {nextTier.name}
                 </span>
-                <span className="font-mono font-bold text-amber-400">
-                  {profile?.progress_percent}%
+                <span className="font-mono font-bold text-brand font-latin">
+                  {toPersianDigits(profile?.progress_percent || 0)}%
                 </span>
               </div>
 
-              <div className="w-full bg-slate-800 h-3 rounded-full overflow-hidden p-0.5 relative">
+              <div className="w-full bg-muted h-3 rounded-full overflow-hidden p-0.5 relative">
                 <div
                   style={{
                     width: `${Math.min(profile?.progress_percent || 0, 100)}%`,
                   }}
-                  className="bg-gradient-to-r from-amber-500 to-yellow-400 h-full rounded-full transition-all duration-700 shadow-md shadow-amber-500/40"
+                  className="bg-gradient-to-r from-brand to-amber-400 h-full rounded-full transition-all duration-700 shadow-md shadow-brand/40"
                 />
               </div>
 
-              <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1">
+              <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-1">
                 <span>
                   خرید این دوره:{' '}
-                  <strong className="text-slate-200">
-                    {(profile?.active_spent_toman || 0).toLocaleString('fa-IR')}{' '}
-                    ت
+                  <strong className="text-foreground font-latin">
+                    {formatToman(profile?.active_spent_toman || 0)} تومان
                   </strong>
                 </span>
                 <span>
                   هدف سطح بعدی:{' '}
-                  <strong className="text-amber-400 font-mono">
-                    {nextTier.min_spend_toman.toLocaleString('fa-IR')} ت
+                  <strong className="text-brand font-mono font-latin">
+                    {formatToman(nextTier.min_spend_toman)} تومان
                   </strong>
                 </span>
               </div>
 
               {profile?.required_for_next && profile.required_for_next > 0 && (
-                <div className="mt-2 p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs text-amber-300/90 flex items-center gap-2">
-                  <Flame className="w-4 h-4 text-amber-400 shrink-0" />
+                <div className="mt-2 p-2.5 rounded-control bg-brand/10 border border-brand/20 text-xs text-foreground flex items-center gap-2">
+                  <Flame className="w-4 h-4 text-brand shrink-0" />
                   <span>
                     تنها با{' '}
-                    <strong className="text-amber-200 font-black">
-                      {profile.required_for_next.toLocaleString('fa-IR')} تومان
+                    <strong className="text-brand font-black font-latin">
+                      {formatToman(profile.required_for_next)} تومان
                     </strong>{' '}
                     خرید دیگر، فوراً به سطح {nextTier.name} ارتقا یافته و از{' '}
-                    {nextTier.discount_percent}٪ تخفیف خودکار روی تمامی لایسنس‌ها
-                    بهره‌مند شوید!
+                    {toPersianDigits(nextTier.discount_percent)}٪ تخفیف خودکار
+                    روی تمامی لایسنس‌ها بهره‌مند شوید!
                   </span>
                 </div>
               )}
             </div>
           ) : (
-            <div className="bg-emerald-500/10 border border-emerald-500/20 p-4 rounded-xl text-xs text-emerald-300 space-y-1">
+            <div className="bg-emerald-500/10 border border-emerald-500/20 p-4 rounded-control text-xs text-emerald-400 space-y-1">
               <p className="font-bold">
                 تبریک! تمام مزایا و تخفیف‌های ویژه VIP برای شما فعال است.
               </p>
-              <p className="text-emerald-400/80">
+              <p className="text-muted-foreground">
                 سفارشات شما با بالاترین اولویت در صف اپراتور پردازش شده و حداکثر
                 درصد تخفیف نقدی روی هر سبد خرید اعمال می‌شود.
               </p>
@@ -353,31 +403,29 @@ export const ProfileLoyaltyTab: React.FC<ProfileLoyaltyTabProps> = ({
 
           {/* Value Realized Summary Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div className="bg-slate-950/50 p-3 rounded-xl border border-slate-800 text-center">
-              <span className="text-[11px] text-slate-400 block">
+            <div className="bg-muted/20 p-3 rounded-control border border-border/40 text-center">
+              <span className="text-[11px] text-muted-foreground block">
                 سود ذخیره‌شده از تخفیف‌ها
               </span>
-              <span className="text-sm font-black text-emerald-400 mt-1 block">
-                {(profile?.total_saved_toman || 0).toLocaleString('fa-IR')}{' '}
-                تومان
+              <span className="text-sm font-black text-emerald-400 mt-1 block font-latin">
+                {formatToman(profile?.total_saved_toman || 0)} تومان
               </span>
             </div>
 
-            <div className="bg-slate-950/50 p-3 rounded-xl border border-slate-800 text-center">
-              <span className="text-[11px] text-slate-400 block">
+            <div className="bg-muted/20 p-3 rounded-control border border-border/40 text-center">
+              <span className="text-[11px] text-muted-foreground block">
                 کل خرید ۳۰ روز اخیر
               </span>
-              <span className="text-sm font-bold text-slate-200 mt-1 block">
-                {(profile?.monthly_spent_toman || 0).toLocaleString('fa-IR')}{' '}
-                تومان
+              <span className="text-sm font-bold text-foreground mt-1 block font-latin">
+                {formatToman(profile?.monthly_spent_toman || 0)} تومان
               </span>
             </div>
 
-            <div className="bg-slate-950/50 p-3 rounded-xl border border-slate-800 text-center">
-              <span className="text-[11px] text-slate-400 block">
+            <div className="bg-muted/20 p-3 rounded-control border border-border/40 text-center">
+              <span className="text-[11px] text-muted-foreground block">
                 اولویت صف تحویل اپراتور
               </span>
-              <span className="text-sm font-bold text-blue-400 mt-1 block">
+              <span className="text-sm font-bold text-brand mt-1 block">
                 {currentTier?.queue_priority && currentTier.queue_priority >= 50
                   ? 'VIP طلایی (فوق‌سریع)'
                   : currentTier?.queue_priority &&
@@ -394,19 +442,19 @@ export const ProfileLoyaltyTab: React.FC<ProfileLoyaltyTabProps> = ({
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-base font-bold text-slate-100 flex items-center gap-2">
-              <Layers className="w-5 h-5 text-amber-400" />
-              جدول مقایسه سطوح و امکانات باشگاه مشتریان آناهیکس
+            <h3 className="text-base font-bold text-foreground flex items-center gap-2">
+              <Layers className="w-5 h-5 text-brand" />
+              <span>جدول مقایسه سطوح و امکانات باشگاه مشتریان آناهیکس</span>
             </h3>
-            <p className="text-xs text-slate-400 mt-0.5">
+            <p className="text-xs text-muted-foreground mt-0.5">
               آشنایی با شرایط ارتقا و مزایای اختصاصی هر سطح
             </p>
           </div>
           <Link
-            to="/#products"
-            className="text-xs text-blue-400 hover:text-blue-300 font-semibold flex items-center gap-1"
+            to="/category/all"
+            className="text-xs text-brand hover:underline font-semibold flex items-center gap-1"
           >
-            مشاهده کاتالوگ و خرید لایسنس
+            <span>مشاهده کاتالوگ و خرید لایسنس</span>
             <ChevronLeft className="w-3.5 h-3.5" />
           </Link>
         </div>
@@ -417,14 +465,14 @@ export const ProfileLoyaltyTab: React.FC<ProfileLoyaltyTabProps> = ({
             return (
               <div
                 key={t.id}
-                className={`bg-slate-900 rounded-2xl border p-5 shadow-lg flex flex-col justify-between space-y-4 relative transition ${
+                className={`rounded-surface border p-5 shadow-surface flex flex-col justify-between space-y-4 relative duration-motion ease-motion transition-all ${
                   isCurrent
-                    ? 'border-amber-500 shadow-amber-500/10 ring-2 ring-amber-500/30'
-                    : 'border-slate-800 hover:border-slate-700'
+                    ? 'border-brand bg-card shadow-control ring-1 ring-brand/30'
+                    : 'border-border/60 bg-card hover:border-border'
                 }`}
               >
                 {isCurrent && (
-                  <div className="absolute top-3 left-3 px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 font-black text-[10px] flex items-center gap-1 shadow-md">
+                  <div className="absolute top-3 left-3 px-2 py-0.5 rounded-control bg-brand text-brand-foreground font-black text-[10px] flex items-center gap-1 shadow-control">
                     <Check className="w-3 h-3 stroke-[3]" />
                     سطح فعلی شما
                   </div>
@@ -433,35 +481,35 @@ export const ProfileLoyaltyTab: React.FC<ProfileLoyaltyTabProps> = ({
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
                     <span
-                      className="p-2 rounded-xl text-white inline-flex"
+                      className="p-2 rounded-control text-white inline-flex shadow-control"
                       style={{ backgroundColor: t.badge_color }}
                     >
                       {renderTierIcon(t.icon, 'w-4 h-4')}
                     </span>
                     <div>
-                      <h4 className="font-bold text-sm text-slate-100">
+                      <h4 className="font-bold text-sm text-foreground">
                         {t.name}
                       </h4>
-                      <span className="text-[10px] text-slate-400 font-mono">
+                      <span className="text-[10px] text-muted-foreground font-mono font-latin">
                         {t.name_en || t.code}
                       </span>
                     </div>
                   </div>
 
-                  <div className="bg-slate-950/60 p-3 rounded-xl border border-slate-800/80 space-y-1">
-                    <div className="text-[11px] text-slate-400 flex justify-between">
+                  <div className="bg-muted/20 p-3 rounded-control border border-border/40 space-y-1">
+                    <div className="text-[11px] text-muted-foreground flex justify-between">
                       <span>حداقل خرید دوره:</span>
-                      <strong className="text-slate-200 font-mono">
+                      <strong className="text-foreground font-mono font-latin">
                         {t.min_spend_toman > 0
-                          ? `${t.min_spend_toman.toLocaleString('fa-IR')} ت`
+                          ? `${formatToman(t.min_spend_toman)} ت`
                           : 'بدون شرط خرید'}
                       </strong>
                     </div>
-                    <div className="text-[11px] text-slate-400 flex justify-between">
+                    <div className="text-[11px] text-muted-foreground flex justify-between">
                       <span>تخفیف خودکار:</span>
-                      <strong className="text-emerald-400 font-black">
+                      <strong className="text-emerald-400 font-black font-latin">
                         {t.discount_percent > 0
-                          ? `${t.discount_percent}٪ تخفیف`
+                          ? `${toPersianDigits(t.discount_percent)}٪ تخفیف`
                           : 'استاندارد'}
                       </strong>
                     </div>
@@ -469,37 +517,21 @@ export const ProfileLoyaltyTab: React.FC<ProfileLoyaltyTabProps> = ({
                 </div>
 
                 {/* Perks Checklist */}
-                <div className="space-y-2 pt-2 border-t border-slate-800 flex-1">
-                  <span className="text-[11px] font-bold text-slate-400 block">
+                <div className="space-y-2 pt-2 border-t border-border/40 flex-1">
+                  <span className="text-[11px] font-bold text-muted-foreground block">
                     مزایای این سطح:
                   </span>
                   <div className="space-y-1.5">
                     {(t.perks || []).map((perk) => (
                       <div
                         key={perk}
-                        className="text-[11px] text-slate-300 flex items-start gap-1.5 leading-snug"
+                        className="flex items-start gap-1.5 text-xs text-muted-foreground"
                       >
-                        <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
-                        <span>{perk}</span>
+                        <Check className="w-3.5 h-3.5 text-brand shrink-0 mt-0.5" />
+                        <span className="leading-relaxed">{perk}</span>
                       </div>
                     ))}
                   </div>
-                </div>
-
-                {/* Action CTA */}
-                <div className="pt-2">
-                  {isCurrent ? (
-                    <div className="w-full py-2 bg-amber-500/15 border border-amber-500/30 text-amber-300 rounded-xl text-xs font-bold text-center">
-                      دسترسی به کلیه مزایا فعال است
-                    </div>
-                  ) : (
-                    <Link
-                      to="/#products"
-                      className="w-full py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-semibold text-center block transition"
-                    >
-                      افزایش خرید و ارتقا
-                    </Link>
-                  )}
                 </div>
               </div>
             )

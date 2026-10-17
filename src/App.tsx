@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { ProtectedRoute } from './components/auth/ProtectedRoute'
 import { NotificationProvider } from './components/vibefarsi/NotificationContext'
 import { VibeThemeProvider } from './components/vibefarsi/ThemeContext'
 import { AdminDashboardPage } from './pages/admin/AdminDashboardPage'
@@ -64,8 +65,15 @@ export function App() {
             {/* Dedicated Dynamic Category Page */}
             <Route path="/category/:slug" element={<CategoryDetailPage />} />
 
-            {/* Customer Profile */}
-            <Route path="/profile" element={<UserProfilePage />} />
+            {/* Customer Profile (Protected by Auth Gate) */}
+            <Route
+              path="/profile"
+              element={
+                <ProtectedRoute>
+                  <UserProfilePage />
+                </ProtectedRoute>
+              }
+            />
 
             {/* Public Order Tracking */}
             <Route

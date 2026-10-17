@@ -43,12 +43,11 @@ export const Accordion: React.FC<AccordionProps> = ({
         return (
           <div
             key={`accordion-item-${item.id}`}
-            className={`rounded-2xl border transition-all duration-200 overflow-hidden ${
+            className={`rounded-control border duration-motion ease-motion transition-all overflow-hidden shadow-surface ${
               isOpen
-                ? 'border-zinc-700/80 bg-zinc-900/60'
-                : 'border-border bg-card/60 hover:bg-card hover:border-zinc-800'
+                ? 'border-border bg-card shadow-control'
+                : 'border-border/60 bg-card/80 hover:bg-card hover:border-border'
             }`}
-            style={{ boxShadow: 'var(--depth-surface)' }}
           >
             <button
               type="button"
@@ -58,19 +57,19 @@ export const Accordion: React.FC<AccordionProps> = ({
             >
               <div className="flex items-center gap-2.5">
                 {item.icon && (
-                  <span className="text-blue-500 shrink-0">{item.icon}</span>
+                  <span className="text-brand shrink-0">{item.icon}</span>
                 )}
                 <span>{item.title}</span>
               </div>
               <ChevronDown
-                className={`h-4 w-4 text-muted-foreground shrink-0 transition-transform duration-200 ${
-                  isOpen ? 'rotate-180 text-blue-500' : ''
+                className={`h-4 w-4 text-muted-foreground shrink-0 transition-transform duration-motion ease-motion ${
+                  isOpen ? 'rotate-180 text-foreground' : ''
                 }`}
               />
             </button>
 
             {isOpen && (
-              <div className="px-4 pb-4 pt-1 text-xs text-muted-foreground leading-relaxed border-t border-border/60 bg-background/40 animate-in fade-in slide-in-from-top-1 duration-200">
+              <div className="px-4 pb-4 pt-2 text-xs text-muted-foreground leading-relaxed border-t border-border/40 bg-card/50 animate-in fade-in slide-in-from-top-1 duration-motion ease-motion">
                 {item.content}
               </div>
             )}

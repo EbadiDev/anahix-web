@@ -181,39 +181,36 @@ const ToastItem: React.FC<{
   const getBorderColor = () => {
     switch (item.type) {
       case 'success':
-        return 'border-emerald-500/30 bg-emerald-500/10'
+        return 'border-emerald-500/40 bg-card text-foreground'
       case 'error':
-        return 'border-rose-500/30 bg-rose-500/10'
+        return 'border-rose-500/40 bg-card text-foreground'
       case 'warning':
-        return 'border-amber-500/30 bg-amber-500/10'
+        return 'border-amber-500/40 bg-card text-foreground'
       case 'cart':
-        return 'border-blue-500/30 bg-blue-500/10'
+        return 'border-brand/40 bg-card text-foreground'
       default:
-        return 'border-blue-500/30 bg-blue-500/10'
+        return 'border-border bg-card text-foreground'
     }
   }
 
   return (
     <div
-      className={`pointer-events-auto flex items-start gap-3 rounded-2xl border p-4 backdrop-blur-xl transition-all duration-200 animate-fade-in-up bg-zinc-950/95 text-zinc-100 ${getBorderColor()}`}
-      style={{
-        boxShadow: 'var(--depth-surface)',
-      }}
+      className={`pointer-events-auto flex items-start gap-3 rounded-surface border p-4 shadow-overlay transition-all duration-motion ease-motion animate-fade-in-up ${getBorderColor()}`}
     >
       {item.image ? (
         <img
           src={item.image}
           alt={item.title}
-          className="h-10 w-10 rounded-xl object-cover border border-border shrink-0"
+          className="h-10 w-10 rounded-control object-cover border border-border shrink-0"
         />
       ) : (
-        <div className="p-1 rounded-xl bg-background/80 shadow-sm">
+        <div className="p-1 rounded-control bg-secondary text-secondary-foreground border border-border/60 shadow-control shrink-0">
           {getIcon()}
         </div>
       )}
 
       <div className="flex-1 space-y-0.5 text-right">
-        <h4 className="text-xs sm:text-sm font-bold text-foreground leading-tight">
+        <h4 className="text-xs sm:text-sm font-black text-foreground leading-tight">
           {item.title}
         </h4>
         {item.message && (
@@ -226,7 +223,8 @@ const ToastItem: React.FC<{
       <button
         type="button"
         onClick={onDismiss}
-        className="p-1 text-muted-foreground hover:text-foreground transition-colors rounded-lg hover:bg-muted/50"
+        className="p-1 text-muted-foreground hover:text-foreground transition-colors rounded-control hover:bg-muted duration-motion ease-motion cursor-pointer"
+        aria-label="بستن اعلان"
       >
         <X className="h-4 w-4" />
       </button>

@@ -1,24 +1,21 @@
 import {
   ArrowRight,
-  Eye,
-  EyeOff,
   KeyRound,
   Loader2,
-  Lock,
   Mail,
   RefreshCw,
   Smartphone,
   X,
 } from 'lucide-react'
 import type React from 'react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { api } from '../services/api'
 import type { CustomerProfile, ThemeSettings } from '../types'
 import { GithubIcon, GoogleIcon } from './SocialIcons'
-import { Input } from './ui/input'
 import { Alert } from './vibefarsi/Alert'
 import { useNotification } from './vibefarsi/NotificationContext'
-import { ShimmerButton } from './vibefarsi/ShimmerButton'
+import { OtpField } from './vibefarsi/OtpField'
+import { PasswordInput } from './vibefarsi/PasswordInput'
 
 interface AuthModalProps {
   isOpen: boolean
@@ -39,7 +36,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   onSuccess,
   initialMode = 'login',
 }) => {
-  const { success, error } = useNotification()
+  const { success, error, info } = useNotification()
 
   // Mode: login or register
   const [authMode, setAuthMode] = useState<'login' | 'register'>(initialMode)
@@ -70,9 +67,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   // Inputs
   const [phone, setPhone] = useState('')
   const [password, setPassword] = useState('')
-  const [showPassword, setShowPassword] = useState(false)
   const [identifier, setIdentifier] = useState('') // mobile or email
   const [otpCode, setOtpCode] = useState(['', '', '', '', ''])
+
+  // Register method state (Phone vs Email)
+  const [registerMethod, setRegisterMethod] = useState<'phone' | 'email'>(
+    'phone',
+  )
+  const [registerEmail, setRegisterEmail] = useState('')
+  const [registerPassword, setRegisterPassword] = useState('')
+  const [registerFullName, setRegisterFullName] = useState('')
 
   // Profile setup
   const [firstName, setFirstName] = useState('')
@@ -85,8 +89,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [errorMsg, setErrorMsg] = useState('')
   const [timerSeconds, setTimerSeconds] = useState(120)
   const [canResend, setCanResend] = useState(false)
-
-  const otpInputsRef = useRef<(HTMLInputElement | null)[]>([])
 
   useEffect(() => {
     if (isOpen) {
@@ -135,6 +137,68 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   if (!isOpen) return null
 
+  // Handle email + password registration with strict field validation
+  const handleEmailRegister = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setErrorMsg('')
+
+    const fullName = registerFullName.trim()
+    if (!fullName) {
+      const msg =
+        'نام و نام خانوادگی الزامی است. لطفاً نام خود را به صورت کامل وارد نمایید.'
+      setErrorMsg(msg)
+      error('نام و نام خانوادگی الزامی است', msg)
+      return
+    }
+
+    const cleanEmail = registerEmail.trim().toLowerCase()
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!cleanEmail || !emailRegex.test(cleanEmail)) {
+      const msg =
+        'آدرس ایمیل نامعتبر است. لطفاً یک ایمیل معتبر (مانند user@example.com) وارد کنید.'
+      setErrorMsg(msg)
+      error('ایمیل نامعتبر است', msg)
+      return
+    }
+
+    const pwd = registerPassword.trim()
+    if (!pwd) {
+      const msg = 'کلمه عبور الزامی است. لطفاً یک رمز عبور تعیین کنید.'
+      setErrorMsg(msg)
+      error('کلمه عبور الزامی است', msg)
+      return
+    }
+
+    if (pwd.length < 6) {
+      const msg =
+        'کلمه عبور کوتاه است. کلمه عبور انتخابی باید حداقل شامل ۶ کاراکتر باشد.'
+      setErrorMsg(msg)
+      error('کلمه عبور کوتاه است', msg)
+      return
+    }
+
+    setLoading(true)
+    try {
+      const resp = await api.registerWithPassword({
+        email: cleanEmail,
+        password: pwd,
+        full_name: fullName,
+      })
+      success(
+        'عضویت با موفقیت انجام شد',
+        `خوش آمدید ${resp.customer.full_name || ''}`,
+      )
+      onSuccess(resp.customer)
+      onClose()
+    } catch (err: any) {
+      const msg = err.message || 'خطا در ثبت‌نام با ایمیل'
+      setErrorMsg(msg)
+      error('خطا در ثبت‌نام', msg)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   // 1. Send OTP code
   const handleSendOtp = async (cleanPhone: string) => {
     setLoading(true)
@@ -145,9 +209,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       setTimerSeconds(resp.expires_in || 120)
       setCanResend(false)
       setOtpCode(['', '', '', '', ''])
-      setTimeout(() => {
-        otpInputsRef.current[0]?.focus()
-      }, 150)
       success(
         'کد تایید پیامکی ارسال شد',
         `کد تایید ۵ رقمی به شماره ${cleanPhone} ارسال گردید.`,
@@ -161,67 +222,54 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     }
   }
 
-  // 2. Handle mobile form submit
+  // 2. Handle mobile or email form submit
   const handleMobileSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setErrorMsg('')
 
-    const cleanPhone = toEnDigits(phone.trim().replace(/\s+/g, ''))
-    if (!cleanPhone.startsWith('09') || cleanPhone.length !== 11) {
-      setErrorMsg('شماره موبایل وارد شده باید ۱۱ رقم بوده و با ۰۹ آغاز شود')
+    const rawInput = phone.trim()
+    if (!rawInput) {
+      setErrorMsg(
+        authMode === 'login'
+          ? 'لطفاً شماره موبایل یا آدرس ایمیل خود را وارد کنید'
+          : 'لطفاً شماره موبایل خود را وارد کنید',
+      )
       return
     }
 
-    // In login mode, if password is enabled, offer choice or proceed to OTP
-    if (authMode === 'login' && themeSettings.auth_password_enabled) {
+    // If in login mode and input looks like an email address, route directly to password verification
+    if (authMode === 'login' && rawInput.includes('@')) {
+      setIdentifier(rawInput)
+      setStep('password_form')
+      return
+    }
+
+    // Otherwise, treat as an Iranian mobile phone number
+    const cleanPhone = toEnDigits(rawInput.replace(/\s+/g, ''))
+    if (!cleanPhone.startsWith('09') || cleanPhone.length !== 11) {
+      setErrorMsg(
+        authMode === 'login'
+          ? 'شماره موبایل وارد شده باید ۱۱ رقم بوده و با ۰۹ آغاز شود (یا یک آدرس ایمیل معتبر وارد کنید)'
+          : 'شماره موبایل وارد شده باید ۱۱ رقم بوده و با ۰۹ آغاز شود',
+      )
+      return
+    }
+
+    // In registration mode, always send OTP directly (no password form needed for initial signup)
+    if (authMode === 'register') {
+      await handleSendOtp(cleanPhone)
+      return
+    }
+
+    // In login mode, if password is enabled, offer choice (OTP vs Password) or proceed directly to OTP
+    if (themeSettings.auth_password_enabled) {
       setStep('otp_choice')
     } else {
       await handleSendOtp(cleanPhone)
     }
   }
 
-  // 3. OTP slots logic
-  const handleOtpChange = (index: number, val: string) => {
-    const cleaned = toEnDigits(val).replace(/\D/g, '')
-    if (!cleaned) {
-      const updated = [...otpCode]
-      updated[index] = ''
-      setOtpCode(updated)
-      return
-    }
-
-    const char = cleaned.slice(-1)
-    const updated = [...otpCode]
-    updated[index] = char
-    setOtpCode(updated)
-
-    if (index < 4) {
-      otpInputsRef.current[index + 1]?.focus()
-    }
-  }
-
-  const handleOtpKeyDown = (
-    index: number,
-    e: React.KeyboardEvent<HTMLInputElement>,
-  ) => {
-    if (e.key === 'Backspace' && !otpCode[index] && index > 0) {
-      otpInputsRef.current[index - 1]?.focus()
-    }
-  }
-
-  const handleOtpPaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
-    e.preventDefault()
-    const pasted = toEnDigits(e.clipboardData.getData('text')).replace(
-      /\D/g,
-      '',
-    )
-    if (pasted.length >= 5) {
-      const chars = pasted.split('').slice(0, 5)
-      setOtpCode(chars)
-      otpInputsRef.current[4]?.focus()
-    }
-  }
-
+  // 3. OTP verification logic
   const handleOtpVerify = async (e?: React.FormEvent) => {
     if (e) e.preventDefault()
     setErrorMsg('')
@@ -371,16 +419,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       dir="rtl"
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-fade-in-up"
     >
-      <div className="relative w-full max-w-md overflow-hidden rounded-3xl border border-zinc-700/80 bg-zinc-950/95 p-6 sm:p-8 shadow-2xl backdrop-blur-2xl text-zinc-100">
+      <div className="relative w-full max-w-md overflow-hidden rounded-surface border border-border/80 bg-card p-6 sm:p-8 shadow-overlay text-card-foreground">
         {/* Glow ambient background in Graphite style */}
-        <div className="pointer-events-none absolute -top-20 -right-20 h-44 w-44 rounded-full bg-blue-500/10 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-20 -left-20 h-44 w-44 rounded-full bg-purple-500/10 blur-3xl" />
+        <div className="pointer-events-none absolute -top-20 -right-20 h-44 w-44 rounded-full bg-brand/10 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-20 -left-20 h-44 w-44 rounded-full bg-foreground/5 blur-3xl" />
 
         {/* Modal Close Button */}
         <button
           type="button"
           onClick={onClose}
-          className="absolute top-5 left-5 p-2 rounded-2xl text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
+          className="absolute top-5 left-5 p-2 rounded-control text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
           title="بستن پنجره"
         >
           <X className="h-5 w-5" />
@@ -388,34 +436,34 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
         {/* Header Branding */}
         <div className="text-center space-y-2 mb-6">
-          <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-black text-xl shadow-lg shadow-blue-600/30">
+          <div className="inline-flex h-12 w-12 items-center justify-center rounded-control bg-secondary text-secondary-foreground border border-border/60 font-black text-xl shadow-control">
             A
           </div>
-          <h2 className="text-xl font-black text-white">
+          <h2 className="text-xl font-black text-foreground">
             {authMode === 'login'
               ? 'ورود به حساب کاربری'
               : 'ایجاد حساب کاربری جدید'}
           </h2>
-          <p className="text-xs text-zinc-400">
+          <p className="text-xs text-muted-foreground">
             {authMode === 'login'
               ? 'دسترسی سریع به سفارش‌ها، کیف پول و شماره‌های مجازی'
               : 'عضویت آنی در سامانه لایسنس‌ها و اشتراک‌های بین‌المللی'}
           </p>
         </div>
 
-        {/* Switcher Tab between Login & Register */}
+        {/* Switcher Tab between Login & Register - Distinct High-Contrast Button Pills */}
         {step === 'main_form' && (
-          <div className="grid grid-cols-2 gap-1 rounded-2xl bg-zinc-900 border border-zinc-800 p-1 mb-5 text-xs font-bold">
+          <div className="grid grid-cols-2 gap-2 p-1.5 rounded-control bg-muted/40 border border-border/60 mb-5 text-xs">
             <button
               type="button"
               onClick={() => {
                 setAuthMode('login')
                 setErrorMsg('')
               }}
-              className={`py-2.5 rounded-xl transition-all ${
+              className={`py-2 px-3 rounded-control font-black transition-all duration-motion ease-motion cursor-pointer ${
                 authMode === 'login'
-                  ? 'bg-zinc-800 text-blue-400 shadow-sm font-black'
-                  : 'text-zinc-400 hover:text-zinc-200'
+                  ? 'bg-primary text-primary-foreground shadow-control'
+                  : 'bg-card text-muted-foreground hover:text-foreground border border-border/40'
               }`}
             >
               ورود به سیستم
@@ -426,10 +474,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 setAuthMode('register')
                 setErrorMsg('')
               }}
-              className={`py-2.5 rounded-xl transition-all ${
+              className={`py-2 px-3 rounded-control font-black transition-all duration-motion ease-motion cursor-pointer ${
                 authMode === 'register'
-                  ? 'bg-zinc-800 text-blue-400 shadow-sm font-black'
-                  : 'text-zinc-400 hover:text-zinc-200'
+                  ? 'bg-primary text-primary-foreground shadow-control'
+                  : 'bg-card text-muted-foreground hover:text-foreground border border-border/40'
               }`}
             >
               ثبت‌نام جدید
@@ -453,13 +501,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         {/* STEP 1: MAIN FORM (Direct Social + Mobile Phone) */}
         {step === 'main_form' && (
           <div className="space-y-4">
-            {/* ONE-CLICK SOCIAL LOGIN BUTTONS (ALWAYS VISIBLE & PROMINENT) */}
+            {/* ONE-CLICK SOCIAL LOGIN BUTTONS */}
             <div className="space-y-2.5">
               <button
                 type="button"
                 onClick={() => handleSocialLogin('google')}
                 disabled={loading}
-                className="w-full flex items-center justify-center gap-3 rounded-2xl border border-zinc-800 bg-zinc-900/90 hover:bg-zinc-800/90 hover:border-zinc-700 p-3 font-bold text-xs text-zinc-100 transition-all hover:scale-[1.01] active:scale-[0.99] shadow-sm cursor-pointer"
+                className="w-full flex items-center justify-center gap-3 rounded-control border border-border/60 bg-muted/30 hover:bg-muted text-foreground p-3 font-bold text-xs duration-motion ease-motion active:scale-[0.98] shadow-control cursor-pointer"
               >
                 <div className="flex items-center justify-center">
                   <GoogleIcon className="h-5 w-5" />
@@ -475,10 +523,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 type="button"
                 onClick={() => handleSocialLogin('github')}
                 disabled={loading}
-                className="w-full flex items-center justify-center gap-3 rounded-2xl border border-zinc-800 bg-zinc-900/90 hover:bg-zinc-800/90 hover:border-zinc-700 p-3 font-bold text-xs text-zinc-100 transition-all hover:scale-[1.01] active:scale-[0.99] shadow-sm cursor-pointer"
+                className="w-full flex items-center justify-center gap-3 rounded-control border border-border/60 bg-muted/30 hover:bg-muted text-foreground p-3 font-bold text-xs duration-motion ease-motion active:scale-[0.98] shadow-control cursor-pointer"
               >
                 <div className="flex items-center justify-center">
-                  <GithubIcon className="h-5 w-5 text-white" />
+                  <GithubIcon className="h-5 w-5 text-foreground" />
                 </div>
                 <span>
                   {authMode === 'login'
@@ -491,75 +539,185 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             {/* Divider */}
             <div className="relative my-4 flex items-center justify-center">
               <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-zinc-800" />
+                <div className="w-full border-t border-border/60" />
               </div>
-              <div className="relative bg-zinc-950 px-3 text-[11px] font-bold text-zinc-500">
-                یا با شماره تلفن همراه
+              <div className="relative bg-card px-3 text-[11px] font-bold text-muted-foreground">
+                {authMode === 'login'
+                  ? 'یا با شماره موبایل / ایمیل'
+                  : 'یا با شماره تلفن همراه'}
               </div>
             </div>
 
-            {/* Mobile Phone Form */}
-            <form onSubmit={handleMobileSubmit} className="space-y-3.5">
-              <div className="space-y-1.5 text-right">
-                <label className="text-xs font-bold text-zinc-300">
-                  شماره موبایل
-                </label>
-                <div className="relative">
-                  <Input
-                    type="tel"
-                    dir="ltr"
-                    placeholder="09123456789"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    className="pl-10 text-center font-latin tracking-widest text-sm rounded-2xl h-11 bg-zinc-900 border-zinc-800 focus:border-blue-500 text-white"
+            {/* Registration Method Switcher (Phone vs Email) - Distinct Button Pills */}
+            {authMode === 'register' && (
+              <div className="grid grid-cols-2 gap-2 p-1 rounded-control bg-muted/30 border border-border/60 mb-3 text-xs">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRegisterMethod('phone')
+                    setErrorMsg('')
+                  }}
+                  className={`py-2 px-2.5 rounded-control font-black transition-all duration-motion ease-motion cursor-pointer ${
+                    registerMethod === 'phone'
+                      ? 'bg-primary text-primary-foreground shadow-control'
+                      : 'bg-card text-muted-foreground hover:text-foreground border border-border/40'
+                  }`}
+                >
+                  ثبت‌نام با شماره موبایل
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRegisterMethod('email')
+                    setErrorMsg('')
+                  }}
+                  className={`py-2 px-2.5 rounded-control font-black transition-all duration-motion ease-motion cursor-pointer ${
+                    registerMethod === 'email'
+                      ? 'bg-primary text-primary-foreground shadow-control'
+                      : 'bg-card text-muted-foreground hover:text-foreground border border-border/40'
+                  }`}
+                >
+                  ثبت‌نام با ایمیل و رمز
+                </button>
+              </div>
+            )}
+
+            {/* Email Registration Form */}
+            {authMode === 'register' && registerMethod === 'email' ? (
+              <form onSubmit={handleEmailRegister} className="space-y-3.5">
+                <div className="space-y-1.5 text-right">
+                  <label className="text-xs font-bold text-foreground">
+                    نام و نام خانوادگی (الزامی)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="مثال: علی محمدی"
+                    value={registerFullName}
+                    onChange={(e) => setRegisterFullName(e.target.value)}
+                    className="w-full h-11 px-3 text-xs rounded-field bg-muted/20 border border-border/60 text-foreground outline-none focus:border-foreground/40 transition-colors"
                     required
                   />
-                  <Smartphone className="h-4 w-4 text-zinc-500 absolute left-3 top-3.5 pointer-events-none" />
                 </div>
-              </div>
 
-              <ShimmerButton
-                type="submit"
-                disabled={loading}
-                className="w-full h-11 text-xs sm:text-sm font-bold rounded-2xl"
-              >
-                {loading ? (
-                  <Loader2 className="h-4 w-4 animate-spin mx-auto" />
-                ) : (
-                  <span>
+                <div className="space-y-1.5 text-right">
+                  <label className="text-xs font-bold text-foreground">
+                    آدرس ایمیل (الزامی)
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="email"
+                      dir="ltr"
+                      placeholder="user@example.com"
+                      value={registerEmail}
+                      onChange={(e) => setRegisterEmail(e.target.value)}
+                      className="w-full h-11 pl-10 pr-3 text-xs font-latin rounded-field bg-muted/20 border border-border/60 text-foreground outline-none focus:border-foreground/40 transition-colors"
+                      required
+                    />
+                    <Mail className="h-4 w-4 text-muted-foreground absolute left-3 top-3.5 pointer-events-none" />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5 text-right">
+                  <label className="text-xs font-bold text-foreground">
+                    کلمه عبور (الزامی، حداقل ۶ کاراکتر)
+                  </label>
+                  <PasswordInput
+                    value={registerPassword}
+                    onChange={(e) => setRegisterPassword(e.target.value)}
+                    showStrength
+                    required
+                    placeholder="رمز عبور حداقل ۶ کاراکتر"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full h-11 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs sm:text-sm duration-motion ease-motion active:scale-[0.98] shadow-control flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                >
+                  {loading ? (
+                    <Loader2 className="h-4 w-4 animate-spin mx-auto" />
+                  ) : (
+                    <span>تکمیل ثبت‌نام و ورود به حساب</span>
+                  )}
+                </button>
+              </form>
+            ) : (
+              /* Mobile / Identifier Form */
+              <form onSubmit={handleMobileSubmit} className="space-y-3.5">
+                <div className="space-y-1.5 text-right">
+                  <label className="text-xs font-bold text-foreground">
                     {authMode === 'login'
-                      ? 'ادامه ورود'
-                      : 'ارسال کد و تایید شماره'}
-                  </span>
-                )}
-              </ShimmerButton>
-
-              {/* Direct Password Login link for returning users */}
-              {authMode === 'login' && (
-                <div className="pt-1 text-center">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIdentifier(phone)
-                      setStep('password_form')
-                    }}
-                    className="text-xs text-blue-400 hover:text-blue-300 transition-colors inline-flex items-center gap-1 cursor-pointer"
-                  >
-                    <KeyRound className="h-3.5 w-3.5" />
-                    <span>ورود مستقیم با کلمه عبور</span>
-                  </button>
+                      ? 'شماره موبایل یا ایمیل'
+                      : 'شماره تلفن همراه'}
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={authMode === 'login' ? 'text' : 'tel'}
+                      dir="ltr"
+                      placeholder={
+                        authMode === 'login'
+                          ? '09123456789 یا user@example.com'
+                          : '09123456789'
+                      }
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      className="w-full h-11 pl-10 pr-4 text-center font-latin tracking-wide text-sm rounded-field bg-muted/20 border border-border/60 text-foreground outline-none focus:border-foreground/40 transition-colors"
+                      required
+                    />
+                    {authMode === 'login' && phone.includes('@') ? (
+                      <Mail className="h-4 w-4 text-muted-foreground absolute left-3 top-3.5 pointer-events-none" />
+                    ) : (
+                      <Smartphone className="h-4 w-4 text-muted-foreground absolute left-3 top-3.5 pointer-events-none" />
+                    )}
+                  </div>
                 </div>
-              )}
-            </form>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full h-11 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs sm:text-sm duration-motion ease-motion active:scale-[0.98] shadow-control flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                >
+                  {loading ? (
+                    <Loader2 className="h-4 w-4 animate-spin mx-auto" />
+                  ) : (
+                    <span>
+                      {authMode === 'login'
+                        ? 'ادامه ورود'
+                        : 'ارسال کد و تایید شماره'}
+                    </span>
+                  )}
+                </button>
+
+                {/* Direct Password Login link for returning users (Only in login mode) */}
+                {authMode === 'login' && (
+                  <div className="pt-1 text-center">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIdentifier(phone)
+                        setStep('password_form')
+                      }}
+                      className="text-xs text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1 cursor-pointer"
+                    >
+                      <KeyRound className="h-3.5 w-3.5" />
+                      <span>ورود مستقیم با کلمه عبور</span>
+                    </button>
+                  </div>
+                )}
+              </form>
+            )}
           </div>
         )}
 
         {/* STEP 2: CHOICE FOR RETURNING PHONE (OTP vs PASSWORD) */}
         {step === 'otp_choice' && (
           <div className="space-y-4 text-center animate-fade-in-up">
-            <p className="text-xs text-zinc-400">
+            <p className="text-xs text-muted-foreground">
               شماره{' '}
-              <span className="font-bold text-white font-latin">{phone}</span>{' '}
+              <span className="font-bold text-foreground font-latin">
+                {phone}
+              </span>{' '}
               ثبت شده است. نحوه احراز هویت را انتخاب کنید:
             </p>
 
@@ -568,54 +726,50 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 type="button"
                 onClick={() => handleSendOtp(toEnDigits(phone.trim()))}
                 disabled={loading}
-                className="flex items-center justify-between p-3.5 rounded-2xl border border-zinc-800 bg-zinc-900 hover:bg-zinc-800 hover:border-blue-500/40 transition-colors text-right cursor-pointer"
+                className="flex items-center justify-between p-3.5 rounded-control border border-border/60 bg-muted/20 hover:bg-muted/40 transition-colors text-right cursor-pointer"
               >
                 <div className="flex items-center gap-3">
-                  <div className="p-2.5 rounded-xl bg-blue-500/10 text-blue-400">
+                  <div className="p-2.5 rounded-control bg-muted text-brand">
                     <Smartphone className="h-5 w-5" />
                   </div>
                   <div>
-                    <h4 className="text-xs font-bold text-white">
+                    <h4 className="text-xs font-bold text-foreground">
                       ارسال رمز یکبار مصرف (SMS OTP)
                     </h4>
-                    <p className="text-[10px] text-zinc-400 mt-0.5">
+                    <p className="text-[10px] text-muted-foreground mt-0.5">
                       دریافت کد ۵ رقمی پیامکی روی گوشی
                     </p>
                   </div>
                 </div>
-                <span className="text-xs text-blue-400 font-bold">
-                  انتخاب ←
-                </span>
+                <span className="text-xs text-brand font-bold">انتخاب ←</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setStep('password_form')}
-                className="flex items-center justify-between p-3.5 rounded-2xl border border-zinc-800 bg-zinc-900 hover:bg-zinc-800 hover:border-blue-500/40 transition-colors text-right cursor-pointer"
+                className="flex items-center justify-between p-3.5 rounded-control border border-border/60 bg-muted/20 hover:bg-muted/40 transition-colors text-right cursor-pointer"
               >
                 <div className="flex items-center gap-3">
-                  <div className="p-2.5 rounded-xl bg-purple-500/10 text-purple-400">
+                  <div className="p-2.5 rounded-control bg-muted text-brand">
                     <KeyRound className="h-5 w-5" />
                   </div>
                   <div>
-                    <h4 className="text-xs font-bold text-white">
+                    <h4 className="text-xs font-bold text-foreground">
                       ورود با کلمه عبور اختصاصی
                     </h4>
-                    <p className="text-[10px] text-zinc-400 mt-0.5">
+                    <p className="text-[10px] text-muted-foreground mt-0.5">
                       ورود با رمز عبوری که قبلاً ثبت کرده‌اید
                     </p>
                   </div>
                 </div>
-                <span className="text-xs text-purple-400 font-bold">
-                  انتخاب ←
-                </span>
+                <span className="text-xs text-brand font-bold">انتخاب ←</span>
               </button>
             </div>
 
             <button
               type="button"
               onClick={() => setStep('main_form')}
-              className="text-xs text-zinc-400 hover:text-white pt-2 inline-flex items-center gap-1 cursor-pointer"
+              className="text-xs text-muted-foreground hover:text-foreground pt-2 inline-flex items-center gap-1 cursor-pointer duration-motion"
             >
               <ArrowRight className="h-3.5 w-3.5" />
               <span>بازگشت و تغییر شماره</span>
@@ -630,50 +784,33 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             className="space-y-4 animate-fade-in-up"
           >
             <div className="space-y-1.5 text-right">
-              <label className="text-xs font-bold text-zinc-300">
+              <label className="text-xs font-bold text-foreground">
                 شماره موبایل یا ایمیل
               </label>
               <div className="relative">
-                <Input
+                <input
                   type="text"
                   dir="ltr"
                   placeholder="09123456789 یا user@example.com"
                   value={identifier || phone}
                   onChange={(e) => setIdentifier(e.target.value)}
-                  className="pl-10 text-center text-sm rounded-2xl h-11 bg-zinc-900 border-zinc-800 text-white"
+                  className="w-full h-11 pl-10 pr-4 text-center text-sm rounded-field bg-muted/20 border border-border/60 text-foreground outline-none focus:border-foreground/40 transition-colors"
                   required
                 />
-                <Mail className="h-4 w-4 text-zinc-500 absolute left-3 top-3.5 pointer-events-none" />
+                <Mail className="h-4 w-4 text-muted-foreground absolute left-3 top-3.5 pointer-events-none" />
               </div>
             </div>
 
             <div className="space-y-1.5 text-right">
-              <label className="text-xs font-bold text-zinc-300">
+              <label className="text-xs font-bold text-foreground">
                 کلمه عبور
               </label>
-              <div className="relative">
-                <Input
-                  type={showPassword ? 'text' : 'password'}
-                  dir="ltr"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="pl-10 pr-10 text-sm rounded-2xl h-11 bg-zinc-900 border-zinc-800 text-white"
-                  required
-                />
-                <Lock className="h-4 w-4 text-zinc-500 absolute left-3 top-3.5 pointer-events-none" />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-3.5 text-zinc-500 hover:text-zinc-300"
-                >
-                  {showPassword ? (
-                    <EyeOff className="h-4 w-4" />
-                  ) : (
-                    <Eye className="h-4 w-4" />
-                  )}
-                </button>
-              </div>
+              <PasswordInput
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                placeholder="کلمه عبور حساب کاربری"
+              />
             </div>
 
             <div className="flex items-center justify-between text-xs">
@@ -681,36 +818,44 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 type="button"
                 onClick={() => {
                   const target = identifier || phone
-                  if (target.startsWith('09')) {
-                    handleSendOtp(toEnDigits(target.trim()))
+                  const cleanTarget = toEnDigits(target.trim())
+                  if (
+                    cleanTarget.startsWith('09') &&
+                    cleanTarget.length === 11
+                  ) {
+                    handleSendOtp(cleanTarget)
                   } else {
+                    info(
+                      'بازیابی رمز عبور با پیامک',
+                      'لطفاً شماره موبایل خود را وارد کنید تا کد تایید یکبارمصرف (OTP) برای شما ارسال شود.',
+                    )
                     setStep('main_form')
                   }
                 }}
-                className="text-blue-400 hover:underline cursor-pointer"
+                className="text-brand hover:underline cursor-pointer font-medium"
               >
-                رمز را فراموش کردید؟ ورود با پیامک
+                رمز را فراموش کردید؟ ورود / بازیابی با پیامک
               </button>
               <button
                 type="button"
                 onClick={() => setStep('main_form')}
-                className="text-zinc-400 hover:text-white cursor-pointer"
+                className="text-muted-foreground hover:text-foreground cursor-pointer"
               >
                 بازگشت
               </button>
             </div>
 
-            <ShimmerButton
+            <button
               type="submit"
               disabled={loading}
-              className="w-full h-11 text-xs sm:text-sm font-bold rounded-2xl"
+              className="w-full h-11 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs sm:text-sm duration-motion ease-motion active:scale-[0.98] shadow-control flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
             >
               {loading ? (
                 <Loader2 className="h-4 w-4 animate-spin mx-auto" />
               ) : (
                 <span>تایید کلمه عبور و ورود</span>
               )}
-            </ShimmerButton>
+            </button>
           </form>
         )}
 
@@ -721,44 +866,40 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             className="space-y-5 animate-fade-in-up"
           >
             <div className="text-center space-y-1">
-              <p className="text-xs text-zinc-400">
+              <p className="text-xs text-muted-foreground">
                 کد تایید پیامک شده به شماره زیر را وارد کنید:
               </p>
-              <p className="font-latin text-sm font-black text-white">
+              <p className="font-latin text-sm font-black text-foreground">
                 {phone}
               </p>
             </div>
 
-            {/* 5 digit inputs */}
-            <div className="flex justify-center gap-2.5" dir="ltr">
-              {otpCode.map((digit, idx) => {
-                const slotKey = `otp-box-${idx}`
-                return (
-                  <input
-                    key={slotKey}
-                    ref={(el) => {
-                      otpInputsRef.current[idx] = el
-                    }}
-                    type="text"
-                    maxLength={1}
-                    value={digit}
-                    onChange={(e) => handleOtpChange(idx, e.target.value)}
-                    onKeyDown={(e) => handleOtpKeyDown(idx, e)}
-                    onPaste={handleOtpPaste}
-                    className="h-12 w-11 rounded-2xl border border-zinc-700 bg-zinc-900 text-center text-lg font-black font-latin text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all"
-                  />
-                )
-              })}
+            {/* Vibe Farsi OtpField Component */}
+            <div className="py-1">
+              <OtpField
+                length={5}
+                value={otpCode.join('')}
+                onChange={(val) => {
+                  const arr = ['', '', '', '', '']
+                  for (let i = 0; i < 5; i++) {
+                    arr[i] = val[i] || ''
+                  }
+                  setOtpCode(arr)
+                }}
+                onComplete={() => {
+                  handleOtpVerify()
+                }}
+              />
             </div>
 
-            <div className="flex items-center justify-between text-xs text-zinc-400 px-1">
+            <div className="flex items-center justify-between text-xs text-muted-foreground px-1">
               <button
                 type="button"
                 disabled={!canResend || loading}
                 onClick={() => handleSendOtp(toEnDigits(phone.trim()))}
                 className={`font-bold flex items-center gap-1 ${
                   canResend
-                    ? 'text-blue-400 hover:underline cursor-pointer'
+                    ? 'text-brand hover:underline cursor-pointer'
                     : 'opacity-50 cursor-not-allowed'
                 }`}
               >
@@ -766,27 +907,27 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <span>ارسال مجدد کد</span>
               </button>
 
-              <span className="font-latin font-bold text-zinc-300">
+              <span className="font-latin font-bold text-foreground">
                 {formatTimer(timerSeconds)}
               </span>
             </div>
 
-            <ShimmerButton
+            <button
               type="submit"
               disabled={loading}
-              className="w-full h-11 text-xs sm:text-sm font-bold rounded-2xl"
+              className="w-full h-11 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs sm:text-sm duration-motion ease-motion active:scale-[0.98] shadow-control flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
             >
               {loading ? (
                 <Loader2 className="h-4 w-4 animate-spin mx-auto" />
               ) : (
                 <span>تایید کد و ورود</span>
               )}
-            </ShimmerButton>
+            </button>
 
             <button
               type="button"
               onClick={() => setStep('main_form')}
-              className="w-full text-center text-xs text-zinc-400 hover:text-white pt-1 cursor-pointer"
+              className="w-full text-center text-xs text-muted-foreground hover:text-foreground pt-1 cursor-pointer duration-motion"
             >
               تغییر شماره تلفن
             </button>
@@ -800,10 +941,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             className="space-y-4 animate-fade-in-up"
           >
             <div className="text-center space-y-1 mb-2">
-              <h3 className="text-sm font-black text-white">
+              <h3 className="text-sm font-black text-foreground">
                 تکمیل اطلاعات حساب کاربری
               </h3>
-              <p className="text-[11px] text-zinc-400">
+              <p className="text-[11px] text-muted-foreground">
                 جهت صدور فاکتور و دسترسی به لایسنس‌ها، نام و مشخصات خود را ثبت
                 نمایید
               </p>
@@ -811,73 +952,73 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
             <div className="grid grid-cols-2 gap-3 text-right">
               <div className="space-y-1">
-                <label className="text-[11px] font-bold text-zinc-300">
+                <label className="text-[11px] font-bold text-foreground">
                   نام
                 </label>
-                <Input
+                <input
                   type="text"
                   placeholder="علی"
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
-                  className="text-xs rounded-xl h-10 bg-zinc-900 border-zinc-800 text-white"
+                  className="w-full text-xs rounded-field h-10 px-3 bg-muted/20 border border-border/60 text-foreground outline-none focus:border-foreground/40 transition-colors"
                   required
                 />
               </div>
 
               <div className="space-y-1">
-                <label className="text-[11px] font-bold text-zinc-300">
+                <label className="text-[11px] font-bold text-foreground">
                   نام خانوادگی
                 </label>
-                <Input
+                <input
                   type="text"
                   placeholder="محمدی"
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
-                  className="text-xs rounded-xl h-10 bg-zinc-900 border-zinc-800 text-white"
+                  className="w-full text-xs rounded-field h-10 px-3 bg-muted/20 border border-border/60 text-foreground outline-none focus:border-foreground/40 transition-colors"
                   required
                 />
               </div>
             </div>
 
             <div className="space-y-1 text-right">
-              <label className="text-[11px] font-bold text-zinc-300">
+              <label className="text-[11px] font-bold text-foreground">
                 آدرس ایمیل
               </label>
-              <Input
+              <input
                 type="email"
                 dir="ltr"
                 placeholder="user@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="text-xs rounded-xl h-10 font-latin bg-zinc-900 border-zinc-800 text-white"
+                className="w-full text-xs rounded-field h-10 px-3 font-latin bg-muted/20 border border-border/60 text-foreground outline-none focus:border-foreground/40 transition-colors"
               />
             </div>
 
             <div className="space-y-1 text-right">
-              <label className="text-[11px] font-bold text-zinc-300">
+              <label className="text-[11px] font-bold text-foreground">
                 لینک تصویر آواتار (اختیاری)
               </label>
-              <Input
+              <input
                 type="url"
                 dir="ltr"
                 placeholder="https://..."
                 value={avatarUrl}
                 onChange={(e) => setAvatarUrl(e.target.value)}
-                className="text-xs rounded-xl h-10 font-latin bg-zinc-900 border-zinc-800 text-white"
+                className="w-full text-xs rounded-field h-10 px-3 font-latin bg-muted/20 border border-border/60 text-foreground outline-none focus:border-foreground/40 transition-colors"
               />
             </div>
 
-            <ShimmerButton
+            <button
               type="submit"
               disabled={loading}
-              className="w-full h-11 text-xs sm:text-sm font-bold rounded-2xl"
+              className="w-full h-11 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs sm:text-sm duration-motion ease-motion active:scale-[0.98] shadow-control flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
             >
               {loading ? (
                 <Loader2 className="h-4 w-4 animate-spin mx-auto" />
               ) : (
                 <span>ذخیره و ورود به سامانه</span>
               )}
-            </ShimmerButton>
+            </button>
           </form>
         )}
       </div>

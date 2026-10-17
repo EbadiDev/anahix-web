@@ -1,7 +1,6 @@
 import {
   ArrowDownLeft,
   ArrowUpRight,
-  Gift,
   History,
   Loader2,
   Plus,
@@ -13,8 +12,7 @@ import type React from 'react'
 import { useEffect, useState } from 'react'
 import { apiService } from '../../services/api'
 import type { CustomerProfile, WalletLedgerItem } from '../../types'
-import { Badge } from '../ui/badge'
-import { Button } from '../ui/button'
+import { formatToman, toPersianDigits } from '../../utils/formatters'
 
 interface ProfileWalletTabProps {
   customer: CustomerProfile
@@ -30,23 +28,20 @@ export const ProfileWalletTab: React.FC<ProfileWalletTabProps> = ({
   const [loading, setLoading] = useState(true)
   const balance = customer.balance_toman || 0
 
+  const fetchLedger = async () => {
+    setLoading(true)
+    try {
+      const items = await apiService.getWalletLedger(customer.phone)
+      setLedger(items)
+    } catch {
+      setLedger([])
+    } finally {
+      setLoading(false)
+    }
+  }
+
   useEffect(() => {
-    let isMounted = true
-    async function fetchLedger() {
-      setLoading(true)
-      try {
-        const items = await apiService.getWalletLedger(customer.phone)
-        if (isMounted) setLedger(items)
-      } catch {
-        if (isMounted) setLedger([])
-      } finally {
-        if (isMounted) setLoading(false)
-      }
-    }
     fetchLedger()
-    return () => {
-      isMounted = false
-    }
   }, [customer.phone])
 
   const filteredLedger = ledger.filter((item) => {
@@ -66,215 +61,192 @@ export const ProfileWalletTab: React.FC<ProfileWalletTabProps> = ({
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300 max-w-4xl">
-      {/* 1. Hero Wallet Card */}
-      <div className="p-6 rounded-2xl border border-blue-200/80 dark:border-blue-900/60 bg-gradient-to-br from-blue-600 to-indigo-700 text-white shadow-xl shadow-blue-500/10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-        <div>
-          <div className="flex items-center gap-2 text-blue-100 text-xs font-semibold">
+      {/* 1. Hero Wallet Card - Graphite Minimal Technical */}
+      <div className="p-6 rounded-surface border border-border/60 bg-card text-card-foreground shadow-surface flex flex-col md:flex-row items-start md:items-center justify-between gap-6 duration-motion ease-motion">
+        <div className="space-y-1.5">
+          <div className="flex items-center gap-2 text-brand text-xs font-bold">
             <Wallet className="w-4 h-4" />
             <span>موجودی در دسترس کیف پول آناهیکس</span>
           </div>
 
-          <div className="mt-2 text-3xl sm:text-4xl font-black flex items-baseline gap-2">
-            {balance.toLocaleString('fa-IR')}
-            <span className="text-base font-normal text-blue-100">تومان</span>
+          <div className="mt-2 text-3xl sm:text-4xl font-black text-foreground flex items-baseline gap-2 font-latin">
+            {formatToman(balance)}
+            <span className="text-base font-normal text-muted-foreground font-sans">
+              تومان
+            </span>
           </div>
 
-          <p className="mt-1 text-xs text-blue-100">
+          <p className="text-xs text-muted-foreground leading-relaxed">
             امکان پرداخت آنی و خرید مستقیم شماره مجازی و اشتراک‌های هوش مصنوعی
+            بدون معطلی
           </p>
         </div>
 
         <div className="flex items-center gap-3 w-full md:w-auto">
-          <Button
+          <button
+            type="button"
             onClick={onOpenTopupModal}
-            className="flex-1 md:flex-initial h-11 px-6 rounded-xl bg-white hover:bg-blue-50 text-blue-700 font-bold text-xs shadow-md transition active:scale-95"
+            className="w-full md:w-auto h-11 px-6 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs duration-motion ease-motion active:scale-[0.98] shadow-control flex items-center justify-center gap-2 cursor-pointer"
           >
-            <Plus className="w-4 h-4 ml-1.5" />
-            افزایش موجودی (شارژ آنلاین)
-          </Button>
+            <Plus className="w-4 h-4" />
+            <span>افزایش موجودی (شارژ آنلاین)</span>
+          </button>
         </div>
       </div>
 
       {/* 2. Quick Benefits */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 flex items-center justify-center shrink-0">
-            <Zap className="w-4 h-4" />
+        <div className="p-4 rounded-control border border-border/60 bg-muted/20 flex items-center gap-3">
+          <div className="w-9 h-9 rounded-control bg-secondary text-secondary-foreground border border-border/60 flex items-center justify-center shrink-0 shadow-control">
+            <Zap className="w-4 h-4 text-brand" />
           </div>
           <div className="text-xs">
-            <h5 className="font-bold text-slate-800 dark:text-slate-200">
-              خرید آنی با یک کلیک
-            </h5>
-            <p className="text-[11px] text-slate-400">
-              کسر مستقیم بدون نیاز به درگاه بانکی
+            <h5 className="font-bold text-foreground">خرید آنی با یک کلیک</h5>
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              کسر مستقیم از کیف پول بدون نیاز به درگاه
             </p>
           </div>
         </div>
 
-        <div className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-600 flex items-center justify-center shrink-0">
-            <RefreshCw className="w-4 h-4" />
+        <div className="p-4 rounded-control border border-border/60 bg-muted/20 flex items-center gap-3">
+          <div className="w-9 h-9 rounded-control bg-secondary text-secondary-foreground border border-border/60 flex items-center justify-center shrink-0 shadow-control">
+            <RefreshCw className="w-4 h-4 text-emerald-400" />
           </div>
           <div className="text-xs">
-            <h5 className="font-bold text-slate-800 dark:text-slate-200">
-              استرداد وجه خودکار
-            </h5>
-            <p className="text-[11px] text-slate-400">
-              بازگشت آنی مبلغ شماره‌های لغو شده
+            <h5 className="font-bold text-foreground">استرداد وجه خودکار</h5>
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              بازگشت فوری هزینه در صورت لغو سفارش
             </p>
           </div>
         </div>
 
-        <div className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 flex items-center justify-center shrink-0">
-            <Gift className="w-4 h-4" />
+        <div className="p-4 rounded-control border border-border/60 bg-muted/20 flex items-center gap-3">
+          <div className="w-9 h-9 rounded-control bg-secondary text-secondary-foreground border border-border/60 flex items-center justify-center shrink-0 shadow-control">
+            <Wallet className="w-4 h-4 text-brand" />
           </div>
           <div className="text-xs">
-            <h5 className="font-bold text-slate-800 dark:text-slate-200">
-              واریز کمیسیون رفرال
-            </h5>
-            <p className="text-[11px] text-slate-400">
-              پاداش معرفی مستقیم به این کیف پول
+            <h5 className="font-bold text-foreground">تسویه ریالی و شتاب</h5>
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              پشتیبانی از کارت‌های بانکی عضو شتاب
             </p>
           </div>
         </div>
       </div>
 
-      {/* 3. Transaction Ledger Table */}
-      <div className="rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-xs space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800 gap-3">
+      {/* 3. Transaction Ledger History */}
+      <div className="rounded-surface border border-border/60 bg-card p-5 sm:p-6 shadow-surface space-y-4 duration-motion ease-motion">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border/40">
           <div>
-            <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
-              <History className="w-4 h-4 text-blue-600" />
-              دفتر کل تراکنش‌های مالی (Transaction Ledger)
-            </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              ریز گردش حساب، واریزی‌ها، خریدها و بونوس‌ها از دیتابیس آناهیکس
+            <h4 className="text-sm font-bold text-foreground flex items-center gap-2">
+              <History className="w-4 h-4 text-brand" />
+              <span>گردش حساب و تراکنش‌های کیف پول</span>
+            </h4>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              سوابق شارژ آنلاین، پرداختی‌های خرید و استردادهای مالی
             </p>
           </div>
 
-          <div className="flex items-center gap-1">
-            <Button
-              variant={filter === 'all' ? 'default' : 'outline'}
-              size="sm"
+          {/* Filter Pills */}
+          <div className="flex items-center gap-1.5 bg-muted/40 p-1 rounded-control border border-border/40">
+            <button
+              type="button"
               onClick={() => setFilter('all')}
-              className="h-7 text-xs rounded-lg px-2.5"
+              className={`text-xs px-3 py-1.5 rounded-control font-bold duration-motion ease-motion transition-all cursor-pointer ${
+                filter === 'all'
+                  ? 'bg-primary text-primary-foreground font-black shadow-control'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
             >
-              همه
-            </Button>
-            <Button
-              variant={filter === 'deposit' ? 'default' : 'outline'}
-              size="sm"
+              همه ({toPersianDigits(ledger.length)})
+            </button>
+            <button
+              type="button"
               onClick={() => setFilter('deposit')}
-              className="h-7 text-xs rounded-lg px-2.5"
+              className={`text-xs px-3 py-1.5 rounded-control font-bold duration-motion ease-motion transition-all cursor-pointer ${
+                filter === 'deposit'
+                  ? 'bg-primary text-primary-foreground font-black shadow-control'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
             >
-              واریزها
-            </Button>
-            <Button
-              variant={filter === 'expense' ? 'default' : 'outline'}
-              size="sm"
+              واریز و شارژ
+            </button>
+            <button
+              type="button"
               onClick={() => setFilter('expense')}
-              className="h-7 text-xs rounded-lg px-2.5"
+              className={`text-xs px-3 py-1.5 rounded-control font-bold duration-motion ease-motion transition-all cursor-pointer ${
+                filter === 'expense'
+                  ? 'bg-primary text-primary-foreground font-black shadow-control'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
             >
-              خریدها
-            </Button>
+              خرید و کسر
+            </button>
           </div>
         </div>
 
+        {/* Ledger Items */}
         {loading ? (
-          <div className="py-12 text-center text-slate-400 flex flex-col items-center gap-2">
-            <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
-            <span className="text-xs">در حال بارگذاری تراکنش‌ها...</span>
+          <div className="py-12 text-center text-xs text-muted-foreground space-y-2">
+            <Loader2 className="w-6 h-6 animate-spin text-brand mx-auto" />
+            <p>در حال دریافت تراکنش‌های کیف پول...</p>
           </div>
         ) : filteredLedger.length === 0 ? (
-          <div className="py-12 text-center space-y-2 text-slate-400">
-            <History className="w-8 h-8 mx-auto opacity-35 text-slate-400" />
-            <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-              هنوز تراکنشی در تاریخچه کیف پول شما ثبت نشده است
+          <div className="py-12 text-center bg-muted/10 border border-dashed border-border/60 rounded-control p-8 space-y-2">
+            <Wallet className="w-8 h-8 text-muted-foreground/60 mx-auto" />
+            <p className="text-xs font-bold text-foreground">
+              تراکنشی در این دسته‌بندی ثبت نشده است
             </p>
-            <p className="text-[11px] text-slate-400">
-              تراکنش‌های شارژ آنلاین و پرداخت‌های شما پس از ثبت سفارش در این جدول
-              نمایش داده می‌شوند.
+            <p className="text-[11px] text-muted-foreground">
+              با شارژ کیف پول یا ثبت سفارش، تراکنش‌های شما در این بخش نمایش داده
+              می‌شوند.
             </p>
           </div>
         ) : (
-          <div className="divide-y divide-slate-100 dark:divide-slate-800">
+          <div className="space-y-2">
             {filteredLedger.map((item) => {
-              const isPositive =
-                item.type === 'DEPOSIT' ||
-                item.type === 'REFUND' ||
-                item.type === 'REFERRAL_COMMISSION'
-
+              const isPlus = item.amount_toman > 0
               return (
                 <div
                   key={item.id}
-                  className="py-3.5 flex items-center justify-between gap-4"
+                  className="p-3.5 rounded-control border border-border/40 bg-muted/20 flex items-center justify-between text-xs duration-motion ease-motion"
                 >
                   <div className="flex items-center gap-3">
                     <div
-                      className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
-                        isPositive
-                          ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400'
-                          : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+                      className={`w-9 h-9 rounded-control flex items-center justify-center shrink-0 border ${
+                        isPlus
+                          ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                          : 'bg-muted border-border/60 text-muted-foreground'
                       }`}
                     >
-                      {isPositive ? (
+                      {isPlus ? (
                         <ArrowDownLeft className="w-4 h-4" />
                       ) : (
                         <ArrowUpRight className="w-4 h-4" />
                       )}
                     </div>
-
                     <div>
-                      <h5 className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                        {item.title}
-                      </h5>
-                      <div className="flex items-center gap-2 text-[11px] text-slate-400 mt-0.5 font-mono">
-                        <span>
-                          {item.created_at
-                            ? new Date(item.created_at).toLocaleDateString(
-                                'fa-IR',
-                              )
-                            : '—'}
-                        </span>
-                        <span>•</span>
-                        <span>
-                          کد پیگیری:{' '}
-                          {item.payment_ref_id || item.transaction_number}
-                        </span>
-                      </div>
+                      <span className="font-bold text-foreground block">
+                        {item.title ||
+                          (isPlus ? 'شارژ / استرداد کیف پول' : 'خرید سرویس')}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground font-mono">
+                        {new Date(item.created_at).toLocaleString('fa-IR')}
+                      </span>
                     </div>
                   </div>
 
-                  <div className="text-left">
-                    <div
-                      dir="ltr"
-                      className={`text-xs font-bold ${
-                        isPositive
-                          ? 'text-emerald-600 dark:text-emerald-400'
-                          : 'text-slate-800 dark:text-slate-200'
+                  <div className="text-left font-latin">
+                    <span
+                      className={`font-black text-sm block ${
+                        isPlus ? 'text-emerald-400' : 'text-foreground'
                       }`}
                     >
-                      {isPositive ? '+' : '-'}
-                      {item.amount_toman.toLocaleString('fa-IR')}{' '}
-                      <span className="text-[10px] font-sans">تومان</span>
-                    </div>
-
-                    <Badge
-                      className={`border-0 text-[9px] px-1.5 py-0 mt-0.5 ${
-                        item.status === 'SUCCESS' || item.status === 'PAID'
-                          ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/80 dark:text-emerald-400'
-                          : item.status === 'PENDING'
-                            ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/80 dark:text-amber-400'
-                            : 'bg-rose-50 text-rose-700 dark:bg-rose-950/80 dark:text-rose-400'
-                      }`}
-                    >
-                      {item.status === 'SUCCESS' || item.status === 'PAID'
-                        ? 'موفق ✓'
-                        : item.status === 'PENDING'
-                          ? 'در انتظار'
-                          : 'ناموفق'}
-                    </Badge>
+                      {isPlus ? '+' : '-'}
+                      {formatToman(Math.abs(item.amount_toman))} تومان
+                    </span>
+                    <span className="text-[10px] text-muted-foreground block font-mono">
+                      پیگیری: #{item.transaction_number}
+                    </span>
                   </div>
                 </div>
               )

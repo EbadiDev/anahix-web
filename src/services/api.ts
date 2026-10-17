@@ -38,6 +38,7 @@ import type {
   InventoryItem,
   InventoryStats,
   LoyaltyTier,
+  NotificationListResponse,
   OfficialInvoice,
   Order,
   OrderStatus,
@@ -862,12 +863,29 @@ export const apiService = {
     return localStorage.getItem('anahix_customer_token')
   },
 
+  isCustomerLoggedIn(): boolean {
+    return Boolean(this.getCustomerToken())
+  },
+
   setCustomerToken(token: string) {
     localStorage.setItem('anahix_customer_token', token)
   },
 
   removeCustomerToken() {
     localStorage.removeItem('anahix_customer_token')
+    localStorage.removeItem('anahix_customer_user')
+  },
+
+  setCustomerUser(customer: CustomerProfile) {
+    localStorage.setItem('anahix_customer_user', JSON.stringify(customer))
+  },
+
+  getCustomerUser(): CustomerProfile | null {
+    try {
+      const raw = localStorage.getItem('anahix_customer_user')
+      if (raw) return JSON.parse(raw)
+    } catch {}
+    return null
   },
 
   // Customer OTP Auth
@@ -925,6 +943,7 @@ export const apiService = {
     last_name?: string
     full_name?: string
     email?: string
+    phone?: string
     avatar_url?: string
     is_corporate?: boolean
     company_name?: string
@@ -948,6 +967,9 @@ export const apiService = {
     const json = await res.json()
     if (!res.ok || json.code !== 200) {
       throw new Error(json.msg || 'خطا در به‌روزرسانی مشخصات')
+    }
+    if (json.data) {
+      this.setCustomerUser(json.data)
     }
     return json.data
   },
@@ -1104,6 +1126,46 @@ export const apiService = {
       console.error('Failed to get wallet ledger:', err)
     }
     return []
+  },
+
+  // Customer In-App Notifications
+  async getInAppNotifications(): Promise<NotificationListResponse> {
+    const token = this.getCustomerToken()
+    if (!token) return { total: 0, unread_count: 0, items: [] }
+    try {
+      const res = await fetch('/api/v1/notifications', {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      const json = await safeJsonParse(res)
+      if (!res.ok || json.code !== 200 || !json.data) {
+        return { total: 0, unread_count: 0, items: [] }
+      }
+      return json.data
+    } catch {
+      return { total: 0, unread_count: 0, items: [] }
+    }
+  },
+
+  async markNotificationAsRead(id: string): Promise<void> {
+    const token = this.getCustomerToken()
+    if (!token) return
+    try {
+      await fetch(`/api/v1/notifications/${id}/read`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      })
+    } catch {}
+  },
+
+  async markAllNotificationsAsRead(): Promise<void> {
+    const token = this.getCustomerToken()
+    if (!token) return
+    try {
+      await fetch('/api/v1/notifications/read-all', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      })
+    } catch {}
   },
 
   // Admin Inventory Management
@@ -3006,6 +3068,27 @@ export const apiService = {
     const json = await safeJsonParse(res)
     if (!res.ok || json.code !== 200) {
       throw new Error(json.msg || 'کلمه عبور وارد شده نادرست است')
+    }
+    if (json.data?.token) {
+      this.setCustomerToken(json.data.token)
+    }
+    return json.data
+  },
+
+  async registerWithPassword(data: {
+    email: string
+    password: string
+    full_name?: string
+    phone?: string
+  }): Promise<VerifyOTPResponse> {
+    const res = await fetch('/api/v1/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    })
+    const json = await safeJsonParse(res)
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'خطا در ثبت‌نام با ایمیل و رمز عبور')
     }
     if (json.data?.token) {
       this.setCustomerToken(json.data.token)

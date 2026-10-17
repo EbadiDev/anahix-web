@@ -28,6 +28,7 @@ import { useEffect, useState } from 'react'
 import { useCart } from '../lib/cartStore'
 import { apiService } from '../services/api'
 import type { CustomerProfile, PaymentGateway } from '../types'
+import { AuthModal } from './AuthModal'
 import { ClaudeIcon, CursorIcon, GeminiIcon, OpenAIIcon } from './BrandIcons'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
@@ -151,6 +152,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   const [phone, setPhone] = useState(customer?.phone || '')
   const [phoneError, setPhoneError] = useState<string | null>(null)
   const [submitError, setSubmitError] = useState<string | null>(null)
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   // Design 1: Contextual Per-Item Credentials state (product.id -> { email, password, showPassword })
@@ -303,6 +305,15 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   const handleFinalSubmit = async () => {
     setSubmitError(null)
     setPhoneError(null)
+
+    // Auth gate check
+    if (!apiService.isCustomerLoggedIn()) {
+      setSubmitError(
+        'برای نهایی‌سازی سفارش و اتصال به درگاه، لطفاً ابتدا وارد حساب کاربری خود شوید یا ثبت‌نام کنید.',
+      )
+      setIsAuthModalOpen(true)
+      return
+    }
 
     const cleanPhone = phone.trim()
     if (!cleanPhone || cleanPhone.length < 11) {
@@ -1170,6 +1181,14 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
           </div>
         )}
       </div>
+
+      {/* Customer Auth Modal for Gated Checkout */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        initialMode="login"
+        onClose={() => setIsAuthModalOpen(false)}
+        onSuccess={() => setIsAuthModalOpen(false)}
+      />
     </div>
   )
 }

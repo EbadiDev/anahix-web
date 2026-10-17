@@ -20,8 +20,15 @@ import type {
   ProductDetail,
   ProductReviewsResponse,
 } from '../../types'
+import { AuthModal } from '../AuthModal'
 import { Button } from '../ui/button'
+import { useNotification } from '../vibefarsi/NotificationContext'
 import { SubmitReviewModal } from './SubmitReviewModal'
+
+function toPersianDigits(n: number | string): string {
+  const f = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹']
+  return String(n).replace(/\d/g, (d) => f[Number(d)])
+}
 
 interface ProductReviewsSectionProps {
   product: ProductDetail
@@ -41,8 +48,25 @@ export const ProductReviewsSection: React.FC<ProductReviewsSectionProps> = ({
   const [sortOrder, setSortOrder] = useState<string>('newest') // newest, highest, helpful
   const [onlyWithComments, setOnlyWithComments] = useState<boolean>(false)
 
+  // Progressive rendering count
+  const [visibleReviewsCount, setVisibleReviewsCount] = useState<number>(4)
+
   // Review modal state
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isAuthOpen, setIsAuthOpen] = useState(false)
+  const { warning } = useNotification()
+
+  const handleOpenReviewModal = () => {
+    if (!apiService.isCustomerLoggedIn()) {
+      warning(
+        'نیاز به ورود به حساب کاربری',
+        'برای ثبت نظر و امتیاز درباره این محصول، لطفاً ابتدا وارد حساب کاربری خود شوید یا ثبت‌نام کنید.',
+      )
+      setIsAuthOpen(true)
+      return
+    }
+    setIsModalOpen(true)
+  }
   const [eligibility, setEligibility] = useState<{
     eligible: boolean
     reason?: string
@@ -100,6 +124,7 @@ export const ProductReviewsSection: React.FC<ProductReviewsSectionProps> = ({
 
   // Trigger load on filter change
   useEffect(() => {
+    setVisibleReviewsCount(4)
     loadReviews()
   }, [product.slug, selectedRating, sortOrder, onlyWithComments])
 
@@ -170,7 +195,7 @@ export const ProductReviewsSection: React.FC<ProductReviewsSectionProps> = ({
         <div>
           <Button
             type="button"
-            onClick={() => setIsModalOpen(true)}
+            onClick={handleOpenReviewModal}
             className="w-full sm:w-auto h-11 px-5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs sm:text-sm shadow-md shadow-blue-500/20 flex items-center gap-2"
           >
             <Plus className="h-4 w-4 stroke-[3]" />
@@ -401,153 +426,183 @@ export const ProductReviewsSection: React.FC<ProductReviewsSectionProps> = ({
             <p>در حال بارگذاری نظرات و امتیازهای خریداران...</p>
           </div>
         ) : reviews.length > 0 ? (
-          reviews.map((rev) => {
-            const isHelpfulVoted = votedMap[rev.id]
-            const currentHelpfulCount =
-              voteCountMap[rev.id] !== undefined
-                ? voteCountMap[rev.id]
-                : rev.helpful_count
+          <>
+            {reviews.slice(0, visibleReviewsCount).map((rev) => {
+              const isHelpfulVoted = votedMap[rev.id]
+              const currentHelpfulCount =
+                voteCountMap[rev.id] !== undefined
+                  ? voteCountMap[rev.id]
+                  : rev.helpful_count
 
-            return (
-              <div
-                key={rev.id}
-                className={`rounded-2xl border bg-card p-5 sm:p-6 space-y-4 transition-all duration-200 hover:border-border/80 ${
-                  rev.is_featured
-                    ? 'border-blue-500/40 bg-gradient-to-br from-blue-500/[0.02] to-card shadow-sm'
-                    : 'border-border/70'
-                }`}
-              >
-                {/* Review Header */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/50 pb-3.5">
-                  <div className="flex items-center gap-3">
-                    <div className="h-9 w-9 rounded-xl bg-muted flex items-center justify-center text-muted-foreground font-bold text-xs border border-border">
-                      <User className="h-4 w-4" />
+              return (
+                <div
+                  key={rev.id}
+                  className={`rounded-surface border bg-card p-5 sm:p-6 space-y-4 duration-motion ease-motion transition-all shadow-surface ${
+                    rev.is_featured
+                      ? 'border-brand/40 bg-card shadow-control'
+                      : 'border-border/60'
+                  }`}
+                >
+                  {/* Review Header */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/40 pb-3.5">
+                    <div className="flex items-center gap-3">
+                      <div className="h-9 w-9 rounded-control bg-secondary text-secondary-foreground flex items-center justify-center font-bold text-xs border border-border/60 shadow-control">
+                        <User className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-xs sm:text-sm text-foreground">
+                            {rev.customer_name}
+                          </span>
+                          {rev.is_verified_buyer && (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-control">
+                              <ShieldCheck className="h-3 w-3 text-emerald-400" />
+                              <span>خریدار قطعی</span>
+                            </span>
+                          )}
+                          {rev.is_featured && (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-brand/10 text-brand border border-brand/20 px-2 py-0.5 rounded-control">
+                              <Sparkles className="h-3 w-3 text-brand" />
+                              <span>نظر برگزیده</span>
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 text-[11px] text-muted-foreground mt-0.5">
+                          {rev.order_number && (
+                            <span className="font-mono text-[10px] bg-muted/60 px-1.5 py-0.5 rounded-control">
+                              #{rev.order_number}
+                            </span>
+                          )}
+                          <span>•</span>
+                          <span>
+                            {new Date(rev.created_at).toLocaleDateString(
+                              'fa-IR',
+                            )}
+                          </span>
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-xs sm:text-sm text-foreground">
-                          {rev.customer_name}
-                        </span>
-                        {rev.is_verified_buyer && (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-full">
-                            <ShieldCheck className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
-                            <span>خریدار قطعی</span>
-                          </span>
-                        )}
-                        {rev.is_featured && (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded-full">
-                            <Sparkles className="h-3 w-3 text-amber-500" />
-                            <span>نظر برگزیده</span>
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2 text-[11px] text-muted-foreground mt-0.5">
-                        {rev.order_number && (
-                          <span className="font-mono text-[10px] bg-muted/60 px-1.5 py-0.5 rounded">
-                            #{rev.order_number}
-                          </span>
-                        )}
-                        <span>•</span>
-                        <span>
-                          {new Date(rev.created_at).toLocaleDateString('fa-IR')}
-                        </span>
-                      </div>
+
+                    {/* Stars Rating */}
+                    <div className="flex items-center gap-1 text-brand">
+                      {[1, 2, 3, 4, 5].map((s) => (
+                        <Star
+                          key={s}
+                          className={`h-4 w-4 ${
+                            s <= rev.rating
+                              ? 'fill-brand text-brand'
+                              : 'text-muted-foreground/20'
+                          }`}
+                        />
+                      ))}
                     </div>
                   </div>
 
-                  {/* Stars Rating */}
-                  <div className="flex items-center gap-1 text-amber-400">
-                    {[1, 2, 3, 4, 5].map((s) => (
-                      <Star
-                        key={s}
-                        className={`h-4 w-4 ${
-                          s <= rev.rating
-                            ? 'fill-amber-400 text-amber-400'
-                            : 'text-muted-foreground/20'
+                  {/* Experience Tags Chosen by Customer */}
+                  {rev.experience_tags && rev.experience_tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {rev.experience_tags.map((tag) => (
+                        <span
+                          key={tag}
+                          className="inline-flex items-center gap-1 text-[11px] font-medium bg-muted/40 text-muted-foreground px-2.5 py-1 rounded-control border border-border/40"
+                        >
+                          <Check className="h-3 w-3 text-brand stroke-[3]" />
+                          <span>{tag}</span>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Text Comment */}
+                  {rev.comment && (
+                    <p className="text-xs sm:text-sm text-foreground leading-relaxed whitespace-pre-line">
+                      {rev.comment}
+                    </p>
+                  )}
+
+                  {/* Official Admin / Support Reply Card */}
+                  {rev.admin_reply && (
+                    <div className="p-4 rounded-control bg-muted/30 border border-border/60 space-y-2 mt-3">
+                      <div className="flex items-center justify-between text-xs font-bold text-foreground">
+                        <div className="flex items-center gap-1.5">
+                          <Headphones className="h-4 w-4 text-brand" />
+                          <span>
+                            {rev.admin_reply_author ||
+                              'پاسخ پشتیبانی رسمی آناهیکس'}
+                          </span>
+                        </div>
+                        {rev.admin_replied_at && (
+                          <span className="text-[10px] text-muted-foreground font-normal">
+                            {new Date(rev.admin_replied_at).toLocaleDateString(
+                              'fa-IR',
+                            )}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-foreground/90 leading-relaxed pr-3 border-r-2 border-brand/60">
+                        {rev.admin_reply}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Review Card Footer: Helpful button */}
+                  <div className="flex items-center justify-end gap-3 pt-2 text-xs text-muted-foreground border-t border-border/40">
+                    <span className="text-[11px]">
+                      آیا این نظر برای شما مفید بود؟
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleHelpfulClick(rev.id)}
+                      disabled={isHelpfulVoted}
+                      className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-control text-xs font-medium duration-motion ease-motion active:scale-[0.98] transition border cursor-pointer ${
+                        isHelpfulVoted
+                          ? 'bg-brand/10 text-brand border-brand/30 font-bold'
+                          : 'bg-muted/40 hover:bg-muted text-muted-foreground border-border/60 hover:text-foreground'
+                      }`}
+                    >
+                      <ThumbsUp
+                        className={`h-3.5 w-3.5 ${
+                          isHelpfulVoted ? 'fill-current text-brand' : ''
                         }`}
                       />
-                    ))}
-                  </div>
-                </div>
-
-                {/* Experience Tags Chosen by Customer */}
-                {rev.experience_tags && rev.experience_tags.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5">
-                    {rev.experience_tags.map((tag) => (
-                      <span
-                        key={tag}
-                        className="inline-flex items-center gap-1 text-[11px] font-medium bg-muted/60 text-muted-foreground px-2.5 py-1 rounded-xl border border-border/40"
-                      >
-                        <Check className="h-3 w-3 text-blue-600 stroke-[3]" />
-                        <span>{tag}</span>
-                      </span>
-                    ))}
-                  </div>
-                )}
-
-                {/* Text Comment */}
-                {rev.comment && (
-                  <p className="text-xs sm:text-sm text-foreground leading-relaxed whitespace-pre-line">
-                    {rev.comment}
-                  </p>
-                )}
-
-                {/* Official Admin / Support Reply Card */}
-                {rev.admin_reply && (
-                  <div className="p-4 rounded-2xl bg-blue-50/60 dark:bg-blue-950/30 border border-blue-200/60 dark:border-blue-900/50 space-y-2 mt-3">
-                    <div className="flex items-center justify-between text-xs font-bold text-blue-700 dark:text-blue-300">
-                      <div className="flex items-center gap-1.5">
-                        <Headphones className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                        <span>
-                          {rev.admin_reply_author ||
-                            'پاسخ پشتیبانی رسمی آناهیکس'}
-                        </span>
-                      </div>
-                      {rev.admin_replied_at && (
-                        <span className="text-[10px] text-muted-foreground font-normal">
-                          {new Date(rev.admin_replied_at).toLocaleDateString(
-                            'fa-IR',
-                          )}
+                      <span>مفید بود</span>
+                      {currentHelpfulCount > 0 && (
+                        <span className="font-mono text-[11px]">
+                          ({toPersianDigits(currentHelpfulCount)})
                         </span>
                       )}
-                    </div>
-                    <p className="text-xs text-foreground/90 leading-relaxed pr-5 border-r-2 border-blue-600/40">
-                      {rev.admin_reply}
-                    </p>
+                    </button>
                   </div>
-                )}
-
-                {/* Review Card Footer: Helpful button */}
-                <div className="flex items-center justify-end gap-3 pt-2 text-xs text-muted-foreground border-t border-border/40">
-                  <span className="text-[11px]">
-                    آیا این نظر برای شما مفید بود؟
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => handleHelpfulClick(rev.id)}
-                    disabled={isHelpfulVoted}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-medium transition border ${
-                      isHelpfulVoted
-                        ? 'bg-blue-500/10 text-blue-600 border-blue-500/30 font-bold'
-                        : 'bg-muted/40 hover:bg-muted text-muted-foreground border-border/60 hover:text-foreground'
-                    }`}
-                  >
-                    <ThumbsUp
-                      className={`h-3.5 w-3.5 ${
-                        isHelpfulVoted ? 'fill-current text-blue-600' : ''
-                      }`}
-                    />
-                    <span>مفید بود</span>
-                    {currentHelpfulCount > 0 && (
-                      <span className="font-mono text-[11px]">
-                        ({currentHelpfulCount})
-                      </span>
-                    )}
-                  </button>
                 </div>
+              )
+            })}
+
+            {/* Progressive Load More Reviews */}
+            {reviews.length > visibleReviewsCount && (
+              <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setVisibleReviewsCount((prev) => prev + 4)}
+                  className="h-10 px-6 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs duration-motion ease-motion active:scale-[0.98] shadow-control flex items-center gap-2 cursor-pointer"
+                >
+                  <span>
+                    بارگذاری نظرات بیشتر (نمایش{' '}
+                    {toPersianDigits(
+                      Math.min(visibleReviewsCount, reviews.length),
+                    )}{' '}
+                    از {toPersianDigits(reviews.length)} نظر)
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setVisibleReviewsCount(reviews.length)}
+                  className="h-10 px-5 rounded-control border border-border/60 bg-card hover:bg-muted text-xs font-bold text-foreground duration-motion ease-motion active:scale-[0.98] cursor-pointer"
+                >
+                  نمایش تمامی {toPersianDigits(reviews.length)} نظر
+                </button>
               </div>
-            )
-          })
+            )}
+          </>
         ) : (
           <div className="py-12 text-center bg-muted/10 border border-dashed border-border rounded-3xl p-8 space-y-3">
             <div className="h-12 w-12 rounded-2xl bg-muted flex items-center justify-center mx-auto text-muted-foreground">
@@ -562,7 +617,7 @@ export const ProductReviewsSection: React.FC<ProductReviewsSectionProps> = ({
             </p>
             <Button
               type="button"
-              onClick={() => setIsModalOpen(true)}
+              onClick={handleOpenReviewModal}
               variant="outline"
               className="rounded-2xl text-xs h-9 px-4 mt-2"
             >
@@ -582,6 +637,17 @@ export const ProductReviewsSection: React.FC<ProductReviewsSectionProps> = ({
         orderNumber={eligibility?.orderNumber}
         customer={customer}
         onSuccess={loadReviews}
+      />
+
+      {/* Customer Auth Modal for Gated Review Action */}
+      <AuthModal
+        isOpen={isAuthOpen}
+        initialMode="login"
+        onClose={() => setIsAuthOpen(false)}
+        onSuccess={() => {
+          setIsAuthOpen(false)
+          setIsModalOpen(true)
+        }}
       />
     </section>
   )

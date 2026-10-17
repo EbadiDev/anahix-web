@@ -1,7 +1,10 @@
 import { Heart, Loader2 } from 'lucide-react'
 import type React from 'react'
 import { useEffect, useState } from 'react'
+import { LIKED_ARTICLES_KEY } from '../../constants/theme'
 import { api } from '../../services/api'
+import { toPersianDigits } from '../../utils/formatters'
+import { AuthModal } from '../AuthModal'
 import { useNotification } from './NotificationContext'
 
 interface LikeButtonProps {
@@ -10,16 +13,9 @@ interface LikeButtonProps {
   className?: string
 }
 
-function toPersianDigits(n: number | string): string {
-  const f = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹']
-  return String(n).replace(/\d/g, (d) => f[Number(d)])
-}
-
-const LIKED_STORAGE_KEY = 'anahix_liked_articles'
-
 function getLikedArticles(): string[] {
   try {
-    const raw = localStorage.getItem(LIKED_STORAGE_KEY)
+    const raw = localStorage.getItem(LIKED_ARTICLES_KEY)
     if (raw) {
       const parsed = JSON.parse(raw)
       if (Array.isArray(parsed)) return parsed
@@ -33,7 +29,7 @@ function saveLikedArticle(slug: string) {
     const list = getLikedArticles()
     if (!list.includes(slug)) {
       list.push(slug)
-      localStorage.setItem(LIKED_STORAGE_KEY, JSON.stringify(list))
+      localStorage.setItem(LIKED_ARTICLES_KEY, JSON.stringify(list))
     }
   } catch {}
 }
@@ -41,7 +37,7 @@ function saveLikedArticle(slug: string) {
 function removeLikedArticle(slug: string) {
   try {
     const list = getLikedArticles().filter((s) => s !== slug)
-    localStorage.setItem(LIKED_STORAGE_KEY, JSON.stringify(list))
+    localStorage.setItem(LIKED_ARTICLES_KEY, JSON.stringify(list))
   } catch {}
 }
 
@@ -50,10 +46,11 @@ export const LikeButton: React.FC<LikeButtonProps> = ({
   initialCount = 0,
   className = '',
 }) => {
-  const { error, success, info } = useNotification()
+  const { error, success, info, warning } = useNotification()
   const [likes, setLikes] = useState<number>(initialCount)
   const [isLiked, setIsLiked] = useState<boolean>(false)
   const [loading, setLoading] = useState<boolean>(false)
+  const [isAuthOpen, setIsAuthOpen] = useState<boolean>(false)
 
   // Sync initial liked state from localStorage on mount or slug change
   useEffect(() => {
@@ -85,6 +82,15 @@ export const LikeButton: React.FC<LikeButtonProps> = ({
   const handleLike = async (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
+
+    if (!api.isCustomerLoggedIn()) {
+      warning(
+        'نیاز به ورود به حساب کاربری',
+        'برای پسندیدن این آموزش، لطفاً ابتدا وارد حساب کاربری خود شوید یا ثبت‌نام کنید.',
+      )
+      setIsAuthOpen(true)
+      return
+    }
 
     if (isLiked) {
       info(
@@ -147,29 +153,39 @@ export const LikeButton: React.FC<LikeButtonProps> = ({
   }
 
   return (
-    <button
-      type="button"
-      onClick={handleLike}
-      className={`group relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-control border transition-all duration-motion ease-motion active:scale-[0.98] cursor-pointer shadow-control ${
-        isLiked
-          ? 'border-rose-500/50 bg-rose-500/10 text-rose-500 font-bold'
-          : 'border-border/60 bg-card hover:bg-muted text-muted-foreground hover:text-rose-500 hover:border-rose-500/40'
-      } ${className}`}
-      title={isLiked ? 'شما این مقاله را پسندیده‌اید' : 'پسندیدن مقاله'}
-      aria-label="پسندیدن مقاله"
-    >
-      {loading ? (
-        <Loader2 className="h-4 w-4 animate-spin text-rose-500" />
-      ) : (
-        <Heart
-          className={`h-4 w-4 transition-transform duration-200 group-hover:scale-115 ${
-            isLiked ? 'fill-rose-500 text-rose-500' : ''
-          }`}
-        />
-      )}
-      <span className="font-latin text-xs font-bold">
-        {toPersianDigits(likes)}
-      </span>
-    </button>
+    <>
+      <button
+        type="button"
+        onClick={handleLike}
+        className={`group relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-control border transition-all duration-motion ease-motion active:scale-[0.98] cursor-pointer shadow-control ${
+          isLiked
+            ? 'border-rose-500/50 bg-rose-500/10 text-rose-500 font-bold'
+            : 'border-border/60 bg-card hover:bg-muted text-muted-foreground hover:text-rose-500 hover:border-rose-500/40'
+        } ${className}`}
+        title={isLiked ? 'شما این مقاله را پسندیده‌اید' : 'پسندیدن مقاله'}
+        aria-label="پسندیدن مقاله"
+      >
+        {loading ? (
+          <Loader2 className="h-4 w-4 animate-spin text-rose-500" />
+        ) : (
+          <Heart
+            className={`h-4 w-4 transition-transform duration-200 group-hover:scale-115 ${
+              isLiked ? 'fill-rose-500 text-rose-500' : ''
+            }`}
+          />
+        )}
+        <span className="font-latin text-xs font-bold">
+          {toPersianDigits(likes)}
+        </span>
+      </button>
+
+      {/* Customer Auth Modal for Gated Like Action */}
+      <AuthModal
+        isOpen={isAuthOpen}
+        initialMode="login"
+        onClose={() => setIsAuthOpen(false)}
+        onSuccess={() => setIsAuthOpen(false)}
+      />
+    </>
   )
 }

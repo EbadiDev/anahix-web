@@ -536,6 +536,22 @@ export interface CouponItem {
   created_at: string
 }
 
+export interface CustomerNotificationItem {
+  id: string
+  title: string
+  message: string
+  type: string
+  link?: string
+  is_read: boolean
+  created_at: string
+}
+
+export interface NotificationListResponse {
+  total: number
+  unread_count: number
+  items: CustomerNotificationItem[]
+}
+
 export interface ReferralStats {
   referral_code: string
   referral_url: string

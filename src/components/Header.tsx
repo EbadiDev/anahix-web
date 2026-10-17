@@ -1,4 +1,5 @@
 import {
+  Bell,
   BookOpen,
   Bot,
   ChevronDown,
@@ -16,19 +17,23 @@ import {
   ShoppingCart,
   Store,
   User,
-  UserPlus,
   Wallet,
   X,
   Zap,
 } from 'lucide-react'
 import type React from 'react'
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Link, useLocation } from 'react-router-dom'
 import { useCart } from '../lib/cartStore'
 import { api } from '../services/api'
-import type { ContentCategory, CustomerProfile, ThemeSettings } from '../types'
+import type {
+  ContentCategory,
+  CustomerNotificationItem,
+  CustomerProfile,
+  ThemeSettings,
+} from '../types'
 import { AuthModal } from './AuthModal'
-import { GithubIcon, GoogleIcon } from './SocialIcons'
 import { ThemeToggle } from './ThemeToggle'
 import { HolidayThemeBanner } from './vibefarsi/HolidayThemeBanner'
 
@@ -78,8 +83,13 @@ export const Header: React.FC<HeaderProps> = ({
   >(null)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
+  const [notifDropdownOpen, setNotifDropdownOpen] = useState(false)
+  const [inAppNotifs, setInAppNotifs] = useState<CustomerNotificationItem[]>([])
+  const [unreadNotifCount, setUnreadNotifCount] = useState<number>(0)
+
   const dropdownRef = useRef<HTMLDivElement>(null)
   const categoryMenuRef = useRef<HTMLDivElement>(null)
+  const notifMenuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     api.getCustomerProfile().then((profile: CustomerProfile | null) => {
@@ -97,6 +107,18 @@ export const Header: React.FC<HeaderProps> = ({
         }
       })
       .catch(() => {})
+
+    if (api.isCustomerLoggedIn()) {
+      api
+        .getInAppNotifications()
+        .then((res) => {
+          if (res) {
+            setInAppNotifs(res.items || [])
+            setUnreadNotifCount(res.unread_count || 0)
+          }
+        })
+        .catch(() => {})
+    }
   }, [])
 
   // Close dropdowns on click outside
@@ -113,6 +135,12 @@ export const Header: React.FC<HeaderProps> = ({
         !categoryMenuRef.current.contains(e.target as Node)
       ) {
         setCategoryDropdownOpen(false)
+      }
+      if (
+        notifMenuRef.current &&
+        !notifMenuRef.current.contains(e.target as Node)
+      ) {
+        setNotifDropdownOpen(false)
       }
     }
     document.addEventListener('mousedown', handleClickOutside)
@@ -240,7 +268,7 @@ export const Header: React.FC<HeaderProps> = ({
         (themeSettings?.event_active ? (
           <HolidayThemeBanner theme={themeSettings} />
         ) : !hideAnnouncementBar ? (
-          <div className="border-b border-border/40 bg-zinc-950/80 py-1.5 text-[11px] text-muted-foreground select-none">
+          <div className="border-b border-border/40 bg-popover/80 py-1.5 text-[11px] text-muted-foreground select-none">
             <div className="mx-auto flex max-w-7xl items-center justify-between px-4 sm:px-6">
               <div className="flex items-center gap-3 min-w-0">
                 <span className="flex items-center gap-1.5 text-foreground font-medium min-w-0">
@@ -260,7 +288,7 @@ export const Header: React.FC<HeaderProps> = ({
                   href="https://t.me/AnahixSupport"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-1 hover:text-white transition-colors font-medium"
+                  className="flex items-center gap-1 hover:text-foreground transition-colors font-medium"
                 >
                   <PhoneCall className="h-3 w-3 text-muted-foreground" />
                   <span>پشتیبانی تلگرام: @AnahixSupport</span>
@@ -271,7 +299,7 @@ export const Header: React.FC<HeaderProps> = ({
         ) : null)}
 
       {/* Main Navbar */}
-      <header className="sticky top-0 z-50 border-b border-border bg-zinc-950/98 backdrop-blur-md transition-colors select-none">
+      <header className="sticky top-0 z-50 border-b border-border bg-popover/98 backdrop-blur-md transition-colors select-none">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
           {/* Logo & Navigation */}
           <div className="flex items-center gap-3 sm:gap-6">
@@ -357,7 +385,7 @@ export const Header: React.FC<HeaderProps> = ({
                   {categoryDropdownOpen && (
                     <div
                       onMouseLeave={() => setActiveCategoryHover(null)}
-                      className="absolute right-0 mt-2 w-80 rounded-surface border border-zinc-800 bg-zinc-950 p-2.5 shadow-2xl z-[100] animate-in fade-in zoom-in-95 space-y-1.5 opacity-100"
+                      className="absolute right-0 mt-2 w-80 rounded-surface border border-border bg-popover p-2.5 shadow-2xl z-[100] animate-in fade-in zoom-in-95 space-y-1.5 opacity-100"
                     >
                       {categoriesToRender.map((item) => {
                         const hasChildren =
@@ -369,36 +397,38 @@ export const Header: React.FC<HeaderProps> = ({
                             key={item.id}
                             className="relative"
                             onMouseEnter={() =>
-                              hasChildren && setActiveCategoryHover(item.id)
+                              hasChildren
+                                ? setActiveCategoryHover(item.id)
+                                : setActiveCategoryHover(null)
                             }
                           >
                             <Link
                               to={item.link}
                               onClick={() => setCategoryDropdownOpen(false)}
-                              className="flex items-center justify-between p-2.5 rounded-control hover:bg-zinc-900 border border-transparent hover:border-zinc-800/80 transition-colors text-right group"
+                              className="flex items-center justify-between p-2.5 rounded-control hover:bg-accent border border-transparent hover:border-border/80 transition-colors text-right group"
                             >
                               <div className="flex items-start gap-3 min-w-0">
-                                <div className="p-2 rounded-control bg-zinc-900 border border-zinc-800 shrink-0 group-hover:scale-105 transition-transform">
+                                <div className="p-2 rounded-control bg-secondary border border-border shrink-0 group-hover:scale-105 transition-transform">
                                   {item.icon}
                                 </div>
                                 <div className="min-w-0">
-                                  <h4 className="text-xs font-bold text-zinc-100 group-hover:text-white truncate">
+                                  <h4 className="text-xs font-bold text-popover-foreground group-hover:text-foreground truncate">
                                     {item.title}
                                   </h4>
-                                  <p className="text-[10px] text-zinc-400 mt-0.5 leading-relaxed truncate">
+                                  <p className="text-[10px] text-muted-foreground mt-0.5 leading-relaxed truncate">
                                     {item.desc}
                                   </p>
                                 </div>
                               </div>
                               {hasChildren && (
-                                <ChevronLeft className="h-3.5 w-3.5 text-zinc-500 group-hover:text-zinc-300 shrink-0 mr-1.5 transition-transform" />
+                                <ChevronLeft className="h-3.5 w-3.5 text-muted-foreground group-hover:text-secondary-foreground shrink-0 mr-1.5 transition-transform" />
                               )}
                             </Link>
 
                             {/* Submenu Flyout to the Left */}
                             {hasChildren && isHovered && (
-                              <div className="absolute right-full top-0 mr-2 w-72 rounded-surface border border-zinc-800 bg-zinc-950 p-2 shadow-2xl z-[110] animate-in fade-in zoom-in-95 space-y-1">
-                                <div className="px-2.5 py-1 text-[10px] font-bold text-brand border-b border-zinc-800/80 mb-1">
+                              <div className="absolute right-full top-0 mr-2 w-72 rounded-surface border border-border bg-popover p-2 shadow-2xl z-[110] animate-in fade-in zoom-in-95 space-y-1">
+                                <div className="px-2.5 py-1 text-[10px] font-bold text-brand border-b border-border/80 mb-1">
                                   زیرمجموعه‌های {item.title}:
                                 </div>
                                 {item.children.map((sub) => (
@@ -409,13 +439,13 @@ export const Header: React.FC<HeaderProps> = ({
                                       setCategoryDropdownOpen(false)
                                       setActiveCategoryHover(null)
                                     }}
-                                    className="block p-2 rounded-control hover:bg-zinc-900 text-right group/sub duration-motion ease-motion"
+                                    className="block p-2 rounded-control hover:bg-accent text-right group/sub duration-motion ease-motion"
                                   >
-                                    <div className="text-xs font-bold text-zinc-200 group-hover/sub:text-white">
+                                    <div className="text-xs font-bold text-foreground group-hover/sub:text-foreground">
                                       {sub.title}
                                     </div>
                                     {sub.desc && (
-                                      <div className="text-[10px] text-zinc-500 mt-0.5 truncate">
+                                      <div className="text-[10px] text-muted-foreground mt-0.5 truncate">
                                         {sub.desc}
                                       </div>
                                     )}
@@ -633,60 +663,151 @@ export const Header: React.FC<HeaderProps> = ({
                 )}
               </div>
             ) : (
-              <div className="flex items-center gap-1.5">
-                {/* One-click social quick login triggers */}
-                <div className="hidden sm:flex items-center gap-1 pl-1 border-l border-border/80">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAuthModalMode('login')
-                      setIsAuthOpen(true)
-                    }}
-                    className="p-2 rounded-xl border border-border hover:bg-muted/80 text-foreground transition-all shadow-xs"
-                    title="ورود سریع با Google"
-                  >
-                    <GoogleIcon className="h-4 w-4" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAuthModalMode('login')
-                      setIsAuthOpen(true)
-                    }}
-                    className="p-2 rounded-xl border border-border hover:bg-muted/80 text-foreground transition-all shadow-xs"
-                    title="ورود سریع با GitHub"
-                  >
-                    <GithubIcon className="h-4 w-4" />
-                  </button>
-                </div>
+              <button
+                type="button"
+                id="header-login-button"
+                onClick={() => {
+                  setAuthModalMode('login')
+                  setIsAuthOpen(true)
+                }}
+                className="h-8 sm:h-9 px-3 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs duration-motion ease-motion active:scale-[0.98] shadow-control flex items-center gap-1.5 cursor-pointer shrink-0"
+              >
+                <LogIn className="h-3.5 w-3.5" />
+                <span>ورود</span>
+              </button>
+            )}
 
-                {/* Login Button */}
+            {/* Notifications Button & Dropdown Menu */}
+            {!isAdminPage && (
+              <div className="relative" ref={notifMenuRef}>
                 <button
                   type="button"
-                  id="header-login-button"
                   onClick={() => {
-                    setAuthModalMode('login')
-                    setIsAuthOpen(true)
+                    if (!customer) {
+                      setAuthModalMode('login')
+                      setIsAuthOpen(true)
+                    } else {
+                      setNotifDropdownOpen((prev) => !prev)
+                    }
                   }}
-                  className="flex items-center gap-1.5 rounded-xl border border-border bg-card hover:bg-muted/60 text-foreground px-3 py-1.5 text-xs font-bold transition-all shadow-xs hover:border-blue-500/40"
+                  className="relative h-8 w-8 sm:h-9 sm:w-9 rounded-control border border-border/60 bg-card hover:bg-muted text-foreground transition shadow-control flex items-center justify-center group duration-motion ease-motion active:scale-[0.98] cursor-pointer shrink-0"
+                  title="اعلان‌ها و اطلاعیه‌ها"
+                  aria-label="اعلان‌ها و اطلاعیه‌ها"
                 >
-                  <LogIn className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
-                  <span>ورود</span>
+                  <Bell className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
+                  {unreadNotifCount > 0 && (
+                    <span className="absolute -top-1 -right-1 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-control bg-brand text-brand-foreground text-[10px] font-black shadow-control animate-pulse">
+                      {toPersianDigits(unreadNotifCount)}
+                    </span>
+                  )}
                 </button>
 
-                {/* Register Button */}
-                <button
-                  type="button"
-                  id="header-register-button"
-                  onClick={() => {
-                    setAuthModalMode('register')
-                    setIsAuthOpen(true)
-                  }}
-                  className="flex items-center gap-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-1.5 text-xs font-bold shadow-sm shadow-blue-600/20 transition-all hover:scale-[1.02] active:scale-95"
-                >
-                  <UserPlus className="h-3.5 w-3.5" />
-                  <span>ثبت‌نام</span>
-                </button>
+                {/* Notifications Dropdown Modal / Flyout */}
+                {notifDropdownOpen && customer && (
+                  <div
+                    dir="rtl"
+                    className="absolute left-0 mt-2 w-80 sm:w-96 rounded-surface border border-border bg-popover text-popover-foreground shadow-2xl z-[100] p-3 space-y-2 animate-in fade-in zoom-in-95 duration-motion ease-motion"
+                  >
+                    {/* Header */}
+                    <div className="flex items-center justify-between pb-2 border-b border-border/60 px-1">
+                      <div className="flex items-center gap-1.5">
+                        <Bell className="w-4 h-4 text-brand" />
+                        <span className="text-xs font-black text-foreground">
+                          اعلان‌ها و پیام‌ها
+                        </span>
+                        {unreadNotifCount > 0 && (
+                          <span className="text-[10px] px-1.5 py-0.2 rounded-control bg-brand/10 text-brand font-bold border border-brand/20">
+                            {toPersianDigits(unreadNotifCount)} جدید
+                          </span>
+                        )}
+                      </div>
+
+                      {unreadNotifCount > 0 && (
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            await api.markAllNotificationsAsRead()
+                            setUnreadNotifCount(0)
+                            setInAppNotifs((prev) =>
+                              prev.map((n) => ({ ...n, is_read: true })),
+                            )
+                          }}
+                          className="text-[10px] text-brand hover:underline cursor-pointer font-bold"
+                        >
+                          خوانده‌شدن همه
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Notification Items List */}
+                    <div className="max-h-72 overflow-y-auto space-y-1.5 pr-0.5">
+                      {inAppNotifs.length === 0 ? (
+                        <div className="py-6 text-center text-xs text-muted-foreground">
+                          پیام یا اعلانی وجود ندارد.
+                        </div>
+                      ) : (
+                        inAppNotifs.slice(0, 4).map((item) => (
+                          <Link
+                            key={item.id}
+                            to="/profile?tab=notifications"
+                            onClick={async () => {
+                              setNotifDropdownOpen(false)
+                              if (!item.is_read) {
+                                await api.markNotificationAsRead(item.id)
+                                setUnreadNotifCount((prev) =>
+                                  Math.max(0, prev - 1),
+                                )
+                                setInAppNotifs((prev) =>
+                                  prev.map((n) =>
+                                    n.id === item.id
+                                      ? { ...n, is_read: true }
+                                      : n,
+                                  ),
+                                )
+                              }
+                            }}
+                            className={`block p-2.5 rounded-control transition-all border duration-motion ease-motion text-right group ${
+                              !item.is_read
+                                ? 'bg-secondary border-border/80'
+                                : 'bg-muted/10 border-transparent hover:bg-muted/30'
+                            }`}
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex items-center gap-2 min-w-0">
+                                {!item.is_read && (
+                                  <span className="w-1.5 h-1.5 rounded-full bg-brand shrink-0 animate-pulse" />
+                                )}
+                                <h5 className="text-xs font-bold text-foreground group-hover:text-primary transition-colors truncate">
+                                  {item.title}
+                                </h5>
+                              </div>
+                              <span className="text-[10px] text-muted-foreground font-mono shrink-0 font-latin">
+                                {new Date(item.created_at).toLocaleDateString(
+                                  'fa-IR',
+                                )}
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-muted-foreground mt-1 truncate leading-relaxed">
+                              {item.message}
+                            </p>
+                          </Link>
+                        ))
+                      )}
+                    </div>
+
+                    {/* Footer */}
+                    <div className="pt-2 border-t border-border/60 text-center">
+                      <Link
+                        to="/profile?tab=notifications"
+                        onClick={() => setNotifDropdownOpen(false)}
+                        className="text-xs font-black text-brand hover:underline inline-flex items-center gap-1"
+                      >
+                        <span>مشاهده همه اعلان‌ها در پروفایل</span>
+                        <span>←</span>
+                      </Link>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -716,240 +837,204 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
 
-        {/* Mobile & Tablet Full Drawer Menu (Responsive & Smooth Overlay) */}
-        {mobileMenuOpen && !isAdminPage && (
-          <div className="fixed inset-0 z-[100] xl:hidden flex">
-            {/* Backdrop */}
-            <div
-              className="fixed inset-0 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200"
-              onClick={() => setMobileMenuOpen(false)}
-            />
+        {/* Mobile & Tablet Full Drawer Menu (Portal to document.body with z-[99999] so it never renders under banners) */}
+        {mobileMenuOpen &&
+          !isAdminPage &&
+          createPortal(
+            <div className="fixed inset-0 z-[99999] flex" dir="rtl">
+              {/* Fullscreen Backdrop */}
+              <div
+                className="fixed inset-0 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200"
+                onClick={() => setMobileMenuOpen(false)}
+              />
 
-            {/* Drawer Content Panel */}
-            <div
-              dir="rtl"
-              className="relative w-80 max-w-[85vw] h-full bg-zinc-950 border-l border-zinc-800 shadow-2xl z-10 flex flex-col p-5 overflow-y-auto space-y-5 animate-in slide-in-from-right duration-200 text-zinc-100"
-            >
-              {/* Drawer Header */}
-              <div className="flex items-center justify-between pb-3 border-b border-zinc-800">
-                <div className="flex items-center gap-2">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-control bg-primary text-primary-foreground font-black text-sm shadow-control">
-                    A
-                  </div>
-                  <span className="font-black text-white text-sm">
-                    منوی فروشگاه آناهیکس
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="p-1.5 rounded-control text-zinc-400 hover:text-white hover:bg-zinc-900 transition-colors cursor-pointer"
-                  aria-label="بستن منو"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-
-              {/* Mobile Auth Actions */}
-              {!customer ? (
-                <div className="p-3.5 rounded-control bg-zinc-900/80 border border-zinc-800 space-y-2.5">
+              {/* Drawer Content Panel */}
+              <div className="relative w-80 max-w-[85vw] h-full bg-popover border-l border-border shadow-2xl z-10 flex flex-col p-5 overflow-y-auto space-y-5 animate-in slide-in-from-right duration-200 text-popover-foreground">
+                {/* Drawer Header */}
+                <div className="flex items-center justify-between pb-3 border-b border-border">
                   <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setMobileMenuOpen(false)
-                        setAuthModalMode('login')
-                        setIsAuthOpen(true)
-                      }}
-                      className="flex-1 py-2 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground text-xs font-black flex items-center justify-center gap-1.5 duration-motion ease-motion active:scale-[0.98] shadow-control cursor-pointer"
-                    >
-                      <LogIn className="h-3.5 w-3.5" />
-                      <span>ورود به سیستم</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setMobileMenuOpen(false)
-                        setAuthModalMode('register')
-                        setIsAuthOpen(true)
-                      }}
-                      className="flex-1 py-2 rounded-control border border-zinc-800 bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-bold flex items-center justify-center gap-1.5 duration-motion ease-motion active:scale-[0.98] cursor-pointer"
-                    >
-                      <UserPlus className="h-3.5 w-3.5" />
-                      <span>ثبت‌نام</span>
-                    </button>
-                  </div>
-                  <div className="flex items-center justify-center gap-2 pt-2 border-t border-zinc-800">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setMobileMenuOpen(false)
-                        setAuthModalMode('login')
-                        setIsAuthOpen(true)
-                      }}
-                      className="flex-1 flex items-center justify-center gap-2 py-1.5 rounded-control border border-zinc-800 hover:bg-zinc-800 text-[11px] font-bold text-zinc-300 cursor-pointer"
-                    >
-                      <GoogleIcon className="h-3.5 w-3.5" />
-                      <span>گوگل</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setMobileMenuOpen(false)
-                        setAuthModalMode('login')
-                        setIsAuthOpen(true)
-                      }}
-                      className="flex-1 flex items-center justify-center gap-2 py-1.5 rounded-control border border-zinc-800 hover:bg-zinc-800 text-[11px] font-bold text-zinc-300 cursor-pointer"
-                    >
-                      <GithubIcon className="h-3.5 w-3.5" />
-                      <span>گیت‌هاب</span>
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="p-3.5 rounded-control bg-zinc-900 border border-zinc-800 flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <div className="p-2 rounded-control bg-zinc-800 text-brand">
-                      <User className="h-4 w-4" />
+                    <div className="flex h-8 w-8 items-center justify-center rounded-control bg-primary text-primary-foreground font-black text-sm shadow-control">
+                      A
                     </div>
-                    <div>
-                      <h4 className="text-xs font-black text-white">
-                        {customer.full_name || customer.phone}
-                      </h4>
-                      <p className="text-[11px] text-zinc-400 mt-0.5 font-latin">
-                        موجودی:{' '}
-                        {toPersianDigits(effectiveBalance.toLocaleString())}{' '}
-                        تومان
-                      </p>
-                    </div>
+                    <span className="font-black text-popover-foreground text-sm">
+                      منوی فروشگاه آناهیکس
+                    </span>
                   </div>
-                  <Link
-                    to="/profile"
+                  <button
+                    type="button"
                     onClick={() => setMobileMenuOpen(false)}
-                    className="text-xs font-black text-brand hover:underline"
+                    className="p-1.5 rounded-control text-muted-foreground hover:text-foreground hover:bg-accent transition-colors cursor-pointer"
+                    aria-label="بستن منو"
                   >
-                    پروفایل ←
-                  </Link>
+                    <X className="h-5 w-5" />
+                  </button>
                 </div>
-              )}
 
-              {/* Dynamic Categories Group with Submenu Accordion */}
-              <div className="space-y-1">
-                <span className="text-[11px] font-bold text-zinc-400 px-2 block mb-1">
-                  دسته‌بندی‌های سرویس‌ها
-                </span>
-                {categoriesToRender.map((item) => {
-                  const hasChildren = item.children && item.children.length > 0
-                  const isExpanded = expandedMobileCategory === item.id
+                {/* Mobile Auth Action */}
+                {!customer ? (
+                  <div className="p-3.5 rounded-control bg-secondary/80 border border-border space-y-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMobileMenuOpen(false)
+                        setAuthModalMode('login')
+                        setIsAuthOpen(true)
+                      }}
+                      className="w-full py-2.5 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground text-xs font-black flex items-center justify-center gap-2 duration-motion ease-motion active:scale-[0.98] shadow-control cursor-pointer"
+                    >
+                      <LogIn className="h-4 w-4" />
+                      <span>ورود به حساب کاربری</span>
+                    </button>
+                    <p className="text-[11px] text-muted-foreground text-center">
+                      ورود سریع با شماره موبایل، پیامک OTP یا گوگل
+                    </p>
+                  </div>
+                ) : (
+                  <div className="p-3.5 rounded-control bg-secondary border border-border flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className="p-2 rounded-control bg-accent text-brand">
+                        <User className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-black text-popover-foreground">
+                          {customer.full_name || customer.phone}
+                        </h4>
+                        <p className="text-[11px] text-muted-foreground mt-0.5 font-latin">
+                          موجودی:{' '}
+                          {toPersianDigits(effectiveBalance.toLocaleString())}{' '}
+                          تومان
+                        </p>
+                      </div>
+                    </div>
+                    <Link
+                      to="/profile"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="text-xs font-black text-brand hover:underline"
+                    >
+                      پروفایل ←
+                    </Link>
+                  </div>
+                )}
 
-                  return (
-                    <div key={`drawer-cat-${item.id}`} className="space-y-1">
-                      <div className="flex items-center justify-between rounded-control hover:bg-zinc-900 border border-transparent hover:border-zinc-800 transition-colors">
-                        <Link
-                          to={item.link}
-                          onClick={() => setMobileMenuOpen(false)}
-                          className="flex items-center gap-3 p-2.5 flex-1 min-w-0 text-xs font-bold text-zinc-200 hover:text-white"
-                        >
-                          <div className="p-1.5 rounded-control bg-zinc-900 border border-zinc-800 shrink-0">
-                            {item.icon}
-                          </div>
-                          <span className="truncate">{item.title}</span>
-                        </Link>
-                        {hasChildren && (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              setExpandedMobileCategory(
-                                isExpanded ? null : item.id,
-                              )
-                            }}
-                            className="p-2.5 text-zinc-400 hover:text-white transition-colors cursor-pointer"
-                            aria-label="نمایش زیردسته‌ها"
+                {/* Dynamic Categories Group with Submenu Accordion */}
+                <div className="space-y-1">
+                  <span className="text-[11px] font-bold text-muted-foreground px-2 block mb-1">
+                    دسته‌بندی‌های سرویس‌ها
+                  </span>
+                  {categoriesToRender.map((item) => {
+                    const hasChildren =
+                      item.children && item.children.length > 0
+                    const isExpanded = expandedMobileCategory === item.id
+
+                    return (
+                      <div key={`drawer-cat-${item.id}`} className="space-y-1">
+                        <div className="flex items-center justify-between rounded-control hover:bg-accent border border-transparent hover:border-border transition-colors">
+                          <Link
+                            to={item.link}
+                            onClick={() => setMobileMenuOpen(false)}
+                            className="flex items-center gap-3 p-2.5 flex-1 min-w-0 text-xs font-bold text-foreground hover:text-foreground"
                           >
-                            <ChevronDown
-                              className={`h-3.5 w-3.5 transition-transform duration-200 ${
-                                isExpanded ? 'rotate-180 text-brand' : ''
-                              }`}
-                            />
-                          </button>
+                            <div className="p-1.5 rounded-control bg-secondary border border-border shrink-0">
+                              {item.icon}
+                            </div>
+                            <span className="truncate">{item.title}</span>
+                          </Link>
+                          {hasChildren && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setExpandedMobileCategory(
+                                  isExpanded ? null : item.id,
+                                )
+                              }}
+                              className="p-2.5 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                              aria-label="نمایش زیردسته‌ها"
+                            >
+                              <ChevronDown
+                                className={`h-3.5 w-3.5 transition-transform duration-200 ${
+                                  isExpanded ? 'rotate-180 text-brand' : ''
+                                }`}
+                              />
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Subcategories Accordion Content */}
+                        {hasChildren && isExpanded && (
+                          <div className="mr-8 pr-2.5 border-r border-border/80 space-y-1 py-1 animate-in fade-in slide-in-from-top-2 duration-150">
+                            {item.children.map((sub) => (
+                              <Link
+                                key={`drawer-sub-${sub.id}`}
+                                to={sub.link}
+                                onClick={() => setMobileMenuOpen(false)}
+                                className="flex items-center justify-between p-2 rounded-control text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-accent duration-motion ease-motion"
+                              >
+                                <span>{sub.title}</span>
+                                <ChevronLeft className="h-3 w-3 opacity-40" />
+                              </Link>
+                            ))}
+                          </div>
                         )}
                       </div>
+                    )
+                  })}
+                </div>
 
-                      {/* Subcategories Accordion Content */}
-                      {hasChildren && isExpanded && (
-                        <div className="mr-8 pr-2.5 border-r border-zinc-800/80 space-y-1 py-1 animate-in fade-in slide-in-from-top-2 duration-150">
-                          {item.children.map((sub) => (
-                            <Link
-                              key={`drawer-sub-${sub.id}`}
-                              to={sub.link}
-                              onClick={() => setMobileMenuOpen(false)}
-                              className="flex items-center justify-between p-2 rounded-control text-[11px] font-medium text-zinc-400 hover:text-white hover:bg-zinc-900 duration-motion ease-motion"
-                            >
-                              <span>{sub.title}</span>
-                              <ChevronLeft className="h-3 w-3 opacity-40" />
-                            </Link>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-
-              {/* Main Nav Links */}
-              <div className="border-t border-zinc-800 pt-3 space-y-1">
-                <span className="text-[11px] font-bold text-zinc-400 px-2 block mb-1">
-                  دسترسی سریع
-                </span>
-                <Link
-                  to="/virtual-numbers"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="flex items-center justify-between p-2.5 rounded-control text-xs font-bold text-zinc-200 hover:bg-zinc-900 hover:text-white duration-motion ease-motion"
-                >
-                  <div className="flex items-center gap-2.5">
-                    <Radio className="h-4 w-4 text-brand" />
-                    <span>شماره مجازی (SMS)</span>
-                  </div>
-                  <span className="px-1.5 py-0.2 rounded-control text-[9px] bg-brand/20 text-brand font-black border border-brand/30">
-                    جدید
+                {/* Main Nav Links */}
+                <div className="border-t border-border pt-3 space-y-1">
+                  <span className="text-[11px] font-bold text-muted-foreground px-2 block mb-1">
+                    دسترسی سریع
                   </span>
-                </Link>
-                <Link
-                  to="/blog"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="flex items-center gap-2.5 p-2.5 rounded-control text-xs font-bold text-zinc-200 hover:bg-zinc-900 hover:text-white duration-motion ease-motion"
-                >
-                  <BookOpen className="h-4 w-4 text-zinc-400" />
-                  <span>وبلاگ و آموزش‌ها</span>
-                </Link>
-                <Link
-                  to="/help"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="flex items-center gap-2.5 p-2.5 rounded-control text-xs font-bold text-zinc-200 hover:bg-zinc-900 hover:text-white duration-motion ease-motion"
-                >
-                  <HelpCircle className="h-4 w-4 text-zinc-400" />
-                  <span>پایگاه دانش و راهنما</span>
-                </Link>
-                <Link
-                  to="/track"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="flex items-center justify-between p-2.5 rounded-control text-xs font-bold text-zinc-200 hover:bg-zinc-900 hover:text-white duration-motion ease-motion"
-                >
-                  <div className="flex items-center gap-2.5">
-                    <ShieldCheck className="h-4 w-4 text-emerald-400" />
-                    <span>پیگیری سفارش</span>
-                  </div>
-                  {activeOrdersCount > 0 && (
-                    <span className="flex h-4 min-w-[16px] px-1 items-center justify-center rounded-control bg-primary text-primary-foreground text-[10px] font-black">
-                      {toPersianDigits(activeOrdersCount)}
+                  <Link
+                    to="/virtual-numbers"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center justify-between p-2.5 rounded-control text-xs font-bold text-foreground hover:bg-accent hover:text-foreground duration-motion ease-motion"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <Radio className="h-4 w-4 text-brand" />
+                      <span>شماره مجازی (SMS)</span>
+                    </div>
+                    <span className="px-1.5 py-0.2 rounded-control text-[9px] bg-brand/20 text-brand font-black border border-brand/30">
+                      جدید
                     </span>
-                  )}
-                </Link>
+                  </Link>
+                  <Link
+                    to="/blog"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center gap-2.5 p-2.5 rounded-control text-xs font-bold text-foreground hover:bg-accent hover:text-foreground duration-motion ease-motion"
+                  >
+                    <BookOpen className="h-4 w-4 text-muted-foreground" />
+                    <span>وبلاگ و آموزش‌ها</span>
+                  </Link>
+                  <Link
+                    to="/help"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center gap-2.5 p-2.5 rounded-control text-xs font-bold text-foreground hover:bg-accent hover:text-foreground duration-motion ease-motion"
+                  >
+                    <HelpCircle className="h-4 w-4 text-muted-foreground" />
+                    <span>پایگاه دانش و راهنما</span>
+                  </Link>
+                  <Link
+                    to="/track"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center justify-between p-2.5 rounded-control text-xs font-bold text-foreground hover:bg-accent hover:text-foreground duration-motion ease-motion"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <ShieldCheck className="h-4 w-4 text-emerald-400" />
+                      <span>پیگیری سفارش</span>
+                    </div>
+                    {activeOrdersCount > 0 && (
+                      <span className="flex h-4 min-w-[16px] px-1 items-center justify-center rounded-control bg-primary text-primary-foreground text-[10px] font-black">
+                        {toPersianDigits(activeOrdersCount)}
+                      </span>
+                    )}
+                  </Link>
+                </div>
               </div>
-            </div>
-          </div>
-        )}
+            </div>,
+            document.body,
+          )}
       </header>
 
       {/* Customer Auth Modal */}

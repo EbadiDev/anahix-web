@@ -37,48 +37,47 @@ export const Alert: React.FC<AlertProps> = ({
       case 'graphite':
         return {
           wrapper:
-            'border-zinc-700/60 bg-zinc-900/80 text-zinc-100 shadow-lg shadow-black/20 backdrop-blur-xl',
-          iconWrapper: 'bg-zinc-800 text-blue-400 border border-zinc-700/80',
-          titleColor: 'text-zinc-100',
-          bodyColor: 'text-zinc-300/90',
-          defaultIcon: <Sparkles className="h-4 w-4 text-blue-400" />,
+            'border-border/60 bg-card text-card-foreground shadow-surface',
+          iconWrapper: 'bg-secondary text-brand border border-border/60',
+          titleColor: 'text-foreground',
+          bodyColor: 'text-muted-foreground',
+          defaultIcon: <Sparkles className="h-4 w-4 text-brand" />,
         }
       case 'success':
         return {
           wrapper:
-            'border-emerald-500/30 bg-emerald-500/10 text-emerald-950 dark:text-emerald-100 backdrop-blur-md',
-          iconWrapper:
-            'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400',
-          titleColor: 'text-emerald-700 dark:text-emerald-300',
-          bodyColor: 'text-emerald-800/90 dark:text-emerald-200/90',
-          defaultIcon: <CheckCircle2 className="h-4 w-4" />,
+            'border-emerald-500/40 bg-emerald-500/10 text-foreground backdrop-blur-md',
+          iconWrapper: 'bg-emerald-500/20 text-emerald-400',
+          titleColor: 'text-emerald-500 dark:text-emerald-400',
+          bodyColor: 'text-foreground/90',
+          defaultIcon: <CheckCircle2 className="h-4 w-4 text-emerald-500" />,
         }
       case 'warning':
         return {
           wrapper:
-            'border-amber-500/30 bg-amber-500/10 text-amber-950 dark:text-amber-100 backdrop-blur-md',
-          iconWrapper: 'bg-amber-500/20 text-amber-600 dark:text-amber-400',
-          titleColor: 'text-amber-700 dark:text-amber-300',
-          bodyColor: 'text-amber-800/90 dark:text-amber-200/90',
-          defaultIcon: <AlertTriangle className="h-4 w-4" />,
+            'border-amber-500/40 bg-amber-500/10 text-foreground backdrop-blur-md',
+          iconWrapper: 'bg-amber-500/20 text-amber-500',
+          titleColor: 'text-amber-500 dark:text-amber-400',
+          bodyColor: 'text-foreground/90',
+          defaultIcon: <AlertTriangle className="h-4 w-4 text-amber-500" />,
         }
       case 'danger':
         return {
           wrapper:
-            'border-rose-500/30 bg-rose-500/10 text-rose-950 dark:text-rose-100 backdrop-blur-md',
-          iconWrapper: 'bg-rose-500/20 text-rose-600 dark:text-rose-400',
-          titleColor: 'text-rose-700 dark:text-rose-300',
-          bodyColor: 'text-rose-800/90 dark:text-rose-200/90',
-          defaultIcon: <AlertCircle className="h-4 w-4" />,
+            'border-rose-500/40 bg-rose-500/10 text-foreground backdrop-blur-md',
+          iconWrapper: 'bg-rose-500/20 text-rose-500',
+          titleColor: 'text-rose-500 dark:text-rose-400',
+          bodyColor: 'text-foreground/90',
+          defaultIcon: <AlertCircle className="h-4 w-4 text-rose-500" />,
         }
       default:
         return {
           wrapper:
-            'border-blue-500/30 bg-blue-500/10 text-blue-950 dark:text-blue-100 backdrop-blur-md',
-          iconWrapper: 'bg-blue-500/20 text-blue-600 dark:text-blue-400',
-          titleColor: 'text-blue-700 dark:text-blue-300',
-          bodyColor: 'text-blue-800/90 dark:text-blue-200/90',
-          defaultIcon: <Info className="h-4 w-4" />,
+            'border-brand/40 bg-brand/10 text-foreground backdrop-blur-md',
+          iconWrapper: 'bg-brand/20 text-brand',
+          titleColor: 'text-brand',
+          bodyColor: 'text-foreground/90',
+          defaultIcon: <Info className="h-4 w-4 text-brand" />,
         }
     }
   }

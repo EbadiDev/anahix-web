@@ -1,21 +1,15 @@
 import {
   Bell,
-  CheckCircle2,
   ChevronLeft,
   Crown,
   Gift,
   LayoutDashboard,
   LogIn,
-  LogOut,
   MessageSquare,
   Package,
-  Phone,
-  Plus,
   Radio,
   Settings,
   Shield,
-  ShieldCheck,
-  ShoppingBag,
   Sparkles,
   Star,
   User,
@@ -26,6 +20,7 @@ import type React from 'react'
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { AuthModal } from '../components/AuthModal'
+import { CartDrawer } from '../components/CartDrawer'
 import { Header } from '../components/Header'
 import { ProfileLoyaltyTab } from '../components/profile/ProfileLoyaltyTab'
 import { ProfileNotificationsTab } from '../components/profile/ProfileNotificationsTab'
@@ -40,8 +35,8 @@ import { ProfileSecurityTab } from '../components/profile/ProfileSecurityTab'
 import { ProfileSettingsTab } from '../components/profile/ProfileSettingsTab'
 import { ProfileSupportTab } from '../components/profile/ProfileSupportTab'
 import { ProfileWalletTab } from '../components/profile/ProfileWalletTab'
+import { SidebarProfileAvatar } from '../components/profile/SidebarProfileAvatar'
 import { WalletTopupModal } from '../components/profile/WalletTopupModal'
-import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
 import { apiService } from '../services/api'
 import type { CustomerProfile, Order, VirtualNumberOrder } from '../types'
@@ -75,9 +70,10 @@ export const UserProfilePage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams()
 
   const [customer, setCustomer] = useState<CustomerProfile | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [, setLoading] = useState(true)
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
   const [isWalletModalOpen, setIsWalletModalOpen] = useState(false)
+  const [isCartOpen, setIsCartOpen] = useState(false)
 
   // Orders and Virtual numbers state
   const [orders, _setOrders] = useState<Order[]>(() =>
@@ -292,200 +288,35 @@ export const UserProfilePage: React.FC = () => {
   const activeTabDef = tabs.find((t) => t.id === activeTab) || tabs[0]
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white flex flex-col font-sans selection:bg-blue-500 selection:text-white pb-20">
-      <Header activeOrdersCount={pendingOrdersCount + activeNumbersCount} />
+    <div className="min-h-screen bg-background text-foreground flex flex-col font-sans pb-20 transition-colors duration-200">
+      <Header
+        activeOrdersCount={pendingOrdersCount + activeNumbersCount}
+        onOpenCart={() => setIsCartOpen(true)}
+      />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-        {/* Breadcrumb & Navigation helper */}
-        <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground border-b border-border/40 pb-3">
-          <div className="flex items-center gap-2">
-            <Link to="/" className="hover:text-blue-600 transition-colors">
-              خانه
-            </Link>
-            <span>/</span>
-            <span className="text-foreground font-medium">حساب کاربری</span>
-            <span>/</span>
-            <span className="text-blue-600 dark:text-blue-400 font-bold">
-              {activeTabDef.label}
-            </span>
-          </div>
+        {/* Clean Breadcrumb Navigation (Without duplicate buttons or harsh border) */}
+        <nav
+          aria-label="Breadcrumb"
+          className="text-xs text-muted-foreground flex items-center gap-2"
+        >
+          <Link to="/" className="hover:text-foreground transition-colors">
+            خانه
+          </Link>
+          <span className="opacity-40">/</span>
+          <span className="text-foreground font-medium">حساب کاربری</span>
+          <span className="opacity-40">/</span>
+          <span className="text-brand font-bold">{activeTabDef.label}</span>
+        </nav>
 
-          <div className="flex items-center gap-2">
-            <Link
-              to="/virtual-numbers"
-              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 font-medium hover:bg-blue-100 dark:hover:bg-blue-900/60 transition-colors"
-            >
-              <Radio className="h-3 w-3" />
-              <span>خرید شماره جدید</span>
-            </Link>
-            <Link
-              to="/"
-              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-card border border-border text-foreground font-medium hover:bg-muted/50 transition-colors"
-            >
-              <ShoppingBag className="h-3 w-3" />
-              <span>کاتالوگ سرویس‌ها</span>
-            </Link>
-          </div>
-        </div>
-
-        {/* Profile Hero Header Card */}
-        {loading ? (
-          <div className="rounded-surface border-line bg-card p-6 flex items-center justify-center shadow-surface">
-            <div className="flex items-center gap-3 text-muted-foreground text-xs font-medium">
-              <span className="h-4 w-4 rounded-full border-2 border-foreground border-t-transparent animate-spin" />
-              <span>در حال بارگذاری اطلاعات حساب کاربری...</span>
-            </div>
-          </div>
-        ) : customer ? (
-          <div className="relative overflow-hidden rounded-surface border-line bg-card p-5 sm:p-6 shadow-surface duration-motion ease-motion">
-            {/* Top decorative hairline highlight in Graphite style */}
-            <div className="absolute top-0 left-0 right-0 h-px bg-white/10" />
-
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-5">
-              {/* Left/Start: Avatar + Info */}
-              <div className="flex items-center gap-3.5 sm:gap-4 w-full md:w-auto">
-                <div className="relative shrink-0">
-                  {customer.avatar_url ? (
-                    <img
-                      src={customer.avatar_url}
-                      alt={customer.full_name || 'کاربر'}
-                      className="h-14 w-14 sm:h-16 sm:w-16 rounded-control object-cover border-line"
-                    />
-                  ) : (
-                    <div className="h-14 w-14 sm:h-16 sm:w-16 rounded-control bg-secondary text-secondary-foreground border-line flex items-center justify-center font-black text-xl sm:text-2xl shadow-control">
-                      {customer.full_name
-                        ? customer.full_name.charAt(0).toUpperCase()
-                        : customer.phone.slice(-4)}
-                    </div>
-                  )}
-                  <span
-                    className="absolute -bottom-1 -right-1 h-5 w-5 rounded-full bg-emerald-500 border-2 border-card flex items-center justify-center"
-                    title="حساب فعال و تایید شده"
-                  >
-                    <ShieldCheck className="h-3 w-3 text-white" />
-                  </span>
-                </div>
-
-                <div className="space-y-1 text-right flex-1 min-w-0">
-                  <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-                    <h1 className="text-base sm:text-xl font-black tracking-tight text-foreground truncate">
-                      {customer.full_name || 'کاربر گرامی آناهیکس'}
-                    </h1>
-
-                    {/* Role & Badges */}
-                    {(customer.is_admin || apiService.getAdminUser()) && (
-                      <Link
-                        to="/admin/dashboard"
-                        title="ورود به پنل مدیریت"
-                        className="inline-flex shrink-0"
-                      >
-                        <Badge
-                          variant="outline"
-                          className="border-line text-destructive bg-destructive/10 text-[10px] gap-1 px-2 py-0.5 rounded-control"
-                        >
-                          <ShieldCheck className="h-3 w-3" />
-                          <span>مدیر سیستم</span>
-                        </Badge>
-                      </Link>
-                    )}
-
-                    {customer.is_active && (
-                      <Badge
-                        variant="outline"
-                        className="border-line text-emerald-400 bg-emerald-500/10 text-[10px] gap-1 px-2 py-0.5 shrink-0 rounded-control"
-                      >
-                        <CheckCircle2 className="h-3 w-3" />
-                        <span>تاییدشده</span>
-                      </Badge>
-                    )}
-
-                    {orders.length > 0 && (
-                      <Badge
-                        variant="outline"
-                        className="border-line text-foreground bg-muted text-[10px] gap-1 px-2 py-0.5 shrink-0 rounded-control"
-                      >
-                        <ShoppingBag className="h-3 w-3 text-brand" />
-                        <span>
-                          {orders.length.toLocaleString('fa-IR')} سفارش
-                        </span>
-                      </Badge>
-                    )}
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                    <div className="flex items-center gap-1 font-mono text-foreground font-bold">
-                      <Phone className="h-3 w-3 text-brand" />
-                      <span dir="ltr">{customer.phone}</span>
-                    </div>
-                    <span>•</span>
-                    <span className="text-emerald-400 font-medium text-[11px]">
-                      فعال و رسمی
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Right/End: Responsive Wallet & Actions (Graphite Style - Primary white button) */}
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full md:w-auto border-t md:border-t-0 border-line pt-3 md:pt-0">
-                {/* Unified Wallet Component */}
-                <div className="flex items-center justify-between sm:justify-start gap-2.5 px-3 py-2 rounded-control bg-card border-line shadow-surface">
-                  <div className="flex items-center gap-1.5 text-xs text-right">
-                    <span className="text-[11px] text-muted-foreground">
-                      موجودی:
-                    </span>
-                    <span className="font-black text-foreground font-latin text-sm">
-                      {customer.balance_toman.toLocaleString('fa-IR')}
-                    </span>
-                    <span className="text-[10px] text-muted-foreground">
-                      تومان
-                    </span>
-                  </div>
-
-                  <div className="h-4 w-px bg-border" />
-
-                  <button
-                    type="button"
-                    onClick={() => setIsWalletModalOpen(true)}
-                    className="h-7 px-3 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs gap-1 flex items-center cursor-pointer active:[transform:var(--press)] duration-motion ease-motion shadow-control"
-                  >
-                    <Plus className="h-3 w-3" />
-                    <span>شارژ</span>
-                  </button>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={handleLogout}
-                    className="h-9 px-3.5 rounded-control text-xs text-destructive border-line bg-card hover:bg-muted gap-1.5 shrink-0 justify-center flex-1 sm:flex-initial flex items-center cursor-pointer active:[transform:var(--press)] duration-motion ease-motion"
-                  >
-                    <LogOut className="h-3.5 w-3.5" />
-                    <span>خروج از حساب</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        ) : (
-          /* Unauthenticated Banner */
-          <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="text-right space-y-1">
-              <h2 className="text-base font-bold text-amber-700 dark:text-amber-400">
-                شما هنوز وارد حساب کاربری خود نشده‌اید
-              </h2>
-              <p className="text-xs text-muted-foreground">
-                برای مدیریت سفارش‌ها، دریافت لایسنس‌ها و مشاهده کد پیامک‌های شماره
-                مجازی، وارد شوید.
-              </p>
-            </div>
-            <Button
-              type="button"
-              onClick={() => setIsAuthModalOpen(true)}
-              className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs gap-2 shrink-0 shadow-md shadow-blue-600/20"
-            >
-              <LogIn className="h-4 w-4" />
-              <span>ورود با شماره موبایل</span>
-            </Button>
+        {/* Mobile & Tablet Profile Avatar Card (Responsive - Visible on mobile/tablet) */}
+        {customer && (
+          <div className="lg:hidden">
+            <SidebarProfileAvatar
+              customer={customer}
+              onProfileUpdated={(updated) => setCustomer(updated)}
+              onNavigateToPersonal={() => handleSelectTab('personal')}
+            />
           </div>
         )}
 
@@ -529,9 +360,17 @@ export const UserProfilePage: React.FC = () => {
 
         {/* Desktop 2-Column Grid Layout */}
         <div className="grid grid-cols-12 gap-6 items-start">
-          {/* Sidebar Navigation */}
+          {/* Sidebar Navigation with Vibe Farsi Avatar Card on Top */}
           <aside className="hidden lg:block lg:col-span-3 space-y-4 sticky top-20">
-            <div className="rounded-surface border-line bg-card p-3 shadow-surface space-y-4 duration-motion ease-motion">
+            {customer && (
+              <SidebarProfileAvatar
+                customer={customer}
+                onProfileUpdated={(updated) => setCustomer(updated)}
+                onNavigateToPersonal={() => handleSelectTab('personal')}
+              />
+            )}
+
+            <div className="rounded-surface border border-border/60 bg-card p-3 shadow-surface space-y-4 duration-motion ease-motion">
               {/* General Group */}
               <div>
                 <span className="px-3 text-[10px] font-bold text-muted-foreground tracking-wider uppercase block mb-1.5">
@@ -576,7 +415,7 @@ export const UserProfilePage: React.FC = () => {
               </div>
 
               {/* Services & Orders Group */}
-              <div className="pt-2 border-t border-line">
+              <div className="pt-2">
                 <span className="px-3 text-[10px] font-bold text-muted-foreground tracking-wider uppercase block mb-1.5">
                   سرویس‌ها و سفارش‌ها
                 </span>
@@ -631,7 +470,7 @@ export const UserProfilePage: React.FC = () => {
               </div>
 
               {/* Financial Group */}
-              <div className="pt-2 border-t border-line">
+              <div className="pt-2">
                 <span className="px-3 text-[10px] font-bold text-muted-foreground tracking-wider uppercase block mb-1.5">
                   بخش مالی و درآمد
                 </span>
@@ -686,7 +525,7 @@ export const UserProfilePage: React.FC = () => {
               </div>
 
               {/* System & Support Group */}
-              <div className="pt-2 border-t border-line">
+              <div className="pt-2">
                 <span className="px-3 text-[10px] font-bold text-muted-foreground tracking-wider uppercase block mb-1.5">
                   پشتیبانی و تنظیمات
                 </span>
@@ -884,6 +723,18 @@ export const UserProfilePage: React.FC = () => {
         onClose={() => setIsAuthModalOpen(false)}
         onSuccess={(profile) => {
           setCustomer(profile)
+          refreshProfile()
+        }}
+      />
+
+      {/* Cart Drawer for Profile Header Action */}
+      <CartDrawer
+        isOpen={isCartOpen}
+        onClose={() => setIsCartOpen(false)}
+        customer={customer}
+        payments={[]}
+        onSubmit={async () => {
+          setIsCartOpen(false)
           refreshProfile()
         }}
       />

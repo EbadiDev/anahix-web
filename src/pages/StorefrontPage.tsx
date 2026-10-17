@@ -1,5 +1,7 @@
 import {
   BookOpen,
+  ChevronLeft,
+  ChevronRight,
   CreditCard,
   Headphones,
   Heart,
@@ -12,7 +14,7 @@ import {
   Zap,
 } from 'lucide-react'
 import type React from 'react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { BrandIcons } from '../components/BrandIcons'
 import { CartDrawer } from '../components/CartDrawer'
@@ -27,6 +29,7 @@ import {
 } from '../components/vibefarsi/BannerCarousel'
 import { FlashSaleCountdown } from '../components/vibefarsi/FlashSaleCountdown'
 import { GridPattern } from '../components/vibefarsi/GridPattern'
+import { ScrollReveal } from '../components/vibefarsi/ScrollReveal'
 import { TypewriterText } from '../components/vibefarsi/TypewriterText'
 import { useCart } from '../lib/cartStore'
 import { api, apiService } from '../services/api'
@@ -63,6 +66,23 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
   const [payments, setPayments] = useState<PaymentGateway[]>([])
   const [isCartOpen, setIsCartOpen] = useState(false)
   const [loading, setLoading] = useState(true)
+
+  const catalogScrollRef = useRef<HTMLDivElement>(null)
+  const blogScrollRef = useRef<HTMLDivElement>(null)
+
+  const scrollCatalog = (direction: 'left' | 'right') => {
+    if (catalogScrollRef.current) {
+      const offset = direction === 'left' ? -350 : 350
+      catalogScrollRef.current.scrollBy({ left: offset, behavior: 'smooth' })
+    }
+  }
+
+  const scrollBlog = (direction: 'left' | 'right') => {
+    if (blogScrollRef.current) {
+      const offset = direction === 'left' ? -350 : 350
+      blogScrollRef.current.scrollBy({ left: offset, behavior: 'smooth' })
+    }
+  }
 
   useEffect(() => {
     async function init() {
@@ -195,371 +215,449 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
 
       <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 py-6 w-full space-y-10 sm:space-y-12">
         {/* GRAPHITE SECURITY ALERT BANNER */}
-        <Alert
-          variant="graphite"
-          title="زیرساخت امنیتی اختصاصی و تحویل رسمی لایسنس‌ها"
-        >
-          تمامی اکانت‌ها و اشتراک‌های آناهیکس به صورت ۱۰۰٪ قانونی با مسترکارت‌های
-          بین‌المللی پرداخت شده و تحت پروتکل امنیتی Zeroize پس از فعال‌سازی
-          هیچ‌گونه رمز عبوری در سرور باقی نخواهد ماند.
-        </Alert>
+        <ScrollReveal>
+          <Alert
+            variant="graphite"
+            title="زیرساخت امنیتی اختصاصی و تحویل رسمی لایسنس‌ها"
+          >
+            تمامی اکانت‌ها و اشتراک‌های آناهیکس به صورت ۱۰۰٪ قانونی با مسترکارت‌های
+            بین‌المللی پرداخت شده و تحت پروتکل امنیتی Zeroize پس از فعال‌سازی
+            هیچ‌گونه رمز عبوری در سرور باقی نخواهد ماند.
+          </Alert>
+        </ScrollReveal>
 
         {/* HERO SECTION WITH TYPEWRITER & VIBE FARSI GRID */}
-        <section className="relative overflow-hidden rounded-surface border-line bg-card p-6 sm:p-10 shadow-surface duration-motion ease-motion">
-          <GridPattern
-            squares={[
-              [2, 1],
-              [5, 2],
-              [8, 3],
-              [14, 2],
-            ]}
-          />
+        <ScrollReveal>
+          <section className="relative overflow-hidden rounded-surface border-line bg-card p-6 sm:p-10 shadow-surface duration-motion ease-motion">
+            <GridPattern
+              squares={[
+                [2, 1],
+                [5, 2],
+                [8, 3],
+                [14, 2],
+              ]}
+            />
 
-          <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-            {/* Hero Left/Right Content */}
-            <div className="lg:col-span-7 space-y-4 text-right">
-              <div className="inline-flex items-center gap-2 rounded-control border border-brand/30 bg-brand/10 px-3 py-1 text-xs font-bold text-brand">
-                <Zap className="h-3.5 w-3.5" />
-                <span>تحویل آنی لایسنس و اکانت‌های هوش مصنوعی</span>
-              </div>
-
-              <h1 className="text-2xl sm:text-4xl md:text-5xl font-black tracking-tight text-foreground leading-tight">
-                خرید قانونی اشتراک‌های{' '}
-                <TypewriterText
-                  words={[
-                    'ChatGPT Plus',
-                    'Claude 3.7 Sonnet',
-                    'Gemini Advanced',
-                    'Cursor AI Pro',
-                    'Google One 2TB',
-                  ]}
-                  className="text-foreground font-latin underline decoration-brand/60 underline-offset-8"
-                />
-              </h1>
-
-              <p className="text-xs sm:text-base text-muted-foreground leading-relaxed max-w-xl">
-                دسترسی مستقیم و پایدار به قدرتمندترین ابزارهای هوش مصنوعی روز
-                جهان با پرداخت ریالی عضو شتاب، تضمین بدون مسدودی و پروتکل امنیتی
-                Zeroize.
-              </p>
-
-              <div className="pt-2 flex flex-wrap items-center gap-3 sm:gap-4 text-xs text-muted-foreground">
-                <div className="flex items-center gap-1.5">
-                  <ShieldCheck className="h-4 w-4 text-brand" />
-                  <span>ضمانت کامل بازگشت وجه</span>
+            <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+              {/* Hero Left/Right Content */}
+              <div className="lg:col-span-7 space-y-4 text-right">
+                <div className="inline-flex items-center gap-2 rounded-control border border-brand/30 bg-brand/10 px-3 py-1 text-xs font-bold text-brand">
+                  <Zap className="h-3.5 w-3.5" />
+                  <span>تحویل آنی لایسنس و اکانت‌های هوش مصنوعی</span>
                 </div>
-                <div className="flex items-center gap-1.5">
-                  <Lock className="h-4 w-4 text-brand" />
-                  <span>پروتکل امنیت کلمه عبور (Zeroize)</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <CreditCard className="h-4 w-4 text-brand" />
-                  <span>پرداخت عضو شتاب و تتر</span>
-                </div>
-              </div>
 
-              {/* Graphite buttons: Primary is white with black text */}
-              <div className="pt-3 flex items-center gap-3">
-                <a href="#products-catalog">
-                  <button
-                    type="button"
-                    className="h-10 px-5 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs sm:text-sm duration-motion ease-motion active:scale-[0.98] flex items-center gap-1.5 shadow-control cursor-pointer"
-                  >
-                    <span>مشاهده کاتالوگ اشتراک‌ها</span>
-                    <span>←</span>
-                  </button>
-                </a>
-                <Link
-                  to="/virtual-numbers"
-                  className="h-10 px-5 rounded-control border-line bg-card hover:bg-muted text-xs sm:text-sm font-bold text-foreground duration-motion ease-motion active:scale-[0.98] flex items-center"
-                >
-                  شماره مجازی (SMS)
-                </Link>
-              </div>
-            </div>
+                <h1 className="text-2xl sm:text-4xl md:text-5xl font-black tracking-tight text-foreground leading-tight">
+                  خرید قانونی اشتراک‌های{' '}
+                  <TypewriterText
+                    words={[
+                      'ChatGPT Plus',
+                      'Claude 3.7 Sonnet',
+                      'Gemini Advanced',
+                      'Cursor AI Pro',
+                      'Google One 2TB',
+                    ]}
+                    className="text-foreground font-latin underline decoration-brand/60 underline-offset-8"
+                  />
+                </h1>
 
-            {/* Hero Slider/Banner Column */}
-            <div className="lg:col-span-5">
-              {banners.length > 0 ? (
-                <BannerCarousel banners={banners} />
-              ) : (
-                <div className="relative overflow-hidden rounded-surface border-line bg-card p-6 text-right space-y-3 shadow-surface">
-                  <div className="inline-flex items-center gap-1.5 rounded-control border border-brand/30 bg-brand/10 text-brand px-3 py-1 text-xs font-bold">
-                    <Sparkles className="h-3.5 w-3.5" />
-                    <span>پیشنهاد برگزیده ماه</span>
+                <p className="text-xs sm:text-base text-muted-foreground leading-relaxed max-w-xl">
+                  دسترسی مستقیم و پایدار به قدرتمندترین ابزارهای هوش مصنوعی روز
+                  جهان با پرداخت ریالی عضو شتاب، تضمین بدون مسدودی و پروتکل
+                  امنیتی Zeroize.
+                </p>
+
+                <div className="pt-2 flex flex-wrap items-center gap-3 sm:gap-4 text-xs text-muted-foreground">
+                  <div className="flex items-center gap-1.5">
+                    <ShieldCheck className="h-4 w-4 text-brand" />
+                    <span>ضمانت کامل بازگشت وجه</span>
                   </div>
-                  <h3 className="text-xl font-black text-foreground">
-                    Google Gemini Advanced ۱۸ ماهه قانونی
-                  </h3>
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    با ۲ ترابایت فضای ابری گوگل وان و دسترسی کامل به Gemini 1.5
-                    Pro با نازل‌ترین هزینه ریالی
-                  </p>
-                  <ArrowLink to="/products/gemini-advanced-18m">
-                    سفارش آنی سرویس
-                  </ArrowLink>
+                  <div className="flex items-center gap-1.5">
+                    <Lock className="h-4 w-4 text-brand" />
+                    <span>پروتکل امنیت کلمه عبور (Zeroize)</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <CreditCard className="h-4 w-4 text-brand" />
+                    <span>پرداخت عضو شتاب و تتر</span>
+                  </div>
                 </div>
-              )}
-            </div>
-          </div>
 
-          {/* Supported Brand Logos Strip */}
-          <div className="mt-6 pt-2">
-            <div className="text-[11px] font-bold text-muted-foreground mb-3">
-              پشتیبانی از برترین سرویس‌ها و پلتفرم‌های جهان:
+                {/* Graphite buttons: Primary is white with black text */}
+                <div className="pt-3 flex items-center gap-3">
+                  <a href="#products-catalog">
+                    <button
+                      type="button"
+                      className="h-10 px-5 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs sm:text-sm duration-motion ease-motion active:scale-[0.98] flex items-center gap-1.5 shadow-control cursor-pointer"
+                    >
+                      <span>مشاهده کاتالوگ اشتراک‌ها</span>
+                      <span>←</span>
+                    </button>
+                  </a>
+                  <Link
+                    to="/virtual-numbers"
+                    className="h-10 px-5 rounded-control border-line bg-card hover:bg-muted text-xs sm:text-sm font-bold text-foreground duration-motion ease-motion active:scale-[0.98] flex items-center"
+                  >
+                    شماره مجازی (SMS)
+                  </Link>
+                </div>
+              </div>
+
+              {/* Hero Slider/Banner Column */}
+              <div className="lg:col-span-5">
+                {banners.length > 0 ? (
+                  <BannerCarousel banners={banners} />
+                ) : (
+                  <div className="relative overflow-hidden rounded-surface border-line bg-card p-6 text-right space-y-3 shadow-surface">
+                    <div className="inline-flex items-center gap-1.5 rounded-control border border-brand/30 bg-brand/10 text-brand px-3 py-1 text-xs font-bold">
+                      <Sparkles className="h-3.5 w-3.5" />
+                      <span>پیشنهاد برگزیده ماه</span>
+                    </div>
+                    <h3 className="text-xl font-black text-foreground">
+                      Google Gemini Advanced ۱۸ ماهه قانونی
+                    </h3>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      با ۲ ترابایت فضای ابری گوگل وان و دسترسی کامل به Gemini
+                      1.5 Pro با نازل‌ترین هزینه ریالی
+                    </p>
+                    <ArrowLink to="/products/gemini-advanced-18m">
+                      سفارش آنی سرویس
+                    </ArrowLink>
+                  </div>
+                )}
+              </div>
             </div>
-            <BrandIcons />
-          </div>
-        </section>
+
+            {/* Supported Brand Logos Strip */}
+            <div className="mt-6 pt-2">
+              <div className="text-[11px] font-bold text-muted-foreground mb-3">
+                پشتیبانی از برترین سرویس‌ها و پلتفرم‌های جهان:
+              </div>
+              <BrandIcons />
+            </div>
+          </section>
+        </ScrollReveal>
 
         {/* FLASH SALE / TIMED DISCOUNTS SECTION */}
         {flashSaleProducts.length > 0 && (
-          <section id="flash-sale" className="space-y-4">
-            <FlashSaleCountdown endTime={flashSaleTargetDate} />
+          <ScrollReveal>
+            <section id="flash-sale" className="space-y-4">
+              <FlashSaleCountdown endTime={flashSaleTargetDate} />
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {flashSaleProducts.map((product) => (
-                <ProductCard
-                  key={`flash-${product.id}`}
-                  product={product}
-                  onSelect={() => {}}
-                />
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* BEST SELLERS / POPULAR PRODUCTS */}
-        {bestSellerProducts.length > 0 && (
-          <section className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-base sm:text-lg font-black text-foreground flex items-center gap-2">
-                  <Star className="h-5 w-5 text-amber-500 fill-amber-500" />
-                  <span>پرفروش‌ترین و محبوب‌ترین اشتراک‌ها</span>
-                </h3>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  انتخاب اول متخصصان، برنامه‌نویسان و تولیدکنندگان محتوا
-                </p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {bestSellerProducts.map((product) => (
-                <ProductCard
-                  key={`bestseller-${product.id}`}
-                  product={product}
-                  onSelect={() => {}}
-                />
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* MAIN PRODUCTS CATALOG */}
-        <section id="products-catalog" className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-base sm:text-lg font-black text-foreground flex items-center gap-2">
-                <Sparkles className="h-5 w-5 text-brand" />
-                <span>کاتالوگ اشتراک‌ها و سرویس‌های هوش مصنوعی</span>
-              </h3>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                دسترسی به کلیه ابزارهای پریمیوم با تحویل آنی و تضمین اصالت
-              </p>
-            </div>
-          </div>
-
-          {/* Product Grid */}
-          <div>
-            {loading ? (
-              <div className="py-20 text-center space-y-3">
-                <RefreshCw className="h-8 w-8 text-foreground animate-spin mx-auto" />
-                <p className="text-xs text-muted-foreground">
-                  در حال بارگذاری اشتراک‌ها و موجودی لایسنس‌ها...
-                </p>
-              </div>
-            ) : filteredProducts.length === 0 ? (
-              <div className="rounded-surface border border-border/60 bg-card p-12 text-center text-muted-foreground space-y-2 shadow-surface">
-                <HelpCircle className="h-8 w-8 mx-auto text-muted-foreground/60" />
-                <div className="font-bold text-sm text-foreground">
-                  محصولی یافت نشد
-                </div>
-                <p className="text-xs">
-                  در حال حاضر محصول فعالی در این بخش موجود نیست.
-                </p>
-              </div>
-            ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredProducts.map((product) => (
+                {flashSaleProducts.map((product) => (
                   <ProductCard
-                    key={product.id}
+                    key={`flash-${product.id}`}
                     product={product}
                     onSelect={() => {}}
                   />
                 ))}
               </div>
-            )}
-          </div>
-        </section>
+            </section>
+          </ScrollReveal>
+        )}
 
-        {/* LATEST BLOG ARTICLES & TUTORIALS (WITH LIKE BUTTON & ARROW LINK) */}
-        {articles.length > 0 && (
-          <section className="space-y-4">
+        {/* BEST SELLERS / POPULAR PRODUCTS */}
+        {bestSellerProducts.length > 0 && (
+          <ScrollReveal>
+            <section className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-base sm:text-lg font-black text-foreground flex items-center gap-2">
+                    <Star className="h-5 w-5 text-amber-500 fill-amber-500" />
+                    <span>پرفروش‌ترین و محبوب‌ترین اشتراک‌ها</span>
+                  </h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    انتخاب اول متخصصان، برنامه‌نویسان و تولیدکنندگان محتوا
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {bestSellerProducts.map((product) => (
+                  <ProductCard
+                    key={`bestseller-${product.id}`}
+                    product={product}
+                    onSelect={() => {}}
+                  />
+                ))}
+              </div>
+            </section>
+          </ScrollReveal>
+        )}
+
+        {/* MAIN PRODUCTS CATALOG (Horizontal Scroll with hidden scrollbar) */}
+        <ScrollReveal>
+          <section id="products-catalog" className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-base sm:text-lg font-black text-foreground flex items-center gap-2">
-                  <BookOpen className="h-5 w-5 text-brand" />
-                  <span>آموزش‌ها و آخرین اخبار هوش مصنوعی</span>
+                  <Sparkles className="h-5 w-5 text-brand" />
+                  <span>کاتالوگ اشتراک‌ها و سرویس‌های هوش مصنوعی</span>
                 </h3>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  راهنمای جامع کار با مدل‌های هوش مصنوعی و ترفندهای حرفه‌ای
+                  دسترسی به کلیه ابزارهای پریمیوم با تحویل آنی و تضمین اصالت
                 </p>
               </div>
-              <ArrowLink to="/blog">مشاهده وبلاگ</ArrowLink>
+
+              <div className="flex items-center gap-3">
+                {/* Desktop Left/Right Scroll Chevrons */}
+                <div className="hidden sm:flex items-center gap-1.5 bg-muted/40 p-1 rounded-control border border-border/40">
+                  <button
+                    type="button"
+                    onClick={() => scrollCatalog('right')}
+                    className="w-7 h-7 flex items-center justify-center rounded-control hover:bg-card text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                    title="اسکرول به راست"
+                    aria-label="اسکرول به راست"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => scrollCatalog('left')}
+                    className="w-7 h-7 flex items-center justify-center rounded-control hover:bg-card text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                    title="اسکرول به چپ"
+                    aria-label="اسکرول به چپ"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <ArrowLink to="/category/all">مشاهده همه اشتراک‌ها</ArrowLink>
+              </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {articles.map((art) => (
-                <div
-                  key={art.id}
-                  className="group rounded-surface border border-border/50 bg-card overflow-hidden hover:border-border duration-motion ease-motion transition-all flex flex-col justify-between shadow-surface hover:-translate-y-1"
-                >
-                  <Link to={`/blog/${art.slug}`} className="block">
-                    {art.cover_image && (
-                      <div className="relative h-44 w-full overflow-hidden bg-zinc-950">
-                        <img
-                          src={art.cover_image}
-                          alt={art.title}
-                          className="h-full w-full object-cover group-hover:scale-105 duration-motion ease-motion transition-transform"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
-                        {art.category_name && (
-                          <div className="absolute top-3 right-3">
-                            <span className="px-2.5 py-1 rounded-control bg-zinc-900/90 backdrop-blur-md border border-zinc-800 text-[10px] font-bold text-zinc-200">
-                              {art.category_name}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                    <div className="p-4 sm:p-5 space-y-2 text-right">
-                      <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-                        <span>
-                          {toPersianDigits(art.reading_time_minutes || 5)} دقیقه
-                          مطالعه
-                        </span>
-                        <span>•</span>
-                        <span>
-                          {toPersianDigits(art.view_count || 120)} بازدید
-                        </span>
-                      </div>
-                      <h4 className="text-sm sm:text-base font-black text-foreground group-hover:text-primary-foreground/90 transition-colors line-clamp-2 leading-snug">
-                        {art.title}
-                      </h4>
-                      <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
-                        {art.excerpt}
-                      </p>
-                    </div>
-                  </Link>
-
-                  {/* Clean Footer: Arrow Link & Like Count indicator without harsh dividing lines */}
-                  <div className="p-4 sm:p-5 pt-0 flex items-center justify-between text-xs font-bold mt-1">
-                    <ArrowLink to={`/blog/${art.slug}`}>مطالعه مقاله</ArrowLink>
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/30 px-2 py-1 rounded-control border border-border/30">
-                      <Heart className="h-3.5 w-3.5 text-rose-500 fill-rose-500/20" />
-                      <span className="font-latin">
-                        {toPersianDigits(art.like_count || 0)}
-                      </span>
-                    </div>
-                  </div>
+            {/* Horizontal Scroller (Hidden Scrollbar) */}
+            <div>
+              {loading ? (
+                <div className="py-20 text-center space-y-3">
+                  <RefreshCw className="h-8 w-8 text-foreground animate-spin mx-auto" />
+                  <p className="text-xs text-muted-foreground">
+                    در حال بارگذاری اشتراک‌ها و موجودی لایسنس‌ها...
+                  </p>
                 </div>
-              ))}
+              ) : filteredProducts.length === 0 ? (
+                <div className="rounded-surface border border-border/60 bg-card p-12 text-center text-muted-foreground space-y-2 shadow-surface">
+                  <HelpCircle className="h-8 w-8 mx-auto text-muted-foreground/60" />
+                  <div className="font-bold text-sm text-foreground">
+                    محصولی یافت نشد
+                  </div>
+                  <p className="text-xs">
+                    در حال حاضر محصول فعالی در این بخش موجود نیست.
+                  </p>
+                </div>
+              ) : (
+                <div
+                  ref={catalogScrollRef}
+                  className="flex items-stretch gap-5 overflow-x-auto pb-4 scrollbar-none snap-x snap-mandatory scroll-smooth -mx-4 px-4 sm:mx-0 sm:px-0"
+                >
+                  {filteredProducts.map((product) => (
+                    <div
+                      key={product.id}
+                      className="w-[285px] sm:w-[320px] md:w-[340px] shrink-0 snap-start flex flex-col"
+                    >
+                      <ProductCard product={product} onSelect={() => {}} />
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </section>
+        </ScrollReveal>
+
+        {/* LATEST BLOG ARTICLES & TUTORIALS (WITH LIKE BUTTON & ARROW LINK) */}
+        {articles.length > 0 && (
+          <ScrollReveal>
+            <section className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-base sm:text-lg font-black text-foreground flex items-center gap-2">
+                    <BookOpen className="h-5 w-5 text-brand" />
+                    <span>آموزش‌ها و آخرین اخبار هوش مصنوعی</span>
+                  </h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    راهنمای جامع کار با مدل‌های هوش مصنوعی و ترفندهای حرفه‌ای
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  {/* Desktop Left/Right Scroll Chevrons */}
+                  <div className="hidden sm:flex items-center gap-1.5 bg-muted/40 p-1 rounded-control border border-border/40">
+                    <button
+                      type="button"
+                      onClick={() => scrollBlog('right')}
+                      className="w-7 h-7 flex items-center justify-center rounded-control hover:bg-card text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                      title="اسکرول به راست"
+                      aria-label="اسکرول به راست"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => scrollBlog('left')}
+                      className="w-7 h-7 flex items-center justify-center rounded-control hover:bg-card text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                      title="اسکرول به چپ"
+                      aria-label="اسکرول به چپ"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  <ArrowLink to="/blog">مشاهده وبلاگ</ArrowLink>
+                </div>
+              </div>
+
+              <div
+                ref={blogScrollRef}
+                className="flex items-stretch gap-5 overflow-x-auto pb-4 scrollbar-none snap-x snap-mandatory scroll-smooth -mx-4 px-4 sm:mx-0 sm:px-0"
+              >
+                {articles.map((art) => (
+                  <div
+                    key={art.id}
+                    className="w-[285px] sm:w-[320px] md:w-[340px] shrink-0 snap-start flex flex-col"
+                  >
+                    <div className="group rounded-surface border border-border/50 bg-card overflow-hidden hover:border-border duration-motion ease-motion transition-all flex flex-col justify-between shadow-surface hover:-translate-y-1">
+                      <Link to={`/blog/${art.slug}`} className="block">
+                        {art.cover_image && (
+                          <div className="relative h-44 w-full overflow-hidden bg-muted">
+                            <img
+                              src={art.cover_image}
+                              alt={art.title}
+                              className="h-full w-full object-cover group-hover:scale-105 duration-motion ease-motion transition-transform"
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
+                            {art.category_name && (
+                              <div className="absolute top-3 right-3">
+                                <span className="px-2.5 py-1 rounded-control bg-card/90 backdrop-blur-md border border-border/80 text-[10px] font-bold text-foreground">
+                                  {art.category_name}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        <div className="p-4 sm:p-5 space-y-2 text-right">
+                          <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                            <span>
+                              {toPersianDigits(art.reading_time_minutes || 5)}{' '}
+                              دقیقه مطالعه
+                            </span>
+                            <span>•</span>
+                            <span>
+                              {toPersianDigits(art.view_count || 120)} بازدید
+                            </span>
+                          </div>
+                          <h4 className="text-sm sm:text-base font-black text-foreground group-hover:text-primary-foreground/90 transition-colors line-clamp-2 leading-snug">
+                            {art.title}
+                          </h4>
+                          <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+                            {art.excerpt}
+                          </p>
+                        </div>
+                      </Link>
+
+                      {/* Clean Footer: Arrow Link & Like Count indicator without harsh dividing lines */}
+                      <div className="p-4 sm:p-5 pt-0 flex items-center justify-between text-xs font-bold mt-1">
+                        <ArrowLink to={`/blog/${art.slug}`}>
+                          مطالعه مقاله
+                        </ArrowLink>
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/30 px-2 py-1 rounded-control border border-border/30">
+                          <Heart className="h-3.5 w-3.5 text-rose-500 fill-rose-500/20" />
+                          <span className="font-latin">
+                            {toPersianDigits(art.like_count || 0)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          </ScrollReveal>
         )}
 
         {/* 4-PILLAR REASSURANCE TRUST GRID */}
-        <section className="rounded-surface border-line bg-card p-6 sm:p-8 shadow-surface">
-          <div className="text-center mb-8">
-            <h3 className="text-lg font-black text-foreground">
-              چرا آناهیکس را برای خرید اکانت‌های هوش مصنوعی انتخاب می‌کنند؟
-            </h3>
-            <p className="text-xs text-muted-foreground mt-1">
-              استانداردهای شفاف امنیتی و فنی منطبق با ساختار پرداختی بین‌المللی
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 text-right">
-            <div className="p-4 rounded-control bg-muted/60 border-line space-y-2">
-              <div className="flex h-9 w-9 items-center justify-center rounded-control bg-card text-brand font-black border-line">
-                <Zap className="h-4 w-4" />
-              </div>
-              <h4 className="font-bold text-xs sm:text-sm text-foreground">
-                تحویل آنی و بدون معطلی
-              </h4>
-              <p className="text-[11px] text-muted-foreground leading-relaxed">
-                لینک‌های اختصاصی و اکانت‌های پیش‌ساخته بلافاصله پس از پرداخت صادر
-                می‌گردند.
+        <ScrollReveal>
+          <section className="rounded-surface border-line bg-card p-6 sm:p-8 shadow-surface">
+            <div className="text-center mb-8">
+              <h3 className="text-lg font-black text-foreground">
+                چرا آناهیکس را برای خرید اکانت‌های هوش مصنوعی انتخاب می‌کنند؟
+              </h3>
+              <p className="text-xs text-muted-foreground mt-1">
+                استانداردهای شفاف امنیتی و فنی منطبق با ساختار پرداختی بین‌المللی
               </p>
             </div>
 
-            <div className="p-4 rounded-control bg-muted/60 border-line space-y-2">
-              <div className="flex h-9 w-9 items-center justify-center rounded-control bg-card text-brand font-black border-line">
-                <ShieldCheck className="h-4 w-4" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 text-right">
+              <div className="p-4 rounded-control bg-muted/60 border-line space-y-2">
+                <div className="flex h-9 w-9 items-center justify-center rounded-control bg-card text-brand font-black border-line">
+                  <Zap className="h-4 w-4" />
+                </div>
+                <h4 className="font-bold text-xs sm:text-sm text-foreground">
+                  تحویل آنی و بدون معطلی
+                </h4>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  لینک‌های اختصاصی و اکانت‌های پیش‌ساخته بلافاصله پس از پرداخت صادر
+                  می‌گردند.
+                </p>
               </div>
-              <h4 className="font-bold text-xs sm:text-sm text-foreground">
-                تضمین عدم مسدودی و اصالت
-              </h4>
-              <p className="text-[11px] text-muted-foreground leading-relaxed">
-                پرداخت‌ها با مسترکارت معتبر انجام شده و در طول دوره به هیچ عنوان
-                مسدود نمی‌شوند.
-              </p>
-            </div>
 
-            <div className="p-4 rounded-control bg-muted/60 border-line space-y-2">
-              <div className="flex h-9 w-9 items-center justify-center rounded-control bg-card text-brand font-black border-line">
-                <Lock className="h-4 w-4" />
+              <div className="p-4 rounded-control bg-muted/60 border-line space-y-2">
+                <div className="flex h-9 w-9 items-center justify-center rounded-control bg-card text-brand font-black border-line">
+                  <ShieldCheck className="h-4 w-4" />
+                </div>
+                <h4 className="font-bold text-xs sm:text-sm text-foreground">
+                  تضمین عدم مسدودی و اصالت
+                </h4>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  پرداخت‌ها با مسترکارت معتبر انجام شده و در طول دوره به هیچ
+                  عنوان مسدود نمی‌شوند.
+                </p>
               </div>
-              <h4 className="font-bold text-xs sm:text-sm text-foreground">
-                سیاست نابودسازی رمز (Zeroize)
-              </h4>
-              <p className="text-[11px] text-muted-foreground leading-relaxed">
-                کلمه عبور ارائه شده در ارتقای شخصی پس از اتمام سفارش فوراً از
-                دیتابیس امحا می‌شود.
-              </p>
-            </div>
 
-            <div className="p-4 rounded-control bg-muted/60 border-line space-y-2">
-              <div className="flex h-9 w-9 items-center justify-center rounded-control bg-card text-brand font-black border-line">
-                <Headphones className="h-4 w-4" />
+              <div className="p-4 rounded-control bg-muted/60 border-line space-y-2">
+                <div className="flex h-9 w-9 items-center justify-center rounded-control bg-card text-brand font-black border-line">
+                  <Lock className="h-4 w-4" />
+                </div>
+                <h4 className="font-bold text-xs sm:text-sm text-foreground">
+                  سیاست نابودسازی رمز (Zeroize)
+                </h4>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  کلمه عبور ارائه شده در ارتقای شخصی پس از اتمام سفارش فوراً از
+                  دیتابیس امحا می‌شود.
+                </p>
               </div>
-              <h4 className="font-bold text-xs sm:text-sm text-foreground">
-                پشتیبانی ۲۴ ساعته متخصص
-              </h4>
-              <p className="text-[11px] text-muted-foreground leading-relaxed">
-                کارشناسان فنی مسلط به پلتفرم‌های هوش مصنوعی در کلیه روزهای هفته
-                پاسخگوی شما هستند.
-              </p>
+
+              <div className="p-4 rounded-control bg-muted/60 border-line space-y-2">
+                <div className="flex h-9 w-9 items-center justify-center rounded-control bg-card text-brand font-black border-line">
+                  <Headphones className="h-4 w-4" />
+                </div>
+                <h4 className="font-bold text-xs sm:text-sm text-foreground">
+                  پشتیبانی ۲۴ ساعته متخصص
+                </h4>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  کارشناسان فنی مسلط به پلتفرم‌های هوش مصنوعی در کلیه روزهای هفته
+                  پاسخگوی شما هستند.
+                </p>
+              </div>
             </div>
-          </div>
-        </section>
+          </section>
+        </ScrollReveal>
 
         {/* FAQ ACCORDION SECTION (VIBE FARSI ACCORDION) */}
-        <section className="rounded-surface border-line bg-card p-6 sm:p-8 space-y-5 shadow-surface">
-          <div className="text-center space-y-1">
-            <h3 className="text-lg font-black text-foreground">
-              پرسش‌های متداول خریداران
-            </h3>
-            <p className="text-xs text-muted-foreground">
-              پاسخ به سوالات متداول درباره نحوه پرداخت، فعال‌سازی و پشتیبانی
-            </p>
-          </div>
+        <ScrollReveal>
+          <section className="rounded-surface border-line bg-card p-6 sm:p-8 space-y-5 shadow-surface">
+            <div className="text-center space-y-1">
+              <h3 className="text-lg font-black text-foreground">
+                پرسش‌های متداول خریداران
+              </h3>
+              <p className="text-xs text-muted-foreground">
+                پاسخ به سوالات متداول درباره نحوه پرداخت، فعال‌سازی و پشتیبانی
+              </p>
+            </div>
 
-          <div className="max-w-3xl mx-auto">
-            <Accordion items={faqItems} defaultOpenId="faq-1" />
-          </div>
-        </section>
+            <div className="max-w-3xl mx-auto">
+              <Accordion items={faqItems} defaultOpenId="faq-1" />
+            </div>
+          </section>
+        </ScrollReveal>
       </main>
 
       {/* FOOTER */}
