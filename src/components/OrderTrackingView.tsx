@@ -30,15 +30,41 @@ interface OrderTrackingViewProps {
   initialOrderNo?: string
 }
 
+function resolveDefaultOrderNo(
+  orders: Order[],
+  initialOrderNo?: string,
+): string {
+  if (initialOrderNo?.trim()) return initialOrderNo.trim()
+  try {
+    const saved = localStorage.getItem('anahix_last_tracked_order')
+    if (
+      saved &&
+      orders.some((o) => o.order_no.toLowerCase() === saved.toLowerCase())
+    ) {
+      return saved
+    }
+  } catch {}
+  if (orders.length > 0) {
+    const sorted = [...orders].sort(
+      (a, b) =>
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+    )
+    return sorted[0]?.order_no || orders[0].order_no
+  }
+  return ''
+}
+
 export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
   orders,
   onUpdateOrder,
   initialOrderNo,
 }) => {
-  const [selectedOrderNo, setSelectedOrderNo] = useState<string>(
-    initialOrderNo || orders[0]?.order_no || '',
+  const [selectedOrderNo, setSelectedOrderNo] = useState<string>(() =>
+    resolveDefaultOrderNo(orders, initialOrderNo),
   )
-  const [searchQuery, setSearchQuery] = useState(initialOrderNo || '')
+  const [searchQuery, setSearchQuery] = useState<string>(() =>
+    resolveDefaultOrderNo(orders, initialOrderNo),
+  )
   const [searchLoading, setSearchLoading] = useState(false)
   const [searchError, setSearchError] = useState('')
   const [isRefreshing, setIsRefreshing] = useState(false)
@@ -53,13 +79,34 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
   const [otpError, setOtpError] = useState('')
   const [countdown, setCountdown] = useState(120)
 
+  // Sync active order selection & persist URL & localStorage
+  const selectAndSyncOrder = (orderNo: string) => {
+    const clean = orderNo.trim()
+    if (!clean) return
+    setSelectedOrderNo(clean)
+    setSearchQuery(clean)
+    setOtpSent(false)
+    setCountdown(120)
+    setSearchError('')
+    try {
+      localStorage.setItem('anahix_last_tracked_order', clean)
+      const url = new URL(window.location.href)
+      url.searchParams.set('order_no', clean)
+      window.history.replaceState({}, '', url.toString())
+    } catch {}
+  }
+
   // Sync initialOrderNo if passed or changed
   useEffect(() => {
-    if (initialOrderNo) {
-      setSelectedOrderNo(initialOrderNo)
-      setSearchQuery(initialOrderNo)
+    const targetNo = resolveDefaultOrderNo(orders, initialOrderNo)
+    if (targetNo) {
+      setSelectedOrderNo(targetNo)
+      setSearchQuery(targetNo)
+      try {
+        localStorage.setItem('anahix_last_tracked_order', targetNo)
+      } catch {}
     }
-  }, [initialOrderNo])
+  }, [initialOrderNo, orders])
 
   const activeOrder =
     orders.find(
@@ -152,7 +199,7 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
       (o) => o.order_no.toLowerCase() === query.toLowerCase(),
     )
     if (foundLocal) {
-      setSelectedOrderNo(foundLocal.order_no)
+      selectAndSyncOrder(foundLocal.order_no)
       return
     }
 
@@ -162,7 +209,7 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
       const order = await apiService.getOrderDetail(query)
       if (order) {
         onUpdateOrder(order)
-        setSelectedOrderNo(order.order_no)
+        selectAndSyncOrder(order.order_no)
       }
     } catch {
       setSearchError('سفارشی با این شماره در سامانه آناهیکس یافت نشد.')
@@ -304,7 +351,7 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
         {activeOrder && (
           <>
             <span className="opacity-40">/</span>
-            <span className="text-brand font-bold font-mono font-latin">
+            <span className="text-brand font-bold font-latin">
               {activeOrder.order_no}
             </span>
           </>
@@ -330,7 +377,7 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
                   setSearchQuery(e.target.value)
                   setSearchError('')
                 }}
-                className="w-full pr-10 pl-3 h-10 text-xs font-mono font-latin rounded-field border border-border/60 bg-background text-foreground outline-none focus:border-brand/50 transition-colors"
+                className="w-full pr-10 pl-3 h-10 text-xs font-latin rounded-field border border-border/60 bg-background text-foreground outline-none focus:border-brand/50 transition-colors"
               />
             </div>
             <button
@@ -372,14 +419,8 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
                   <button
                     key={o.order_no}
                     type="button"
-                    onClick={() => {
-                      setSelectedOrderNo(o.order_no)
-                      setSearchQuery(o.order_no)
-                      setOtpSent(false)
-                      setCountdown(120)
-                      setSearchError('')
-                    }}
-                    className={`flex items-center gap-2 rounded-control px-3.5 py-2 text-xs font-mono font-latin font-bold transition-all border duration-motion ease-motion active:scale-[0.98] cursor-pointer shrink-0 ${
+                    onClick={() => selectAndSyncOrder(o.order_no)}
+                    className={`flex items-center gap-2 rounded-control px-3.5 py-2 text-xs font-latin font-bold transition-all border duration-motion ease-motion active:scale-[0.98] cursor-pointer shrink-0 ${
                       isSelected
                         ? 'border-primary bg-primary text-primary-foreground shadow-control font-black ring-1 ring-primary/40'
                         : 'border-border/60 bg-muted/20 text-muted-foreground hover:bg-muted hover:text-foreground'
@@ -416,7 +457,7 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
             <div className="flex items-center gap-3 flex-wrap">
               <h2 className="text-xl sm:text-2xl font-black text-foreground flex items-center gap-2">
                 <span>سفارش</span>
-                <span className="font-mono font-latin text-brand">
+                <span className="font-latin text-brand">
                   {activeOrder.order_no}
                 </span>
               </h2>
@@ -461,7 +502,7 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
                 <>
                   <span className="opacity-40">•</span>
                   <span
-                    className="font-mono font-latin text-muted-foreground"
+                    className="font-latin text-muted-foreground"
                     dir="ltr"
                   >
                     {activeOrder.customer_phone}
@@ -473,7 +514,7 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
 
           {/* Amount & Actions */}
           <div className="flex flex-col md:items-end gap-2.5">
-            <div className="text-right md:text-left font-mono font-latin">
+            <div className="text-right md:text-left font-latin">
               <div className="text-xl sm:text-2xl font-black text-foreground">
                 {toPersianDigits(activeOrder.amount_toman.toLocaleString())}{' '}
                 <span className="text-xs font-sans text-muted-foreground font-normal">
@@ -559,7 +600,7 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
                         key={`order-item-${it.product_title}-${it.payload || it.product_slug || idx}`}
                         className="hover:bg-muted/30 transition-colors"
                       >
-                        <td className="py-3 px-3 text-center text-muted-foreground font-mono font-latin">
+                        <td className="py-3 px-3 text-center text-muted-foreground font-latin">
                           {toPersianDigits(idx + 1)}
                         </td>
                         <td className="py-3 px-3">
@@ -642,7 +683,7 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
                   readOnly
                   value={activeOrder.delivered_link}
                   dir="ltr"
-                  className="w-full bg-transparent text-xs font-mono font-latin text-brand outline-none"
+                  className="w-full bg-transparent text-xs font-latin text-brand outline-none"
                 />
                 <button
                   type="button"
@@ -684,7 +725,7 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
               </div>
 
               <div
-                className="grid grid-cols-1 md:grid-cols-2 gap-3 rounded-control border border-border/60 bg-background p-4 font-mono font-latin text-xs text-left"
+                className="grid grid-cols-1 md:grid-cols-2 gap-3 rounded-control border border-border/60 bg-background p-4 font-latin text-xs text-left"
                 dir="ltr"
               >
                 <div>
@@ -750,7 +791,7 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
                     </div>
                   </div>
 
-                  <div className="rounded-control border border-amber-500/30 bg-amber-500/20 px-3.5 py-1.5 font-mono font-latin text-xs font-black text-amber-700 dark:text-amber-300 shrink-0 self-start sm:self-auto">
+                  <div className="rounded-control border border-amber-500/30 bg-amber-500/20 px-3.5 py-1.5 font-latin text-xs font-black text-amber-700 dark:text-amber-300 shrink-0 self-start sm:self-auto">
                     مهلت کد: {Math.floor(countdown / 60)}:
                     {(countdown % 60).toString().padStart(2, '0')}
                   </div>
@@ -771,7 +812,7 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
                         setOtpCode(e.target.value.replace(/\D/g, ''))
                         setOtpError('')
                       }}
-                      className="text-center font-mono font-latin text-xl tracking-widest font-black h-11 bg-background rounded-field border border-border/80 text-foreground outline-none focus:border-brand flex-1"
+                      className="text-center font-latin text-xl tracking-widest font-black h-11 bg-background rounded-field border border-border/80 text-foreground outline-none focus:border-brand flex-1"
                       required
                     />
                     <button
