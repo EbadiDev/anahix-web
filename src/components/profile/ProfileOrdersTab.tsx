@@ -44,6 +44,7 @@ export const ProfileOrdersTab: React.FC<ProfileOrdersTabProps> = ({
   const [copiedKey, setCopiedKey] = useState('')
   const [reviewOrder, setReviewOrder] = useState<Order | null>(null)
   const [invoiceOrder, setInvoiceOrder] = useState<Order | null>(null)
+  const [visibleOrdersCount, setVisibleOrdersCount] = useState<number>(6)
 
   // Map unified list
   const unifiedItems = useMemo(() => {
@@ -278,7 +279,7 @@ export const ProfileOrdersTab: React.FC<ProfileOrdersTabProps> = ({
             </div>
           </div>
         ) : (
-          filteredItems.map((item) => (
+          filteredItems.slice(0, visibleOrdersCount).map((item) => (
             <div
               key={item.id}
               className="p-4 rounded-surface border border-border/60 bg-card text-card-foreground shadow-surface hover:border-border duration-motion ease-motion transition-all flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
@@ -359,6 +360,26 @@ export const ProfileOrdersTab: React.FC<ProfileOrdersTabProps> = ({
               </div>
             </div>
           ))
+        )}
+
+        {/* Load More Orders Button */}
+        {visibleOrdersCount < filteredItems.length && (
+          <div className="pt-3 text-center">
+            <button
+              type="button"
+              onClick={() => setVisibleOrdersCount((prev) => prev + 6)}
+              className="h-10 px-5 rounded-control border border-border/60 bg-card hover:bg-muted text-foreground font-black text-xs duration-motion ease-motion active:scale-[0.98] shadow-control cursor-pointer inline-flex items-center gap-2"
+            >
+              <span>بارگذاری سفارش‌های بیشتر</span>
+              <span className="text-[11px] text-muted-foreground font-latin">
+                (نمایش{' '}
+                {toPersianDigits(
+                  Math.min(visibleOrdersCount, filteredItems.length),
+                )}{' '}
+                از {toPersianDigits(filteredItems.length)})
+              </span>
+            </button>
+          </div>
         )}
       </div>
 

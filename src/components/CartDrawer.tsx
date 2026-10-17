@@ -1,9 +1,8 @@
 import {
   AlertCircle,
   ArrowLeft,
+  ArrowRight,
   CheckCircle2,
-  ChevronDown,
-  ChevronUp,
   Coins,
   CreditCard,
   Eye,
@@ -16,6 +15,7 @@ import {
   Plus,
   ShieldCheck,
   ShoppingBag,
+  Smartphone,
   Sparkles,
   Tag,
   Trash2,
@@ -28,13 +28,21 @@ import { useEffect, useState } from 'react'
 import { useCart } from '../lib/cartStore'
 import { apiService } from '../services/api'
 import type { CustomerProfile, PaymentGateway } from '../types'
+import { toPersianDigits } from '../utils/formatters'
 import { AuthModal } from './AuthModal'
 import { ClaudeIcon, CursorIcon, GeminiIcon, OpenAIIcon } from './BrandIcons'
-import { Button } from './ui/button'
+import { WalletTopupModal } from './profile/WalletTopupModal'
 import { Input } from './ui/input'
 
 function getProductBrandConfig(category: string, title: string) {
   const t = `${title} ${category}`.toLowerCase()
+  if (category === 'virtual_number' || t.includes('شماره مجازی')) {
+    return {
+      icon: <Smartphone className="w-6 h-6 text-brand" />,
+      bg: 'bg-brand/10 dark:bg-brand/15 border-brand/20 text-brand',
+      badge: 'شماره مجازی',
+    }
+  }
   if (t.includes('chatgpt') || t.includes('openai')) {
     return {
       icon: <OpenAIIcon className="w-6 h-6 text-emerald-500" />,
@@ -149,23 +157,57 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   const [selectedPlatform, setSelectedPlatform] = useState<string>(
     defaultGateway.platform || 'balance',
   )
-  const [phone, setPhone] = useState(customer?.phone || '')
+  const [phone, setPhone] = useState(() => {
+    if (customer?.phone && !/^098[0-9a-f]{8}$/i.test(customer.phone)) {
+      return customer.phone
+    }
+    return ''
+  })
   const [phoneError, setPhoneError] = useState<string | null>(null)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
+  const [isTopupModalOpen, setIsTopupModalOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [internalCustomer, setInternalCustomer] =
+    useState<CustomerProfile | null>(customer || null)
+
+  // Auto-resolve customer profile from apiService if not passed via props
+  useEffect(() => {
+    if (customer) {
+      setInternalCustomer(customer)
+    } else if (apiService.isCustomerLoggedIn()) {
+      apiService.getCustomerProfile().then((p) => {
+        if (p) setInternalCustomer(p)
+      })
+    }
+  }, [customer, isOpen])
+
+  const activeCustomer = customer || internalCustomer
+  const isUserLoggedIn =
+    apiService.isCustomerLoggedIn() || Boolean(activeCustomer)
 
   // Design 1: Contextual Per-Item Credentials state (product.id -> { email, password, showPassword })
   const [itemCreds, setItemCreds] = useState<
     Record<string, { email: string; password: string; showPassword?: boolean }>
   >({})
 
-  // Mobile summary sheet toggle
-  const [showMobileDetails, setShowMobileDetails] = useState(false)
+  // Mobile navigation step: 'items' | 'checkout'
+  const [mobileStep, setMobileStep] = useState<'items' | 'checkout'>('items')
 
-  // Sync phone when customer prop changes
+  // Reset to items view when drawer closes
   useEffect(() => {
-    if (customer?.phone && !phone) {
+    if (!isOpen) {
+      setMobileStep('items')
+    }
+  }, [isOpen])
+
+  // Sync phone when customer prop changes (ignore synthetic hex phones)
+  useEffect(() => {
+    if (
+      customer?.phone &&
+      !phone &&
+      !/^098[0-9a-f]{8}$/i.test(customer.phone)
+    ) {
       setPhone(customer.phone)
     }
   }, [customer?.phone, phone])
@@ -250,6 +292,12 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
     (it) => it.product.delivery_mode === 'UPGRADE_EXISTING',
   )
 
+  const firstFilledModeC = modeCItems.find((it) => {
+    const c = itemCreds[String(it.product.id)]
+    return c?.email?.trim() && c?.password?.trim()
+  })
+  const isFirstCredFilled = Boolean(firstFilledModeC)
+
   const handleSyncFirstCredToAll = () => {
     const firstFilled = modeCItems.find((it) => {
       const c = itemCreds[String(it.product.id)]
@@ -273,7 +321,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
     })
   }
 
-  const walletBalance = customer?.balance_toman || 0
+  const walletBalance = activeCustomer?.balance_toman || 0
   const isBalanceSufficient = walletBalance >= total
 
   // List of gateways (prop or fallbacks)
@@ -307,7 +355,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
     setPhoneError(null)
 
     // Auth gate check
-    if (!apiService.isCustomerLoggedIn()) {
+    if (!isUserLoggedIn) {
       setSubmitError(
         'برای نهایی‌سازی سفارش و اتصال به درگاه، لطفاً ابتدا وارد حساب کاربری خود شوید یا ثبت‌نام کنید.',
       )
@@ -336,15 +384,16 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
 
     // Balance check
     if (selectedPlatform === 'balance') {
-      if (!customer) {
+      if (!isUserLoggedIn) {
         setSubmitError(
           'جهت پرداخت از کیف پول ابتدا باید وارد حساب کاربری شوید.',
         )
+        setIsAuthModalOpen(true)
         return
       }
-      if (walletBalance < total) {
+      if (!isBalanceSufficient) {
         setSubmitError(
-          `موجودی کیف پول (${walletBalance.toLocaleString('fa-IR')} تومان) کمتر از مبلغ کل است. درگاه شاپرک را انتخاب کنید.`,
+          `موجودی کیف پول شما (${toPersianDigits(walletBalance.toLocaleString('fa-IR'))} تومان) کمتر از مبلغ کل است. لطفاً درگاه شاپرک را انتخاب کنید یا کیف پول خود را شارژ نمایید.`,
         )
         return
       }
@@ -407,25 +456,41 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
       />
 
       {/* Main Centered Workbench Modal (max-w-5xl) - Graphite Minimal Technical */}
-      <div className="relative w-full h-full sm:h-auto sm:max-h-[88vh] sm:max-w-5xl bg-zinc-950 sm:border sm:border-zinc-800 sm:rounded-surface sm:shadow-overlay flex flex-col overflow-hidden animate-in zoom-in-95 fade-in duration-200 z-10 text-zinc-100">
+      <div className="relative w-full h-full sm:h-auto sm:max-h-[88vh] sm:max-w-5xl bg-card border border-border/80 sm:rounded-surface sm:shadow-overlay flex flex-col overflow-hidden animate-in zoom-in-95 fade-in duration-200 z-10 text-foreground">
         {/* 1. Modal Top Bar */}
-        <div className="px-4 sm:px-6 py-3.5 sm:py-4 border-b border-zinc-800 bg-zinc-950/90 backdrop-blur-md flex items-center justify-between gap-3 shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="relative flex items-center justify-center w-10 h-10 sm:w-11 sm:h-11 rounded-control bg-secondary text-secondary-foreground border border-border/60 shadow-control shrink-0">
-              <ShoppingBag className="w-5 h-5 text-brand" />
+        <div className="px-4 sm:px-6 py-3.5 sm:py-4 border-b border-border/60 bg-card flex items-center justify-between gap-3 shrink-0">
+          <div className="flex items-center gap-2.5 sm:gap-3">
+            {mobileStep === 'checkout' && (
+              <button
+                type="button"
+                onClick={() => setMobileStep('items')}
+                className="lg:hidden p-1.5 rounded-control border border-border/60 bg-muted/40 hover:bg-muted text-foreground text-xs font-bold flex items-center gap-1 cursor-pointer duration-motion active:scale-[0.98]"
+                title="بازگشت به اقلام"
+              >
+                <ArrowRight className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">
+                  اقلام ({toPersianDigits(itemCount)})
+                </span>
+              </button>
+            )}
+
+            <div className="relative flex items-center justify-center w-9 h-9 sm:w-11 sm:h-11 rounded-control bg-secondary text-secondary-foreground border border-border/60 shadow-control shrink-0">
+              <ShoppingBag className="w-4 h-4 sm:w-5 sm:h-5 text-brand" />
               {itemCount > 0 && (
-                <span className="absolute -top-1 -right-1 flex h-5 min-w-[20px] px-1.5 items-center justify-center rounded-control bg-primary text-[11px] font-black text-primary-foreground shadow-control animate-pulse">
-                  {itemCount}
+                <span className="absolute -top-1 -right-1 flex h-4 sm:h-5 min-w-[18px] sm:min-w-[20px] px-1 sm:px-1.5 items-center justify-center rounded-control bg-primary text-[10px] sm:text-[11px] font-black text-primary-foreground shadow-control animate-pulse font-latin">
+                  {toPersianDigits(itemCount)}
                 </span>
               )}
             </div>
             <div>
               <div className="flex items-center gap-2 flex-wrap">
-                <h3 className="font-black text-base sm:text-lg text-white">
-                  سبد خرید شما
+                <h3 className="font-black text-sm sm:text-base text-foreground">
+                  {mobileStep === 'checkout'
+                    ? 'تسویه‌حساب و روش پرداخت'
+                    : 'سبد خرید شما'}
                 </h3>
-                <span className="text-[11px] font-mono px-2.5 py-0.5 rounded-control bg-zinc-900 border border-zinc-800 text-zinc-300 font-bold">
-                  {itemCount} محصول دیجیتال
+                <span className="text-[10px] sm:text-[11px] font-mono px-2 py-0.5 rounded-control bg-muted text-muted-foreground border border-border/60 font-bold">
+                  {toPersianDigits(itemCount)} محصول دیجیتال
                 </span>
               </div>
             </div>
@@ -437,9 +502,9 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 type="button"
                 onClick={clearCart}
                 title="خالی کردن کل سبد"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-control text-xs text-zinc-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors border border-transparent hover:border-rose-500/20 duration-motion ease-motion active:scale-[0.98] cursor-pointer"
+                className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-control text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors border border-transparent hover:border-destructive/20 duration-motion ease-motion active:scale-[0.98] cursor-pointer"
               >
-                <Trash2 className="w-4 h-4" />
+                <Trash2 className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">خالی کردن سبد</span>
               </button>
             )}
@@ -447,9 +512,9 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
               type="button"
               onClick={onClose}
               aria-label="بستن پنجره"
-              className="p-2 rounded-control text-zinc-400 hover:text-white hover:bg-zinc-900 transition-colors border border-zinc-800 cursor-pointer"
+              className="p-1.5 sm:p-2 rounded-control text-muted-foreground hover:text-foreground hover:bg-muted transition-colors border border-border/60 cursor-pointer"
             >
-              <X className="w-5 h-5" />
+              <X className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
           </div>
         </div>
@@ -495,13 +560,19 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
           </div>
         ) : (
           <div className="flex-1 overflow-hidden flex flex-col lg:flex-row relative">
-            {/* Items Column (Desktop: 60% width, Mobile: Full scroll area with bottom padding) */}
-            <div className="flex-1 overflow-y-auto p-4 sm:p-6 pb-28 lg:pb-6 space-y-4">
+            {/* Items Column (Desktop: visible, Mobile: visible only on mobileStep === 'items') */}
+            <div
+              className={`flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 ${
+                mobileStep === 'checkout'
+                  ? 'hidden lg:block'
+                  : 'block pb-24 lg:pb-6'
+              }`}
+            >
               <div className="flex items-center justify-between pb-2 border-b border-border/60">
                 <div className="flex items-center gap-2 text-xs font-bold text-foreground">
                   <span>اقلام سفارش</span>
-                  <span className="text-[10px] text-muted-foreground">
-                    ({itemCount} مورد)
+                  <span className="text-[10px] text-muted-foreground font-latin">
+                    ({toPersianDigits(itemCount)} مورد)
                   </span>
                 </div>
                 <span className="text-[11px] text-muted-foreground hidden sm:inline">
@@ -509,19 +580,20 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 </span>
               </div>
 
-              {/* Design 1: Multi-Product 1-Click Sync Banner */}
-              {modeCItems.length >= 2 && (
-                <div className="p-3 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-between gap-3 text-xs animate-in fade-in">
-                  <div className="flex items-center gap-2 text-blue-700 dark:text-blue-300 font-bold min-w-0">
-                    <Sparkles className="w-4 h-4 text-blue-600 shrink-0" />
+              {/* Multi-Product 1-Click Sync Banner (Only shown if at least 2 Mode C products exist AND the first one has credentials entered) */}
+              {modeCItems.length >= 2 && isFirstCredFilled && (
+                <div className="p-3 rounded-control bg-brand/10 border border-brand/30 flex items-center justify-between gap-3 text-xs animate-in fade-in">
+                  <div className="flex items-center gap-2 text-foreground font-bold min-w-0">
+                    <Sparkles className="w-4 h-4 text-brand shrink-0" />
                     <span className="truncate">
-                      {modeCItems.length} سرویس نیازمند مشخصات اکانت شخصی
+                      {toPersianDigits(modeCItems.length)} سرویس نیازمند مشخصات
+                      اکانت شخصی
                     </span>
                   </div>
                   <button
                     type="button"
                     onClick={handleSyncFirstCredToAll}
-                    className="px-3 py-1 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold transition shadow-xs shrink-0 flex items-center gap-1 active:scale-95"
+                    className="px-3 py-1.5 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground text-xs font-black transition shadow-control shrink-0 flex items-center gap-1 active:scale-[0.98] duration-motion cursor-pointer"
                     title="کپی ایمیل و پسورد اکانت اول روی بقیه سرویس‌ها"
                   >
                     <span>کپی اطلاعات اکانت اول روی همه</span>
@@ -551,49 +623,49 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                   return (
                     <div
                       key={`${product.id}-${plan?.id || 'default'}`}
-                      className="group relative rounded-2xl border border-border/80 bg-card/70 hover:bg-card hover:border-blue-500/40 p-3.5 sm:p-4 shadow-xs transition-all space-y-3"
+                      className="group relative rounded-surface border border-border/60 bg-card p-3.5 sm:p-4 shadow-surface transition-all space-y-3"
                     >
                       {/* Product Header & Info */}
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex items-start gap-3 sm:gap-3.5 min-w-0">
                           <div
-                            className={`w-11 h-11 sm:w-12 sm:h-12 rounded-2xl border flex items-center justify-center shrink-0 shadow-xs transition-transform group-hover:scale-105 ${brand.bg}`}
+                            className={`w-11 h-11 sm:w-12 sm:h-12 rounded-control border border-border/60 flex items-center justify-center shrink-0 shadow-control transition-transform group-hover:scale-105 ${brand.bg}`}
                           >
                             {brand.icon}
                           </div>
 
-                          <div className="min-w-0 space-y-1">
+                          <div className="min-w-0 space-y-1.5">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <h4 className="font-bold text-xs sm:text-sm text-foreground truncate max-w-[180px] sm:max-w-[320px]">
+                              <h4 className="font-bold text-xs sm:text-sm text-foreground truncate max-w-[200px] sm:max-w-[340px]">
                                 {product.title_fa}
                               </h4>
                               {plan ? (
-                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400">
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-control bg-brand/10 text-brand border border-brand/20">
                                   {plan.title} ({plan.duration_text})
                                 </span>
                               ) : (
-                                <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-muted text-muted-foreground font-semibold">
+                                <span className="text-[10px] font-mono px-2 py-0.5 rounded-control bg-muted text-muted-foreground font-semibold">
                                   {brand.badge}
                                 </span>
                               )}
                             </div>
 
-                            <div className="flex items-center gap-2 flex-wrap text-xs">
+                            <div className="flex items-center gap-2.5 flex-wrap text-xs">
                               {isModeC ? (
-                                <span className="inline-flex items-center gap-1 text-blue-600 dark:text-blue-400 font-medium text-[10px] sm:text-[11px] bg-blue-500/10 px-2 py-0.5 rounded-md border border-blue-500/20">
-                                  <ShieldCheck className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                                <span className="inline-flex items-center gap-1 text-brand font-medium text-[10px] sm:text-[11px] bg-brand/10 px-2 py-0.5 rounded-control border border-brand/20">
+                                  <ShieldCheck className="w-3.5 h-3.5" />
                                   <span>ارتقا روی اکانت شخصی</span>
                                 </span>
                               ) : (
-                                <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-medium text-[10px] sm:text-[11px] bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
-                                  <Zap className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                                <span className="inline-flex items-center gap-1 text-emerald-400 font-medium text-[10px] sm:text-[11px] bg-emerald-500/10 px-2 py-0.5 rounded-control border border-emerald-500/20">
+                                  <Zap className="w-3.5 h-3.5" />
                                   <span>تحویل آنی</span>
                                 </span>
                               )}
 
                               <span className="text-muted-foreground text-[10px] sm:text-[11px] flex items-center gap-1">
                                 <span>واحد:</span>
-                                <span className="font-mono font-bold text-foreground">
+                                <span className="font-mono font-bold text-foreground font-latin">
                                   {unitPrice.toLocaleString('fa-IR')}
                                 </span>
                                 <span>تومان</span>
@@ -606,32 +678,32 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                         <button
                           type="button"
                           onClick={() => removeItem(product.id, plan?.id)}
-                          className="p-1.5 text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 rounded-xl transition-colors shrink-0"
+                          className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-control transition-colors shrink-0 cursor-pointer"
                           title="حذف این مورد از سبد"
                         >
                           <X className="w-4 h-4" />
                         </button>
                       </div>
 
-                      {/* Design 1: Contextual Per-Item Credential Expander for Mode C */}
+                      {/* Contextual Per-Item Credential Expander for Mode C */}
                       {isModeC && (
                         <div
-                          className={`rounded-xl border p-3 space-y-2.5 transition-all ${
+                          className={`rounded-control border p-3 space-y-2.5 transition-all ${
                             isCredFilled
-                              ? 'bg-emerald-500/5 border-emerald-500/25 dark:bg-emerald-950/20'
-                              : 'bg-blue-500/5 border-blue-500/20 dark:bg-blue-950/20'
+                              ? 'bg-emerald-500/5 border-emerald-500/25'
+                              : 'bg-muted/20 border-border/60'
                           }`}
                         >
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-1.5 text-xs font-bold text-foreground">
-                              <KeyRound className="w-3.5 h-3.5 text-blue-600" />
+                              <KeyRound className="w-3.5 h-3.5 text-brand" />
                               <span>مشخصات اکانت {brand.badge} جهت ارتقا:</span>
                             </div>
                             <span
-                              className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${
+                              className={`text-[10px] font-bold px-2 py-0.5 rounded-control border ${
                                 isCredFilled
-                                  ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/25'
-                                  : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30'
+                                  ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/25'
+                                  : 'bg-amber-500/10 text-amber-500 border-amber-500/30'
                               }`}
                             >
                               {isCredFilled
@@ -657,7 +729,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                                   )
                                 }
                                 placeholder="name@example.com"
-                                className="h-8 text-xs font-mono rounded-lg bg-background border-border"
+                                className="h-8 text-xs font-mono font-latin rounded-control bg-muted/30 border-border/60 text-foreground"
                               />
                             </div>
                             <div>
@@ -670,7 +742,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                                   onClick={() =>
                                     toggleItemShowPassword(product.id)
                                   }
-                                  className="text-[10px] text-muted-foreground hover:text-foreground flex items-center gap-1"
+                                  className="text-[10px] text-muted-foreground hover:text-foreground flex items-center gap-1 cursor-pointer"
                                 >
                                   {cred.showPassword ? (
                                     <>
@@ -697,7 +769,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                                   )
                                 }
                                 placeholder="••••••••"
-                                className="h-8 text-xs font-mono rounded-lg bg-background border-border"
+                                className="h-8 text-xs font-mono font-latin rounded-control bg-muted/30 border-border/60 text-foreground"
                               />
                             </div>
                           </div>
@@ -759,12 +831,58 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                     </div>
                   )
                 })}
+                {/* Mobile Sticky Bottom Action Dock in Step 1 (< lg only) */}
+                {mobileStep === 'items' && items.length > 0 && (
+                  <div className="lg:hidden fixed inset-x-0 bottom-0 border-t border-border/80 bg-card/98 backdrop-blur-md p-3.5 flex items-center justify-between gap-3 shadow-2xl z-30">
+                    <div className="space-y-0.5 select-none">
+                      <span className="text-[11px] text-muted-foreground block">
+                        مجموع کل اقلام
+                      </span>
+                      <div className="flex items-baseline gap-1 font-black text-base text-foreground font-mono font-latin">
+                        <span>{total.toLocaleString('fa-IR')}</span>
+                        <span className="text-[10px] font-normal text-muted-foreground font-sans">
+                          تومان
+                        </span>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setMobileStep('checkout')}
+                      className="h-10 px-5 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs duration-motion ease-motion active:scale-[0.98] shadow-control flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <span>
+                        ادامه به پرداخت ({toPersianDigits(itemCount)})
+                      </span>
+                      <ArrowLeft className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
 
-            {/* Desktop Financial & Payment Column (Hidden on Mobile, Visible lg:flex) */}
-            <div className="hidden lg:flex w-[410px] shrink-0 border-r border-border/80 bg-card/50 dark:bg-slate-900/30 p-5 sm:p-6 flex-col justify-between overflow-y-auto space-y-4">
+            {/* Financial & Payment Column (Visible lg:flex on desktop, on mobile visible only when mobileStep === 'checkout') */}
+            <div
+              className={`w-full lg:w-[410px] shrink-0 lg:border-r border-border/60 bg-card p-4 sm:p-6 flex flex-col justify-between overflow-y-auto space-y-4 ${
+                mobileStep === 'checkout' ? 'flex' : 'hidden lg:flex'
+              }`}
+            >
               <div className="space-y-4">
+                {/* Mobile Back Link in Step 2 */}
+                {mobileStep === 'checkout' && (
+                  <button
+                    type="button"
+                    onClick={() => setMobileStep('items')}
+                    className="lg:hidden text-xs text-brand hover:underline font-bold flex items-center gap-1.5 pb-2 border-b border-border/40 cursor-pointer"
+                  >
+                    <ArrowRight className="w-3.5 h-3.5" />
+                    <span>
+                      بازگشت به ویرایش اقلام و مشخصات (
+                      {toPersianDigits(itemCount)} قلم)
+                    </span>
+                  </button>
+                )}
+
                 {/* 1. Customer Phone Input */}
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-foreground block">
@@ -800,14 +918,14 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                         <div
                           key={p.id}
                           onClick={() => setSelectedPlatform(p.platform)}
-                          className={`flex items-center justify-between rounded-xl border p-2.5 cursor-pointer transition-all ${
+                          className={`flex items-center justify-between rounded-control border p-2.5 cursor-pointer transition-all duration-motion ease-motion ${
                             isSelected
-                              ? 'border-blue-600 bg-blue-500/10 ring-1 ring-blue-600 shadow-xs'
-                              : 'border-border/80 bg-background/80 hover:bg-muted/50'
+                              ? 'border-primary bg-primary/10 ring-1 ring-primary/30 shadow-control'
+                              : 'border-border/60 bg-card hover:bg-muted/40'
                           }`}
                         >
                           <div className="flex items-center gap-2.5">
-                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-background border border-border/80 text-foreground shrink-0">
+                            <div className="flex h-8 w-8 items-center justify-center rounded-control bg-secondary border border-border/80 text-foreground shrink-0 shadow-control">
                               {getGatewayIcon(p.icon_type)}
                             </div>
                             <div>
@@ -817,10 +935,10 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                                 </span>
                                 {p.platform === 'balance' && (
                                   <span
-                                    className={`text-[9px] px-1.5 py-0.2 rounded-md font-bold border ${
+                                    className={`text-[9px] px-1.5 py-0.2 rounded-control font-bold border ${
                                       isBalanceSufficient
-                                        ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
-                                        : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20'
+                                        ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                                        : 'bg-amber-500/10 text-amber-500 border-amber-500/20'
                                     }`}
                                   >
                                     {isBalanceSufficient
@@ -847,19 +965,19 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 <div className="space-y-2 pt-1 border-t border-border/60">
                   <div className="flex items-center justify-between text-xs font-bold text-foreground">
                     <span className="flex items-center gap-1.5">
-                      <Tag className="w-4 h-4 text-blue-600" />
+                      <Tag className="w-4 h-4 text-brand" />
                       <span>کد تخفیف و پروموشن</span>
                     </span>
                     {coupon?.valid && (
-                      <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono font-bold">
+                      <span className="text-[10px] text-emerald-400 font-mono font-bold">
                         تخفیف فعال ✓
                       </span>
                     )}
                   </div>
 
                   {coupon?.valid ? (
-                    <div className="p-2.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 flex items-center justify-between text-xs animate-in zoom-in-95">
-                      <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-bold">
+                    <div className="p-2.5 rounded-control bg-emerald-500/10 border border-emerald-500/25 flex items-center justify-between text-xs animate-in zoom-in-95">
+                      <div className="flex items-center gap-2 text-emerald-400 font-bold">
                         <CheckCircle2 className="w-4 h-4 shrink-0" />
                         <span>
                           {coupon.code} ({discount.toLocaleString('fa-IR')}{' '}
@@ -869,7 +987,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                       <button
                         type="button"
                         onClick={removeCoupon}
-                        className="text-xs text-muted-foreground hover:text-rose-500 transition-colors px-2 py-1 rounded-lg hover:bg-rose-500/10"
+                        className="text-xs text-muted-foreground hover:text-destructive transition-colors px-2 py-1 rounded-control hover:bg-destructive/10 cursor-pointer"
                       >
                         حذف
                       </button>
@@ -883,23 +1001,23 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                         }}
                         className="flex gap-2"
                       >
-                        <Input
+                        <input
                           value={couponCodeInput}
                           onChange={(e) => setCouponCodeInput(e.target.value)}
                           placeholder="کد تخفیف (مثال: WELCOME10)"
-                          className="h-9 text-xs uppercase font-mono rounded-xl bg-background border-border focus:ring-1 focus:ring-blue-500 flex-1"
+                          className="h-10 text-xs uppercase font-mono font-latin rounded-field bg-muted/20 border border-border/60 px-3 text-foreground outline-none focus:border-foreground/40 transition-colors flex-1"
                         />
-                        <Button
+                        <button
                           type="submit"
                           disabled={couponLoading || !couponCodeInput.trim()}
-                          className="h-9 px-3 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-xl shrink-0 transition shadow-sm"
+                          className="h-10 px-4 text-xs font-black bg-primary hover:bg-primary-hover text-primary-foreground rounded-control shrink-0 transition duration-motion active:scale-[0.98] shadow-control cursor-pointer disabled:opacity-50"
                         >
                           {couponLoading ? '...' : 'اعمال'}
-                        </Button>
+                        </button>
                       </form>
 
                       {couponError && (
-                        <div className="flex items-center gap-1.5 text-xs text-rose-500 font-medium">
+                        <div className="flex items-center gap-1.5 text-xs text-destructive font-medium">
                           <AlertCircle className="w-4 h-4 shrink-0" />
                           <span>{couponError}</span>
                         </div>
@@ -916,10 +1034,10 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                               key={p.code}
                               type="button"
                               onClick={() => handleApplyCoupon(p.code)}
-                              className={`text-[10px] font-mono px-2 py-0.5 rounded-lg border transition-all ${
+                              className={`text-[10px] font-mono font-latin px-2 py-0.5 rounded-control border transition-all duration-motion cursor-pointer ${
                                 isThisApplied
-                                  ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold'
-                                  : 'border-border/80 bg-background/80 hover:bg-blue-500/10 hover:border-blue-500/30 hover:text-blue-600 dark:hover:text-blue-400'
+                                  ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400 font-bold'
+                                  : 'border-border/60 bg-muted/20 hover:bg-muted text-foreground'
                               }`}
                             >
                               {isThisApplied ? `✓ ${p.code}` : p.code}{' '}
@@ -935,21 +1053,21 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 </div>
 
                 {/* 4. Price Ledger Breakdown */}
-                <div className="rounded-2xl border border-border/80 bg-background/90 p-3.5 space-y-2.5 text-xs shadow-xs">
+                <div className="rounded-surface border border-border/80 bg-card p-4 space-y-2.5 text-xs shadow-surface">
                   <div className="flex justify-between text-muted-foreground">
                     <span>ارزش کل اقلام:</span>
-                    <span className="font-mono font-bold text-foreground text-sm">
+                    <span className="font-mono font-bold text-foreground text-sm font-latin">
                       {subtotal.toLocaleString('fa-IR')} تومان
                     </span>
                   </div>
 
                   {discount > 0 && (
-                    <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-bold">
+                    <div className="flex justify-between text-emerald-400 font-bold">
                       <span className="flex items-center gap-1">
                         <Percent className="w-3.5 h-3.5" />
                         تخفیف پروموشن:
                       </span>
-                      <span className="font-mono text-sm">
+                      <span className="font-mono text-sm font-latin">
                         -{discount.toLocaleString('fa-IR')} تومان
                       </span>
                     </div>
@@ -959,7 +1077,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                     <span className="font-black text-sm text-foreground">
                       مبلغ قابل پرداخت:
                     </span>
-                    <div className="flex items-baseline gap-1 text-xl font-black text-blue-600 dark:text-blue-400 font-mono">
+                    <div className="flex items-baseline gap-1 text-xl font-black text-foreground font-mono font-latin">
                       <span>{total.toLocaleString('fa-IR')}</span>
                       <span className="text-xs font-normal text-muted-foreground font-sans">
                         تومان
@@ -969,210 +1087,73 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 </div>
               </div>
 
-              {/* 5. Checkout CTA Button: Graphite Primary Button (White with black text) */}
-              <div className="space-y-2 pt-2">
+              {/* 5. Checkout CTA Button & Balance Warnings */}
+              <div className="space-y-3 pt-2">
+                {submitError && (
+                  <div className="p-3 rounded-control bg-destructive/10 border border-destructive/30 text-xs text-destructive flex items-center gap-2 animate-in fade-in">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <span>{submitError}</span>
+                  </div>
+                )}
+
+                {/* Explicit Balance Insufficient Warning Card */}
+                {selectedPlatform === 'balance' && !isBalanceSufficient && (
+                  <div className="p-3 rounded-control bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-400 text-xs space-y-2 animate-in fade-in">
+                    <div className="flex items-center gap-1.5 font-bold">
+                      <AlertCircle className="w-4 h-4 shrink-0 text-amber-500" />
+                      <span>موجودی کیف پول شما کمتر از مبلغ سفارش است</span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground leading-relaxed">
+                      موجودی شما{' '}
+                      {toPersianDigits(walletBalance.toLocaleString('fa-IR'))}{' '}
+                      تومان و مبلغ کل{' '}
+                      {toPersianDigits(total.toLocaleString('fa-IR'))} تومان
+                      است. می‌توانید درگاه شاپرک را انتخاب کرده یا کیف پول خود را
+                      به صورت آنی شارژ کنید.
+                    </p>
+                    <div className="flex items-center gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedPlatform('zarinpal')}
+                        className="px-3 py-1.5 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs duration-motion active:scale-95 shadow-control cursor-pointer"
+                      >
+                        سوییچ به درگاه شاپرک
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setIsTopupModalOpen(true)}
+                        className="px-3 py-1.5 rounded-control border border-border/80 bg-muted/40 hover:bg-muted text-foreground text-xs font-bold transition duration-motion active:scale-95 cursor-pointer"
+                      >
+                        شارژ آنی کیف پول
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 <button
                   type="button"
                   onClick={handleFinalSubmit}
-                  disabled={isSubmitting}
-                  className="w-full h-11 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs sm:text-sm duration-motion ease-motion active:scale-[0.98] shadow-control flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                  disabled={
+                    isSubmitting ||
+                    (selectedPlatform === 'balance' && !isBalanceSufficient)
+                  }
+                  className={`w-full h-11 rounded-control font-black text-xs sm:text-sm duration-motion ease-motion active:scale-[0.98] shadow-control flex items-center justify-center gap-2 cursor-pointer ${
+                    selectedPlatform === 'balance' && !isBalanceSufficient
+                      ? 'bg-muted text-muted-foreground cursor-not-allowed opacity-60'
+                      : 'bg-primary hover:bg-primary-hover text-primary-foreground'
+                  }`}
                 >
                   {isSubmitting ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
                       <span>در حال ثبت سفارش...</span>
                     </>
+                  ) : selectedPlatform === 'balance' && !isBalanceSufficient ? (
+                    <span>موجودی کیف پول ناکافی است</span>
                   ) : (
                     <>
                       <span>ثبت نهایی سفارش و پرداخت</span>
                       <ArrowLeft className="w-4 h-4" />
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-
-            {/* Mobile Expanded Details Drawer (Slides up over items when toggled on Mobile) */}
-            {showMobileDetails && (
-              <div className="lg:hidden absolute inset-x-0 bottom-24 max-h-[75vh] overflow-y-auto bg-background/98 dark:bg-[#020817]/98 border-t border-border shadow-2xl p-4 space-y-4 z-20 animate-in slide-in-from-bottom duration-200">
-                <div className="flex items-center justify-between pb-2 border-b border-border/60">
-                  <span className="font-bold text-xs text-foreground flex items-center gap-1.5">
-                    <CreditCard className="w-4 h-4 text-blue-600" />
-                    <span>روش پرداخت و کد تخفیف</span>
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setShowMobileDetails(false)}
-                    className="p-1 rounded-lg hover:bg-muted text-muted-foreground"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-
-                {/* Mobile Customer Phone */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-foreground block">
-                    شماره موبایل جهت پیگیری:
-                  </label>
-                  <Input
-                    type="tel"
-                    dir="ltr"
-                    value={phone}
-                    onChange={(e) => {
-                      setPhone(e.target.value)
-                      setPhoneError(null)
-                    }}
-                    placeholder="09xxxxxxxxx"
-                    className="h-9 text-xs font-mono rounded-xl bg-background border-border"
-                  />
-                  {phoneError && (
-                    <p className="text-[11px] text-rose-500 font-medium">
-                      {phoneError}
-                    </p>
-                  )}
-                </div>
-
-                {/* Mobile Payment Methods */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-foreground block">
-                    انتخاب روش پرداخت:
-                  </label>
-                  <div className="space-y-1.5">
-                    {availableGateways.map((p) => {
-                      const isSelected = selectedPlatform === p.platform
-                      return (
-                        <div
-                          key={p.id}
-                          onClick={() => setSelectedPlatform(p.platform)}
-                          className={`flex items-center justify-between rounded-xl border p-2.5 cursor-pointer transition-all ${
-                            isSelected
-                              ? 'border-blue-600 bg-blue-500/10 ring-1 ring-blue-600 shadow-xs'
-                              : 'border-border/80 bg-background/80'
-                          }`}
-                        >
-                          <div className="flex items-center gap-2.5">
-                            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-background border border-border/80 shrink-0">
-                              {getGatewayIcon(p.icon_type)}
-                            </div>
-                            <span className="text-xs font-bold text-foreground">
-                              {p.name}
-                            </span>
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-
-                {/* Mobile Coupon Section */}
-                <div className="space-y-2 pt-2 border-t border-border/60">
-                  {coupon?.valid ? (
-                    <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/25 flex items-center justify-between text-xs">
-                      <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-bold">
-                        <CheckCircle2 className="w-4 h-4 shrink-0" />
-                        <span>
-                          {coupon.code} ({discount.toLocaleString('fa-IR')} ت
-                          تخفیف)
-                        </span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={removeCoupon}
-                        className="text-xs text-muted-foreground hover:text-rose-500 transition-colors px-1.5 py-0.5 rounded-md hover:bg-rose-500/10"
-                      >
-                        حذف
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      <form
-                        onSubmit={(e) => {
-                          e.preventDefault()
-                          handleApplyCoupon()
-                        }}
-                        className="flex gap-2"
-                      >
-                        <Input
-                          value={couponCodeInput}
-                          onChange={(e) => setCouponCodeInput(e.target.value)}
-                          placeholder="کد تخفیف (مثال: WELCOME10)"
-                          className="h-9 text-xs uppercase font-mono rounded-xl bg-background border-border flex-1"
-                        />
-                        <Button
-                          type="submit"
-                          disabled={couponLoading || !couponCodeInput.trim()}
-                          className="h-9 px-3.5 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-xl shrink-0"
-                        >
-                          {couponLoading ? '...' : 'اعمال'}
-                        </Button>
-                      </form>
-                    </div>
-                  )}
-                </div>
-
-                {/* Mobile Price Ledger */}
-                <div className="rounded-xl border border-border/80 bg-muted/30 p-3 space-y-2 text-xs">
-                  <div className="flex justify-between text-muted-foreground">
-                    <span>مجموع قیمت اقلام:</span>
-                    <span className="font-mono font-bold text-foreground">
-                      {subtotal.toLocaleString('fa-IR')} تومان
-                    </span>
-                  </div>
-                  {discount > 0 && (
-                    <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-bold">
-                      <span>تخفیف پروموشن:</span>
-                      <span className="font-mono">
-                        -{discount.toLocaleString('fa-IR')} تومان
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Mobile Fixed Sticky Bottom Action Dock (< lg only) */}
-            <div className="lg:hidden absolute inset-x-0 bottom-0 border-t border-border bg-background/95 dark:bg-[#020817]/95 backdrop-blur-md p-3.5 flex items-center justify-between gap-3 shadow-xl z-30">
-              <div
-                onClick={() => setShowMobileDetails(!showMobileDetails)}
-                className="cursor-pointer space-y-0.5 select-none"
-              >
-                <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
-                  <span>مبلغ کل</span>
-                  {showMobileDetails ? (
-                    <ChevronDown className="w-3.5 h-3.5 text-blue-600" />
-                  ) : (
-                    <ChevronUp className="w-3.5 h-3.5 text-blue-600" />
-                  )}
-                  {discount > 0 && (
-                    <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold">
-                      (تخفیف دارد)
-                    </span>
-                  )}
-                </div>
-                <div className="flex items-baseline gap-1 font-black text-base text-foreground font-mono">
-                  <span>{total.toLocaleString('fa-IR')}</span>
-                  <span className="text-[10px] font-normal text-muted-foreground font-sans">
-                    تومان
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={handleFinalSubmit}
-                  disabled={isSubmitting}
-                  className="h-10 px-6 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs duration-motion ease-motion active:scale-[0.98] shadow-control flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      <span>ثبت سفارش...</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>ثبت و پرداخت</span>
-                      <ArrowLeft className="w-3.5 h-3.5" />
                     </>
                   )}
                 </button>
@@ -1187,7 +1168,27 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
         isOpen={isAuthModalOpen}
         initialMode="login"
         onClose={() => setIsAuthModalOpen(false)}
-        onSuccess={() => setIsAuthModalOpen(false)}
+        onSuccess={() => {
+          setIsAuthModalOpen(false)
+          apiService.getCustomerProfile().then((p) => {
+            if (p) setInternalCustomer(p)
+          })
+        }}
+      />
+
+      {/* Wallet Topup Modal */}
+      <WalletTopupModal
+        isOpen={isTopupModalOpen}
+        onClose={() => setIsTopupModalOpen(false)}
+        currentBalance={walletBalance}
+        onSuccess={(newBal) => {
+          if (activeCustomer) {
+            setInternalCustomer({
+              ...activeCustomer,
+              balance_toman: newBal,
+            })
+          }
+        }}
       />
     </div>
   )

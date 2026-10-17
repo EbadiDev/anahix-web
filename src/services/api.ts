@@ -2220,18 +2220,28 @@ export const apiService = {
     return json.data
   },
 
-  async likeArticle(slug: string): Promise<number> {
+  async likeArticle(
+    slug: string,
+  ): Promise<{ like_count: number; is_liked: boolean }> {
+    const token = this.getCustomerToken()
+    const headers: Record<string, string> = {}
+    if (token) headers.Authorization = `Bearer ${token}`
+
     const res = await fetch(
       `/api/v1/articles/${encodeURIComponent(slug)}/like`,
       {
         method: 'POST',
+        headers,
       },
     )
     const json = await safeJsonParse(res)
     if (!res.ok || json.code !== 200) {
       throw new Error(json.msg || 'خطا در ثبت پسندیدن مقاله')
     }
-    return json.data?.like_count || 0
+    return {
+      like_count: json.data?.like_count || 0,
+      is_liked: Boolean(json.data?.is_liked),
+    }
   },
 
   async submitArticleComment(
@@ -2290,7 +2300,10 @@ export const apiService = {
     return json.data
   },
 
-  async voteHelpGuide(slug: string, is_helpful: boolean): Promise<void> {
+  async voteHelpGuide(
+    slug: string,
+    is_helpful: boolean,
+  ): Promise<{ helpful_yes: number; helpful_no: number; status: string }> {
     const token = this.getCustomerToken()
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -2305,9 +2318,14 @@ export const apiService = {
         body: JSON.stringify({ is_helpful }),
       },
     )
-    const json = await res.json()
+    const json = await safeJsonParse(res)
     if (!res.ok || json.code !== 200) {
       throw new Error(json.msg || 'خطا در ثبت بازخورد')
+    }
+    return {
+      helpful_yes: json.data?.helpful_yes || 0,
+      helpful_no: json.data?.helpful_no || 0,
+      status: json.data?.status || 'voted',
     }
   },
 

@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import type React from 'react'
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { apiService } from '../../services/api'
 import type { CustomerProfile, SubmitReviewRequest } from '../../types'
 import { Button } from '../ui/button'
@@ -141,8 +142,11 @@ export const SubmitReviewModal: React.FC<SubmitReviewModalProps> = ({
 
   const activeRating = hoverRating || rating
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200">
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-in fade-in duration-200"
+      style={{ top: 0, left: 0, right: 0, bottom: 0 }}
+    >
       <div
         className="w-full max-w-xl bg-card border border-border rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] text-right"
         dir="rtl"
@@ -372,6 +376,7 @@ export const SubmitReviewModal: React.FC<SubmitReviewModalProps> = ({
           </form>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

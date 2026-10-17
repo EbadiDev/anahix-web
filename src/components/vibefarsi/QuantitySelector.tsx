@@ -56,7 +56,7 @@ export const QuantitySelector: React.FC<QuantitySelectorProps> = ({
     <div
       dir="ltr"
       onClick={(e) => e.stopPropagation()}
-      className={`inline-flex items-center justify-between rounded-control border border-border/80 bg-zinc-900/95 text-zinc-100 shadow-control duration-motion ease-motion select-none ${heightClasses[size]} ${className}`}
+      className={`inline-flex items-center justify-between rounded-control border border-border/80 bg-muted/60 text-foreground shadow-control duration-motion ease-motion select-none ${heightClasses[size]} ${className}`}
     >
       <button
         type="button"
@@ -68,8 +68,8 @@ export const QuantitySelector: React.FC<QuantitySelectorProps> = ({
           btnSizes[size]
         } ${
           isDeleteAction
-            ? 'hover:bg-rose-500/20 text-rose-400 hover:text-rose-300'
-            : 'hover:bg-zinc-800 text-zinc-300 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed'
+            ? 'hover:bg-rose-500/20 text-rose-500 hover:text-rose-600 dark:hover:text-rose-400'
+            : 'hover:bg-muted text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed'
         }`}
       >
         {isDeleteAction ? (
@@ -79,7 +79,7 @@ export const QuantitySelector: React.FC<QuantitySelectorProps> = ({
         )}
       </button>
 
-      <span className="min-w-[28px] text-center font-black font-latin text-white px-1">
+      <span className="min-w-[28px] text-center font-black font-latin text-foreground px-1">
         {toPersianDigits(value)}
       </span>
 
@@ -89,7 +89,7 @@ export const QuantitySelector: React.FC<QuantitySelectorProps> = ({
         disabled={value >= max}
         title="افزایش تعداد"
         aria-label="افزایش تعداد"
-        className={`flex items-center justify-center rounded-control hover:bg-zinc-800 text-zinc-300 hover:text-white transition-all duration-motion ease-motion active:scale-[0.92] cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed ${btnSizes[size]}`}
+        className={`flex items-center justify-center rounded-control hover:bg-muted text-muted-foreground hover:text-foreground transition-all duration-motion ease-motion active:scale-[0.92] cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed ${btnSizes[size]}`}
       >
         <Plus className="w-3.5 h-3.5" />
       </button>

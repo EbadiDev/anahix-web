@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 import type React from 'react'
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { apiService } from '../services/api'
 import type {
   CartItem,
@@ -210,9 +211,10 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     }
   }
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-in fade-in-0"
+      className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/75 p-4 backdrop-blur-md animate-in fade-in-0"
+      style={{ top: 0, left: 0, right: 0, bottom: 0 }}
       onClick={onClose}
     >
       <div
@@ -457,6 +459,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

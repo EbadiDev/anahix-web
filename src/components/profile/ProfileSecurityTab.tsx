@@ -14,6 +14,7 @@ import type React from 'react'
 import { useMemo, useState } from 'react'
 import { apiService } from '../../services/api'
 import type { CustomerProfile } from '../../types'
+import { formatDisplayPhone } from '../../utils/formatters'
 import { useNotification } from '../vibefarsi/NotificationContext'
 import { OtpField } from '../vibefarsi/OtpField'
 import { PasswordInput } from '../vibefarsi/PasswordInput'
@@ -63,7 +64,9 @@ export const ProfileSecurityTab: React.FC<ProfileSecurityTabProps> = ({
   const clientEnv = useMemo(() => detectClientEnv(), [])
   const { success, error, info } = useNotification()
 
-  // 2-Step Password Reset State
+  const isRealPhone = Boolean(
+    customer.phone && !/^098[0-9a-f]{8}$/i.test(customer.phone),
+  )
   const [resetStep, setResetStep] = useState<
     'choose_channel' | 'verify_otp' | 'set_new_password'
   >('choose_channel')
@@ -191,16 +194,22 @@ export const ProfileSecurityTab: React.FC<ProfileSecurityTabProps> = ({
                   <span className="text-xs font-bold text-foreground">
                     شماره موبایل (SMS OTP)
                   </span>
-                  <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-control">
-                    <CheckCircle2 className="w-3 h-3" />
-                    <span>تاییدشده</span>
-                  </span>
+                  {isRealPhone ? (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-control">
+                      <CheckCircle2 className="w-3 h-3" />
+                      <span>تاییدشده</span>
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-amber-500/10 text-amber-500 border border-amber-500/20 px-2 py-0.5 rounded-control">
+                      <span>ثبت‌نشده</span>
+                    </span>
+                  )}
                 </div>
                 <p
-                  className="text-xs font-mono text-muted-foreground mt-0.5"
+                  className="text-xs font-mono text-muted-foreground mt-0.5 font-latin"
                   dir="ltr"
                 >
-                  {customer.phone}
+                  {formatDisplayPhone(customer.phone, customer.email)}
                 </p>
               </div>
             </div>
@@ -278,10 +287,10 @@ export const ProfileSecurityTab: React.FC<ProfileSecurityTabProps> = ({
                   </span>
                 </div>
                 <span
-                  className="text-[11px] font-mono text-muted-foreground block mt-1"
+                  className="text-[11px] font-mono text-muted-foreground block mt-1 font-latin"
                   dir="ltr"
                 >
-                  {customer.phone}
+                  {formatDisplayPhone(customer.phone, customer.email)}
                 </span>
               </button>
 
@@ -336,7 +345,9 @@ export const ProfileSecurityTab: React.FC<ProfileSecurityTabProps> = ({
               <p className="text-xs text-muted-foreground">
                 کد تایید ۵ رقمی ارسال شده به{' '}
                 <strong className="text-foreground">
-                  {channel === 'sms' ? customer.phone : customer.email}
+                  {channel === 'sms'
+                    ? formatDisplayPhone(customer.phone)
+                    : customer.email}
                 </strong>{' '}
                 را وارد کنید:
               </p>

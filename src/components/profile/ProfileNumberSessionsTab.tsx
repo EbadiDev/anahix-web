@@ -1,10 +1,18 @@
-import { Check, CheckCircle2, Clock, Copy, Loader2, Radio } from 'lucide-react'
+import {
+  Check,
+  CheckCircle2,
+  Clock,
+  Copy,
+  Loader2,
+  Radio,
+  Search,
+} from 'lucide-react'
 import type React from 'react'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { apiService } from '../../services/api'
 import type { VirtualNumberOrder } from '../../types'
-import { toPersianDigits } from '../../utils/formatters'
+import { formatDisplayPhone, toPersianDigits } from '../../utils/formatters'
 import { useNotification } from '../vibefarsi/NotificationContext'
 
 interface ProfileNumberSessionsTabProps {
@@ -19,6 +27,8 @@ export const ProfileNumberSessionsTab: React.FC<
   const [sessions, setSessions] = useState<VirtualNumberOrder[]>(virtualOrders)
   const [copiedKey, setCopiedKey] = useState('')
   const [actionLoading, setActionLoading] = useState<string | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [visibleHistoryCount, setVisibleHistoryCount] = useState<number>(4)
 
   // Sync if prop updates
   useEffect(() => {
@@ -101,12 +111,26 @@ export const ProfileNumberSessionsTab: React.FC<
     }
   }
 
-  const activeSessions = sessions.filter(
-    (s) => s.status === 'PENDING' || s.status === 'RECEIVED',
-  )
-  const historySessions = sessions.filter(
-    (s) => s.status !== 'PENDING' && s.status !== 'RECEIVED',
-  )
+  const activeSessions = useMemo(() => {
+    return sessions.filter(
+      (s) => s.status === 'PENDING' || s.status === 'RECEIVED',
+    )
+  }, [sessions])
+
+  const historySessions = useMemo(() => {
+    const list = sessions.filter(
+      (s) => s.status !== 'PENDING' && s.status !== 'RECEIVED',
+    )
+    if (!searchQuery.trim()) return list
+    const q = searchQuery.toLowerCase().trim()
+    return list.filter(
+      (s) =>
+        s.service_name_fa?.toLowerCase().includes(q) ||
+        s.country_name_fa?.toLowerCase().includes(q) ||
+        s.phone?.includes(q) ||
+        s.order_no?.includes(q),
+    )
+  }, [sessions, searchQuery])
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
@@ -322,13 +346,29 @@ export const ProfileNumberSessionsTab: React.FC<
 
       {/* 3. Past Sessions History */}
       {historySessions.length > 0 && (
-        <div className="rounded-surface border border-border/60 bg-card p-5 shadow-surface space-y-3">
-          <h4 className="text-sm font-bold text-foreground">
-            تاریخچه نشست‌های قبلی
-          </h4>
+        <div className="rounded-surface border border-border/60 bg-card p-5 shadow-surface space-y-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3 border-b border-border/40">
+            <h4 className="text-sm font-bold text-foreground">
+              تاریخچه نشست‌های قبلی ({toPersianDigits(historySessions.length)})
+            </h4>
+
+            <div className="relative w-full sm:w-56">
+              <input
+                type="text"
+                placeholder="جستجو در تاریخچه..."
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value)
+                  setVisibleHistoryCount(4)
+                }}
+                className="w-full h-8 pr-8 pl-3 text-xs rounded-field bg-muted/20 border border-border/60 text-foreground outline-none focus:border-foreground/40 transition-colors"
+              />
+              <Search className="w-3.5 h-3.5 absolute right-2.5 top-2.5 text-muted-foreground pointer-events-none" />
+            </div>
+          </div>
 
           <div className="space-y-2">
-            {historySessions.map((hist) => (
+            {historySessions.slice(0, visibleHistoryCount).map((hist) => (
               <div
                 key={hist.id}
                 className="p-3 rounded-control border border-border/40 bg-muted/20 flex items-center justify-between text-xs"
@@ -343,7 +383,7 @@ export const ProfileNumberSessionsTab: React.FC<
                       className="text-[11px] font-mono text-muted-foreground block font-latin"
                       dir="ltr"
                     >
-                      {hist.phone}
+                      {formatDisplayPhone(hist.phone)}
                     </span>
                   </div>
                 </div>
@@ -367,6 +407,26 @@ export const ProfileNumberSessionsTab: React.FC<
               </div>
             ))}
           </div>
+
+          {/* Load More History Button */}
+          {visibleHistoryCount < historySessions.length && (
+            <div className="pt-2 text-center">
+              <button
+                type="button"
+                onClick={() => setVisibleHistoryCount((prev) => prev + 4)}
+                className="h-9 px-4 rounded-control border border-border/60 bg-card hover:bg-muted text-foreground font-black text-xs duration-motion ease-motion active:scale-[0.98] shadow-control cursor-pointer inline-flex items-center gap-2"
+              >
+                <span>بارگذاری تاریخچه بیشتر</span>
+                <span className="text-[11px] text-muted-foreground font-latin">
+                  (نمایش{' '}
+                  {toPersianDigits(
+                    Math.min(visibleHistoryCount, historySessions.length),
+                  )}{' '}
+                  از {toPersianDigits(historySessions.length)})
+                </span>
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>

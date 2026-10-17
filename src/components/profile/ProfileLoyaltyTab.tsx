@@ -18,7 +18,11 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { apiService } from '../../services/api'
 import type { CustomerLoyaltyProfile, CustomerProfile } from '../../types'
-import { formatToman, toPersianDigits } from '../../utils/formatters'
+import {
+  formatDisplayPhone,
+  formatToman,
+  toPersianDigits,
+} from '../../utils/formatters'
 import { FlipCard3D } from '../vibefarsi/FlipCard3D'
 
 interface ProfileLoyaltyTabProps {
@@ -280,7 +284,7 @@ export const ProfileLoyaltyTab: React.FC<ProfileLoyaltyTabProps> = ({
                   <div className="flex items-center gap-2">
                     <div className="flex-1 h-7 bg-white/90 rounded-control px-2 flex items-center justify-between text-zinc-900 font-mono text-xs font-bold">
                       <span className="truncate">
-                        {customer.phone || '09835c3f7f0'}
+                        {formatDisplayPhone(customer.phone, customer.email)}
                       </span>
                       <span className="text-zinc-600 font-latin text-[10px]">
                         AUTHORIZED

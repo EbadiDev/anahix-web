@@ -5,11 +5,12 @@ import {
   Loader2,
   Plus,
   RefreshCw,
+  Search,
   Wallet,
   Zap,
 } from 'lucide-react'
 import type React from 'react'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { apiService } from '../../services/api'
 import type { CustomerProfile, WalletLedgerItem } from '../../types'
 import { formatToman, toPersianDigits } from '../../utils/formatters'
@@ -26,6 +27,8 @@ export const ProfileWalletTab: React.FC<ProfileWalletTabProps> = ({
   const [filter, setFilter] = useState<'all' | 'deposit' | 'expense'>('all')
   const [ledger, setLedger] = useState<WalletLedgerItem[]>([])
   const [loading, setLoading] = useState(true)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [visibleCount, setVisibleCount] = useState<number>(6)
   const balance = customer.balance_toman || 0
 
   const fetchLedger = async () => {
@@ -44,20 +47,30 @@ export const ProfileWalletTab: React.FC<ProfileWalletTabProps> = ({
     fetchLedger()
   }, [customer.phone])
 
-  const filteredLedger = ledger.filter((item) => {
-    const isDeposit =
-      item.type === 'DEPOSIT' ||
-      item.type === 'REFUND' ||
-      item.type === 'REFERRAL_COMMISSION'
-    const isExpense =
-      item.type === 'PURCHASE_PRODUCT' ||
-      item.type === 'PURCHASE_NUMBER' ||
-      item.type === 'WITHDRAWAL'
+  const filteredLedger = useMemo(() => {
+    return ledger.filter((item) => {
+      const isDeposit =
+        item.type === 'DEPOSIT' ||
+        item.type === 'REFUND' ||
+        item.type === 'REFERRAL_COMMISSION'
+      const isExpense =
+        item.type === 'PURCHASE_PRODUCT' ||
+        item.type === 'PURCHASE_NUMBER' ||
+        item.type === 'WITHDRAWAL'
 
-    if (filter === 'deposit') return isDeposit
-    if (filter === 'expense') return isExpense
-    return true
-  })
+      if (filter === 'deposit' && !isDeposit) return false
+      if (filter === 'expense' && !isExpense) return false
+
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim()
+        const matchTitle = item.title?.toLowerCase().includes(q)
+        const matchTx = item.transaction_number?.toLowerCase().includes(q)
+        if (!matchTitle && !matchTx) return false
+      }
+
+      return true
+    })
+  }, [ledger, filter, searchQuery])
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300 max-w-4xl">
@@ -146,41 +159,66 @@ export const ProfileWalletTab: React.FC<ProfileWalletTabProps> = ({
             </p>
           </div>
 
-          {/* Filter Pills */}
-          <div className="flex items-center gap-1.5 bg-muted/40 p-1 rounded-control border border-border/40">
-            <button
-              type="button"
-              onClick={() => setFilter('all')}
-              className={`text-xs px-3 py-1.5 rounded-control font-bold duration-motion ease-motion transition-all cursor-pointer ${
-                filter === 'all'
-                  ? 'bg-primary text-primary-foreground font-black shadow-control'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              همه ({toPersianDigits(ledger.length)})
-            </button>
-            <button
-              type="button"
-              onClick={() => setFilter('deposit')}
-              className={`text-xs px-3 py-1.5 rounded-control font-bold duration-motion ease-motion transition-all cursor-pointer ${
-                filter === 'deposit'
-                  ? 'bg-primary text-primary-foreground font-black shadow-control'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              واریز و شارژ
-            </button>
-            <button
-              type="button"
-              onClick={() => setFilter('expense')}
-              className={`text-xs px-3 py-1.5 rounded-control font-bold duration-motion ease-motion transition-all cursor-pointer ${
-                filter === 'expense'
-                  ? 'bg-primary text-primary-foreground font-black shadow-control'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              خرید و کسر
-            </button>
+          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+            <div className="relative w-full sm:w-44">
+              <input
+                type="text"
+                placeholder="جستجو در تراکنش‌ها..."
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value)
+                  setVisibleCount(6)
+                }}
+                className="w-full h-8 pr-8 pl-3 text-xs rounded-field bg-muted/20 border border-border/60 text-foreground outline-none focus:border-foreground/40 transition-colors"
+              />
+              <Search className="w-3.5 h-3.5 absolute right-2.5 top-2.5 text-muted-foreground pointer-events-none" />
+            </div>
+
+            {/* Filter Pills */}
+            <div className="flex items-center gap-1.5 bg-muted/40 p-1 rounded-control border border-border/40 text-xs shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  setFilter('all')
+                  setVisibleCount(6)
+                }}
+                className={`text-xs px-2.5 py-1 rounded-control font-bold duration-motion ease-motion transition-all cursor-pointer ${
+                  filter === 'all'
+                    ? 'bg-primary text-primary-foreground font-black shadow-control'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                همه ({toPersianDigits(ledger.length)})
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setFilter('deposit')
+                  setVisibleCount(6)
+                }}
+                className={`text-xs px-2.5 py-1 rounded-control font-bold duration-motion ease-motion transition-all cursor-pointer ${
+                  filter === 'deposit'
+                    ? 'bg-primary text-primary-foreground font-black shadow-control'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                واریز
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setFilter('expense')
+                  setVisibleCount(6)
+                }}
+                className={`text-xs px-2.5 py-1 rounded-control font-bold duration-motion ease-motion transition-all cursor-pointer ${
+                  filter === 'expense'
+                    ? 'bg-primary text-primary-foreground font-black shadow-control'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                خرید
+              </button>
+            </div>
           </div>
         </div>
 
@@ -202,55 +240,77 @@ export const ProfileWalletTab: React.FC<ProfileWalletTabProps> = ({
             </p>
           </div>
         ) : (
-          <div className="space-y-2">
-            {filteredLedger.map((item) => {
-              const isPlus = item.amount_toman > 0
-              return (
-                <div
-                  key={item.id}
-                  className="p-3.5 rounded-control border border-border/40 bg-muted/20 flex items-center justify-between text-xs duration-motion ease-motion"
-                >
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={`w-9 h-9 rounded-control flex items-center justify-center shrink-0 border ${
-                        isPlus
-                          ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
-                          : 'bg-muted border-border/60 text-muted-foreground'
-                      }`}
-                    >
-                      {isPlus ? (
-                        <ArrowDownLeft className="w-4 h-4" />
-                      ) : (
-                        <ArrowUpRight className="w-4 h-4" />
-                      )}
+          <div className="space-y-3">
+            <div className="space-y-2">
+              {filteredLedger.slice(0, visibleCount).map((item) => {
+                const isPlus = item.amount_toman > 0
+                return (
+                  <div
+                    key={item.id}
+                    className="p-3.5 rounded-control border border-border/40 bg-muted/20 flex items-center justify-between text-xs duration-motion ease-motion"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={`w-9 h-9 rounded-control flex items-center justify-center shrink-0 border ${
+                          isPlus
+                            ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                            : 'bg-muted border-border/60 text-muted-foreground'
+                        }`}
+                      >
+                        {isPlus ? (
+                          <ArrowDownLeft className="w-4 h-4" />
+                        ) : (
+                          <ArrowUpRight className="w-4 h-4" />
+                        )}
+                      </div>
+                      <div>
+                        <span className="font-bold text-foreground block">
+                          {item.title ||
+                            (isPlus ? 'شارژ / استرداد کیف پول' : 'خرید سرویس')}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground font-mono">
+                          {new Date(item.created_at).toLocaleString('fa-IR')}
+                        </span>
+                      </div>
                     </div>
-                    <div>
-                      <span className="font-bold text-foreground block">
-                        {item.title ||
-                          (isPlus ? 'شارژ / استرداد کیف پول' : 'خرید سرویس')}
-                      </span>
-                      <span className="text-[10px] text-muted-foreground font-mono">
-                        {new Date(item.created_at).toLocaleString('fa-IR')}
-                      </span>
-                    </div>
-                  </div>
 
-                  <div className="text-left font-latin">
-                    <span
-                      className={`font-black text-sm block ${
-                        isPlus ? 'text-emerald-400' : 'text-foreground'
-                      }`}
-                    >
-                      {isPlus ? '+' : '-'}
-                      {formatToman(Math.abs(item.amount_toman))} تومان
-                    </span>
-                    <span className="text-[10px] text-muted-foreground block font-mono">
-                      پیگیری: #{item.transaction_number}
-                    </span>
+                    <div className="text-left font-latin">
+                      <span
+                        className={`font-black text-sm block ${
+                          isPlus ? 'text-emerald-400' : 'text-foreground'
+                        }`}
+                      >
+                        {isPlus ? '+' : '-'}
+                        {formatToman(Math.abs(item.amount_toman))} تومان
+                      </span>
+                      <span className="text-[10px] text-muted-foreground block font-mono">
+                        پیگیری: #{item.transaction_number}
+                      </span>
+                    </div>
                   </div>
-                </div>
-              )
-            })}
+                )
+              })}
+            </div>
+
+            {/* Load More Transactions Button */}
+            {visibleCount < filteredLedger.length && (
+              <div className="pt-2 text-center">
+                <button
+                  type="button"
+                  onClick={() => setVisibleCount((prev) => prev + 6)}
+                  className="h-10 px-5 rounded-control border border-border/60 bg-card hover:bg-muted text-foreground font-black text-xs duration-motion ease-motion active:scale-[0.98] shadow-control cursor-pointer inline-flex items-center gap-2"
+                >
+                  <span>بارگذاری تراکنش‌های بیشتر</span>
+                  <span className="text-[11px] text-muted-foreground font-latin">
+                    (نمایش{' '}
+                    {toPersianDigits(
+                      Math.min(visibleCount, filteredLedger.length),
+                    )}{' '}
+                    از {toPersianDigits(filteredLedger.length)})
+                  </span>
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>

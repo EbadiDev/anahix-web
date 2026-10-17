@@ -54,11 +54,16 @@ export const ProductReviewsSection: React.FC<ProductReviewsSectionProps> = ({
   // Review modal state
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isAuthOpen, setIsAuthOpen] = useState(false)
-  const { warning } = useNotification()
+  const {
+    success: notifySuccess,
+    info: notifyInfo,
+    warning: notifyWarning,
+    error: notifyError,
+  } = useNotification()
 
   const handleOpenReviewModal = () => {
     if (!apiService.isCustomerLoggedIn()) {
-      warning(
+      notifyWarning(
         'نیاز به ورود به حساب کاربری',
         'برای ثبت نظر و امتیاز درباره این محصول، لطفاً ابتدا وارد حساب کاربری خود شوید یا ثبت‌نام کنید.',
       )
@@ -73,8 +78,15 @@ export const ProductReviewsSection: React.FC<ProductReviewsSectionProps> = ({
     orderNumber?: string
   } | null>(null)
 
-  // Helpful votes state (tracked in local component state for instant UI update)
-  const [votedMap, setVotedMap] = useState<Record<string, boolean>>({})
+  // Helpful votes state (persisted in localStorage and synced with DB)
+  const [votedMap, setVotedMap] = useState<Record<string, boolean>>(() => {
+    try {
+      const raw = localStorage.getItem('anahix_helpful_reviews')
+      return raw ? JSON.parse(raw) : {}
+    } catch {
+      return {}
+    }
+  })
   const [voteCountMap, setVoteCountMap] = useState<Record<string, number>>({})
 
   // Fetch reviews from API
@@ -129,21 +141,25 @@ export const ProductReviewsSection: React.FC<ProductReviewsSectionProps> = ({
   }, [product.slug, selectedRating, sortOrder, onlyWithComments])
 
   const handleHelpfulClick = async (reviewId: string) => {
-    if (votedMap[reviewId]) return
-
-    // Optimistic UI update
-    setVotedMap((prev) => ({ ...prev, [reviewId]: true }))
-    setVoteCountMap((prev) => ({
-      ...prev,
-      [reviewId]: (prev[reviewId] ?? 0) + 1,
-    }))
-
+    const currentlyVoted = Boolean(votedMap[reviewId])
     try {
       const newCount = await apiService.voteReviewHelpful(reviewId)
+      const nextVoted = !currentlyVoted
+      setVotedMap((prev) => {
+        const next = { ...prev, [reviewId]: nextVoted }
+        try {
+          localStorage.setItem('anahix_helpful_reviews', JSON.stringify(next))
+        } catch {}
+        return next
+      })
       setVoteCountMap((prev) => ({ ...prev, [reviewId]: newCount }))
-    } catch {
-      // Revert if error
-      setVotedMap((prev) => ({ ...prev, [reviewId]: false }))
+      if (nextVoted) {
+        notifySuccess('دیدگاه مفید ثبت شد', 'دیدگاه شما در سیستم ثبت گردید.')
+      } else {
+        notifyInfo('لغو بازخورد', 'امتیاز مفید بودن این نظر برداشته شد.')
+      }
+    } catch (err: any) {
+      notifyError('خطا', err.message || 'خطا در ثبت بازخورد')
     }
   }
 
@@ -553,7 +569,6 @@ export const ProductReviewsSection: React.FC<ProductReviewsSectionProps> = ({
                     <button
                       type="button"
                       onClick={() => handleHelpfulClick(rev.id)}
-                      disabled={isHelpfulVoted}
                       className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-control text-xs font-medium duration-motion ease-motion active:scale-[0.98] transition border cursor-pointer ${
                         isHelpfulVoted
                           ? 'bg-brand/10 text-brand border-brand/30 font-bold'

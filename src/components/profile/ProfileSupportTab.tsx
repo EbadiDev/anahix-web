@@ -20,6 +20,7 @@ import {
 } from 'lucide-react'
 import type React from 'react'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { apiService } from '../../services/api'
 import type {
   Order,
@@ -107,6 +108,9 @@ export const ProfileSupportTab: React.FC<ProfileSupportTabProps> = ({
   const [ratingComment, setRatingComment] = useState('')
   const [submittingRating, setSubmittingRating] = useState(false)
   const [ratedSuccess, setRatedSuccess] = useState(false)
+
+  // Chunked pagination / Load more state
+  const [visibleTicketsCount, setVisibleTicketsCount] = useState<number>(5)
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null)
   const replyFileInputRef = useRef<HTMLInputElement | null>(null)
@@ -392,82 +396,16 @@ export const ProfileSupportTab: React.FC<ProfileSupportTabProps> = ({
       className="space-y-6 animate-in fade-in duration-300 max-w-5xl text-right"
       dir="rtl"
     >
-      {/* 1. Header Banner - Graphite Minimal Technical */}
-      <div className="rounded-surface border border-border/60 bg-card p-5 sm:p-6 shadow-surface flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 duration-motion ease-motion">
-        <div>
-          <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-control bg-secondary text-secondary-foreground border border-border/60 flex items-center justify-center shadow-control">
-              <LifeBuoy className="w-5 h-5 text-brand" />
-            </div>
-            <div>
-              <h3 className="text-base font-black text-foreground flex items-center gap-2">
-                مرکز تیکتینگ و پشتیبانی هوشمند آناهیکس
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-control bg-brand/10 text-brand border border-brand/20">
-                  متصل به دیتابیس زنده
-                </span>
-              </h3>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                پاسخگویی سریع توسط اپراتورهای ارشد • امکان پیوست فایل و
-                اسکرین‌شات • اطلاع‌رسانی خودکار پیامکی
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 self-stretch sm:self-auto">
+      {/* 1. Filter, Search & Actions Controls */}
+      <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
+        {/* Filters */}
+        <div className="flex items-center gap-1.5 p-1 bg-muted/40 rounded-control border border-border/40 overflow-x-auto text-xs shrink-0">
           <button
             type="button"
-            onClick={() => loadTickets(true)}
-            disabled={refreshing}
-            className="h-10 px-3.5 rounded-control border border-border/60 bg-card hover:bg-muted text-foreground text-xs font-semibold duration-motion ease-motion active:scale-[0.98] cursor-pointer"
-            title="به‌روزرسانی لیست تیکت‌ها"
-          >
-            <RefreshCw
-              className={`w-4 h-4 ${refreshing ? 'animate-spin text-brand' : ''}`}
-            />
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setIsCreateOpen(true)}
-            className="h-10 px-5 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs duration-motion ease-motion active:scale-[0.98] shadow-control flex items-center justify-center gap-2 cursor-pointer"
-          >
-            <Plus className="w-4 h-4" />
-            <span>ارسال تیکت پشتیبانی جدید</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Knowledge Base Fast-Track Banner */}
-      <div className="rounded-2xl border border-blue-500/20 bg-blue-50/50 dark:bg-blue-950/20 p-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
-        <div className="flex items-center gap-2.5 text-right">
-          <div className="w-8 h-8 rounded-xl bg-blue-600/10 text-primary flex items-center justify-center shrink-0">
-            <Sparkles className="w-4 h-4" />
-          </div>
-          <div>
-            <span className="font-bold text-foreground block">
-              حل فوری مشکلات بدون انتظار برای تیکت:
-            </span>
-            <span className="text-muted-foreground text-[11px]">
-              راهنماهای رفع خطای Access Denied، عدم دریافت کد شماره مجازی و
-              لاگین اکانت‌ها در پایگاه دانش آناهیکس در دسترس است.
-            </span>
-          </div>
-        </div>
-        <a
-          href="/help"
-          className="px-4 py-2 rounded-xl bg-primary text-primary-foreground font-semibold text-xs hover:opacity-90 shrink-0 transition-opacity"
-        >
-          مرکز راهنما و رفع ارورها
-        </a>
-      </div>
-
-      {/* 2. Filter & Search Controls */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-        <div className="flex items-center gap-1.5 p-1 bg-muted/40 rounded-control border border-border/40 w-full sm:w-auto overflow-x-auto text-xs">
-          <button
-            type="button"
-            onClick={() => setStatusFilter('all')}
+            onClick={() => {
+              setStatusFilter('all')
+              setVisibleTicketsCount(5)
+            }}
             className={`px-3 py-1.5 rounded-control font-bold duration-motion ease-motion transition-all whitespace-nowrap cursor-pointer ${
               statusFilter === 'all'
                 ? 'bg-primary text-primary-foreground font-black shadow-control'
@@ -478,7 +416,10 @@ export const ProfileSupportTab: React.FC<ProfileSupportTabProps> = ({
           </button>
           <button
             type="button"
-            onClick={() => setStatusFilter('open')}
+            onClick={() => {
+              setStatusFilter('open')
+              setVisibleTicketsCount(5)
+            }}
             className={`px-3 py-1.5 rounded-control font-bold duration-motion ease-motion transition-all whitespace-nowrap cursor-pointer ${
               statusFilter === 'open'
                 ? 'bg-primary text-primary-foreground font-black shadow-control'
@@ -496,7 +437,10 @@ export const ProfileSupportTab: React.FC<ProfileSupportTabProps> = ({
           </button>
           <button
             type="button"
-            onClick={() => setStatusFilter('resolved')}
+            onClick={() => {
+              setStatusFilter('resolved')
+              setVisibleTicketsCount(5)
+            }}
             className={`px-3 py-1.5 rounded-control font-bold duration-motion ease-motion transition-all whitespace-nowrap cursor-pointer ${
               statusFilter === 'resolved'
                 ? 'bg-primary text-primary-foreground font-black shadow-control'
@@ -513,7 +457,10 @@ export const ProfileSupportTab: React.FC<ProfileSupportTabProps> = ({
           </button>
           <button
             type="button"
-            onClick={() => setStatusFilter('closed')}
+            onClick={() => {
+              setStatusFilter('closed')
+              setVisibleTicketsCount(5)
+            }}
             className={`px-3 py-1.5 rounded-control font-bold duration-motion ease-motion transition-all whitespace-nowrap cursor-pointer ${
               statusFilter === 'closed'
                 ? 'bg-primary text-primary-foreground font-black shadow-control'
@@ -528,14 +475,42 @@ export const ProfileSupportTab: React.FC<ProfileSupportTabProps> = ({
           </button>
         </div>
 
-        <div className="w-full sm:w-64">
-          <input
-            type="text"
-            placeholder="جستجو در شناسه یا موضوع تیکت..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full h-10 px-3.5 text-xs rounded-field bg-muted/20 border border-border/60 text-foreground outline-none focus:border-foreground/40 transition-colors"
-          />
+        {/* Search, Refresh and Create Button Group */}
+        <div className="flex items-center gap-2 flex-1 sm:flex-initial justify-end">
+          <div className="relative flex-1 sm:w-64">
+            <input
+              type="text"
+              placeholder="جستجو در شناسه یا موضوع تیکت..."
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value)
+                setVisibleTicketsCount(5)
+              }}
+              className="w-full h-10 px-3.5 text-xs rounded-field bg-muted/20 border border-border/60 text-foreground outline-none focus:border-foreground/40 transition-colors"
+            />
+          </div>
+
+          <button
+            type="button"
+            onClick={() => loadTickets(true)}
+            disabled={refreshing}
+            className="h-10 w-10 shrink-0 rounded-control border border-border/60 bg-card hover:bg-muted text-foreground flex items-center justify-center duration-motion ease-motion active:scale-[0.98] cursor-pointer shadow-control"
+            title="به‌روزرسانی لیست تیکت‌ها"
+          >
+            <RefreshCw
+              className={`w-4 h-4 ${refreshing ? 'animate-spin text-brand' : 'text-muted-foreground'}`}
+            />
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setIsCreateOpen(true)}
+            className="h-10 px-4 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs duration-motion ease-motion active:scale-[0.98] shadow-control flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
+          >
+            <Plus className="w-4 h-4" />
+            <span className="hidden sm:inline">ارسال تیکت جدید</span>
+            <span className="sm:hidden">تیکت جدید</span>
+          </button>
         </div>
       </div>
 
@@ -584,7 +559,7 @@ export const ProfileSupportTab: React.FC<ProfileSupportTabProps> = ({
         </div>
       ) : (
         <div className="space-y-3">
-          {filteredTickets.map((ticket) => (
+          {filteredTickets.slice(0, visibleTicketsCount).map((ticket) => (
             <div
               key={ticket.id}
               onClick={() => setActiveTicketId(ticket.id)}
@@ -659,30 +634,50 @@ export const ProfileSupportTab: React.FC<ProfileSupportTabProps> = ({
               </div>
             </div>
           ))}
+
+          {/* Load More Tickets Button */}
+          {visibleTicketsCount < filteredTickets.length && (
+            <div className="pt-3 text-center">
+              <button
+                type="button"
+                onClick={() => setVisibleTicketsCount((prev) => prev + 5)}
+                className="h-10 px-5 rounded-control border border-border/60 bg-card hover:bg-muted text-foreground font-black text-xs duration-motion ease-motion active:scale-[0.98] shadow-control cursor-pointer inline-flex items-center gap-2"
+              >
+                <span>بارگذاری تیکت‌های بیشتر</span>
+                <span className="text-[11px] text-muted-foreground font-latin">
+                  (نمایش{' '}
+                  {toPersianDigits(
+                    Math.min(visibleTicketsCount, filteredTickets.length),
+                  )}{' '}
+                  از {toPersianDigits(filteredTickets.length)})
+                </span>
+              </button>
+            </div>
+          )}
         </div>
       )}
 
       {/* 4. Ticket Conversation Thread Modal */}
       {activeTicketId && ticketDetail && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-900/70 backdrop-blur-xs animate-in fade-in"
+          className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/75 backdrop-blur-md animate-in fade-in"
           dir="rtl"
         >
-          <div className="w-full max-w-2xl bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden flex flex-col h-[90vh] max-h-[800px] animate-in zoom-in-95">
+          <div className="w-full max-w-2xl bg-card text-card-foreground rounded-surface border border-border/80 shadow-overlay overflow-hidden flex flex-col h-[90vh] max-h-[800px] animate-in zoom-in-95">
             {/* Modal Header */}
-            <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between gap-3">
+            <div className="p-4 sm:p-5 border-b border-border/60 bg-card flex items-center justify-between gap-3">
               <div className="min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white truncate">
+                  <h3 className="text-sm sm:text-base font-black text-foreground truncate">
                     {ticketDetail.ticket.subject}
                   </h3>
-                  <span className="text-xs font-mono font-bold text-blue-600 bg-blue-50 dark:bg-blue-950 px-2 py-0.5 rounded-md">
+                  <span className="text-xs font-mono font-bold text-brand bg-brand/10 border border-brand/20 px-2 py-0.5 rounded-control font-latin">
                     #{ticketDetail.ticket.ticket_number}
                   </span>
                   {getStatusBadge(ticketDetail.ticket.status)}
                 </div>
 
-                <div className="flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400 mt-1 flex-wrap">
+                <div className="flex items-center gap-2 text-[11px] text-muted-foreground mt-1 flex-wrap">
                   <span>
                     دپارتمان:{' '}
                     {getDepartmentLabel(ticketDetail.ticket.department)}
@@ -690,7 +685,7 @@ export const ProfileSupportTab: React.FC<ProfileSupportTabProps> = ({
                   {ticketDetail.ticket.related_order_no && (
                     <>
                       <span>•</span>
-                      <span className="text-purple-600 dark:text-purple-400 font-mono font-bold">
+                      <span className="text-brand font-mono font-bold font-latin">
                         سفارش #{ticketDetail.ticket.related_order_no}
                       </span>
                     </>
@@ -698,7 +693,7 @@ export const ProfileSupportTab: React.FC<ProfileSupportTabProps> = ({
                   {ticketDetail.ticket.notify_via_sms && (
                     <>
                       <span>•</span>
-                      <span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1 font-medium">
+                      <span className="text-emerald-400 flex items-center gap-1 font-medium">
                         <Phone className="w-3 h-3" />
                         اطلاع‌رسانی پیامک فعال
                       </span>
@@ -711,7 +706,7 @@ export const ProfileSupportTab: React.FC<ProfileSupportTabProps> = ({
                 <button
                   type="button"
                   onClick={() => loadTicketDetail(activeTicketId, true)}
-                  className="w-8 h-8 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-500 hover:text-blue-600 flex items-center justify-center text-xs transition-colors"
+                  className="w-8 h-8 rounded-control border border-border/60 bg-card hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center text-xs transition-colors cursor-pointer"
                   title="تازه‌سازی گفتگو"
                 >
                   <RefreshCw className="w-3.5 h-3.5" />
@@ -721,7 +716,7 @@ export const ProfileSupportTab: React.FC<ProfileSupportTabProps> = ({
                   <button
                     type="button"
                     onClick={handleCloseTicket}
-                    className="h-8 px-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-medium transition-colors"
+                    className="h-8 px-2.5 rounded-control border border-border/60 bg-card hover:bg-muted text-muted-foreground hover:text-foreground text-xs font-medium transition-colors cursor-pointer"
                     title="بستن تیکت"
                   >
                     بستن تیکت
@@ -731,7 +726,7 @@ export const ProfileSupportTab: React.FC<ProfileSupportTabProps> = ({
                 <button
                   type="button"
                   onClick={() => setActiveTicketId(null)}
-                  className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-800 dark:hover:text-white flex items-center justify-center transition-colors"
+                  className="w-8 h-8 rounded-control bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors cursor-pointer"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -739,10 +734,10 @@ export const ProfileSupportTab: React.FC<ProfileSupportTabProps> = ({
             </div>
 
             {/* Conversation Messages Container */}
-            <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4 bg-slate-50/70 dark:bg-slate-950/70">
+            <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4 bg-muted/20">
               {loadingDetail ? (
-                <div className="py-12 text-center text-xs text-slate-400">
-                  <RefreshCw className="w-6 h-6 text-blue-600 animate-spin mx-auto mb-2" />
+                <div className="py-12 text-center text-xs text-muted-foreground">
+                  <RefreshCw className="w-6 h-6 text-brand animate-spin mx-auto mb-2" />
                   در حال بارگذاری سابقه پیام‌ها...
                 </div>
               ) : (
@@ -755,23 +750,23 @@ export const ProfileSupportTab: React.FC<ProfileSupportTabProps> = ({
                       className={`flex flex-col ${isUser ? 'items-start' : 'items-end'}`}
                     >
                       <div
-                        className={`max-w-[88%] sm:max-w-[80%] p-4 rounded-2xl text-xs sm:text-sm leading-relaxed ${
+                        className={`max-w-[88%] sm:max-w-[80%] p-4 rounded-surface text-xs sm:text-sm leading-relaxed ${
                           isUser
-                            ? 'bg-blue-600 text-white rounded-br-xs shadow-md shadow-blue-500/10'
-                            : 'bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-800 rounded-bl-xs shadow-xs'
+                            ? 'bg-primary text-primary-foreground rounded-br-xs shadow-control'
+                            : 'bg-card text-foreground border border-border/60 rounded-bl-xs shadow-surface'
                         }`}
                       >
                         {/* Message Header */}
                         <div
-                          className={`flex items-center justify-between gap-4 mb-2 pb-1.5 border-b text-[11px] font-mono ${
+                          className={`flex items-center justify-between gap-4 mb-2 pb-1.5 border-b text-[11px] font-mono font-latin ${
                             isUser
-                              ? 'border-blue-500/40 text-blue-100'
-                              : 'border-slate-100 dark:border-slate-800 text-slate-400'
+                              ? 'border-primary-foreground/20 text-primary-foreground/80'
+                              : 'border-border/60 text-muted-foreground'
                           }`}
                         >
                           <div className="flex items-center gap-1.5">
                             {!isUser && (
-                              <ShieldCheck className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                              <ShieldCheck className="w-3.5 h-3.5 text-brand shrink-0" />
                             )}
                             <span className="font-bold font-sans">
                               {isUser
@@ -919,19 +914,19 @@ export const ProfileSupportTab: React.FC<ProfileSupportTabProps> = ({
             )}
 
             {/* Reply Input Box */}
-            <div className="p-3 sm:p-4 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-2">
+            <div className="p-3 sm:p-4 border-t border-border/60 bg-card space-y-2">
               {/* Attachment Preview Chips */}
               {replyAttachments.length > 0 && (
                 <div className="flex flex-wrap gap-2 pb-1">
                   {replyAttachments.map((att, idx) => (
                     <div
                       key={att.id}
-                      className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 text-[11px] text-blue-700 dark:text-blue-300 font-mono"
+                      className="flex items-center gap-1.5 px-2.5 py-1 rounded-control bg-secondary border border-border/80 text-[11px] text-foreground font-mono font-latin"
                     >
                       {att.is_image ? (
-                        <ImageIcon className="w-3 h-3 text-blue-500" />
+                        <ImageIcon className="w-3 h-3 text-brand" />
                       ) : (
-                        <FileText className="w-3 h-3" />
+                        <FileText className="w-3 h-3 text-muted-foreground" />
                       )}
                       <span className="truncate max-w-[130px]">
                         {att.file_name}
@@ -943,7 +938,7 @@ export const ProfileSupportTab: React.FC<ProfileSupportTabProps> = ({
                             replyAttachments.filter((_, i) => i !== idx),
                           )
                         }
-                        className="text-slate-400 hover:text-rose-500 mr-1"
+                        className="text-muted-foreground hover:text-destructive mr-1 cursor-pointer"
                       >
                         ✕
                       </button>
@@ -971,21 +966,19 @@ export const ProfileSupportTab: React.FC<ProfileSupportTabProps> = ({
                   }}
                 />
 
-                <Button
+                <button
                   type="button"
-                  variant="outline"
-                  size="sm"
                   disabled={isUploadingReplyAtt}
                   onClick={() => replyFileInputRef.current?.click()}
-                  className="h-10 px-3 rounded-xl border-slate-200 dark:border-slate-800 text-slate-500 hover:text-blue-600 text-xs shrink-0"
+                  className="h-10 px-3 rounded-control border border-border/60 bg-card hover:bg-muted text-muted-foreground hover:text-foreground text-xs shrink-0 cursor-pointer duration-motion active:scale-[0.98]"
                   title="پیوست تصویر، اسکرین‌شات یا فایل"
                 >
                   <Paperclip
-                    className={`w-4 h-4 ${isUploadingReplyAtt ? 'animate-pulse text-blue-600' : ''}`}
+                    className={`w-4 h-4 ${isUploadingReplyAtt ? 'animate-pulse text-brand' : ''}`}
                   />
-                </Button>
+                </button>
 
-                <Input
+                <input
                   type="text"
                   placeholder="پاسخ خود را بنویسید (اسکرین‌شات را می‌توانید مستقیم Paste کنید)..."
                   value={replyText}
@@ -1000,30 +993,31 @@ export const ProfileSupportTab: React.FC<ProfileSupportTabProps> = ({
                       setIsUploadingReplyAtt,
                     )
                   }
-                  className="h-10 text-xs sm:text-sm rounded-xl flex-1 border-slate-200 dark:border-slate-800"
+                  className="h-10 text-xs sm:text-sm rounded-field flex-1 border border-border/60 bg-muted/20 px-3 text-foreground outline-none focus:border-foreground/40 transition-colors"
                 />
 
-                <Button
+                <button
+                  type="button"
                   onClick={handleSendReply}
                   disabled={
                     sendingReply ||
                     (!replyText.trim() && replyAttachments.length === 0)
                   }
-                  className="h-10 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shrink-0 active:scale-98 transition-all"
+                  className="h-10 px-4 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs shrink-0 active:scale-[0.98] duration-motion ease-motion shadow-control flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
                 >
-                  <Send className="w-4 h-4 ml-1.5" />
-                  ارسال
-                </Button>
+                  <Send className="w-3.5 h-3.5 ml-1" />
+                  <span>ارسال</span>
+                </button>
               </div>
 
               {/* Preferences footer in reply box */}
-              <div className="flex items-center justify-between text-[11px] text-slate-400 px-1 pt-1">
-                <label className="flex items-center gap-1.5 cursor-pointer hover:text-slate-600 dark:hover:text-slate-300">
+              <div className="flex items-center justify-between text-[11px] text-muted-foreground px-1 pt-1">
+                <label className="flex items-center gap-1.5 cursor-pointer hover:text-foreground">
                   <input
                     type="checkbox"
                     checked={replyNotifySMS}
                     onChange={(e) => setReplyNotifySMS(e.target.checked)}
-                    className="rounded text-blue-600 focus:ring-blue-500 w-3.5 h-3.5"
+                    className="rounded-control accent-brand w-3.5 h-3.5"
                   />
                   <span>ارسال پیامک با دریافت پاسخ جدید از پشتیبانی</span>
                 </label>
@@ -1039,21 +1033,21 @@ export const ProfileSupportTab: React.FC<ProfileSupportTabProps> = ({
       {/* 5. Create New Ticket Modal with Order Linking & File Upload */}
       {isCreateOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/70 backdrop-blur-xs animate-in fade-in"
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-md animate-in fade-in"
           dir="rtl"
         >
-          <div className="w-full max-w-xl bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl p-5 sm:p-6 space-y-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
-              <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <div className="w-7 h-7 rounded-lg bg-blue-50 dark:bg-blue-950 text-blue-600 flex items-center justify-center">
+          <div className="w-full max-w-xl bg-card text-card-foreground rounded-surface border border-border/80 shadow-overlay p-5 sm:p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-border/60">
+              <h3 className="text-base font-bold text-foreground flex items-center gap-2">
+                <div className="w-7 h-7 rounded-control bg-secondary text-brand flex items-center justify-center">
                   <LifeBuoy className="w-4 h-4" />
                 </div>
-                ثبت تیکت پشتیبانی جدید
+                <span>ثبت تیکت پشتیبانی جدید</span>
               </h3>
               <button
                 type="button"
                 onClick={() => setIsCreateOpen(false)}
-                className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 flex items-center justify-center"
+                className="w-8 h-8 rounded-control bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center cursor-pointer transition-colors"
               >
                 ✕
               </button>
@@ -1061,28 +1055,28 @@ export const ProfileSupportTab: React.FC<ProfileSupportTabProps> = ({
 
             <form onSubmit={handleCreateTicket} className="space-y-4 text-xs">
               <div>
-                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                  موضوع تیکت <span className="text-rose-500">*</span>
+                <label className="block font-semibold text-foreground mb-1.5">
+                  موضوع تیکت <span className="text-destructive">*</span>
                 </label>
-                <Input
+                <input
                   type="text"
                   placeholder="مثال: مشکل در تایید شماره تلگرام یا خطای لایسنس"
                   value={newSubject}
                   onChange={(e) => setNewSubject(e.target.value)}
-                  className="h-10 rounded-xl"
+                  className="w-full h-10 px-3.5 rounded-field bg-muted/20 border border-border/60 text-foreground outline-none focus:border-foreground/40 transition-colors"
                   required
                 />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                  <label className="block font-semibold text-foreground mb-1.5">
                     دپارتمان پشتیبانی
                   </label>
                   <select
                     value={newDepartment}
                     onChange={(e) => setNewDepartment(e.target.value)}
-                    className="w-full h-10 px-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-white text-xs"
+                    className="w-full h-10 px-3 rounded-field border border-border/60 bg-muted/20 text-foreground text-xs outline-none focus:border-foreground/40 transition-colors cursor-pointer"
                   >
                     {DEPARTMENTS.map((d) => (
                       <option key={d.id} value={d.id}>
@@ -1093,7 +1087,7 @@ export const ProfileSupportTab: React.FC<ProfileSupportTabProps> = ({
                 </div>
 
                 <div>
-                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                  <label className="block font-semibold text-foreground mb-1.5">
                     اولویت تیکت
                   </label>
                   <select
@@ -1101,7 +1095,7 @@ export const ProfileSupportTab: React.FC<ProfileSupportTabProps> = ({
                     onChange={(e) =>
                       setNewPriority(e.target.value as TicketPriorityType)
                     }
-                    className="w-full h-10 px-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-white text-xs"
+                    className="w-full h-10 px-3 rounded-field border border-border/60 bg-muted/20 text-foreground text-xs outline-none focus:border-foreground/40 transition-colors cursor-pointer"
                   >
                     {PRIORITIES.map((p) => (
                       <option key={p.id} value={p.id}>
@@ -1114,13 +1108,13 @@ export const ProfileSupportTab: React.FC<ProfileSupportTabProps> = ({
 
               {/* Order Linking Selector */}
               <div>
-                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                <label className="block font-semibold text-foreground mb-1.5">
                   اتصال به سفارش مرتبط (اختیاری)
                 </label>
                 <select
                   value={newRelatedOrder}
                   onChange={(e) => setNewRelatedOrder(e.target.value)}
-                  className="w-full h-10 px-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-white text-xs font-mono"
+                  className="w-full h-10 px-3 rounded-field border border-border/60 bg-muted/20 text-foreground text-xs font-mono font-latin outline-none focus:border-foreground/40 transition-colors cursor-pointer"
                 >
                   <option value="">بدون اتصال به سفارش مشخص</option>
                   {orders && orders.length > 0 && (
@@ -1128,7 +1122,7 @@ export const ProfileSupportTab: React.FC<ProfileSupportTabProps> = ({
                       {orders.map((o) => (
                         <option key={o.order_no} value={o.order_no}>
                           #{o.order_no} — {o.product_title} (
-                          {o.amount_toman?.toLocaleString()} تومان)
+                          {o.amount_toman?.toLocaleString('fa-IR')} تومان)
                         </option>
                       ))}
                     </optgroup>
@@ -1144,7 +1138,7 @@ export const ProfileSupportTab: React.FC<ProfileSupportTabProps> = ({
                     </optgroup>
                   )}
                 </select>
-                <p className="text-[11px] text-slate-400 mt-1">
+                <p className="text-[11px] text-muted-foreground mt-1">
                   اتصال تیکت به شماره سفارش، سرعت پردازش درخواست را تا ۳ برابر
                   افزایش می‌دهد.
                 </p>
@@ -1152,9 +1146,9 @@ export const ProfileSupportTab: React.FC<ProfileSupportTabProps> = ({
 
               {/* Message Box with Paste Support */}
               <div>
-                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                <label className="block font-semibold text-foreground mb-1.5">
                   شرح مشکل یا سوال با جزئیات{' '}
-                  <span className="text-rose-500">*</span>
+                  <span className="text-destructive">*</span>
                 </label>
                 <textarea
                   rows={4}
@@ -1168,7 +1162,7 @@ export const ProfileSupportTab: React.FC<ProfileSupportTabProps> = ({
                       setIsUploadingNewAtt,
                     )
                   }
-                  className="w-full p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-white text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 leading-relaxed"
+                  className="w-full p-3.5 rounded-field border border-border/60 bg-muted/20 text-foreground text-xs outline-none focus:border-foreground/40 leading-relaxed transition-colors"
                   required
                 />
               </div>
@@ -1176,10 +1170,10 @@ export const ProfileSupportTab: React.FC<ProfileSupportTabProps> = ({
               {/* File / Screenshot Attachment Uploader */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <label className="font-semibold text-slate-700 dark:text-slate-300">
+                  <label className="font-semibold text-foreground">
                     پیوست اسکرین‌شات از خطا یا فاکتور
                   </label>
-                  <span className="text-[11px] text-slate-400">
+                  <span className="text-[11px] text-muted-foreground">
                     حداکثر ۱۰ مگابایت
                   </span>
                 </div>
@@ -1202,29 +1196,29 @@ export const ProfileSupportTab: React.FC<ProfileSupportTabProps> = ({
                 />
 
                 <div className="flex flex-wrap items-center gap-2">
-                  <Button
+                  <button
                     type="button"
-                    variant="outline"
-                    size="sm"
                     disabled={isUploadingNewAtt}
                     onClick={() => newFileInputRef.current?.click()}
-                    className="h-9 px-3.5 rounded-xl border-dashed border-slate-300 dark:border-slate-700 text-xs font-semibold hover:border-blue-500 hover:text-blue-600 flex items-center gap-1.5"
+                    className="h-9 px-3.5 rounded-control border border-dashed border-border text-xs font-semibold hover:border-foreground/50 text-muted-foreground hover:text-foreground flex items-center gap-1.5 cursor-pointer duration-motion active:scale-[0.98]"
                   >
                     <Paperclip className="w-3.5 h-3.5" />
-                    {isUploadingNewAtt
-                      ? 'در حال آپلود...'
-                      : 'افزودن فایل پیوست'}
-                  </Button>
+                    <span>
+                      {isUploadingNewAtt
+                        ? 'در حال آپلود...'
+                        : 'افزودن فایل پیوست'}
+                    </span>
+                  </button>
 
                   {newAttachments.map((att, idx) => (
                     <div
                       key={att.id}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 text-[11px] text-blue-700 dark:text-blue-300 font-mono"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-control bg-secondary border border-border/80 text-[11px] text-foreground font-mono font-latin"
                     >
                       {att.is_image ? (
-                        <ImageIcon className="w-3.5 h-3.5 text-blue-500" />
+                        <ImageIcon className="w-3.5 h-3.5 text-brand" />
                       ) : (
-                        <FileText className="w-3.5 h-3.5" />
+                        <FileText className="w-3.5 h-3.5 text-muted-foreground" />
                       )}
                       <span className="truncate max-w-[120px]">
                         {att.file_name}
@@ -1236,7 +1230,7 @@ export const ProfileSupportTab: React.FC<ProfileSupportTabProps> = ({
                             newAttachments.filter((_, i) => i !== idx),
                           )
                         }
-                        className="text-slate-400 hover:text-rose-500 mr-1"
+                        className="text-muted-foreground hover:text-destructive mr-1 cursor-pointer"
                       >
                         ✕
                       </button>
@@ -1246,8 +1240,8 @@ export const ProfileSupportTab: React.FC<ProfileSupportTabProps> = ({
               </div>
 
               {/* Notification Toggles */}
-              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950/50 border border-slate-200/80 dark:border-slate-800 space-y-2">
-                <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 block">
+              <div className="p-3.5 rounded-control bg-muted/20 border border-border/60 space-y-2">
+                <span className="text-[11px] font-bold text-foreground block">
                   تنظیمات اطلاع‌رسانی خودکار:
                 </span>
 
@@ -1257,10 +1251,10 @@ export const ProfileSupportTab: React.FC<ProfileSupportTabProps> = ({
                       type="checkbox"
                       checked={newNotifySMS}
                       onChange={(e) => setNewNotifySMS(e.target.checked)}
-                      className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4"
+                      className="rounded-control accent-brand w-4 h-4"
                     />
-                    <span className="text-slate-700 dark:text-slate-300 flex items-center gap-1">
-                      <Phone className="w-3.5 h-3.5 text-emerald-500" />
+                    <span className="text-foreground flex items-center gap-1">
+                      <Phone className="w-3.5 h-3.5 text-emerald-400" />
                       ارسال پیامک به محض پاسخ کارشناس پشتیبانی
                     </span>
                   </label>
@@ -1270,60 +1264,59 @@ export const ProfileSupportTab: React.FC<ProfileSupportTabProps> = ({
                       type="checkbox"
                       checked={newNotifyEmail}
                       onChange={(e) => setNewNotifyEmail(e.target.checked)}
-                      className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4"
+                      className="rounded-control accent-brand w-4 h-4"
                     />
-                    <span className="text-slate-700 dark:text-slate-300">
-                      ارسال ایمیل
-                    </span>
+                    <span className="text-foreground">ارسال ایمیل</span>
                   </label>
                 </div>
               </div>
 
               {/* Modal Buttons */}
               <div className="pt-2 flex items-center justify-end gap-2.5">
-                <Button
+                <button
                   type="button"
-                  variant="outline"
                   onClick={() => setIsCreateOpen(false)}
-                  className="h-10 text-xs rounded-xl px-4"
+                  className="h-10 text-xs rounded-control px-4 border border-border/60 bg-card hover:bg-muted text-muted-foreground hover:text-foreground font-bold cursor-pointer duration-motion active:scale-[0.98]"
                 >
                   انصراف
-                </Button>
-                <Button
+                </button>
+                <button
                   type="submit"
                   disabled={submittingTicket || isUploadingNewAtt}
-                  className="h-10 px-6 text-xs rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold shadow-md shadow-blue-600/20 active:scale-98 transition-all"
+                  className="h-10 px-6 text-xs rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black shadow-control active:scale-[0.98] duration-motion ease-motion cursor-pointer disabled:opacity-50"
                 >
                   {submittingTicket ? 'در حال ثبت...' : 'ثبت و ارسال تیکت'}
-                </Button>
+                </button>
               </div>
             </form>
           </div>
         </div>
       )}
 
-      {/* 6. Lightbox Zoom Modal for Images */}
-      {zoomImage && (
-        <div
-          onClick={() => setZoomImage(null)}
-          className="fixed inset-0 z-60 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in"
-        >
-          <div className="relative max-w-4xl max-h-[90vh] overflow-hidden rounded-2xl shadow-2xl">
-            <button
-              type="button"
-              onClick={() => setZoomImage(null)}
-              className="absolute top-3 right-3 w-9 h-9 rounded-full bg-slate-900/80 text-white flex items-center justify-center hover:bg-slate-900 transition-colors z-10"
-            >
-              ✕
-            </button>
-            <img
-              src={zoomImage}
-              alt="پیوست تصویر بزرگنمایی"
-              className="max-w-full max-h-[85vh] object-contain rounded-2xl"
-            />
-          </div>
-        </div>
-      )}
+      {/* 6. Lightbox Zoom Modal for Images (Portal to document.body with z-[999999] so it never renders under ticket modal) */}
+      {zoomImage &&
+        createPortal(
+          <div
+            onClick={() => setZoomImage(null)}
+            className="fixed inset-0 z-[999999] bg-black/90 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in"
+          >
+            <div className="relative max-w-4xl max-h-[90vh] overflow-hidden rounded-surface border border-white/20 shadow-2xl">
+              <button
+                type="button"
+                onClick={() => setZoomImage(null)}
+                className="absolute top-3 right-3 w-9 h-9 rounded-control bg-black/80 hover:bg-black text-white flex items-center justify-center transition-colors z-10 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+              <img
+                src={zoomImage}
+                alt="پیوست تصویر بزرگنمایی"
+                className="max-w-full max-h-[85vh] object-contain rounded-surface"
+              />
+            </div>
+          </div>,
+          document.body,
+        )}
     </div>
   )
 }

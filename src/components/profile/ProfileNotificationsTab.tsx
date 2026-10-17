@@ -1,15 +1,10 @@
 import {
   Bell,
-  Check,
   CheckCircle2,
   ExternalLink,
-  Layers,
   Loader2,
-  Mail,
   Package,
-  Send,
   Shield,
-  Smartphone,
   Sparkles,
 } from 'lucide-react'
 import type React from 'react'
@@ -30,23 +25,7 @@ export const ProfileNotificationsTab: React.FC = () => {
   const [unreadCount, setUnreadCount] = useState<number>(0)
   const [loading, setLoading] = useState<boolean>(true)
   const [filter, setFilter] = useState<'all' | 'unread'>('all')
-
-  // Channels Preferences state
-  const [saved, setSaved] = useState(false)
-  const [prefs, setPrefs] = useState({
-    smsOrders: true,
-    smsVirtualNumbers: true,
-    smsSecurity: true,
-    smsMarketing: false,
-    tgOrders: true,
-    tgVirtualNumbers: true,
-    tgExpiration: true,
-    tgMarketing: false,
-    emailInvoices: true,
-    emailCredentials: true,
-    emailSecurity: true,
-    emailNewsletter: false,
-  })
+  const [visibleCount, setVisibleCount] = useState<number>(5)
 
   const loadNotifications = async () => {
     setLoading(true)
@@ -92,12 +71,6 @@ export const ProfileNotificationsTab: React.FC = () => {
     }
   }
 
-  const togglePref = (key: keyof typeof prefs) => {
-    setPrefs((prev) => ({ ...prev, [key]: !prev[key] }))
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2000)
-  }
-
   const filteredNotifs = notifications.filter((n) => {
     if (filter === 'unread') return !n.is_read
     return true
@@ -128,7 +101,7 @@ export const ProfileNotificationsTab: React.FC = () => {
             <div className="w-8 h-8 rounded-control bg-secondary text-secondary-foreground border border-border/60 flex items-center justify-center shadow-control">
               <Bell className="w-4 h-4 text-brand" />
             </div>
-            <h3 className="text-base font-bold text-foreground">
+            <h3 className="text-base font-black text-foreground">
               صندوق اعلان‌ها و اطلاع‌رسانی سیستم (In-App Notifications)
             </h3>
           </div>
@@ -150,7 +123,7 @@ export const ProfileNotificationsTab: React.FC = () => {
         )}
       </div>
 
-      {/* 2. In-App Notifications List from Database */}
+      {/* 2. In-App Notifications List from Database with Chunked Load More */}
       <div className="rounded-surface border border-border/60 bg-card p-5 sm:p-6 shadow-surface space-y-4 duration-motion ease-motion">
         <div className="flex items-center justify-between pb-3 border-b border-border/40">
           <div className="flex items-center gap-2">
@@ -167,7 +140,10 @@ export const ProfileNotificationsTab: React.FC = () => {
           <div className="flex items-center gap-1.5 bg-muted/40 p-1 rounded-control border border-border/40 text-xs">
             <button
               type="button"
-              onClick={() => setFilter('all')}
+              onClick={() => {
+                setFilter('all')
+                setVisibleCount(5)
+              }}
               className={`px-3 py-1 rounded-control font-bold duration-motion ease-motion transition-all cursor-pointer ${
                 filter === 'all'
                   ? 'bg-primary text-primary-foreground font-black shadow-control'
@@ -178,7 +154,10 @@ export const ProfileNotificationsTab: React.FC = () => {
             </button>
             <button
               type="button"
-              onClick={() => setFilter('unread')}
+              onClick={() => {
+                setFilter('unread')
+                setVisibleCount(5)
+              }}
               className={`px-3 py-1 rounded-control font-bold duration-motion ease-motion transition-all cursor-pointer ${
                 filter === 'unread'
                   ? 'bg-primary text-primary-foreground font-black shadow-control'
@@ -208,7 +187,7 @@ export const ProfileNotificationsTab: React.FC = () => {
           </div>
         ) : (
           <div className="space-y-3">
-            {filteredNotifs.map((item) => (
+            {filteredNotifs.slice(0, visibleCount).map((item) => (
               <div
                 key={item.id}
                 className={`p-4 rounded-control border transition-all duration-motion ease-motion space-y-2.5 ${
@@ -242,7 +221,7 @@ export const ProfileNotificationsTab: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => handleMarkAsRead(item.id)}
-                        className="text-[11px] font-bold text-brand hover:underline px-2 py-1 rounded-control bg-card border border-border/40 cursor-pointer"
+                        className="text-[11px] font-bold text-brand hover:underline px-2.5 py-1 rounded-control bg-card border border-border/40 cursor-pointer"
                       >
                         علامت به عنوان خوانده شده
                       </button>
@@ -267,161 +246,28 @@ export const ProfileNotificationsTab: React.FC = () => {
                 )}
               </div>
             ))}
+
+            {/* Load More Notifications Button */}
+            {visibleCount < filteredNotifs.length && (
+              <div className="pt-3 text-center">
+                <button
+                  type="button"
+                  onClick={() => setVisibleCount((prev) => prev + 5)}
+                  className="h-10 px-5 rounded-control border border-border/60 bg-card hover:bg-muted text-foreground font-black text-xs duration-motion ease-motion active:scale-[0.98] shadow-control cursor-pointer inline-flex items-center gap-2"
+                >
+                  <span>بارگذاری اعلان‌های بیشتر</span>
+                  <span className="text-[11px] text-muted-foreground font-latin">
+                    (نمایش{' '}
+                    {toPersianDigits(
+                      Math.min(visibleCount, filteredNotifs.length),
+                    )}{' '}
+                    از {toPersianDigits(filteredNotifs.length)})
+                  </span>
+                </button>
+              </div>
+            )}
           </div>
         )}
-      </div>
-
-      {/* 3. Channels Notification Preferences */}
-      <div className="rounded-surface border border-border/60 bg-card p-5 sm:p-6 shadow-surface space-y-4 duration-motion ease-motion">
-        <div className="flex items-center justify-between pb-3 border-b border-border/40">
-          <div>
-            <h4 className="text-sm font-bold text-foreground flex items-center gap-2">
-              <Layers className="w-4 h-4 text-brand" />
-              <span>تنظیمات کانال‌های پیامکی و ایمیل</span>
-            </h4>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              انتخاب کانال‌های مورد نظر برای دریافت پیامک و هشدارهای امنیتی
-            </p>
-          </div>
-
-          {saved && (
-            <span className="text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-control border border-emerald-500/20 flex items-center gap-1 animate-in fade-in">
-              <Check className="w-3.5 h-3.5" />
-              ذخیره شد
-            </span>
-          )}
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* SMS Channel */}
-          <div className="p-4 rounded-control border border-border/60 bg-muted/20 space-y-3">
-            <div className="flex items-center gap-2 pb-2 border-b border-border/40">
-              <Smartphone className="w-4 h-4 text-brand" />
-              <h5 className="text-xs font-bold text-foreground">
-                پیامک خدماتی (SMS)
-              </h5>
-            </div>
-            <div className="space-y-2.5 text-xs">
-              <label className="flex items-center justify-between cursor-pointer">
-                <span className="text-muted-foreground">تکمیل سفارش‌ها</span>
-                <input
-                  type="checkbox"
-                  checked={prefs.smsOrders}
-                  onChange={() => togglePref('smsOrders')}
-                  className="rounded-control cursor-pointer accent-brand"
-                />
-              </label>
-              <label className="flex items-center justify-between cursor-pointer">
-                <span className="text-muted-foreground">
-                  دریافت پیامک شماره مجازی
-                </span>
-                <input
-                  type="checkbox"
-                  checked={prefs.smsVirtualNumbers}
-                  onChange={() => togglePref('smsVirtualNumbers')}
-                  className="rounded-control cursor-pointer accent-brand"
-                />
-              </label>
-              <label className="flex items-center justify-between cursor-pointer">
-                <span className="text-muted-foreground">
-                  هشدارهای امنیتی ورود
-                </span>
-                <input
-                  type="checkbox"
-                  checked={prefs.smsSecurity}
-                  onChange={() => togglePref('smsSecurity')}
-                  className="rounded-control cursor-pointer accent-brand"
-                />
-              </label>
-            </div>
-          </div>
-
-          {/* Telegram Channel */}
-          <div className="p-4 rounded-control border border-border/60 bg-muted/20 space-y-3">
-            <div className="flex items-center gap-2 pb-2 border-b border-border/40">
-              <Send className="w-4 h-4 text-brand" />
-              <h5 className="text-xs font-bold text-foreground">
-                ربات تلگرام آناهیکس
-              </h5>
-            </div>
-            <div className="space-y-2.5 text-xs">
-              <label className="flex items-center justify-between cursor-pointer">
-                <span className="text-muted-foreground">تحویل لایسنس‌ها</span>
-                <input
-                  type="checkbox"
-                  checked={prefs.tgOrders}
-                  onChange={() => togglePref('tgOrders')}
-                  className="rounded-control cursor-pointer accent-brand"
-                />
-              </label>
-              <label className="flex items-center justify-between cursor-pointer">
-                <span className="text-muted-foreground">
-                  کدهای OTP شماره موقت
-                </span>
-                <input
-                  type="checkbox"
-                  checked={prefs.tgVirtualNumbers}
-                  onChange={() => togglePref('tgVirtualNumbers')}
-                  className="rounded-control cursor-pointer accent-brand"
-                />
-              </label>
-              <label className="flex items-center justify-between cursor-pointer">
-                <span className="text-muted-foreground">
-                  یادآوری تمدید اشتراک
-                </span>
-                <input
-                  type="checkbox"
-                  checked={prefs.tgExpiration}
-                  onChange={() => togglePref('tgExpiration')}
-                  className="rounded-control cursor-pointer accent-brand"
-                />
-              </label>
-            </div>
-          </div>
-
-          {/* Email Channel */}
-          <div className="p-4 rounded-control border border-border/60 bg-muted/20 space-y-3">
-            <div className="flex items-center gap-2 pb-2 border-b border-border/40">
-              <Mail className="w-4 h-4 text-brand" />
-              <h5 className="text-xs font-bold text-foreground">
-                پست الکترونیک (Email)
-              </h5>
-            </div>
-            <div className="space-y-2.5 text-xs">
-              <label className="flex items-center justify-between cursor-pointer">
-                <span className="text-muted-foreground">ارسال فاکتور رسمی</span>
-                <input
-                  type="checkbox"
-                  checked={prefs.emailInvoices}
-                  onChange={() => togglePref('emailInvoices')}
-                  className="rounded-control cursor-pointer accent-brand"
-                />
-              </label>
-              <label className="flex items-center justify-between cursor-pointer">
-                <span className="text-muted-foreground">
-                  اطلاعات اکانت شخصی
-                </span>
-                <input
-                  type="checkbox"
-                  checked={prefs.emailCredentials}
-                  onChange={() => togglePref('emailCredentials')}
-                  className="rounded-control cursor-pointer accent-brand"
-                />
-              </label>
-              <label className="flex items-center justify-between cursor-pointer">
-                <span className="text-muted-foreground">
-                  هشدارهای تغییر رمز
-                </span>
-                <input
-                  type="checkbox"
-                  checked={prefs.emailSecurity}
-                  onChange={() => togglePref('emailSecurity')}
-                  className="rounded-control cursor-pointer accent-brand"
-                />
-              </label>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   )

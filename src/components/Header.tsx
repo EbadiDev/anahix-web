@@ -33,6 +33,7 @@ import type {
   CustomerProfile,
   ThemeSettings,
 } from '../types'
+import { formatDisplayPhone } from '../utils/formatters'
 import { AuthModal } from './AuthModal'
 import { ThemeToggle } from './ThemeToggle'
 import { HolidayThemeBanner } from './vibefarsi/HolidayThemeBanner'
@@ -498,23 +499,6 @@ export const Header: React.FC<HeaderProps> = ({
                   <HelpCircle className="h-4 w-4" />
                   <span>پایگاه دانش</span>
                 </Link>
-
-                <Link
-                  to="/track"
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl transition-colors ${
-                    pathname === '/track'
-                      ? 'text-blue-600 dark:text-blue-400 bg-blue-500/10 font-bold'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-                  }`}
-                >
-                  <ShieldCheck className="h-4 w-4" />
-                  <span>پیگیری سفارش</span>
-                  {activeOrdersCount > 0 && (
-                    <span className="flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-blue-600 text-[10px] font-bold text-white">
-                      {toPersianDigits(activeOrdersCount)}
-                    </span>
-                  )}
-                </Link>
               </nav>
             )}
           </div>
@@ -523,37 +507,38 @@ export const Header: React.FC<HeaderProps> = ({
           <div className="flex items-center gap-2 sm:gap-2.5 shrink-0 whitespace-nowrap">
             {/* Authenticated Customer & Wallet Profile */}
             {customer ? (
-              <div className="relative" ref={dropdownRef}>
+              <div className="relative shrink-0" ref={dropdownRef}>
                 <button
                   type="button"
                   onClick={() => setUserDropdownOpen(!userDropdownOpen)}
-                  className="flex items-center gap-1.5 sm:gap-2 rounded-control border border-border/60 bg-card hover:bg-muted/50 p-1 sm:pl-2.5 text-xs transition-all shadow-control group cursor-pointer"
+                  className="flex items-center gap-1.5 sm:gap-2 rounded-control border border-border/60 bg-card hover:bg-muted/50 p-1 sm:px-2.5 text-xs transition-all shadow-control group cursor-pointer shrink-0"
                 >
                   {/* Customer Avatar or Chip */}
-                  <div className="flex items-center gap-1.5 px-1.5 sm:px-2 py-1 rounded-control bg-secondary text-secondary-foreground font-bold">
+                  <div className="flex items-center gap-1.5 px-1.5 py-0.5 rounded-control bg-secondary text-secondary-foreground font-bold shrink-0">
                     {customer.avatar_url ? (
                       <img
                         src={customer.avatar_url}
                         alt={customer.full_name || 'کاربر'}
-                        className="h-5 w-5 rounded-full object-cover border border-border"
+                        className="h-5 w-5 rounded-full object-cover border border-border shrink-0"
                       />
                     ) : (
-                      <div className="w-5 h-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-black text-[10px]">
+                      <div className="w-5 h-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-black text-[10px] shrink-0">
                         {customer.full_name
                           ? customer.full_name.charAt(0)
                           : customer.phone.slice(-2)}
                       </div>
                     )}
-                    <span className="hidden sm:inline max-w-[110px] sm:max-w-[140px] truncate text-xs">
-                      {customer.full_name || customer.phone}
+                    <span className="hidden sm:inline max-w-[85px] md:max-w-[110px] xl:max-w-[140px] truncate text-xs">
+                      {customer.full_name ||
+                        formatDisplayPhone(customer.phone, customer.email)}
                     </span>
                   </div>
 
-                  {/* Divider - hidden on small mobile to avoid overflow */}
-                  <div className="hidden sm:block h-4 w-px bg-border/80 mx-0.5" />
+                  {/* Divider - only on wide desktop (xl:) to avoid cramped overflow on laptops/tablets */}
+                  <div className="hidden xl:block h-4 w-px bg-border/80 mx-0.5" />
 
-                  {/* Integrated Wallet Balance - shown on sm screens */}
-                  <div className="hidden sm:flex items-center gap-1.5 text-right font-medium">
+                  {/* Integrated Wallet Balance - shown on xl: wide screens only */}
+                  <div className="hidden xl:flex items-center gap-1.5 text-right font-medium shrink-0">
                     <Wallet className="h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground transition-colors" />
                     <span className="text-xs font-bold text-foreground font-latin">
                       {toPersianDigits(effectiveBalance.toLocaleString())}
@@ -564,26 +549,29 @@ export const Header: React.FC<HeaderProps> = ({
                   </div>
 
                   <ChevronDown
-                    className={`h-3 w-3 text-muted-foreground transition-transform duration-200 ${
+                    className={`h-3 w-3 text-muted-foreground transition-transform duration-200 shrink-0 ${
                       userDropdownOpen ? 'rotate-180 text-foreground' : ''
                     }`}
                   />
                 </button>
 
                 {userDropdownOpen && (
-                  <div className="absolute left-0 mt-2 w-56 rounded-2xl border border-border bg-card p-2 shadow-2xl z-50 animate-in fade-in zoom-in-95">
-                    <div className="px-3 py-2 border-b border-border/60 text-right">
-                      <p className="text-xs font-bold text-foreground">
-                        {customer.full_name || 'کاربر آناهیکس'}
+                  <div className="absolute left-0 mt-2 w-64 rounded-surface border border-border bg-popover text-popover-foreground p-2 shadow-2xl z-50 animate-in fade-in zoom-in-95">
+                    <div className="px-3 py-2 border-b border-border/60 text-right space-y-0.5">
+                      <p className="text-xs font-black text-foreground">
+                        {customer.full_name || 'کاربر گرامی'}
                       </p>
-                      <p className="text-[11px] font-mono text-muted-foreground mt-0.5">
-                        {customer.phone}
+                      <p
+                        className="text-[11px] text-muted-foreground font-latin truncate"
+                        dir="ltr"
+                      >
+                        {customer.email || formatDisplayPhone(customer.phone)}
                       </p>
                       <div className="mt-2 pt-2 border-t border-dashed border-border/60 flex items-center justify-between text-xs">
                         <span className="text-muted-foreground text-[11px]">
                           موجودی کیف پول:
                         </span>
-                        <span className="font-bold text-blue-600 dark:text-blue-400">
+                        <span className="font-bold text-amber-500 font-latin">
                           {toPersianDigits(effectiveBalance.toLocaleString())}{' '}
                           تومان
                         </span>
@@ -594,7 +582,7 @@ export const Header: React.FC<HeaderProps> = ({
                       <Link
                         to="/profile?tab=loyalty"
                         onClick={() => setUserDropdownOpen(false)}
-                        className="flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs font-bold text-amber-500 bg-amber-500/10 hover:bg-amber-500/20 transition-colors text-right border border-amber-500/20"
+                        className="flex items-center justify-between px-2.5 py-1.5 rounded-control text-xs font-bold text-amber-500 bg-amber-500/10 hover:bg-amber-500/20 transition-colors text-right border border-amber-500/20"
                       >
                         <div className="flex items-center gap-2">
                           <Crown className="h-3.5 w-3.5" />
@@ -614,46 +602,80 @@ export const Header: React.FC<HeaderProps> = ({
                       <Link
                         to="/profile"
                         onClick={() => setUserDropdownOpen(false)}
-                        className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-xs font-medium text-foreground hover:bg-muted/80 transition-colors text-right"
+                        className="flex items-center gap-2 px-2.5 py-1.5 rounded-control text-xs font-medium text-foreground hover:bg-muted/80 transition-colors text-right"
                       >
-                        <User className="h-3.5 w-3.5 text-blue-600" />
+                        <User className="h-3.5 w-3.5 text-brand" />
                         <span>حساب کاربری و پروفایل</span>
                       </Link>
 
                       <Link
                         to="/track"
                         onClick={() => setUserDropdownOpen(false)}
-                        className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-xs text-foreground hover:bg-muted/80 transition-colors text-right"
+                        className="flex items-center gap-2 px-2.5 py-1.5 rounded-control text-xs text-foreground hover:bg-muted/80 transition-colors text-right"
                       >
-                        <ShieldCheck className="h-3.5 w-3.5 text-blue-600" />
+                        <ShieldCheck className="h-3.5 w-3.5 text-brand" />
                         <span>پیگیری سفارش‌های من</span>
                       </Link>
 
-                      {(customer.is_admin || api.getAdminUser()) &&
-                        (isAdminPage ? (
-                          <Link
-                            to="/"
-                            onClick={() => setUserDropdownOpen(false)}
-                            className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-colors text-right"
-                          >
-                            <Store className="h-3.5 w-3.5" />
-                            <span>بازگشت به فروشگاه</span>
-                          </Link>
-                        ) : (
-                          <Link
-                            to="/admin/dashboard"
-                            onClick={() => setUserDropdownOpen(false)}
-                            className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors text-right"
-                          >
-                            <Lock className="h-3.5 w-3.5" />
-                            <span>ورود به پنل مدیریت</span>
-                          </Link>
-                        ))}
+                      {/* Small Mobile ONLY: Notifications & Theme Switcher (< 425px) */}
+                      <div className="min-[425px]:hidden pt-1 mt-1 border-t border-border/40 space-y-1">
+                        <Link
+                          to="/profile?tab=notifications"
+                          onClick={() => setUserDropdownOpen(false)}
+                          className="flex items-center justify-between px-2.5 py-1.5 rounded-control text-xs font-bold text-foreground hover:bg-muted/80 transition-colors text-right"
+                        >
+                          <div className="flex items-center gap-2">
+                            <Bell className="h-3.5 w-3.5 text-brand" />
+                            <span>اعلان‌ها و پیام‌ها</span>
+                          </div>
+                          {unreadNotifCount > 0 ? (
+                            <span className="px-1.5 py-0.2 rounded-control bg-brand text-brand-foreground text-[10px] font-black animate-pulse font-latin">
+                              {toPersianDigits(unreadNotifCount)} جدید
+                            </span>
+                          ) : (
+                            <span className="text-[10px] text-muted-foreground font-normal">
+                              خوانده‌شده
+                            </span>
+                          )}
+                        </Link>
+
+                        <div className="flex items-center justify-between px-2.5 py-1.5 rounded-control text-xs font-bold text-foreground">
+                          <span className="text-muted-foreground text-[11px]">
+                            حالت شب / روز:
+                          </span>
+                          <ThemeToggle className="h-7 w-7" />
+                        </div>
+                      </div>
+
+                      {/* Admin Portal Link - STRICTLY ONLY for Admin from DB (Never shown to normal users) */}
+                      {(customer.is_admin || api.getAdminUser()) && (
+                        <div className="pt-1 mt-1 border-t border-border/40">
+                          {isAdminPage ? (
+                            <Link
+                              to="/"
+                              onClick={() => setUserDropdownOpen(false)}
+                              className="flex items-center gap-2 px-2.5 py-1.5 rounded-control text-xs font-semibold text-brand hover:bg-brand/10 transition-colors text-right"
+                            >
+                              <Store className="h-3.5 w-3.5" />
+                              <span>بازگشت به فروشگاه</span>
+                            </Link>
+                          ) : (
+                            <Link
+                              to="/admin/dashboard"
+                              onClick={() => setUserDropdownOpen(false)}
+                              className="flex items-center gap-2 px-2.5 py-1.5 rounded-control text-xs font-semibold text-rose-500 hover:bg-rose-500/10 transition-colors text-right"
+                            >
+                              <Lock className="h-3.5 w-3.5" />
+                              <span>ورود به پنل مدیریت</span>
+                            </Link>
+                          )}
+                        </div>
+                      )}
 
                       <button
                         type="button"
                         onClick={handleLogout}
-                        className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-xs text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors text-right"
+                        className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-control text-xs text-rose-500 hover:bg-rose-500/10 transition-colors text-right cursor-pointer"
                       >
                         <LogOut className="h-3.5 w-3.5" />
                         <span>خروج از حساب کاربری</span>
@@ -677,9 +699,9 @@ export const Header: React.FC<HeaderProps> = ({
               </button>
             )}
 
-            {/* Notifications Button & Dropdown Menu */}
+            {/* Notifications Button & Dropdown Menu (Hidden on < 425px to prevent cramping, shown inside user dropdown) */}
             {!isAdminPage && (
-              <div className="relative" ref={notifMenuRef}>
+              <div className="relative max-[424px]:hidden" ref={notifMenuRef}>
                 <button
                   type="button"
                   onClick={() => {
@@ -781,7 +803,7 @@ export const Header: React.FC<HeaderProps> = ({
                                   {item.title}
                                 </h5>
                               </div>
-                              <span className="text-[10px] text-muted-foreground font-mono shrink-0 font-latin">
+                              <span className="text-[10px] text-muted-foreground shrink-0 font-latin">
                                 {new Date(item.created_at).toLocaleDateString(
                                   'fa-IR',
                                 )}
@@ -830,9 +852,9 @@ export const Header: React.FC<HeaderProps> = ({
               </button>
             )}
 
-            {/* Dark / Light Mode Toggle - Only in Header */}
+            {/* Dark / Light Mode Toggle - Only in Header (Hidden on < 425px, shown inside user dropdown) */}
             {!isAdminPage && (
-              <ThemeToggle className="h-8 w-8 sm:h-9 sm:w-9 shrink-0" />
+              <ThemeToggle className="h-8 w-8 sm:h-9 sm:w-9 shrink-0 max-[424px]:hidden" />
             )}
           </div>
         </div>
@@ -897,7 +919,8 @@ export const Header: React.FC<HeaderProps> = ({
                       </div>
                       <div>
                         <h4 className="text-xs font-black text-popover-foreground">
-                          {customer.full_name || customer.phone}
+                          {customer.full_name ||
+                            formatDisplayPhone(customer.phone, customer.email)}
                         </h4>
                         <p className="text-[11px] text-muted-foreground mt-0.5 font-latin">
                           موجودی:{' '}

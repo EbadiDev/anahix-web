@@ -37,6 +37,7 @@ import { ProfileSupportTab } from '../components/profile/ProfileSupportTab'
 import { ProfileWalletTab } from '../components/profile/ProfileWalletTab'
 import { SidebarProfileAvatar } from '../components/profile/SidebarProfileAvatar'
 import { WalletTopupModal } from '../components/profile/WalletTopupModal'
+import { TelegramIcon } from '../components/SocialIcons'
 import { Button } from '../components/ui/button'
 import { apiService } from '../services/api'
 import type { CustomerProfile, Order, VirtualNumberOrder } from '../types'
@@ -571,8 +572,8 @@ export const UserProfilePage: React.FC = () => {
             {/* Need Help Card */}
             <div className="rounded-surface border-line bg-card p-4 text-right space-y-2.5 shadow-surface duration-motion ease-motion">
               <div className="flex items-center gap-2 text-brand font-bold text-xs">
-                <MessageSquare className="h-4 w-4" />
-                <span>پشتیبانی شبانه‌روزی ۲۴/۷</span>
+                <TelegramIcon className="h-4 w-4" />
+                <span>پشتیبانی در تلگرام</span>
               </div>
               <p className="text-[11px] text-muted-foreground leading-relaxed">
                 سوالی دارید یا در دریافت شماره مجازی نیاز به راهنمایی دارید؟ تیم

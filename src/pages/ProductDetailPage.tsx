@@ -36,8 +36,8 @@ import {
 import { CartDrawer } from '../components/CartDrawer'
 import { Header } from '../components/Header'
 import { ProductReviewsSection } from '../components/reviews/ProductReviewsSection'
+import { TelegramIcon } from '../components/SocialIcons'
 import { Badge } from '../components/ui/badge'
-import { Card } from '../components/ui/card'
 import { useNotification } from '../components/vibefarsi/NotificationContext'
 import { QuantitySelector } from '../components/vibefarsi/QuantitySelector'
 import { ScrollReveal } from '../components/vibefarsi/ScrollReveal'
@@ -519,7 +519,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
 
             {/* Left Column: Interactive Plan Switcher & Checkout Card (5 cols) */}
             <div className="lg:col-span-5">
-              <Card className="rounded-3xl border-2 border-blue-500/30 bg-card p-6 shadow-xl shadow-blue-600/5 space-y-6 sticky top-24">
+              <div className="rounded-surface border border-border/60 bg-card p-5 sm:p-6 shadow-surface space-y-6 sticky top-24 relative overflow-hidden">
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-xs font-black text-foreground flex items-center gap-1.5">
@@ -596,29 +596,29 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                 </div>
 
                 {/* Selected Plan Details & Pricing Banner */}
-                <div className="p-4 rounded-2xl bg-muted/40 border border-border/70 space-y-3">
+                <div className="p-4 rounded-surface bg-muted/30 border border-border/60 space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-foreground">
                       پلن انتخابی شما:
                     </span>
-                    <span className="text-xs font-bold text-blue-600 dark:text-blue-400 font-mono">
+                    <span className="text-xs font-black text-brand font-mono font-latin">
                       {selectedPlan?.title || product.title_fa}
                     </span>
                   </div>
 
-                  <div className="border-t border-border/50 pt-3 flex items-baseline justify-between">
+                  <div className="border-t border-border/40 pt-3 flex items-baseline justify-between">
                     <div>
                       <span className="text-[11px] text-muted-foreground block">
                         مبلغ قابل پرداخت:
                       </span>
                       {savingsToman > 0 && (
-                        <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
-                          تخفیف ویژه ({savingsPercent}%):{' '}
+                        <span className="text-[11px] text-emerald-400 font-bold font-latin">
+                          تخفیف ویژه ({toPersianDigits(savingsPercent)}٪):{' '}
                           {savingsToman.toLocaleString('fa-IR')} تومان
                         </span>
                       )}
                     </div>
-                    <div className="text-left">
+                    <div className="text-left font-latin">
                       <span className="text-2xl font-black text-foreground tracking-tight font-mono">
                         {effectivePrice.toLocaleString('fa-IR')}
                       </span>
@@ -704,7 +704,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                 </div>
 
                 {/* Guarantee Mini Footer */}
-                <div className="pt-3 flex items-center justify-around text-[11px] text-muted-foreground text-center">
+                <div className="pt-3 flex items-center justify-around text-[11px] text-muted-foreground text-center border-t border-border/40">
                   <div className="flex flex-col items-center gap-1">
                     <ShieldCheck className="h-4 w-4 text-brand" />
                     <span>ضمانت بازگشت وجه</span>
@@ -713,12 +713,17 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                     <CreditCard className="h-4 w-4 text-brand" />
                     <span>پرداخت امن شاپرک</span>
                   </div>
-                  <div className="flex flex-col items-center gap-1">
-                    <Headphones className="h-4 w-4 text-brand" />
-                    <span>پشتیبانی تلگرام</span>
-                  </div>
+                  <a
+                    href="https://t.me/AnahixSupport"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex flex-col items-center gap-1 hover:text-brand transition-colors cursor-pointer group"
+                  >
+                    <TelegramIcon className="h-4 w-4 text-brand group-hover:scale-110 transition-transform" />
+                    <span className="font-medium">پشتیبانی در تلگرام</span>
+                  </a>
                 </div>
-              </Card>
+              </div>
             </div>
           </section>
         </ScrollReveal>

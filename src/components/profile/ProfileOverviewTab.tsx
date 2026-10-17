@@ -12,7 +12,11 @@ import {
 } from 'lucide-react'
 import type React from 'react'
 import type { CustomerProfile, Order, VirtualNumberOrder } from '../../types'
-import { formatToman, toPersianDigits } from '../../utils/formatters'
+import {
+  formatDisplayPhone,
+  formatToman,
+  toPersianDigits,
+} from '../../utils/formatters'
 
 interface ProfileOverviewTabProps {
   customer: CustomerProfile
@@ -317,7 +321,9 @@ export const ProfileOverviewTab: React.FC<ProfileOverviewTabProps> = ({
                   ایجاد و اعتبارسنجی اولیه حساب کاربری
                 </span>
                 <p className="text-[11px] text-muted-foreground font-mono mt-0.5">
-                  شماره تلفن همراه {customer.phone} با موفقیت در سامانه فعال شد
+                  {customer.phone && !/^098[0-9a-f]{8}$/i.test(customer.phone)
+                    ? `شماره تلفن همراه ${formatDisplayPhone(customer.phone)} با موفقیت در سامانه فعال شد`
+                    : `حساب کاربری با آدرس ایمیل ${customer.email || 'شما'} با موفقیت فعال گردید`}
                 </p>
               </div>
               <span className="text-[11px] text-muted-foreground font-mono">

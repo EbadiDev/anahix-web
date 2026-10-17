@@ -66,6 +66,7 @@ function parseMarkdownBlocks(raw: string): Block[] {
   const blocks: Block[] = []
   const lines = raw.split('\n')
   let i = 0
+  let headingIndex = 1
 
   while (i < lines.length) {
     const line = lines[i]
@@ -115,7 +116,7 @@ function parseMarkdownBlocks(raw: string): Block[] {
     }
     if (trimmed.startsWith('### ')) {
       blocks.push({
-        id: `h3-${blocks.length}`,
+        id: `heading-${headingIndex++}`,
         type: 'h3',
         content: trimmed.slice(4).trim(),
       })
@@ -124,7 +125,7 @@ function parseMarkdownBlocks(raw: string): Block[] {
     }
     if (trimmed.startsWith('## ')) {
       blocks.push({
-        id: `h2-${blocks.length}`,
+        id: `heading-${headingIndex++}`,
         type: 'h2',
         content: trimmed.slice(3).trim(),
       })
@@ -327,11 +328,11 @@ const BlockRenderer: React.FC<{ block: Block }> = ({ block }) => {
       )
     }
     case 'h2': {
-      const id = `heading-${block.id}`
+      const id = block.id
       return (
         <h2
           id={id}
-          className="scroll-mt-24 text-xl md:text-2xl font-bold text-foreground border-b border-border/50 pb-2.5 pt-6 first:pt-0 first:mt-0 group flex items-center justify-between"
+          className="scroll-mt-28 text-xl md:text-2xl font-black text-foreground border-b border-border/50 pb-2.5 pt-6 first:pt-0 first:mt-0 group flex items-center justify-between"
         >
           <span className="flex items-center gap-2">
             <span className="w-1.5 h-5 rounded-full bg-primary inline-block" />
@@ -348,11 +349,11 @@ const BlockRenderer: React.FC<{ block: Block }> = ({ block }) => {
       )
     }
     case 'h3': {
-      const id = `heading-${block.id}`
+      const id = block.id
       return (
         <h3
           id={id}
-          className="scroll-mt-24 text-lg md:text-xl font-semibold text-foreground pt-4 pb-1 first:pt-0 first:mt-0 group flex items-center justify-between"
+          className="scroll-mt-28 text-lg md:text-xl font-bold text-foreground pt-4 pb-1 first:pt-0 first:mt-0 group flex items-center justify-between"
         >
           <span className="flex items-center gap-1.5">
             <span className="w-1 h-3.5 rounded-full bg-blue-500/70 inline-block" />

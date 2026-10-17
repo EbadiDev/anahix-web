@@ -8,23 +8,21 @@ import {
   ExternalLink,
   FileText,
   KeyRound,
-  Lock,
   Printer,
   RefreshCw,
   Search,
   Send,
   ShieldCheck,
-  UserCheck,
+  ShoppingBag,
 } from 'lucide-react'
 import type React from 'react'
 import { useCallback, useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { apiService } from '../services/api'
 import type { Order } from '../types'
+import { toPersianDigits } from '../utils/formatters'
 import { OfficialInvoiceModal } from './invoice/OfficialInvoiceModal'
-import { Badge } from './ui/badge'
-import { Button } from './ui/button'
-import { Card } from './ui/card'
-import { Input } from './ui/input'
+import { type StepItem, Stepper } from './vibefarsi/Stepper'
 
 interface OrderTrackingViewProps {
   orders: Order[]
@@ -48,7 +46,7 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
   const [copiedCreds, setCopiedCreds] = useState(false)
   const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false)
 
-  // 2FA state
+  // 2FA live handshake state
   const [otpCode, setOtpCode] = useState('')
   const [otpLoading, setOtpLoading] = useState(false)
   const [otpSent, setOtpSent] = useState(false)
@@ -85,7 +83,6 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
       )
 
       if (freshOrder) {
-        // Merge preserved fields like token and custom titles if any
         const merged: Order = {
           ...activeOrder,
           ...freshOrder,
@@ -93,7 +90,6 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
           product_title: freshOrder.product_title || activeOrder.product_title,
         }
 
-        // Detect if 2FA was just requested
         if (
           freshOrder.two_factor_status === 'requested' ||
           freshOrder.status === 'WAITING_CUSTOMER_2FA'
@@ -228,14 +224,18 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
 
   if (!activeOrder) {
     return (
-      <Card className="p-12 text-center border-border/80">
-        <h3 className="text-base font-bold text-foreground">
-          هنوز سفارشی ثبت نشده است
+      <div className="rounded-surface border border-border/80 bg-card p-12 text-center shadow-surface">
+        <div className="w-12 h-12 rounded-control bg-secondary text-brand flex items-center justify-center mx-auto mb-3 shadow-control">
+          <ShoppingBag className="w-6 h-6" />
+        </div>
+        <h3 className="text-base font-black text-foreground">
+          هنوز سفارشی برای پیگیری ثبت نشده است
         </h3>
-        <p className="text-xs text-muted-foreground mt-1">
-          برای ثبت اولین سفارش خود به بخش فروشگاه سرویس‌ها مراجعه فرمایید.
+        <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
+          برای ثبت سفارش جدید و خرید اشتراک‌های پرمیوم هوش مصنوعی، به بخش فروشگاه
+          آناهیکس مراجعه فرمایید.
         </p>
-      </Card>
+      </div>
     )
   }
 
@@ -247,19 +247,81 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
     activeOrder.two_factor_status === 'submitted' || otpSent
   const isCompleted = activeOrder.status === 'COMPLETED'
 
+  // Construct VibeFarsi 4-Step Stepper items for Mode C Personal Upgrades
+  const stepperSteps: StepItem[] = [
+    {
+      number: 1,
+      title: 'ثبت و پرداخت موفق',
+      description: 'سفارش در سیستم تایید شد',
+      status: 'completed',
+    },
+    {
+      number: 2,
+      title: 'تخصیص به اپراتور امن',
+      description: 'در صف بررسی اپراتور',
+      status:
+        activeOrder.status !== 'PENDING_PAYMENT' ? 'completed' : 'current',
+    },
+    {
+      number: 3,
+      title: 'تبادل لایو ۲FA',
+      description: isWaiting2FA
+        ? 'نیازمند ارسال کد تایید'
+        : is2FASubmitted || isCompleted
+          ? 'کد دریافت شد'
+          : 'آماده‌سازی ورود',
+      status:
+        isCompleted || is2FASubmitted
+          ? 'completed'
+          : isWaiting2FA
+            ? 'current'
+            : 'upcoming',
+    },
+    {
+      number: 4,
+      title: 'فعال‌سازی و پاکسازی امن',
+      description: isCompleted
+        ? 'رمزها به طور خودکار پاکسازی شد'
+        : 'تحویل نهایی اشتراک',
+      status: isCompleted ? 'completed' : 'upcoming',
+    },
+  ]
+
   return (
-    <div className="space-y-6">
-      {/* Search Bar & Order Switcher */}
-      <Card className="p-4 border-border/80 shadow-xs">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          {/* Search Form */}
+    <div className="space-y-5 sm:space-y-6">
+      {/* In-Container Breadcrumb Navigation matching BlogDetailPage & HelpDetailPage */}
+      <nav
+        aria-label="Breadcrumb"
+        className="text-xs text-muted-foreground flex items-center gap-2 flex-wrap"
+      >
+        <Link to="/" className="hover:text-foreground transition-colors">
+          خانه
+        </Link>
+        <span className="opacity-40">/</span>
+        <Link to="/track" className="hover:text-foreground transition-colors">
+          پیگیری سفارش
+        </Link>
+        {activeOrder && (
+          <>
+            <span className="opacity-40">/</span>
+            <span className="text-brand font-bold font-mono font-latin">
+              {activeOrder.order_no}
+            </span>
+          </>
+        )}
+      </nav>
+
+      {/* Search Bar & Order Switcher - Separated & High-Stability Layout */}
+      <div className="rounded-surface border border-border/60 bg-card p-4 sm:p-5 shadow-surface space-y-4">
+        {/* Top: Permanent, Stable Search Input (Never shrinks!) */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
           <form
             onSubmit={handleSearchSubmit}
-            className="flex items-center gap-2 flex-1 min-w-[280px]"
+            className="flex items-center gap-2 w-full sm:max-w-md shrink-0"
           >
-            <div className="relative flex-1 max-w-md">
-              <Search className="h-4 w-4 text-muted-foreground absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-              <Input
+            <div className="relative flex-1">
+              <Search className="h-4 w-4 text-muted-foreground absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <input
                 type="text"
                 dir="ltr"
                 placeholder="جستجو با شماره سفارش (مثال: ANX-123456)..."
@@ -268,133 +330,157 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
                   setSearchQuery(e.target.value)
                   setSearchError('')
                 }}
-                className="pr-9 h-9 text-xs font-mono"
+                className="w-full pr-10 pl-3 h-10 text-xs font-mono font-latin rounded-field border border-border/60 bg-background text-foreground outline-none focus:border-brand/50 transition-colors"
               />
             </div>
-            <Button
+            <button
               type="submit"
-              size="sm"
               disabled={searchLoading}
-              className="bg-blue-600 hover:bg-blue-700 text-white text-xs h-9 px-3"
+              className="h-10 px-5 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs duration-motion ease-motion active:scale-[0.98] shadow-control flex items-center justify-center gap-1.5 cursor-pointer shrink-0 disabled:opacity-50"
             >
               {searchLoading ? (
                 <RefreshCw className="w-3.5 h-3.5 animate-spin" />
               ) : (
                 'رهگیری'
               )}
-            </Button>
+            </button>
           </form>
 
-          {/* Local Orders Quick Selectors */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-            {orders.map((o) => {
-              const isSelected =
-                activeOrder.order_no.toLowerCase() === o.order_no.toLowerCase()
-              return (
-                <button
-                  key={o.order_no}
-                  onClick={() => {
-                    setSelectedOrderNo(o.order_no)
-                    setSearchQuery(o.order_no)
-                    setOtpSent(false)
-                    setCountdown(120)
-                    setSearchError('')
-                  }}
-                  className={`flex items-center gap-2 rounded-xl px-3 py-1.5 text-xs font-mono font-semibold transition-all border shrink-0 ${
-                    isSelected
-                      ? 'border-blue-600 bg-blue-500/10 text-blue-600 dark:text-blue-400 shadow-xs ring-1 ring-blue-500/20'
-                      : 'border-border bg-card text-muted-foreground hover:bg-muted/50 hover:text-foreground'
-                  }`}
-                >
-                  <span>{o.order_no}</span>
-                  {o.status === 'COMPLETED' ? (
-                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
-                  ) : o.status === 'WAITING_CUSTOMER_2FA' ? (
-                    <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />
-                  ) : (
-                    <Clock className="h-3.5 w-3.5 text-amber-500" />
-                  )}
-                </button>
-              )
-            })}
-          </div>
+          {orders.length > 0 && (
+            <span className="text-xs text-muted-foreground font-latin self-end sm:self-center">
+              {toPersianDigits(orders.length)} سفارش در تاریخچه شما
+            </span>
+          )}
         </div>
 
+        {/* Bottom: Dedicated Fast-Switcher Track for User Orders (Clean & Responsive for Multi-Orders) */}
+        {orders.length > 0 && (
+          <div className="pt-3 border-t border-border/40 space-y-2">
+            <div className="text-[11px] font-bold text-muted-foreground flex items-center justify-between">
+              <span>سفارش‌های ثبت‌شده شما جهت سوئیچ سریع:</span>
+              <span className="text-[10px] opacity-70 hidden sm:inline">
+                برای مشاهده اطلاعات هر سفارش روی آن کلیک کنید
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2 overflow-x-auto pb-1.5 scrollbar-thin scroll-smooth">
+              {orders.map((o) => {
+                const isSelected =
+                  activeOrder.order_no.toLowerCase() ===
+                  o.order_no.toLowerCase()
+                return (
+                  <button
+                    key={o.order_no}
+                    type="button"
+                    onClick={() => {
+                      setSelectedOrderNo(o.order_no)
+                      setSearchQuery(o.order_no)
+                      setOtpSent(false)
+                      setCountdown(120)
+                      setSearchError('')
+                    }}
+                    className={`flex items-center gap-2 rounded-control px-3.5 py-2 text-xs font-mono font-latin font-bold transition-all border duration-motion ease-motion active:scale-[0.98] cursor-pointer shrink-0 ${
+                      isSelected
+                        ? 'border-primary bg-primary text-primary-foreground shadow-control font-black ring-1 ring-primary/40'
+                        : 'border-border/60 bg-muted/20 text-muted-foreground hover:bg-muted hover:text-foreground'
+                    }`}
+                  >
+                    <span>{o.order_no}</span>
+                    {o.status === 'COMPLETED' ? (
+                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                    ) : o.status === 'WAITING_CUSTOMER_2FA' ? (
+                      <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping shrink-0" />
+                    ) : (
+                      <Clock className="h-3.5 w-3.5 text-brand shrink-0" />
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
         {searchError && (
-          <div className="mt-3 flex items-center gap-2 text-xs text-red-500 font-medium bg-red-500/10 p-2.5 rounded-xl border border-red-500/20">
+          <div className="mt-3 flex items-center gap-2 text-xs text-destructive font-bold bg-destructive/10 p-2.5 rounded-control border border-destructive/20 animate-in fade-in">
             <AlertCircle className="w-4 h-4 shrink-0" />
             <span>{searchError}</span>
           </div>
         )}
-      </Card>
+      </div>
 
-      {/* Main Order Details Card */}
-      <Card className="p-6 border-border/80 shadow-sm space-y-6">
-        {/* Top Header & Price */}
-        <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border pb-6">
-          <div className="space-y-2">
-            <div className="flex items-center gap-3">
-              <h2 className="text-xl font-black text-foreground flex items-center gap-2">
+      {/* Main Order Details Card - Clean, Uncluttered Graphite Card */}
+      <div className="rounded-surface border border-border/60 bg-card p-5 sm:p-7 shadow-surface space-y-6">
+        {/* Top Header: Order Number, Status, Price & Invoice Button */}
+        <div className="flex flex-col md:flex-row md:items-start justify-between gap-5 border-b border-border/60 pb-6">
+          <div className="space-y-2.5">
+            <div className="flex items-center gap-3 flex-wrap">
+              <h2 className="text-xl sm:text-2xl font-black text-foreground flex items-center gap-2">
                 <span>سفارش</span>
-                <span className="font-mono text-blue-600 dark:text-blue-400">
+                <span className="font-mono font-latin text-brand">
                   {activeOrder.order_no}
                 </span>
               </h2>
 
+              {/* Status Badge */}
               {activeOrder.status === 'COMPLETED' ? (
-                <Badge variant="emerald" className="gap-1.5 py-1 px-2.5">
+                <span className="inline-flex items-center gap-1.5 py-1 px-3 rounded-control bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-xs font-black">
                   <CheckCircle2 className="h-3.5 w-3.5" />
-                  تکمیل و تحویل داده شد
-                </Badge>
+                  <span>تکمیل و تحویل داده شد</span>
+                </span>
               ) : isWaiting2FA ? (
-                <Badge
-                  variant="amber"
-                  className="gap-1.5 py-1 px-2.5 animate-pulse"
-                >
+                <span className="inline-flex items-center gap-1.5 py-1 px-3 rounded-control bg-amber-500/15 text-amber-500 border border-amber-500/40 text-xs font-black animate-pulse">
                   <AlertTriangle className="h-3.5 w-3.5" />
-                  نیازمند کد ۲FA کاربر
-                </Badge>
+                  <span>نیازمند کد ۲FA کاربر</span>
+                </span>
               ) : activeOrder.status === 'PROCESSING' || is2FASubmitted ? (
-                <Badge variant="blue" className="gap-1.5 py-1 px-2.5">
+                <span className="inline-flex items-center gap-1.5 py-1 px-3 rounded-control bg-brand/10 text-brand border border-brand/30 text-xs font-black">
                   <Clock className="h-3.5 w-3.5 animate-spin" />
-                  در حال تایید و فعال‌سازی اپراتور
-                </Badge>
+                  <span>در حال تایید و فعال‌سازی اپراتور</span>
+                </span>
               ) : (
-                <Badge variant="blue" className="gap-1.5 py-1 px-2.5">
-                  <Clock className="h-3.5 w-3.5" />
-                  در حال پردازش در صف
-                </Badge>
+                <span className="inline-flex items-center gap-1.5 py-1 px-3 rounded-control bg-muted text-foreground border border-border/60 text-xs font-bold">
+                  <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span>در حال پردازش در صف</span>
+                </span>
               )}
             </div>
 
-            <p className="text-xs text-muted-foreground flex flex-wrap items-center gap-2">
+            <p className="text-xs text-muted-foreground flex flex-wrap items-center gap-2.5">
               <span>سرویس:</span>
               <strong className="text-foreground">
                 {activeOrder.product_title}
               </strong>
-              <span>•</span>
-              <span>درگاه:</span>
-              <span className="text-foreground">
+              <span className="opacity-40">•</span>
+              <span>روش پرداخت:</span>
+              <span className="text-foreground font-medium">
                 {activeOrder.payment_platform === 'balance'
                   ? 'کیف پول کاربر'
                   : activeOrder.payment_platform}
               </span>
-              <span>•</span>
-              <span className="font-mono" dir="ltr">
-                {activeOrder.customer_phone}
-              </span>
+              {activeOrder.customer_phone && (
+                <>
+                  <span className="opacity-40">•</span>
+                  <span
+                    className="font-mono font-latin text-muted-foreground"
+                    dir="ltr"
+                  >
+                    {activeOrder.customer_phone}
+                  </span>
+                </>
+              )}
             </p>
           </div>
 
-          <div className="flex flex-col items-end gap-2">
-            <div className="text-left font-mono" dir="ltr">
-              <div className="text-xl font-black text-blue-600 dark:text-blue-400">
-                {activeOrder.amount_toman.toLocaleString('fa-IR')}{' '}
-                <span className="text-xs font-sans text-muted-foreground">
+          {/* Amount & Actions */}
+          <div className="flex flex-col md:items-end gap-2.5">
+            <div className="text-right md:text-left font-mono font-latin">
+              <div className="text-xl sm:text-2xl font-black text-foreground">
+                {toPersianDigits(activeOrder.amount_toman.toLocaleString())}{' '}
+                <span className="text-xs font-sans text-muted-foreground font-normal">
                   تومان
                 </span>
               </div>
-              <div className="text-[11px] text-muted-foreground">
+              <div className="text-[11px] text-muted-foreground font-sans">
                 {new Date(activeOrder.created_at).toLocaleDateString('fa-IR', {
                   year: 'numeric',
                   month: 'short',
@@ -405,278 +491,255 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
+            {/* Single Clean Actions Group (Duplicate Banner Removed!) */}
+            <div className="flex items-center gap-2 pt-1 flex-wrap">
+              <button
+                type="button"
                 onClick={() => setIsInvoiceModalOpen(true)}
-                className="h-8 text-xs rounded-xl px-3 border-blue-200 dark:border-blue-900 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 gap-1.5 font-semibold"
+                className="h-8 px-3 rounded-control border border-border/80 bg-card hover:bg-muted text-xs font-bold text-foreground duration-motion ease-motion active:scale-[0.98] shadow-control flex items-center gap-1.5 cursor-pointer"
               >
-                <FileText className="w-3.5 h-3.5" />
+                <Printer className="w-3.5 h-3.5 text-brand" />
                 <span>
                   {activeOrder.status === 'COMPLETED' ||
                   activeOrder.status === 'PAID'
-                    ? 'فاکتور رسمی و PDF'
+                    ? 'رسید و فاکتور رسمی'
                     : 'پیش‌فاکتور رسمی'}
                 </span>
-              </Button>
+              </button>
 
               <button
+                type="button"
                 onClick={handleManualRefresh}
                 disabled={isRefreshing}
-                className="flex items-center gap-1 text-[11px] text-slate-500 dark:text-slate-400 hover:text-blue-600 transition-colors"
+                className="h-8 px-2.5 rounded-control border border-border/60 bg-muted/20 hover:bg-muted text-xs text-muted-foreground hover:text-foreground duration-motion ease-motion active:scale-[0.98] flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                title="همگام‌سازی وضعیت زنده"
               >
                 <RefreshCw
-                  className={`w-3 h-3 ${isRefreshing ? 'animate-spin' : ''}`}
+                  className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-brand' : ''}`}
                 />
-                <span>همگام‌سازی لحظه‌ای</span>
+                <span className="text-[11px]">همگام‌سازی</span>
               </button>
             </div>
           </div>
         </div>
 
-        {/* Friendly Order Invoice & Receipt Banner */}
-        <div className="rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/60 p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="flex items-start gap-3">
-            <div className="w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-950/80 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 mt-0.5">
-              <FileText className="w-5 h-5" />
-            </div>
-            <div>
-              <h4 className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <span>
-                  {activeOrder.status === 'COMPLETED' ||
-                  activeOrder.status === 'PAID'
-                    ? 'رسید و صورتحساب خرید'
-                    : 'پیش‌فاکتور سفارش'}
+        {/* MULTI-ITEM PURCHASES & ORDER BREAKDOWN (Responsive Table for Large Baskets) */}
+        {activeOrder.delivered_items &&
+          activeOrder.delivered_items.length > 0 && (
+            <div className="rounded-surface border border-border/60 bg-muted/15 p-4 sm:p-5 space-y-3">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-black text-foreground flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-brand" />
+                  <span>اقلام خریداری‌شده در این سفارش</span>
                 </span>
-                <Badge
-                  variant="outline"
-                  className="text-[10px] bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-950/60 dark:text-blue-400"
-                >
-                  رسید دیجیتال و چاپی
-                </Badge>
-              </h4>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
-                امکان مشاهده و دریافت نسخه چاپی فاکتور به همراه کد پیگیری،
-                تاریخ، اقلام سفارش و مبلغ پرداختی.
-              </p>
+                <span className="text-[11px] text-muted-foreground font-latin">
+                  {toPersianDigits(activeOrder.delivered_items.length)} قلم کالا
+                </span>
+              </div>
+
+              <div className="overflow-x-auto max-h-[380px] scrollbar-thin">
+                <table className="w-full text-right text-xs border-collapse">
+                  <thead>
+                    <tr className="border-b border-border/60 text-muted-foreground text-[11px]">
+                      <th className="py-2.5 px-3 font-bold w-12 text-center">
+                        #
+                      </th>
+                      <th className="py-2.5 px-3 font-bold">
+                        شرح کالا و سرویس
+                      </th>
+                      <th className="py-2.5 px-3 font-bold">نوع تحویل</th>
+                      <th className="py-2.5 px-3 font-bold text-left">
+                        اطلاعات تحویل / لایسنس
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/40 text-foreground">
+                    {activeOrder.delivered_items.map((it, idx) => (
+                      <tr
+                        key={`order-item-${it.product_title}-${it.payload || it.product_slug || idx}`}
+                        className="hover:bg-muted/30 transition-colors"
+                      >
+                        <td className="py-3 px-3 text-center text-muted-foreground font-mono font-latin">
+                          {toPersianDigits(idx + 1)}
+                        </td>
+                        <td className="py-3 px-3">
+                          <span className="font-bold block text-foreground">
+                            {it.product_title}
+                          </span>
+                          {it.instructions && (
+                            <span className="text-[11px] text-muted-foreground line-clamp-1 mt-0.5">
+                              {it.instructions}
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-3 px-3">
+                          <span className="inline-block px-2 py-0.5 rounded-control text-[10px] font-bold bg-muted text-muted-foreground border border-border/40">
+                            {it.delivery_type || 'تحویل دیجیتال'}
+                          </span>
+                        </td>
+                        <td className="py-3 px-3 text-left">
+                          {it.payload?.startsWith('http') ? (
+                            <a
+                              href={it.payload}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-xs font-bold text-brand hover:underline font-mono"
+                            >
+                              <span>لینک فعال‌سازی</span>
+                              <ExternalLink className="w-3 h-3" />
+                            </a>
+                          ) : it.payload ? (
+                            <div
+                              className="inline-flex items-center gap-1.5 font-mono text-xs bg-muted/60 px-2.5 py-1 rounded-control border border-border/40"
+                              dir="ltr"
+                            >
+                              <span className="truncate max-w-[200px]">
+                                {it.payload}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(it.payload)
+                                }}
+                                className="text-muted-foreground hover:text-foreground cursor-pointer"
+                                title="کپی مشخصات"
+                              >
+                                <Copy className="w-3 h-3" />
+                              </button>
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground text-[11px]">
+                              در صف تخصیص اپراتور
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </div>
+          )}
 
-          <Button
-            size="sm"
-            onClick={() => setIsInvoiceModalOpen(true)}
-            className="h-8 text-xs rounded-xl px-4 bg-blue-600 hover:bg-blue-700 text-white shrink-0 gap-1.5 shadow-xs"
-          >
-            <Printer className="w-3.5 h-3.5" />
-            <span>مشاهده و چاپ فاکتور (PDF)</span>
-          </Button>
-        </div>
-
-        {/* MODE A: INSTANT LINK FULFILLMENT */}
+        {/* MODE A: SINGLE INSTANT LINK FULFILLMENT */}
         {activeOrder.delivery_mode === 'INSTANT_LINK' &&
-          activeOrder.delivered_link && (
-            <div className="rounded-2xl border border-blue-500/25 bg-blue-500/5 p-5 space-y-4">
-              <div className="flex items-center gap-2 text-blue-700 dark:text-blue-300 font-bold text-sm">
-                <CheckCircle2 className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+          activeOrder.delivered_link &&
+          (!activeOrder.delivered_items ||
+            activeOrder.delivered_items.length <= 1) && (
+            <div className="rounded-surface border border-brand/30 bg-brand/5 p-5 space-y-3.5">
+              <div className="flex items-center gap-2 text-brand font-bold text-sm">
+                <CheckCircle2 className="h-5 w-5 text-brand" />
                 <span>لینک فعال‌سازی اختصاصی شما صادر شد (تحویل آنی)</span>
               </div>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-muted-foreground leading-relaxed">
                 این لینک یک‌بارمصرف و قانونی است. با کلیک بر روی آن یا باز کردن
-                در مرورگر، اشتراک بلافاصله روی جیمیل شما فعال می‌گردد:
+                در مرورگر، اشتراک بلافاصله روی حساب کاربری شما فعال می‌گردد:
               </p>
 
-              <div className="flex items-center gap-2 rounded-xl border border-border bg-background p-2.5">
+              <div className="flex items-center gap-2 rounded-control border border-border/60 bg-background p-2.5">
                 <input
                   type="text"
                   readOnly
                   value={activeOrder.delivered_link}
                   dir="ltr"
-                  className="w-full bg-transparent text-xs font-mono text-blue-600 dark:text-blue-400 outline-none"
+                  className="w-full bg-transparent text-xs font-mono font-latin text-brand outline-none"
                 />
-                <Button
-                  size="sm"
+                <button
+                  type="button"
                   onClick={handleCopyLink}
-                  className="bg-blue-600 hover:bg-blue-700 text-white shrink-0 text-xs h-8"
+                  className="h-8 px-3 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground text-xs font-bold shrink-0 flex items-center gap-1.5 shadow-control cursor-pointer"
                 >
                   {copiedLink ? (
-                    <Check className="h-3.5 w-3.5 ml-1" />
+                    <Check className="h-3.5 w-3.5" />
                   ) : (
-                    <Copy className="h-3.5 w-3.5 ml-1" />
+                    <Copy className="h-3.5 w-3.5" />
                   )}
                   <span>{copiedLink ? 'کپی شد' : 'کپی لینک'}</span>
-                </Button>
+                </button>
               </div>
 
-              <a
-                href={activeOrder.delivered_link}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline"
-              >
-                <span>باز کردن لینک مستقیم در تب جدید</span>
-                <ExternalLink className="h-3.5 w-3.5" />
-              </a>
+              <div>
+                <a
+                  href={activeOrder.delivered_link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-brand hover:underline"
+                >
+                  <span>باز کردن لینک مستقیم در تب جدید</span>
+                  <ExternalLink className="h-3.5 w-3.5" />
+                </a>
+              </div>
             </div>
           )}
 
         {/* MODE B: READY ACCOUNT CREDENTIALS */}
         {activeOrder.delivery_mode === 'INSTANT_ACCOUNT' &&
-          activeOrder.delivered_credentials && (
-            <div className="rounded-2xl border border-blue-500/25 bg-blue-500/5 p-5 space-y-4">
-              <div className="flex items-center gap-2 text-blue-700 dark:text-blue-300 font-bold text-sm">
-                <KeyRound className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+          activeOrder.delivered_credentials &&
+          (!activeOrder.delivered_items ||
+            activeOrder.delivered_items.length <= 1) && (
+            <div className="rounded-surface border border-brand/30 bg-brand/5 p-5 space-y-3.5">
+              <div className="flex items-center gap-2 text-brand font-bold text-sm">
+                <KeyRound className="h-5 w-5 text-brand" />
                 <span>اطلاعات اکانت اختصاصی تحویل داده شد</span>
               </div>
 
               <div
-                className="grid grid-cols-1 md:grid-cols-2 gap-3 rounded-xl border border-border bg-background p-4 font-mono text-xs text-left"
+                className="grid grid-cols-1 md:grid-cols-2 gap-3 rounded-control border border-border/60 bg-background p-4 font-mono font-latin text-xs text-left"
                 dir="ltr"
               >
                 <div>
-                  <span className="text-[11px] text-muted-foreground font-sans">
+                  <span className="text-[11px] text-muted-foreground font-sans block mb-1">
                     ایمیل اکانت:
                   </span>
-                  <div className="font-bold text-foreground mt-0.5 select-all">
+                  <div className="font-bold text-foreground select-all">
                     {activeOrder.delivered_credentials.email}
                   </div>
                 </div>
                 <div>
-                  <span className="text-[11px] text-muted-foreground font-sans">
+                  <span className="text-[11px] text-muted-foreground font-sans block mb-1">
                     رمز عبور:
                   </span>
-                  <div className="font-bold text-foreground mt-0.5 select-all">
+                  <div className="font-bold text-foreground select-all">
                     {activeOrder.delivered_credentials.password}
                   </div>
                 </div>
               </div>
 
-              <Button
-                size="sm"
+              <button
+                type="button"
                 onClick={handleCopyCreds}
-                className="bg-blue-600 hover:bg-blue-700 text-white text-xs h-8"
+                className="h-8 px-4 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground text-xs font-bold flex items-center gap-1.5 shadow-control cursor-pointer"
               >
                 {copiedCreds ? (
-                  <Check className="h-3.5 w-3.5 ml-1" />
+                  <Check className="h-3.5 w-3.5" />
                 ) : (
-                  <Copy className="h-3.5 w-3.5 ml-1" />
+                  <Copy className="h-3.5 w-3.5" />
                 )}
                 <span>
                   {copiedCreds ? 'مشخصات کپی شد' : 'کپی اطلاعات ورود'}
                 </span>
-              </Button>
+              </button>
             </div>
           )}
 
-        {/* MODE C: LIVE 2FA OPERATOR HANDSHAKE */}
+        {/* MODE C: VibeFarsi 4-Step Stepper & Live 2FA Handshake */}
         {isModeC && (
-          <div className="space-y-6">
-            {/* 4-Step Interactive Stepper */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-              {/* Step 1 */}
-              <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3.5">
-                <div className="text-[11px] text-emerald-600 dark:text-emerald-400 font-bold">
-                  مرحله ۱
-                </div>
-                <div className="text-xs font-bold text-foreground mt-0.5 flex items-center gap-1.5">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                  <span>ثبت و پرداخت موفق</span>
-                </div>
-              </div>
-
-              {/* Step 2 */}
-              <div
-                className={`rounded-xl border p-3.5 ${
-                  activeOrder.status !== 'PENDING_PAYMENT'
-                    ? 'border-emerald-500/30 bg-emerald-500/10'
-                    : 'border-border bg-card'
-                }`}
-              >
-                <div className="text-[11px] text-emerald-600 dark:text-emerald-400 font-bold">
-                  مرحله ۲
-                </div>
-                <div className="text-xs font-bold text-foreground mt-0.5 flex items-center gap-1.5">
-                  <UserCheck className="w-4 h-4 text-emerald-500" />
-                  <span>تخصیص به اپراتور امن</span>
-                </div>
-              </div>
-
-              {/* Step 3 */}
-              <div
-                className={`rounded-xl border p-3.5 transition-all ${
-                  isWaiting2FA
-                    ? 'border-amber-500/50 bg-amber-500/15 shadow-sm ring-1 ring-amber-500/30'
-                    : is2FASubmitted || isCompleted
-                      ? 'border-emerald-500/30 bg-emerald-500/10'
-                      : 'border-blue-500/30 bg-blue-500/10'
-                }`}
-              >
-                <div
-                  className={`text-[11px] font-bold ${
-                    isWaiting2FA
-                      ? 'text-amber-600 dark:text-amber-400'
-                      : 'text-blue-600 dark:text-blue-400'
-                  }`}
-                >
-                  مرحله ۳ (تبادل لایو)
-                </div>
-                <div className="text-xs font-bold text-foreground mt-0.5 flex items-center gap-1.5">
-                  {isWaiting2FA ? (
-                    <>
-                      <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />
-                      <span>ورود کد ۲FA توسط شما</span>
-                    </>
-                  ) : is2FASubmitted || isCompleted ? (
-                    <>
-                      <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                      <span>کد ۲FA دریافت شد</span>
-                    </>
-                  ) : (
-                    <>
-                      <Clock className="w-4 h-4 text-blue-500" />
-                      <span>آماده‌سازی ورود اپراتور</span>
-                    </>
-                  )}
-                </div>
-              </div>
-
-              {/* Step 4 */}
-              <div
-                className={`rounded-xl border p-3.5 ${
-                  isCompleted
-                    ? 'border-emerald-500/30 bg-emerald-500/10'
-                    : 'border-border bg-card text-muted-foreground'
-                }`}
-              >
-                <div className="text-[11px] font-bold">مرحله ۴</div>
-                <div className="text-xs font-bold mt-0.5 flex items-center gap-1.5">
-                  {isCompleted ? (
-                    <>
-                      <ShieldCheck className="w-4 h-4 text-emerald-500" />
-                      <span className="text-emerald-700 dark:text-emerald-300">
-                        فعال‌سازی + پاکسازی رمزها
-                      </span>
-                    </>
-                  ) : (
-                    <>
-                      <Lock className="w-4 h-4" />
-                      <span>فعال‌سازی نهایی</span>
-                    </>
-                  )}
-                </div>
-              </div>
+          <div className="space-y-6 pt-2">
+            {/* VibeFarsi Stepper Component */}
+            <div className="p-4 sm:p-6 rounded-surface border border-border/60 bg-muted/15 shadow-xs">
+              <Stepper steps={stepperSteps} />
             </div>
 
             {/* LIVE 2FA PROMPT CARD */}
             {isWaiting2FA && (
-              <div className="rounded-2xl border-2 border-dashed border-amber-500/60 bg-amber-500/10 p-6 space-y-4 animate-in fade-in-50 duration-200">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div className="flex items-center gap-3 text-amber-800 dark:text-amber-200">
-                    <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-600 flex items-center justify-center shrink-0">
+              <div className="rounded-surface border-2 border-dashed border-amber-500/60 bg-amber-500/10 p-5 sm:p-6 space-y-4 animate-in fade-in-50 duration-200">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 text-amber-700 dark:text-amber-300">
+                    <div className="w-10 h-10 rounded-control bg-amber-500/20 text-amber-500 flex items-center justify-center shrink-0">
                       <AlertTriangle className="h-5 w-5" />
                     </div>
                     <div>
-                      <h4 className="text-sm font-bold">
+                      <h4 className="text-sm font-black">
                         {activeOrder.two_factor_prompt ||
                           'اپراتور نیازمند کد تایید دو مرحله‌ای (۲FA / OTP) حساب شماست'}
                       </h4>
@@ -687,7 +750,7 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
                     </div>
                   </div>
 
-                  <div className="rounded-xl border border-amber-500/30 bg-amber-500/20 px-3.5 py-1.5 font-mono text-xs font-bold text-amber-800 dark:text-amber-300 shrink-0">
+                  <div className="rounded-control border border-amber-500/30 bg-amber-500/20 px-3.5 py-1.5 font-mono font-latin text-xs font-black text-amber-700 dark:text-amber-300 shrink-0 self-start sm:self-auto">
                     مهلت کد: {Math.floor(countdown / 60)}:
                     {(countdown % 60).toString().padStart(2, '0')}
                   </div>
@@ -698,7 +761,7 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
                     onSubmit={handleSubmitOtp}
                     className="flex flex-col sm:flex-row gap-2.5 max-w-md pt-2"
                   >
-                    <Input
+                    <input
                       type="text"
                       dir="ltr"
                       maxLength={8}
@@ -708,26 +771,25 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
                         setOtpCode(e.target.value.replace(/\D/g, ''))
                         setOtpError('')
                       }}
-                      className="text-center font-mono text-lg tracking-widest font-bold h-11 bg-background"
-                      autoFocus
+                      className="text-center font-mono font-latin text-xl tracking-widest font-black h-11 bg-background rounded-field border border-border/80 text-foreground outline-none focus:border-brand flex-1"
                       required
                     />
-                    <Button
+                    <button
                       type="submit"
                       disabled={otpLoading}
-                      className="bg-blue-600 hover:bg-blue-700 text-white shrink-0 text-xs font-bold h-11 px-5 shadow-sm"
+                      className="h-11 px-5 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground text-xs font-black duration-motion ease-motion active:scale-[0.98] shadow-control flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 shrink-0"
                     >
                       {otpLoading ? (
-                        <RefreshCw className="h-4 w-4 animate-spin ml-1.5" />
+                        <RefreshCw className="h-4 w-4 animate-spin" />
                       ) : (
-                        <Send className="h-4 w-4 ml-1.5" />
+                        <Send className="h-4 w-4" />
                       )}
                       <span>ارسال به اپراتور</span>
-                    </Button>
+                    </button>
                   </form>
                 ) : (
-                  <div className="flex items-center gap-2.5 rounded-xl border border-emerald-500/30 bg-emerald-500/15 p-4 text-xs text-emerald-800 dark:text-emerald-200 font-medium">
-                    <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                  <div className="flex items-center gap-2.5 rounded-control border border-emerald-500/30 bg-emerald-500/15 p-4 text-xs text-emerald-700 dark:text-emerald-300 font-bold">
+                    <CheckCircle2 className="h-5 w-5 text-emerald-400 shrink-0" />
                     <span>
                       کد تایید با موفقیت در میز اپراتور دریافت شد! در حال
                       فعال‌سازی قانونی اشتراک شما...
@@ -736,7 +798,7 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
                 )}
 
                 {otpError && (
-                  <div className="text-xs text-red-500 font-medium flex items-center gap-1.5">
+                  <div className="text-xs text-destructive font-bold flex items-center gap-1.5">
                     <AlertCircle className="w-3.5 h-3.5 shrink-0" />
                     <span>{otpError}</span>
                   </div>
@@ -744,46 +806,46 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
               </div>
             )}
 
-            {/* Zeroize Security Guardrail Badge */}
+            {/* Zeroize Security Guardrail Badge - Clean Graphite Minimal */}
             <div
-              className={`flex items-start gap-3 rounded-2xl border p-4 text-xs leading-relaxed transition-colors ${
+              className={`flex items-start gap-3 rounded-surface border p-4 text-xs leading-relaxed transition-colors ${
                 isCompleted
                   ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200'
-                  : 'border-border bg-card text-muted-foreground'
+                  : 'border-border/60 bg-muted/20 text-muted-foreground'
               }`}
             >
               <div
-                className={`p-2 rounded-xl shrink-0 mt-0.5 ${
+                className={`p-2 rounded-control shrink-0 mt-0.5 ${
                   isCompleted
-                    ? 'bg-emerald-500/20 text-emerald-600'
-                    : 'bg-blue-500/10 text-blue-600 dark:text-blue-400'
+                    ? 'bg-emerald-500/20 text-emerald-400'
+                    : 'bg-brand/10 text-brand'
                 }`}
               >
                 <ShieldCheck className="h-5 w-5" />
               </div>
               <div className="space-y-1">
-                <div className="font-bold text-foreground flex items-center gap-2">
+                <div className="font-black text-foreground flex items-center gap-2 flex-wrap">
                   <span>سیاست پاکسازی امن و نابودسازی خودکار (Zeroize)</span>
                   {isCompleted ? (
-                    <span className="text-[10px] bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-bold px-2 py-0.5 rounded-full">
+                    <span className="text-[10px] bg-emerald-500/20 text-emerald-400 font-bold px-2 py-0.5 rounded-control">
                       رمزهای عبور پاکسازی شد
                     </span>
                   ) : (
-                    <span className="text-[10px] bg-blue-500/10 text-blue-600 dark:text-blue-400 font-bold px-2 py-0.5 rounded-full">
+                    <span className="text-[10px] bg-brand/10 text-brand font-bold px-2 py-0.5 rounded-control">
                       محافظت با AES-256-GCM
                     </span>
                   )}
                 </div>
-                <p>
+                <p className="text-[11px] leading-relaxed">
                   {isCompleted
                     ? 'سفارش فعال‌سازی شما با موفقیت به اتمام رسید. جهت رعایت کامل حریم خصوصی و امنیت حساب، تمامی رمزهای عبور ارسال‌شده به طور دائمی و برگشت‌ناپذیر از پایگاه داده آناهیکس پاکسازی (Zeroize) شدند.'
-                    : 'کلیه اطلاعات حساس و رمزهای عبور اکانت با کلید معتبر سخت‌افزاری AES-256-GCM رمزنگاری شده‌اند. پس از تایید اپراتور و تکمیل اشتراک، رمزها به طور خودکار از سرور پاکسازی خواهند شد.'}
+                    : 'کلیه اطلاعات حساس و رمزهای عبور اکانت با کلید سخت‌افزاری AES-256-GCM رمزنگاری شده‌اند. پس از تایید اپراتور و تکمیل اشتراک، رمزها به طور خودکار از سرور پاکسازی خواهند شد.'}
                 </p>
               </div>
             </div>
           </div>
         )}
-      </Card>
+      </div>
 
       {/* Official Tax Invoice & Proforma Modal */}
       {activeOrder && (

@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import type React from 'react'
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { apiService } from '../../services/api'
 import type { OfficialInvoice } from '../../types'
 import { Badge } from '../ui/badge'
@@ -51,6 +52,7 @@ export const OfficialInvoiceModal: React.FC<OfficialInvoiceModalProps> = ({
         data = await apiService.getOrderInvoice(orderIdOrNo, accessToken)
       }
       setInvoice(data)
+      setError('')
     } catch (err: any) {
       setError(err.message || 'خطا در دریافت اطلاعات فاکتور')
     } finally {
@@ -60,7 +62,10 @@ export const OfficialInvoiceModal: React.FC<OfficialInvoiceModalProps> = ({
 
   useEffect(() => {
     if (isOpen && orderIdOrNo) {
+      setError('')
       loadInvoice()
+    } else if (!isOpen) {
+      setError('')
     }
   }, [isOpen, orderIdOrNo, accessToken, isAdmin])
 
@@ -89,20 +94,24 @@ export const OfficialInvoiceModal: React.FC<OfficialInvoiceModalProps> = ({
     invoice?.payment_status === 'paid' ||
     invoice?.invoice_type === 'official'
 
-  return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 print:p-0 print:bg-white print:static print:inset-auto">
+  return createPortal(
+    <div
+      id="invoice-modal-portal"
+      className="fixed inset-0 z-[99999] overflow-y-auto bg-black/75 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 print:p-0 print:bg-white print:static print:inset-auto animate-in fade-in"
+      style={{ top: 0, left: 0, right: 0, bottom: 0 }}
+    >
       <div className="w-full max-w-2xl my-4 flex flex-col gap-3">
         {/* Action Bar (Hidden during print) - Graphite Technical Minimal */}
-        <div className="flex items-center justify-between gap-3 bg-zinc-950 border border-zinc-800 rounded-surface p-4 shadow-surface print:hidden">
+        <div className="flex items-center justify-between gap-3 bg-card border border-border/80 rounded-surface p-4 shadow-surface text-foreground print:hidden">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-control bg-zinc-900 border border-zinc-800 text-zinc-100 flex items-center justify-center shrink-0">
+            <div className="w-9 h-9 rounded-control bg-secondary border border-border/60 text-secondary-foreground flex items-center justify-center shrink-0">
               <FileText className="w-4 h-4 text-brand" />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-white">
+              <h3 className="text-sm font-black text-foreground">
                 {isPaid ? 'رسید و صورتحساب خرید' : 'پیش‌فاکتور سفارش'}
               </h3>
-              <p className="text-[11px] text-zinc-400">
+              <p className="text-[11px] text-muted-foreground">
                 فروشگاه هوش مصنوعی آناهیکس
               </p>
             </div>
@@ -121,30 +130,31 @@ export const OfficialInvoiceModal: React.FC<OfficialInvoiceModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="w-9 h-9 rounded-control flex items-center justify-center text-zinc-400 hover:text-white hover:bg-zinc-900 border border-transparent hover:border-zinc-800 transition-colors cursor-pointer"
+              className="w-9 h-9 rounded-control flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted border border-border/40 transition-colors cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>
           </div>
         </div>
 
-        {/* Loading / Error States */}
-        {loading && (
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-12 text-center shadow-lg">
-            <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-            <p className="text-xs text-slate-500 font-medium">
+        {/* Loading State */}
+        {loading && !invoice && (
+          <div className="bg-card border border-border/80 rounded-2xl p-12 text-center shadow-surface">
+            <div className="w-8 h-8 border-2 border-brand border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+            <p className="text-xs text-muted-foreground font-medium">
               در حال بارگذاری صورتحساب...
             </p>
           </div>
         )}
 
-        {error && (
-          <div className="bg-white dark:bg-slate-900 border border-red-200 dark:border-red-900/60 rounded-2xl p-6 text-center shadow-lg">
-            <AlertCircle className="w-8 h-8 text-red-500 mx-auto mb-2" />
-            <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">
+        {/* Error State - ONLY shown if invoice is not loaded */}
+        {error && !invoice && (
+          <div className="bg-card border border-destructive/30 rounded-2xl p-6 text-center shadow-surface">
+            <AlertCircle className="w-8 h-8 text-destructive mx-auto mb-2" />
+            <h4 className="text-sm font-black text-foreground">
               خطا در دریافت فاکتور
             </h4>
-            <p className="text-xs text-slate-500 mt-1">{error}</p>
+            <p className="text-xs text-muted-foreground mt-1">{error}</p>
             <Button
               size="sm"
               onClick={loadInvoice}
@@ -442,35 +452,68 @@ export const OfficialInvoiceModal: React.FC<OfficialInvoiceModalProps> = ({
         )}
       </div>
 
-      {/* Clean A4 Print Stylesheet */}
+      {/* Robust A4 Print Stylesheet (Eliminates Blank 1st Page & Truncation) */}
       <style>{`
         @media print {
-          body * {
-            visibility: hidden;
+          /* Hide all application DOM outside of the invoice modal portal */
+          body > *:not(#invoice-modal-portal) {
+            display: none !important;
           }
-          .printable-invoice, .printable-invoice * {
-            visibility: visible;
+
+          html, body {
+            width: 100% !important;
+            height: auto !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            background: #ffffff !important;
+            color: #0f172a !important;
+            overflow: visible !important;
           }
+
+          #invoice-modal-portal {
+            position: static !important;
+            inset: auto !important;
+            display: block !important;
+            width: 100% !important;
+            height: auto !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            background: #ffffff !important;
+            overflow: visible !important;
+          }
+
+          .print\\:hidden, .print-hidden {
+            display: none !important;
+          }
+
           .printable-invoice {
-            position: absolute;
-            left: 0;
-            top: 0;
+            position: static !important;
             width: 100% !important;
             max-width: 100% !important;
-            padding: 20px !important;
-            margin: 0 !important;
+            margin: 0 auto !important;
+            padding: 0 !important;
             border: none !important;
             box-shadow: none !important;
             background: #ffffff !important;
             color: #0f172a !important;
-            page-break-inside: avoid;
+            page-break-after: auto;
+            page-break-before: auto;
+            page-break-inside: auto;
           }
+
+          /* Force high-fidelity color reproduction for badges and tables */
+          * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+
           @page {
             size: A4 portrait;
-            margin: 10mm;
+            margin: 12mm 10mm;
           }
         }
       `}</style>
-    </div>
+    </div>,
+    document.body,
   )
 }

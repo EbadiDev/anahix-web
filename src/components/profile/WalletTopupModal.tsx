@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import type React from 'react'
 import { useState } from 'react'
+import { createPortal } from 'react-dom'
 
 interface WalletTopupModalProps {
   isOpen: boolean
@@ -65,22 +66,23 @@ export const WalletTopupModal: React.FC<WalletTopupModalProps> = ({
     }, 1000)
   }
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-in fade-in"
+      className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-in fade-in"
+      style={{ top: 0, left: 0, right: 0, bottom: 0 }}
       dir="rtl"
     >
-      <div className="w-full max-w-md bg-zinc-950 rounded-surface border border-zinc-800 shadow-overlay p-6 space-y-5 text-zinc-100">
-        <div className="flex items-center justify-between pb-3 border-b border-zinc-800">
+      <div className="w-full max-w-md bg-card rounded-surface border border-border/80 shadow-overlay p-6 space-y-5 text-foreground animate-in zoom-in-95">
+        <div className="flex items-center justify-between pb-3 border-b border-border/60">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-control bg-secondary text-secondary-foreground border border-border/60 flex items-center justify-center">
               <Wallet className="w-4 h-4 text-brand" />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-white">
+              <h3 className="text-sm font-black text-foreground">
                 افزایش موجودی کیف پول
               </h3>
-              <p className="text-[11px] text-zinc-400">
+              <p className="text-[11px] text-muted-foreground">
                 شارژ آنی با کارت‌های بانکی عضو شبکه شتاب
               </p>
             </div>
@@ -89,7 +91,7 @@ export const WalletTopupModal: React.FC<WalletTopupModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="p-1 rounded-control text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer"
+            className="p-1 rounded-control text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -100,10 +102,10 @@ export const WalletTopupModal: React.FC<WalletTopupModalProps> = ({
             <div className="w-12 h-12 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 flex items-center justify-center mx-auto">
               <CheckCircle2 className="w-6 h-6" />
             </div>
-            <h4 className="text-sm font-bold text-white">
+            <h4 className="text-sm font-black text-foreground">
               کیف پول با موفقیت شارژ شد!
             </h4>
-            <p className="text-xs text-zinc-400 font-latin">
+            <p className="text-xs text-muted-foreground font-latin">
               +{toPersianDigits(amount.toLocaleString())} تومان به موجودی اضافه
               گردید
             </p>
@@ -112,7 +114,7 @@ export const WalletTopupModal: React.FC<WalletTopupModalProps> = ({
           <form onSubmit={handleSubmit} className="space-y-4 text-xs">
             {/* Amount input */}
             <div className="space-y-1.5 text-right">
-              <label className="block font-bold text-zinc-300">
+              <label className="block font-bold text-foreground">
                 مبلغ شارژ (تومان)
               </label>
               <div className="relative">
@@ -126,7 +128,7 @@ export const WalletTopupModal: React.FC<WalletTopupModalProps> = ({
                   }
                   onChange={handleCustomChange}
                   placeholder="۱۰۰,۰۰۰"
-                  className="w-full h-11 px-3 text-center text-lg font-black font-latin rounded-field bg-zinc-900 border border-zinc-800 text-white outline-none focus:border-foreground/40 transition-colors"
+                  className="w-full h-11 px-3 text-center text-lg font-black font-latin rounded-field bg-background border border-border/60 text-foreground outline-none focus:border-brand/50 transition-colors"
                   required
                 />
               </div>
@@ -144,7 +146,7 @@ export const WalletTopupModal: React.FC<WalletTopupModalProps> = ({
                     className={`py-2 px-2 rounded-control border text-center duration-motion ease-motion active:scale-[0.98] transition-all text-xs font-latin cursor-pointer ${
                       isSelected
                         ? 'bg-primary text-primary-foreground font-black border-transparent shadow-control'
-                        : 'border-zinc-800 bg-zinc-900 text-zinc-300 hover:text-white hover:bg-zinc-800/80'
+                        : 'border-border/60 bg-muted/40 text-muted-foreground hover:text-foreground hover:bg-muted'
                     }`}
                   >
                     {toPersianDigits(val.toLocaleString())}
@@ -155,17 +157,17 @@ export const WalletTopupModal: React.FC<WalletTopupModalProps> = ({
 
             {/* Gateway Info */}
             <div className="space-y-1.5 pt-1 text-right">
-              <label className="block font-bold text-zinc-300">
+              <label className="block font-bold text-foreground">
                 درگاه پرداخت الکترونیک
               </label>
-              <div className="p-3 rounded-control border border-zinc-800 bg-zinc-900/60 text-zinc-200 flex items-center justify-between">
+              <div className="p-3 rounded-control border border-border/60 bg-muted/30 text-foreground flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
                   <CreditCard className="w-4 h-4 text-brand shrink-0" />
                   <div>
                     <span className="block text-xs font-bold">
                       کارت‌های بانکی عضو شتاب
                     </span>
-                    <span className="text-[10px] text-zinc-400 font-normal">
+                    <span className="text-[10px] text-muted-foreground font-normal">
                       شاپرک (پرداخت آنلاین با کلیه بانک‌های کشور)
                     </span>
                   </div>
@@ -194,6 +196,7 @@ export const WalletTopupModal: React.FC<WalletTopupModalProps> = ({
           </form>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

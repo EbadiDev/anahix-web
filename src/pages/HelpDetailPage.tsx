@@ -1,6 +1,5 @@
 import {
   Check,
-  ChevronLeft,
   Clock,
   Copy,
   Eye,
@@ -19,6 +18,7 @@ import { MarkdownRenderer } from '../components/content/MarkdownRenderer'
 import { Header } from '../components/Header'
 import { api } from '../services/api'
 import type { HelpGuideDetail } from '../types'
+import { toPersianDigits } from '../utils/formatters'
 
 export const HelpDetailPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>()
@@ -28,9 +28,29 @@ export const HelpDetailPage: React.FC = () => {
   const [isCopied, setIsCopied] = useState(false)
   const [isCartOpen, setIsCartOpen] = useState(false)
 
-  // Feedback State
-  const [feedbackSubmitted, setFeedbackSubmitted] = useState(false)
+  // Feedback State (Tracked with live DB counts & Toggle)
+  const [userVote, setUserVote] = useState<'yes' | 'no' | null>(() => {
+    try {
+      return (
+        (localStorage.getItem(`anahix_guide_vote_${slug}`) as 'yes' | 'no') ||
+        null
+      )
+    } catch {
+      return null
+    }
+  })
   const [feedbackMsg, setFeedbackMsg] = useState('')
+  const [voting, setVoting] = useState(false)
+
+  useEffect(() => {
+    if (!slug) return
+    try {
+      const saved = localStorage.getItem(`anahix_guide_vote_${slug}`) as
+        | 'yes'
+        | 'no'
+      setUserVote(saved || null)
+    } catch {}
+  }, [slug])
 
   useEffect(() => {
     if (!slug) return
@@ -55,22 +75,56 @@ export const HelpDetailPage: React.FC = () => {
     setTimeout(() => setIsCopied(false), 2500)
   }
 
+  const handleTOCClick = (e: React.MouseEvent, id: string) => {
+    e.preventDefault()
+    const target = document.getElementById(id)
+    if (target) {
+      const headerOffset = 95
+      const elementPosition = target.getBoundingClientRect().top
+      const offsetPosition = elementPosition + window.pageYOffset - headerOffset
+      window.scrollTo({
+        top: offsetPosition,
+        behavior: 'smooth',
+      })
+    }
+  }
+
   const handleVote = async (isHelpful: boolean) => {
-    if (!slug || feedbackSubmitted) return
+    if (!slug || voting) return
+    setVoting(true)
     try {
-      await api.voteHelpGuide(slug, isHelpful)
-      setFeedbackSubmitted(true)
-      setFeedbackMsg('با تشکر! بازخورد ارزشمند شما با موفقیت ثبت شد.')
-      if (guide) {
-        if (isHelpful) {
-          setGuide({ ...guide, helpful_yes: guide.helpful_yes + 1 })
-        } else {
-          setGuide({ ...guide, helpful_no: guide.helpful_no + 1 })
-        }
+      const res = await api.voteHelpGuide(slug, isHelpful)
+      if (res.status === 'cancelled') {
+        setUserVote(null)
+        try {
+          localStorage.removeItem(`anahix_guide_vote_${slug}`)
+        } catch {}
+        setFeedbackMsg('بازخورد قبلی شما با موفقیت لغو گردید.')
+      } else {
+        const voteVal = isHelpful ? 'yes' : 'no'
+        setUserVote(voteVal)
+        try {
+          localStorage.setItem(`anahix_guide_vote_${slug}`, voteVal)
+        } catch {}
+        setFeedbackMsg(
+          isHelpful
+            ? 'با تشکر! بازخورد شما به عنوان حل مشکل ثبت گردید.'
+            : 'بازخورد شما ثبت شد. تلاش می‌کنیم این راهنما را بهبود دهیم.',
+        )
       }
+      if (guide) {
+        setGuide({
+          ...guide,
+          helpful_yes: res.helpful_yes,
+          helpful_no: res.helpful_no,
+        })
+      }
+      setTimeout(() => setFeedbackMsg(''), 4000)
     } catch (err: any) {
-      setFeedbackSubmitted(true)
-      setFeedbackMsg(err.message || 'بازخورد شما قبلاً ثبت شده است')
+      setFeedbackMsg(err.message || 'خطا در ثبت بازخورد')
+      setTimeout(() => setFeedbackMsg(''), 4000)
+    } finally {
+      setVoting(false)
     }
   }
 
@@ -99,78 +153,99 @@ export const HelpDetailPage: React.FC = () => {
       <CartDrawer isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
 
       <main className="flex-1 pb-20">
-        {/* Breadcrumb */}
-        <div className="border-b border-border bg-muted/20 py-3 text-xs text-muted-foreground">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center gap-2">
-            <Link to="/" className="hover:text-primary transition-colors">
+        {/* Guide Header Banner with In-Container Breadcrumbs matching BlogDetailPage */}
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-8 space-y-4 sm:space-y-5">
+          {/* In-Container Breadcrumb Navigation */}
+          <nav
+            aria-label="Breadcrumb"
+            className="text-xs text-muted-foreground flex items-center gap-2 flex-wrap"
+          >
+            <Link to="/" className="hover:text-foreground transition-colors">
               خانه
             </Link>
-            <ChevronLeft className="h-3 w-3" />
-            <Link to="/help" className="hover:text-primary transition-colors">
+            <span className="opacity-40">/</span>
+            <Link
+              to="/help"
+              className="hover:text-foreground transition-colors"
+            >
               پایگاه دانش
             </Link>
-            <ChevronLeft className="h-3 w-3" />
+            <span className="opacity-40">/</span>
             <Link
               to={`/help?category=${guide.category_slug}`}
-              className="hover:text-primary transition-colors"
+              className="hover:text-foreground transition-colors"
             >
               {guide.category_name}
             </Link>
-            <ChevronLeft className="h-3 w-3" />
-            <span className="text-foreground font-medium truncate max-w-xs">
+            <span className="opacity-40">/</span>
+            <span className="text-brand font-bold truncate max-w-xs sm:max-w-md">
               {guide.title}
             </span>
-          </div>
-        </div>
+          </nav>
 
-        {/* Guide Header Banner */}
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 space-y-5">
           <div className="flex flex-wrap items-center gap-2 text-xs">
-            <span className="px-3 py-1 rounded-full bg-blue-500/10 text-primary font-semibold">
+            <span className="px-3 py-1 rounded-control bg-brand/10 text-brand font-bold">
               {guide.category_name}
             </span>
-            <span className="bg-muted px-2.5 py-0.5 rounded-full font-medium text-foreground text-[11px]">
+            <span className="bg-muted px-2.5 py-0.5 rounded-control font-medium text-foreground text-[11px]">
               سطح: {guide.difficulty}
             </span>
             <span className="flex items-center gap-1 text-muted-foreground">
-              <Clock className="h-3.5 w-3.5 text-blue-500" />
-              <span>زمان مطالعه: {guide.reading_time_minutes} دقیقه</span>
+              <Clock className="h-3.5 w-3.5 text-brand" />
+              <span>
+                زمان مطالعه: {toPersianDigits(guide.reading_time_minutes)} دقیقه
+              </span>
             </span>
             <span className="text-muted-foreground">•</span>
-            <span className="flex items-center gap-1 text-muted-foreground">
+            <span className="flex items-center gap-1 text-muted-foreground font-latin">
               <Eye className="h-3.5 w-3.5" />
-              <span>{guide.view_count.toLocaleString()} بازدید</span>
+              <span>
+                {toPersianDigits(guide.view_count.toLocaleString())} بازدید
+              </span>
             </span>
           </div>
 
-          <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-foreground leading-tight tracking-tight">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-black text-foreground leading-tight tracking-tight">
             {guide.title}
           </h1>
 
           {guide.excerpt && (
-            <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed bg-muted/30 p-4 rounded-2xl border border-border/60">
+            <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed bg-muted/20 p-4 rounded-surface border border-border/60">
               {guide.excerpt}
             </p>
           )}
 
           {/* Share & Feedback Status Bar */}
-          <div className="flex items-center justify-between gap-4 py-3 border-y border-border text-xs">
-            <div className="flex items-center gap-4 text-muted-foreground">
-              <span className="flex items-center gap-1 text-emerald-600 font-semibold">
+          <div className="flex items-center justify-between gap-4 py-3 border-y border-border/60 text-xs">
+            <div className="flex items-center gap-3 text-muted-foreground">
+              <span className="flex items-center gap-1 text-emerald-400 font-bold font-latin">
                 <ThumbsUp className="h-3.5 w-3.5" />
-                <span>{guide.helpful_yes} نفر تایید کرده‌اند</span>
+                <span>
+                  {toPersianDigits(guide.helpful_yes)} نفر تایید کرده‌اند
+                </span>
               </span>
+              {guide.helpful_no > 0 && (
+                <>
+                  <span>•</span>
+                  <span className="flex items-center gap-1 text-destructive font-bold font-latin">
+                    <ThumbsDown className="h-3.5 w-3.5 text-destructive" />
+                    <span>
+                      {toPersianDigits(guide.helpful_no)} نفر تایید نکرده‌اند
+                    </span>
+                  </span>
+                </>
+              )}
             </div>
 
             <button
               type="button"
               onClick={handleCopyLink}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border bg-card hover:bg-muted text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-control border border-border/60 bg-card hover:bg-muted text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
             >
               {isCopied ? (
                 <>
-                  <Check className="h-3.5 w-3.5 text-emerald-500" />
-                  <span className="text-emerald-500">کپی شد</span>
+                  <Check className="h-3.5 w-3.5 text-emerald-400" />
+                  <span className="text-emerald-400">کپی شد</span>
                 </>
               ) : (
                 <>
@@ -200,7 +275,8 @@ export const HelpDetailPage: React.FC = () => {
                         <li key={item.id}>
                           <a
                             href={`#${item.id}`}
-                            className="text-xs text-muted-foreground hover:text-primary transition-colors block"
+                            onClick={(e) => handleTOCClick(e, item.id)}
+                            className="text-xs text-muted-foreground hover:text-brand transition-colors block cursor-pointer"
                           >
                             {item.text}
                           </a>
@@ -215,73 +291,150 @@ export const HelpDetailPage: React.FC = () => {
                 <MarkdownRenderer content={guide.content} />
               </div>
 
-              {/* Feedback Widget: Was this helpful? */}
-              <div className="bg-card border border-border rounded-3xl p-6 sm:p-8 shadow-xs text-center space-y-4">
+              {/* Feedback Widget: Was this helpful? - Live DB counts & Toggle */}
+              <div className="bg-card border border-border/60 rounded-surface p-6 sm:p-8 shadow-surface text-center space-y-4">
                 <div className="space-y-1">
-                  <h3 className="text-base font-bold text-foreground">
+                  <h3 className="text-base font-black text-foreground">
                     آیا این راهنما مشکل شما را برطرف کرد؟
                   </h3>
                   <p className="text-xs text-muted-foreground">
-                    بازخورد شما به ما در بهبود کیفیت پاسخ‌ها و راهنماها کمک
-                    می‌کند.
+                    بازخورد شما در بهبود کیفیت پاسخ‌ها و راهنماها موثر است و در
+                    سیستم ثبت می‌شود.
                   </p>
                 </div>
 
-                {feedbackSubmitted ? (
-                  <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-500/30 text-emerald-800 dark:text-emerald-200 text-xs font-semibold">
-                    <Check className="h-4 w-4 text-emerald-600" />
+                {feedbackMsg && (
+                  <div className="inline-flex items-center gap-2 px-4 py-2 rounded-control bg-secondary border border-border text-foreground text-xs font-bold animate-in fade-in">
+                    <Check className="h-4 w-4 text-brand" />
                     <span>{feedbackMsg}</span>
                   </div>
-                ) : (
-                  <div className="flex items-center justify-center gap-3 pt-2">
-                    <button
-                      type="button"
-                      onClick={() => handleVote(true)}
-                      className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-semibold text-xs transition-colors"
-                    >
-                      <ThumbsUp className="h-4 w-4" />
-                      <span>بله، مشکلم حل شد</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleVote(false)}
-                      className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/20 text-rose-700 dark:text-rose-300 font-semibold text-xs transition-colors"
-                    >
-                      <ThumbsDown className="h-4 w-4" />
-                      <span>خیر، هنوز مشکل دارم</span>
-                    </button>
-                  </div>
                 )}
+
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+                  <button
+                    type="button"
+                    disabled={voting}
+                    onClick={() => handleVote(true)}
+                    className={`flex items-center gap-2 px-5 py-2.5 rounded-control text-xs font-bold transition-all duration-motion ease-motion active:scale-[0.98] cursor-pointer ${
+                      userVote === 'yes'
+                        ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 shadow-control ring-1 ring-emerald-500/30'
+                        : 'border border-border/60 bg-muted/20 hover:bg-muted/40 text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    <ThumbsUp
+                      className={`h-4 w-4 ${
+                        userVote === 'yes'
+                          ? 'fill-emerald-400 text-emerald-400'
+                          : ''
+                      }`}
+                    />
+                    <span>بله، مشکلم حل شد</span>
+                    <span className="text-[11px] font-mono font-latin px-2 py-0.5 rounded-control bg-card/60">
+                      ({toPersianDigits(guide.helpful_yes)} نفر)
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={voting}
+                    onClick={() => handleVote(false)}
+                    className={`flex items-center gap-2 px-5 py-2.5 rounded-control text-xs font-bold transition-all duration-motion ease-motion active:scale-[0.98] cursor-pointer ${
+                      userVote === 'no'
+                        ? 'bg-destructive/20 text-destructive border border-destructive/40 shadow-control ring-1 ring-destructive/30'
+                        : 'border border-border/60 bg-muted/20 hover:bg-muted/40 text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    <ThumbsDown
+                      className={`h-4 w-4 ${
+                        userVote === 'no'
+                          ? 'fill-destructive text-destructive'
+                          : ''
+                      }`}
+                    />
+                    <span>خیر، هنوز مشکل دارم</span>
+                    <span className="text-[11px] font-mono font-latin px-2 py-0.5 rounded-control bg-card/60">
+                      ({toPersianDigits(guide.helpful_no)} نفر)
+                    </span>
+                  </button>
+                </div>
               </div>
 
-              {/* Related Store Product CTA */}
+              {/* Related Store Product CTA - Graphite Standard */}
               {guide.related_product_title && (
-                <div className="rounded-3xl border border-blue-500/30 bg-gradient-to-r from-blue-50 to-indigo-50/50 dark:from-blue-950/30 dark:to-indigo-950/20 p-6 sm:p-8 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-6">
-                  <div className="space-y-2 text-right">
-                    <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-blue-600 text-white text-[11px] font-bold">
-                      <Zap className="h-3 w-3" />
+                <div className="rounded-surface border border-border/60 bg-card p-6 sm:p-7 shadow-surface flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 relative overflow-hidden">
+                  <div className="space-y-2 text-right flex-1 min-w-0">
+                    <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-control bg-brand/10 text-brand border border-brand/20 text-[11px] font-bold">
+                      <Zap className="h-3.5 w-3.5" />
                       <span>اکانت بدون ارور و تضمین شده</span>
                     </div>
-                    <h3 className="text-lg font-bold text-foreground">
+                    <h3 className="text-base sm:text-xl font-black text-foreground">
                       {guide.related_product_title}
                     </h3>
                     <p className="text-xs text-muted-foreground leading-relaxed">
                       اکانت‌های قانونی آناهیکس همراه با گارانتی تعویض و سرورهای
                       اختصاصی بدون ریسک بلاک شدن تحویل داده می‌شوند.
                     </p>
+                    {guide.related_product_price &&
+                      guide.related_product_price > 0 && (
+                        <div className="text-sm font-black text-foreground font-latin pt-1">
+                          قیمت:{' '}
+                          {toPersianDigits(
+                            guide.related_product_price.toLocaleString('fa-IR'),
+                          )}{' '}
+                          <span className="text-xs font-normal text-muted-foreground font-sans">
+                            تومان
+                          </span>
+                        </div>
+                      )}
                   </div>
 
-                  <Link
-                    to={
-                      guide.related_product_slug
-                        ? `/products/${guide.related_product_slug}`
-                        : '/'
-                    }
-                    className="px-5 py-2.5 rounded-xl bg-primary text-primary-foreground font-bold text-xs hover:opacity-90 transition-opacity shadow-sm flex items-center gap-1.5 shrink-0"
-                  >
-                    <ShoppingCart className="h-4 w-4" />
-                    <span>خرید اکانت قانونی</span>
-                  </Link>
+                  <div className="shrink-0 flex items-center gap-2">
+                    <Link
+                      to={
+                        guide.related_product_slug
+                          ? `/products/${guide.related_product_slug}`
+                          : '/'
+                      }
+                      className="h-10 px-5 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs duration-motion ease-motion active:scale-[0.98] shadow-control flex items-center gap-2 cursor-pointer"
+                    >
+                      <ShoppingCart className="h-4 w-4" />
+                      <span>خرید اکانت قانونی</span>
+                    </Link>
+                  </div>
+                </div>
+              )}
+
+              {/* Related Guides Card in Main Column (matching BlogDetailPage) */}
+              {guide.related_guides && guide.related_guides.length > 0 && (
+                <div className="rounded-surface border border-border/60 bg-card p-6 shadow-surface space-y-4">
+                  <h3 className="font-black text-sm text-foreground flex items-center gap-2 border-b border-border/40 pb-3">
+                    <LifeBuoy className="h-4 w-4 text-brand" />
+                    <span>راهنماها و آموزش‌های مرتبط</span>
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {guide.related_guides.map((rel) => (
+                      <Link
+                        key={rel.id}
+                        to={`/help/${rel.slug}`}
+                        className="group block p-3.5 rounded-control bg-muted/20 border border-border/40 hover:border-brand/40 transition-all space-y-2"
+                      >
+                        <h4 className="text-xs font-bold text-foreground group-hover:text-brand transition-colors line-clamp-2 leading-snug">
+                          {rel.title}
+                        </h4>
+                        <div className="flex items-center justify-between text-[10px] text-muted-foreground pt-1 border-t border-border/30">
+                          <span className="font-medium">
+                            {rel.category_name}
+                          </span>
+                          <span className="flex items-center gap-1 text-emerald-400 font-bold font-latin">
+                            <ThumbsUp className="h-3 w-3" />
+                            <span>
+                              {toPersianDigits(rel.helpful_yes)} تایید
+                            </span>
+                          </span>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
@@ -301,7 +454,8 @@ export const HelpDetailPage: React.FC = () => {
                         <a
                           key={item.id}
                           href={`#${item.id}`}
-                          className="block text-muted-foreground hover:text-primary transition-colors leading-snug py-0.5"
+                          onClick={(e) => handleTOCClick(e, item.id)}
+                          className="block text-muted-foreground hover:text-brand transition-colors leading-snug py-0.5 cursor-pointer"
                         >
                           {item.text}
                         </a>

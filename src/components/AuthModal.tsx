@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import type React from 'react'
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { api } from '../services/api'
 import type { CustomerProfile, ThemeSettings } from '../types'
 import { GithubIcon, GoogleIcon } from './SocialIcons'
@@ -414,10 +415,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
   }
 
-  return (
+  return createPortal(
     <div
       dir="rtl"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-fade-in-up"
+      className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-fade-in-up"
+      style={{ top: 0, left: 0, right: 0, bottom: 0 }}
     >
       <div className="relative w-full max-w-md overflow-hidden rounded-surface border border-border/80 bg-card p-6 sm:p-8 shadow-overlay text-card-foreground">
         {/* Glow ambient background in Graphite style */}
@@ -1022,6 +1024,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           </form>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

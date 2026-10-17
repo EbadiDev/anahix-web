@@ -14,6 +14,7 @@ import type React from 'react'
 import { useState } from 'react'
 import { apiService } from '../../services/api'
 import type { CustomerProfile } from '../../types'
+import { formatDisplayPhone } from '../../utils/formatters'
 import { Alert } from '../vibefarsi/Alert'
 import { useNotification } from '../vibefarsi/NotificationContext'
 import { OtpField } from '../vibefarsi/OtpField'
@@ -203,11 +204,12 @@ export const ProfilePersonalTab: React.FC<ProfilePersonalTabProps> = ({
     }
   }
 
-  const maskedPhone = customer.phone
-    ? customer.phone.startsWith('+98')
-      ? customer.phone.replace(/^\+98\s*0?(\d{3})\d{4}(\d{3})$/, '+98 $1****$2')
-      : customer.phone.replace(/^(\d{4})\d{4}(\d{3})$/, '$1****$2')
-    : '0992****377'
+  const isRealPhone = Boolean(
+    customer.phone && !/^098[0-9a-f]{8}$/i.test(customer.phone),
+  )
+  const fullDisplayPhone = isRealPhone
+    ? formatDisplayPhone(customer.phone)
+    : 'شماره همراه ثبت‌نشده است'
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200 max-w-4xl">
@@ -342,7 +344,7 @@ export const ProfilePersonalTab: React.FC<ProfilePersonalTabProps> = ({
                   htmlFor="personal-phone"
                   className="block text-xs font-bold text-foreground"
                 >
-                  شماره موبایل تایید‌شده
+                  شماره موبایل حساب کاربری
                 </label>
                 <button
                   type="button"
@@ -354,7 +356,11 @@ export const ProfilePersonalTab: React.FC<ProfilePersonalTabProps> = ({
                   className="text-[10px] font-bold text-brand hover:underline flex items-center gap-1 cursor-pointer"
                 >
                   <Smartphone className="w-3 h-3 text-brand" />
-                  <span>تغییر شماره همراه</span>
+                  <span>
+                    {isRealPhone
+                      ? 'تغییر شماره همراه'
+                      : 'ثبت و تایید شماره همراه'}
+                  </span>
                 </button>
               </div>
               <div className="relative">
@@ -362,18 +368,32 @@ export const ProfilePersonalTab: React.FC<ProfilePersonalTabProps> = ({
                   id="personal-phone"
                   type="text"
                   dir="ltr"
-                  value={maskedPhone}
+                  value={fullDisplayPhone}
                   disabled
-                  className="w-full h-10 px-3.5 pl-9 rounded-field bg-muted/20 border border-border/30 text-muted-foreground font-latin text-left text-xs cursor-not-allowed"
+                  className="w-full h-10 px-3.5 pl-9 rounded-field bg-muted/20 border border-border/30 text-foreground font-latin text-left text-xs cursor-not-allowed font-bold"
                 />
-                <Lock className="w-3.5 h-3.5 absolute left-3 top-3.5 text-emerald-500 pointer-events-none" />
+                <Lock
+                  className={`w-3.5 h-3.5 absolute left-3 top-3.5 ${
+                    isRealPhone ? 'text-emerald-500' : 'text-amber-500'
+                  } pointer-events-none`}
+                />
               </div>
-              <p className="text-[11px] text-emerald-400 mt-1 flex items-center gap-1 font-medium">
-                <Shield className="w-3 h-3 shrink-0" />
-                <span>
-                  هویت شماره موبایل با پیامک امن مخابراتی OTP تایید شده است
-                </span>
-              </p>
+              {isRealPhone ? (
+                <p className="text-[11px] text-emerald-400 mt-1 flex items-center gap-1 font-medium">
+                  <Shield className="w-3 h-3 shrink-0" />
+                  <span>
+                    هویت شماره موبایل با پیامک امن مخابراتی OTP تایید شده است
+                  </span>
+                </p>
+              ) : (
+                <p className="text-[11px] text-amber-500 mt-1 flex items-center gap-1 font-medium">
+                  <ShieldAlert className="w-3 h-3 shrink-0" />
+                  <span>
+                    هنوز شماره موبایلی ثبت نکرده‌اید. با کلیک بر روی دکمه بالا،
+                    شماره همراه خود را ثبت نمایید.
+                  </span>
+                </p>
+              )}
             </div>
           </div>
 

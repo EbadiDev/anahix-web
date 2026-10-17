@@ -92,60 +92,40 @@ export const LikeButton: React.FC<LikeButtonProps> = ({
       return
     }
 
-    if (isLiked) {
-      info(
-        'قبلاً ثبت شده است',
-        'شما قبلاً این آموزش را پسندیده‌اید و در سیستم ثبت شده است.',
-      )
-      return
-    }
-
     if (loading) return
 
-    // 1. Optimistic UI Update: Fill heart and increment count immediately
-    const prevLikes = likes
-    const nextLikes = prevLikes + 1
-    setLikes(nextLikes)
-    setIsLiked(true)
-    saveLikedArticle(slug)
     setLoading(true)
-
-    // Broadcast sync to other like button instances on the same page
-    window.dispatchEvent(
-      new CustomEvent('anahix:article:liked', {
-        detail: { slug, likes: nextLikes, isLiked: true },
-      }),
-    )
-
     try {
-      // 2. Background sync with backend database
-      const newCount = await api.likeArticle(slug)
-      if (newCount > 0) {
-        setLikes(newCount)
-        window.dispatchEvent(
-          new CustomEvent('anahix:article:liked', {
-            detail: { slug, likes: newCount, isLiked: true },
-          }),
+      // Toggle like in backend database per user/IP
+      const res = await api.likeArticle(slug)
+      const nextLiked = res.is_liked
+      const nextCount = res.like_count
+
+      setLikes(nextCount)
+      setIsLiked(nextLiked)
+
+      if (nextLiked) {
+        saveLikedArticle(slug)
+        success(
+          'دیدگاه مثبت شما ثبت شد',
+          'از اینکه نظر ارزشمند خود را با ما به اشتراک گذاشتید سپاسگزاریم.',
         )
+      } else {
+        removeLikedArticle(slug)
+        info('پسندیدن لغو شد', 'پسند شما برای این مقاله برداشته شد.')
       }
-      success(
-        'دیدگاه مثبت شما ثبت شد',
-        'از اینکه نظر ارزشمند خود را با ما به اشتراک گذاشتید سپاسگزاریم.',
-      )
-    } catch (err: any) {
-      // 3. Rollback on failure & alert user via Vibe Farsi notification
-      setLikes(prevLikes)
-      setIsLiked(false)
-      removeLikedArticle(slug)
+
+      // Broadcast sync to other like button instances on the same page
       window.dispatchEvent(
         new CustomEvent('anahix:article:liked', {
-          detail: { slug, likes: prevLikes, isLiked: false },
+          detail: { slug, likes: nextCount, isLiked: nextLiked },
         }),
       )
+    } catch (err: any) {
       error(
         'خطا در برقراری ارتباط با سرور',
         err.message ||
-          'ثبت پسندیدن با خطا مواجه شد. لطفاً اتصال اینترنت خود را بررسی نمایید.',
+          'ثبت بازخورد با خطا مواجه شد. لطفاً اتصال اینترنت خود را بررسی نمایید.',
       )
     } finally {
       setLoading(false)

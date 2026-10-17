@@ -1,11 +1,10 @@
 import {
   BookOpen,
   Check,
-  ChevronLeft,
   Clock,
   Copy,
   Eye,
-  HelpCircle,
+  LifeBuoy,
   ListOrdered,
   MessageSquare,
   Send,
@@ -25,6 +24,7 @@ import { LikeButton } from '../components/vibefarsi/LikeButton'
 import { useNotification } from '../components/vibefarsi/NotificationContext'
 import { api } from '../services/api'
 import type { ArticleDetail } from '../types'
+import { toPersianDigits } from '../utils/formatters'
 
 export const BlogDetailPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>()
@@ -64,6 +64,20 @@ export const BlogDetailPage: React.FC = () => {
     navigator.clipboard.writeText(window.location.href)
     setIsCopied(true)
     setTimeout(() => setIsCopied(false), 2500)
+  }
+
+  const handleTOCClick = (e: React.MouseEvent, id: string) => {
+    e.preventDefault()
+    const target = document.getElementById(id)
+    if (target) {
+      const headerOffset = 95
+      const elementPosition = target.getBoundingClientRect().top
+      const offsetPosition = elementPosition + window.pageYOffset - headerOffset
+      window.scrollTo({
+        top: offsetPosition,
+        behavior: 'smooth',
+      })
+    }
   }
 
   const handleCommentSubmit = async (e: React.FormEvent) => {
@@ -128,54 +142,61 @@ export const BlogDetailPage: React.FC = () => {
         {/* Framed Article Container (Breadcrumb + Header + Content) */}
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 space-y-6">
           {/* Vibe Farsi Breadcrumb Navigation */}
+          {/* Vibe Farsi Breadcrumb Navigation matching Screenshot 1 & HelpDetailPage */}
           <nav
             aria-label="Breadcrumb"
-            className="border-b border-border/40 pb-3 text-xs text-muted-foreground flex items-center gap-2 flex-wrap"
+            className="text-xs text-muted-foreground flex items-center gap-2 flex-wrap"
           >
-            <Link to="/" className="hover:text-primary transition-colors">
+            <Link to="/" className="hover:text-foreground transition-colors">
               خانه
             </Link>
-            <ChevronLeft className="h-3 w-3" />
-            <Link to="/blog" className="hover:text-primary transition-colors">
+            <span className="opacity-40">/</span>
+            <Link
+              to="/blog"
+              className="hover:text-foreground transition-colors"
+            >
               وبلاگ
             </Link>
-            <ChevronLeft className="h-3 w-3" />
+            <span className="opacity-40">/</span>
             <Link
               to={`/blog?category=${article.category_slug}`}
-              className="hover:text-primary transition-colors"
+              className="hover:text-foreground transition-colors"
             >
               {article.category_name}
             </Link>
-            <ChevronLeft className="h-3 w-3" />
-            <span className="text-foreground font-medium truncate max-w-xs">
+            <span className="opacity-40">/</span>
+            <span className="text-brand font-bold truncate max-w-xs sm:max-w-md">
               {article.title}
             </span>
           </nav>
 
           <div className="space-y-4">
             <div className="flex flex-wrap items-center gap-2 text-xs">
-              <span className="px-3 py-1 rounded-control bg-primary/10 text-primary font-bold">
+              <span className="px-3 py-1 rounded-control bg-brand/10 text-brand font-bold">
                 {article.category_name}
               </span>
-              <span className="flex items-center gap-1 text-muted-foreground">
+              <span className="flex items-center gap-1 text-muted-foreground font-latin">
                 <Clock className="h-3.5 w-3.5 text-brand" />
                 <span>
-                  زمان تخمینی مطالعه: {article.reading_time_minutes} دقیقه
+                  زمان مطالعه: {toPersianDigits(article.reading_time_minutes)}{' '}
+                  دقیقه
                 </span>
               </span>
               <span className="text-muted-foreground">•</span>
-              <span className="flex items-center gap-1 text-muted-foreground">
+              <span className="flex items-center gap-1 text-muted-foreground font-latin">
                 <Eye className="h-3.5 w-3.5" />
-                <span>{article.view_count.toLocaleString()} بازدید</span>
+                <span>
+                  {toPersianDigits(article.view_count.toLocaleString())} بازدید
+                </span>
               </span>
             </div>
 
-            <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-foreground leading-tight tracking-tight">
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-black text-foreground leading-tight tracking-tight">
               {article.title}
             </h1>
 
             {article.excerpt && (
-              <p className="text-sm md:text-base text-muted-foreground leading-relaxed bg-muted/20 p-4 rounded-control border border-border/40">
+              <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed bg-muted/20 p-4 rounded-surface border border-border/60">
                 {article.excerpt}
               </p>
             )}
@@ -270,7 +291,8 @@ export const BlogDetailPage: React.FC = () => {
                         <li key={item.id}>
                           <a
                             href={`#${item.id}`}
-                            className={`text-xs text-muted-foreground hover:text-primary transition-colors block ${
+                            onClick={(e) => handleTOCClick(e, item.id)}
+                            className={`text-xs text-muted-foreground hover:text-brand transition-colors block cursor-pointer ${
                               item.level === 3
                                 ? 'pr-3 opacity-80'
                                 : 'font-medium'
@@ -327,15 +349,15 @@ export const BlogDetailPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Store Integration CTA Box (Related Product) */}
+              {/* Store Integration CTA Box (Related Product) - Graphite Standard matching Screenshot 3 */}
               {article.related_product_title && (
-                <div className="rounded-3xl border border-blue-500/30 bg-gradient-to-r from-blue-50 to-indigo-50/50 dark:from-blue-950/30 dark:to-indigo-950/20 p-6 sm:p-8 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-6">
-                  <div className="space-y-2 text-right">
-                    <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-blue-600 text-white text-[11px] font-bold">
-                      <Zap className="h-3 w-3" />
+                <div className="rounded-surface border border-border/60 bg-card p-6 sm:p-7 shadow-surface flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 relative overflow-hidden">
+                  <div className="space-y-2 text-right flex-1 min-w-0">
+                    <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-control bg-brand/10 text-brand border border-brand/20 text-[11px] font-bold">
+                      <Zap className="h-3.5 w-3.5" />
                       <span>سرویس مرتبط با این مقاله</span>
                     </div>
-                    <h3 className="text-lg sm:text-xl font-bold text-foreground">
+                    <h3 className="text-base sm:text-xl font-black text-foreground">
                       {article.related_product_title}
                     </h3>
                     <p className="text-xs text-muted-foreground leading-relaxed">
@@ -344,9 +366,16 @@ export const BlogDetailPage: React.FC = () => {
                     </p>
                     {article.related_product_price &&
                       article.related_product_price > 0 && (
-                        <div className="text-sm font-bold text-primary pt-1">
-                          قیمت: {article.related_product_price.toLocaleString()}{' '}
-                          تومان
+                        <div className="text-sm font-black text-foreground font-latin pt-1">
+                          قیمت:{' '}
+                          {toPersianDigits(
+                            article.related_product_price.toLocaleString(
+                              'fa-IR',
+                            ),
+                          )}{' '}
+                          <span className="text-xs font-normal text-muted-foreground font-sans">
+                            تومان
+                          </span>
                         </div>
                       )}
                   </div>
@@ -358,7 +387,7 @@ export const BlogDetailPage: React.FC = () => {
                           ? `/products/${article.related_product_slug}`
                           : '/'
                       }
-                      className="px-5 py-2.5 rounded-xl bg-primary text-primary-foreground font-bold text-xs hover:opacity-90 transition-opacity shadow-sm flex items-center gap-1.5"
+                      className="h-10 px-5 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs duration-motion ease-motion active:scale-[0.98] shadow-control flex items-center gap-2 cursor-pointer"
                     >
                       <ShoppingCart className="h-4 w-4" />
                       <span>مشاهده و خرید آنی</span>
@@ -488,7 +517,8 @@ export const BlogDetailPage: React.FC = () => {
                         <a
                           key={item.id}
                           href={`#${item.id}`}
-                          className={`block py-1 text-muted-foreground hover:text-primary transition-colors leading-snug ${
+                          onClick={(e) => handleTOCClick(e, item.id)}
+                          className={`block py-1 text-muted-foreground hover:text-brand transition-colors leading-snug cursor-pointer ${
                             item.level === 3
                               ? 'pr-3 border-r border-border text-[11px] opacity-80'
                               : 'font-medium'
@@ -538,24 +568,30 @@ export const BlogDetailPage: React.FC = () => {
                   </div>
                 )}
 
-              {/* Quick Support Widget */}
-              <div className="bg-muted/40 border border-border rounded-3xl p-5 text-center space-y-3">
-                <HelpCircle className="h-8 w-8 text-primary mx-auto opacity-80" />
-                <h4 className="font-bold text-xs text-foreground">
-                  سوالی درباره این مقاله دارید؟
-                </h4>
-                <p className="text-[11px] text-muted-foreground leading-relaxed">
-                  کارشناسان پشتیبانی آناهیکس ۲۴ ساعته در تلگرام پاسخگوی شما
-                  هستند.
-                </p>
-                <a
-                  href="https://t.me/AnahixSupport"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block w-full py-2 rounded-xl bg-card border border-border text-xs font-semibold hover:bg-background transition-colors text-blue-600"
-                >
-                  ارتباط با پشتیبان تلگرام
-                </a>
+              {/* Quick Support Widget matching Screenshot 2 (LifeBuoy + Telegram only) */}
+              <div className="rounded-surface border border-border/60 bg-card p-6 text-center space-y-4 shadow-surface">
+                <div className="w-12 h-12 rounded-full border border-border/80 bg-muted/40 text-foreground flex items-center justify-center mx-auto shadow-control">
+                  <LifeBuoy className="h-6 w-6 text-foreground" />
+                </div>
+                <div className="space-y-1">
+                  <h4 className="font-black text-sm text-foreground">
+                    هنوز موفق به حل مشکل نشده‌اید؟
+                  </h4>
+                  <p className="text-xs text-muted-foreground leading-relaxed max-w-xs mx-auto">
+                    اپراتورهای پشتیبانی فنی آناهیکس آماده‌اند خطای شما را به صورت
+                    دستی و اختصاصی بررسی نمایند.
+                  </p>
+                </div>
+                <div className="pt-1">
+                  <a
+                    href="https://t.me/AnahixSupport"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center w-full h-11 px-5 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs duration-motion ease-motion active:scale-[0.98] shadow-control cursor-pointer"
+                  >
+                    <span>گفتگوی فوری در تلگرام</span>
+                  </a>
+                </div>
               </div>
             </div>
           </div>
