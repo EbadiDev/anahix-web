@@ -187,6 +187,21 @@ async function safeJsonParse(res: Response): Promise<any> {
   return await res.json()
 }
 
+function isJwtExpired(token: string | null): boolean {
+  if (!token) return true
+  try {
+    const parts = token.split('.')
+    if (parts.length !== 3) return true
+    const payload = JSON.parse(atob(parts[1]))
+    if (payload.exp && payload.exp * 1000 <= Date.now()) {
+      return true
+    }
+    return false
+  } catch {
+    return true
+  }
+}
+
 export const apiService = {
   async getProducts(): Promise<Product[]> {
     try {
@@ -452,7 +467,43 @@ export const apiService = {
 
   // Admin Token Storage
   getAdminToken(): string | null {
-    return localStorage.getItem('anahix_admin_token')
+    const adm = localStorage.getItem('anahix_admin_token')
+    if (adm && adm !== 'null' && adm !== 'undefined' && !isJwtExpired(adm)) {
+      return adm
+    }
+    if (adm && isJwtExpired(adm)) {
+      localStorage.removeItem('anahix_admin_token')
+    }
+    const cust = localStorage.getItem('anahix_customer_token')
+    if (
+      cust &&
+      cust !== 'null' &&
+      cust !== 'undefined' &&
+      !isJwtExpired(cust)
+    ) {
+      return cust
+    }
+    return null
+  },
+  async exchangeAdminToken(): Promise<string | null> {
+    const custToken = this.getCustomerToken()
+    if (!custToken || isJwtExpired(custToken)) return null
+    try {
+      const res = await fetch('/api/v1/admin/auth/exchange', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${custToken}`,
+        },
+      })
+      const json = await res.json()
+      if (res.ok && json.code === 200 && json.data?.token) {
+        this.setAdminToken(json.data.token)
+        this.setAdminUser(json.data)
+        return json.data.token
+      }
+    } catch {}
+    return null
   },
   setAdminToken(token: string) {
     localStorage.setItem('anahix_admin_token', token)
@@ -469,6 +520,19 @@ export const apiService = {
       } catch {
         return null
       }
+    }
+    const custRaw = localStorage.getItem('anahix_customer')
+    if (custRaw) {
+      try {
+        const cust = JSON.parse(custRaw)
+        if (cust?.is_admin) {
+          return {
+            username: cust.email || cust.phone,
+            full_name: cust.full_name || 'مدیر سیستم',
+            role: 'super_admin',
+          }
+        }
+      } catch {}
     }
     return null
   },
@@ -2820,9 +2884,20 @@ export const apiService = {
     if (params?.end_date) searchParams.set('end_date', params.end_date)
 
     const query = searchParams.toString() ? `?${searchParams.toString()}` : ''
-    const res = await fetch(`/api/v1/admin/bi/overview${query}`, {
+    let res = await fetch(`/api/v1/admin/bi/overview${query}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
+
+    // If 401, auto-exchange customer token for admin session and retry once
+    if (res.status === 401 && this.isCustomerLoggedIn()) {
+      const refreshedToken = await this.exchangeAdminToken()
+      if (refreshedToken) {
+        res = await fetch(`/api/v1/admin/bi/overview${query}`, {
+          headers: { Authorization: `Bearer ${refreshedToken}` },
+        })
+      }
+    }
+
     const json = await res.json()
     if (!res.ok || json.code !== 200) {
       throw new Error(json.msg || 'خطا در دریافت آمارهای هوش تجاری')

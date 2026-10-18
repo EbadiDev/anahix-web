@@ -1,13 +1,9 @@
 import {
   Check,
   Gift,
-  KeyRound,
   Loader2,
-  Mail,
   Palette,
   Save,
-  ShieldCheck,
-  Smartphone,
   Sparkles,
   ToggleLeft,
   ToggleRight,
@@ -16,7 +12,6 @@ import type React from 'react'
 import { useEffect, useState } from 'react'
 import { api } from '../../services/api'
 import type { ThemeSettings } from '../../types'
-import { GithubIcon, GoogleIcon } from '../SocialIcons'
 import { useNotification } from '../vibefarsi/NotificationContext'
 import { ShimmerButton } from '../vibefarsi/ShimmerButton'
 import {
@@ -24,6 +19,7 @@ import {
   VIBE_THEMES,
   type VibeFarsiThemeKey,
 } from '../vibefarsi/ThemeContext'
+import { AdminHeaderBanner } from './AdminHeaderBanner'
 
 export const AdminThemeSettingsView: React.FC = () => {
   const { success, error } = useNotification()
@@ -85,6 +81,24 @@ export const AdminThemeSettingsView: React.FC = () => {
         }
       }
 
+      // Apply live colors to root
+      if (settings.primary_color) {
+        document.documentElement.style.setProperty(
+          '--brand',
+          settings.primary_color,
+        )
+        document.documentElement.style.setProperty(
+          '--primary',
+          settings.primary_color,
+        )
+      }
+      if (settings.accent_color) {
+        document.documentElement.style.setProperty(
+          '--accent',
+          settings.accent_color,
+        )
+      }
+
       // Apply dynamic event primary color if active
       if (settings.event_active && settings.primary_color) {
         document.documentElement.style.setProperty(
@@ -144,20 +158,30 @@ export const AdminThemeSettingsView: React.FC = () => {
 
   return (
     <div dir="rtl" className="space-y-6">
-      {/* Header Bar */}
-      <div className="rounded-3xl border border-border bg-card p-6 shadow-sm">
-        <h2 className="text-lg font-black text-foreground flex items-center gap-2">
-          <Palette className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-          <span>
-            مدیریت سیستم طراحی وایب‌فارسی، تم‌های دلخواه و روش‌های احراز هویت
-          </span>
-        </h2>
-        <p className="text-xs text-muted-foreground mt-1">
-          شخصی‌سازی آنی تم پیش‌فرض فروشگاه (گرافیت، لاجوردی، فیروزه‌ای و...)، تعریف
-          تم‌های دلخواه سازمانی، افکت‌های مناسبتی ایجنت‌محور و کنترل گزینه‌های ورود
-          مشتریان
-        </p>
-      </div>
+      {/* Unified Header Bar */}
+      <AdminHeaderBanner
+        icon={Palette}
+        title="سیستم تم و جشنواره‌های مناسبتی (Themes & Holiday Events)"
+        subtitle="شخصی‌سازی آنی تم پیش‌فرض فروشگاه، رنگ‌های سازمانی برند و افکت‌های نوری مناسبت‌های ویژه"
+        badgeText="سیستم طراحی گرافیت"
+        actions={
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={saveLoading}
+            className="h-9 px-5 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs duration-motion ease-motion active:scale-[0.98] shadow-control flex items-center gap-2 cursor-pointer disabled:opacity-50"
+          >
+            {saveLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <div className="flex items-center gap-1.5">
+                <Save className="h-4 w-4" />
+                <span>ذخیره تم و رنگ‌ها</span>
+              </div>
+            )}
+          </button>
+        }
+      />
 
       <form onSubmit={handleSave} className="space-y-6">
         {/* SECTION 1: VIBE FARSI DESIGN SYSTEM & THEMES */}
@@ -520,351 +544,6 @@ export const AdminThemeSettingsView: React.FC = () => {
           </div>
         </div>
 
-        {/* SECTION 3: MULTI-AUTH METHODS CONTROL */}
-        <div className="rounded-3xl border border-border bg-card p-6 shadow-sm space-y-5">
-          <div className="border-b border-border/60 pb-3">
-            <h3 className="text-sm font-black text-foreground flex items-center gap-2">
-              <ShieldCheck className="h-4 w-4 text-emerald-500" />
-              <span>
-                مدیریت روش‌های ورود و ثبت‌نام مشتریان (Multi-Auth System)
-              </span>
-            </h3>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              تعیین روش‌های ورود فعال در مدال ورود/ثبت‌نام (گوگل، گیت‌هاب، کلمه
-              عبور، پیامک OTP)
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Google OAuth */}
-            <div className="flex items-center justify-between p-4 rounded-2xl border border-border/80 bg-muted/20">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-xl bg-card border border-border flex items-center justify-center">
-                  <GoogleIcon className="h-5 w-5" />
-                </div>
-                <div>
-                  <h4 className="text-xs font-bold text-foreground">
-                    ورود سریع با حساب Google
-                  </h4>
-                  <p className="text-[10px] text-muted-foreground mt-0.5">
-                    همگام‌سازی مستقیم جیمیل و آواتار خریدار
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() =>
-                  setSettings((prev) => ({
-                    ...prev,
-                    auth_google_enabled: !prev.auth_google_enabled,
-                  }))
-                }
-                className={`p-1 rounded-2xl transition-colors cursor-pointer ${
-                  settings.auth_google_enabled
-                    ? 'text-blue-600 dark:text-blue-400'
-                    : 'text-muted-foreground'
-                }`}
-              >
-                {settings.auth_google_enabled ? (
-                  <ToggleRight className="h-7 w-7" />
-                ) : (
-                  <ToggleLeft className="h-7 w-7" />
-                )}
-              </button>
-            </div>
-
-            {/* GitHub OAuth */}
-            <div className="flex items-center justify-between p-4 rounded-2xl border border-border/80 bg-muted/20">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-xl bg-card border border-border flex items-center justify-center">
-                  <GithubIcon className="h-5 w-5" />
-                </div>
-                <div>
-                  <h4 className="text-xs font-bold text-foreground">
-                    ورود مستقیم با GitHub
-                  </h4>
-                  <p className="text-[10px] text-muted-foreground mt-0.5">
-                    ویژه برنامه‌نویسان و خریداران ابزارهای کدنویسی
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() =>
-                  setSettings((prev) => ({
-                    ...prev,
-                    auth_github_enabled: !prev.auth_github_enabled,
-                  }))
-                }
-                className={`p-1 rounded-2xl transition-colors cursor-pointer ${
-                  settings.auth_github_enabled
-                    ? 'text-blue-600 dark:text-blue-400'
-                    : 'text-muted-foreground'
-                }`}
-              >
-                {settings.auth_github_enabled ? (
-                  <ToggleRight className="h-7 w-7" />
-                ) : (
-                  <ToggleLeft className="h-7 w-7" />
-                )}
-              </button>
-            </div>
-
-            {/* Password Login */}
-            <div className="flex items-center justify-between p-4 rounded-2xl border border-border/80 bg-muted/20">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-xl bg-purple-500/10 text-purple-600">
-                  <KeyRound className="h-5 w-5" />
-                </div>
-                <div>
-                  <h4 className="text-xs font-bold text-foreground">
-                    ورود با نام کاربری و کلمه عبور
-                  </h4>
-                  <p className="text-[10px] text-muted-foreground mt-0.5">
-                    امکان انتخاب ورود با رمز عبور به جای OTP
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() =>
-                  setSettings((prev) => ({
-                    ...prev,
-                    auth_password_enabled: !prev.auth_password_enabled,
-                  }))
-                }
-                className={`p-1 rounded-2xl transition-colors cursor-pointer ${
-                  settings.auth_password_enabled
-                    ? 'text-blue-600 dark:text-blue-400'
-                    : 'text-muted-foreground'
-                }`}
-              >
-                {settings.auth_password_enabled ? (
-                  <ToggleRight className="h-7 w-7" />
-                ) : (
-                  <ToggleLeft className="h-7 w-7" />
-                )}
-              </button>
-            </div>
-
-            {/* Mobile OTP SMS */}
-            <div className="flex items-center justify-between p-4 rounded-2xl border border-border/80 bg-muted/20">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-xl bg-blue-500/10 text-blue-600">
-                  <Smartphone className="h-5 w-5" />
-                </div>
-                <div>
-                  <h4 className="text-xs font-bold text-foreground">
-                    الزام احراز هویت دومرحله‌ای پیامکی (OTP)
-                  </h4>
-                  <p className="text-[10px] text-muted-foreground mt-0.5">
-                    ارسال کد تایید پیامکی برای تمام ورودها
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() =>
-                  setSettings((prev) => ({
-                    ...prev,
-                    auth_otp_required: !prev.auth_otp_required,
-                  }))
-                }
-                className={`p-1 rounded-2xl transition-colors cursor-pointer ${
-                  settings.auth_otp_required
-                    ? 'text-blue-600 dark:text-blue-400'
-                    : 'text-muted-foreground'
-                }`}
-              >
-                {settings.auth_otp_required ? (
-                  <ToggleRight className="h-7 w-7" />
-                ) : (
-                  <ToggleLeft className="h-7 w-7" />
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* 5. Checkout Channels Management (SMS vs Email Settings) */}
-        <div className="rounded-3xl border border-border/80 bg-card p-6 shadow-xs space-y-5">
-          <div className="flex items-center justify-between border-b border-border/60 pb-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-secondary text-brand border border-border/60 flex items-center justify-center shrink-0 shadow-control">
-                <Smartphone className="w-5 h-5 text-brand" />
-              </div>
-              <div>
-                <h3 className="text-sm font-black text-foreground">
-                  مدیریت کانال‌های دریافت فاکتور و لایسنس در سبد خرید
-                </h3>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  تنظیم نمایش، فعال/غیرفعال‌سازی کانال‌های پیامک و ایمیل و
-                  شخصی‌سازی متن دکمه‌ها
-                </p>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              onClick={() =>
-                setSettings((prev) => ({
-                  ...prev,
-                  checkout_channel_section_enabled:
-                    prev.checkout_channel_section_enabled === undefined
-                      ? false
-                      : !prev.checkout_channel_section_enabled,
-                }))
-              }
-              className={`p-1 rounded-2xl transition-colors cursor-pointer ${
-                settings.checkout_channel_section_enabled !== false
-                  ? 'text-brand'
-                  : 'text-muted-foreground'
-              }`}
-              title="فعال یا غیرفعال‌سازی کل بخش کانال‌های دریافت در سبد خرید"
-            >
-              {settings.checkout_channel_section_enabled !== false ? (
-                <ToggleRight className="h-8 w-8" />
-              ) : (
-                <ToggleLeft className="h-8 w-8" />
-              )}
-            </button>
-          </div>
-
-          <div className="space-y-4 text-xs">
-            {/* Section Title Input */}
-            <div className="space-y-1.5 text-right">
-              <label className="block font-bold text-foreground">
-                عنوان بخش در ستون تسویه‌حساب سبد خرید:
-              </label>
-              <input
-                type="text"
-                value={
-                  settings.checkout_channel_title ||
-                  'دریافت فاکتور و لایسنس سفارش:'
-                }
-                onChange={(e) =>
-                  setSettings((prev) => ({
-                    ...prev,
-                    checkout_channel_title: e.target.value,
-                  }))
-                }
-                placeholder="دریافت فاکتور و لایسنس سفارش:"
-                className="w-full h-10 px-3.5 rounded-field bg-muted/30 border border-border/60 text-foreground text-xs outline-none focus:border-brand transition-colors"
-              />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-              {/* Channel 1: SMS Channel */}
-              <div className="p-4 rounded-surface border border-border/60 bg-muted/15 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Smartphone className="w-4 h-4 text-brand" />
-                    <span className="font-bold text-foreground">
-                      کانال پیامک به موبایل
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setSettings((prev) => ({
-                        ...prev,
-                        checkout_channel_sms_enabled:
-                          prev.checkout_channel_sms_enabled === undefined
-                            ? false
-                            : !prev.checkout_channel_sms_enabled,
-                      }))
-                    }
-                    className={`p-1 cursor-pointer transition-colors ${
-                      settings.checkout_channel_sms_enabled !== false
-                        ? 'text-brand'
-                        : 'text-muted-foreground'
-                    }`}
-                  >
-                    {settings.checkout_channel_sms_enabled !== false ? (
-                      <ToggleRight className="h-7 w-7" />
-                    ) : (
-                      <ToggleLeft className="h-7 w-7" />
-                    )}
-                  </button>
-                </div>
-                <div>
-                  <label className="block text-[11px] text-muted-foreground mb-1 font-medium">
-                    متن روی دکمه پیامک:
-                  </label>
-                  <input
-                    type="text"
-                    value={
-                      settings.checkout_channel_sms_label || 'پیامک به موبایل'
-                    }
-                    onChange={(e) =>
-                      setSettings((prev) => ({
-                        ...prev,
-                        checkout_channel_sms_label: e.target.value,
-                      }))
-                    }
-                    placeholder="پیامک به موبایل"
-                    className="w-full h-9 px-3 rounded-control bg-background border border-border/60 text-foreground text-xs outline-none focus:border-brand"
-                  />
-                </div>
-              </div>
-
-              {/* Channel 2: Email Channel */}
-              <div className="p-4 rounded-surface border border-border/60 bg-muted/15 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Mail className="w-4 h-4 text-brand" />
-                    <span className="font-bold text-foreground">
-                      کانال ارسال به ایمیل
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setSettings((prev) => ({
-                        ...prev,
-                        checkout_channel_email_enabled:
-                          prev.checkout_channel_email_enabled === undefined
-                            ? false
-                            : !prev.checkout_channel_email_enabled,
-                      }))
-                    }
-                    className={`p-1 cursor-pointer transition-colors ${
-                      settings.checkout_channel_email_enabled !== false
-                        ? 'text-brand'
-                        : 'text-muted-foreground'
-                    }`}
-                  >
-                    {settings.checkout_channel_email_enabled !== false ? (
-                      <ToggleRight className="h-7 w-7" />
-                    ) : (
-                      <ToggleLeft className="h-7 w-7" />
-                    )}
-                  </button>
-                </div>
-                <div>
-                  <label className="block text-[11px] text-muted-foreground mb-1 font-medium">
-                    متن روی دکمه ایمیل:
-                  </label>
-                  <input
-                    type="text"
-                    value={
-                      settings.checkout_channel_email_label || 'ارسال به ایمیل'
-                    }
-                    onChange={(e) =>
-                      setSettings((prev) => ({
-                        ...prev,
-                        checkout_channel_email_label: e.target.value,
-                      }))
-                    }
-                    placeholder="ارسال به ایمیل"
-                    className="w-full h-9 px-3 rounded-control bg-background border border-border/60 text-foreground text-xs outline-none focus:border-brand"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
         {/* Submit Bar: Graphite technical minimal - Primary white button with black text */}
         <div className="flex items-center justify-end gap-3 pt-2">
           <button
@@ -877,7 +556,7 @@ export const AdminThemeSettingsView: React.FC = () => {
             ) : (
               <div className="flex items-center gap-2">
                 <Save className="h-4 w-4" />
-                <span>ذخیره تمامی تنظیمات</span>
+                <span>ذخیره تغییرات تم و جشنواره‌ها</span>
               </div>
             )}
           </button>

@@ -8,13 +8,13 @@ import {
 } from 'lucide-react'
 import type React from 'react'
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { CartDrawer } from '../components/CartDrawer'
 import { Header } from '../components/Header'
 import { ProductCard } from '../components/ProductCard'
 import { RangeSlider } from '../components/vibefarsi/RangeSlider'
 import { api, apiService } from '../services/api'
-import type { ContentCategory, Order, Product } from '../types'
+import type { BannerItem, ContentCategory, Order, Product } from '../types'
 
 function toPersianDigits(n: number | string): string {
   const f = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹']
@@ -23,7 +23,14 @@ function toPersianDigits(n: number | string): string {
 
 export const CategoryDetailPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>()
+  const [searchParams] = useSearchParams()
+  const isDiscountOnly =
+    searchParams.get('discount') === 'true' ||
+    slug === 'discounts' ||
+    slug === 'flash-sale'
+
   const [category, setCategory] = useState<ContentCategory | null>(null)
+  const [categoryBanners, setCategoryBanners] = useState<BannerItem[]>([])
   const [subcategories, setSubcategories] = useState<ContentCategory[]>([])
   const [selectedSubcategory, setSelectedSubcategory] = useState<string>('all')
   const [products, setProducts] = useState<Product[]>([])
@@ -49,38 +56,68 @@ export const CategoryDetailPage: React.FC = () => {
     async function loadData() {
       setLoading(true)
       try {
-        const [cats, allProds] = await Promise.all([
+        const [cats, allProds, catBanners] = await Promise.all([
           api.getContentCategories('product').catch(() => []),
           apiService.getProducts().catch(() => []),
+          api.getBanners('category_header').catch(() => []),
         ])
+        setCategoryBanners(catBanners)
 
-        const matchedCat = cats.find(
-          (c: ContentCategory) => c.slug === currentSlug,
-        )
-
-        if (matchedCat) {
-          setCategory(matchedCat)
-          setSubcategories(matchedCat.children || [])
-        } else {
+        if (isDiscountOnly) {
           setCategory({
-            id: currentSlug,
-            name: currentSlug.replace(/_/g, ' '),
-            slug: currentSlug,
+            id: 'discounts',
+            name: 'جشنواره محصولات و اشتراک‌های تخفیف‌دار',
+            slug: 'discounts',
             type: 'product',
-            icon: 'Package',
-            description: 'لیست محصولات و اشتراک‌های مرتبط با این دسته‌بندی',
+            icon: 'Flame',
+            description:
+              'لیست کلیه اشتراک‌ها و لایسنس‌هایی که از پنل ادمین با تخفیف ویژه قیمت‌گذاری شده‌اند',
             sort_order: 1,
             is_active: true,
           })
           setSubcategories([])
-        }
+          const filtered = allProds.filter(
+            (p: Product) =>
+              p.is_flash_sale ||
+              (p.discount_percent && p.discount_percent > 0) ||
+              (p.original_price_toman &&
+                p.original_price_toman > p.price_toman),
+          )
+          setProducts(filtered)
+        } else {
+          const matchedCat = cats.find(
+            (c: ContentCategory) => c.slug === currentSlug,
+          )
 
-        const filtered = allProds.filter(
-          (p: Product) =>
-            p.category === currentSlug ||
-            (p.group_tag && p.group_tag === currentSlug),
-        )
-        setProducts(filtered)
+          if (matchedCat) {
+            setCategory(matchedCat)
+            setSubcategories(matchedCat.children || [])
+          } else {
+            setCategory({
+              id: currentSlug,
+              name:
+                currentSlug === 'all'
+                  ? 'همه محصولات و اشتراک‌ها'
+                  : currentSlug.replace(/_/g, ' '),
+              slug: currentSlug,
+              type: 'product',
+              icon: 'Package',
+              description:
+                'لیست کامل محصولات و اشتراک‌های مرتبط با این دسته‌بندی',
+              sort_order: 1,
+              is_active: true,
+            })
+            setSubcategories([])
+          }
+
+          const filtered = allProds.filter(
+            (p: Product) =>
+              currentSlug === 'all' ||
+              p.category === currentSlug ||
+              (p.group_tag && p.group_tag === currentSlug),
+          )
+          setProducts(filtered)
+        }
       } finally {
         setLoading(false)
       }
@@ -219,6 +256,39 @@ export const CategoryDetailPage: React.FC = () => {
             </div>
           </div>
         </section>
+
+        {/* Promotional Category Header Banner from Admin */}
+        {categoryBanners.length > 0 && (
+          <section className="space-y-4">
+            {categoryBanners.slice(0, 1).map((cb) => (
+              <div
+                key={cb.id}
+                className="relative overflow-hidden rounded-surface border border-border/80 bg-card shadow-surface h-44 sm:h-56 select-none group"
+              >
+                <img
+                  src={cb.image_url}
+                  alt={cb.title}
+                  className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/50 to-transparent flex flex-col justify-end p-6 text-right text-white space-y-1.5">
+                  {cb.badge_text && (
+                    <span className="self-start px-2.5 py-0.5 rounded-control bg-brand text-white font-black text-xs shadow-control">
+                      {cb.badge_text}
+                    </span>
+                  )}
+                  <h2 className="text-xl sm:text-2xl font-black text-white drop-shadow-sm">
+                    {cb.title}
+                  </h2>
+                  {cb.subtitle && (
+                    <p className="text-xs sm:text-sm text-white/90 max-w-xl line-clamp-2">
+                      {cb.subtitle}
+                    </p>
+                  )}
+                </div>
+              </div>
+            ))}
+          </section>
+        )}
 
         {/* Subcategories Filter Chips if available */}
         {subcategories.length > 0 && (

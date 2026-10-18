@@ -2,7 +2,6 @@ import { ChevronLeft, ChevronRight, Sparkles } from 'lucide-react'
 import type React from 'react'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ShimmerButton } from './ShimmerButton'
 
 export interface BannerData {
   id: string
@@ -42,122 +41,121 @@ export const BannerCarousel: React.FC<BannerCarouselProps> = ({
 
   const current = banners[currentIndex]
 
-  const handlePrev = () => {
+  const handlePrev = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
     setCurrentIndex((prev) => (prev - 1 + banners.length) % banners.length)
   }
 
-  const handleNext = () => {
+  const handleNext = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
     setCurrentIndex((prev) => (prev + 1) % banners.length)
   }
 
   return (
     <div
       dir="rtl"
-      className={`group relative overflow-hidden rounded-2xl border border-border transition-all duration-200 ${className}`}
-      style={{
-        boxShadow: 'var(--depth-surface)',
-      }}
+      className={`group relative overflow-hidden rounded-surface border border-border/80 bg-card shadow-surface transition-all duration-200 select-none ${className}`}
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
     >
-      {/* Banner background container */}
-      <div
-        className={`relative min-h-[220px] sm:min-h-[280px] md:min-h-[320px] flex items-center justify-between p-6 sm:p-10 bg-gradient-to-l ${
-          current.bg_gradient || 'from-blue-600 via-indigo-700 to-slate-900'
-        } text-white`}
-      >
-        {/* Subtle patterned overlay */}
-        <div className="absolute inset-0 bg-grid-pattern opacity-20 pointer-events-none" />
+      <div className="relative w-full h-[260px] sm:h-[300px] md:h-[320px] overflow-hidden">
+        {/* Full-bleed Background Image with smooth scale on hover */}
+        {current.image_url ? (
+          <img
+            src={current.image_url}
+            alt={current.title}
+            className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+          />
+        ) : (
+          <div
+            className={`absolute inset-0 bg-gradient-to-l ${
+              current.bg_gradient || 'from-blue-600 via-indigo-700 to-slate-900'
+            }`}
+          />
+        )}
 
-        {/* Text Content */}
-        <div className="relative z-10 max-w-xl space-y-3.5 text-right">
+        {/* High-contrast gradient scrim: Guarantees 100% text readability in both Light and Dark mode */}
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/95 via-slate-950/70 to-slate-950/20" />
+        <div className="absolute inset-0 bg-gradient-to-l from-slate-950/80 via-transparent to-transparent opacity-80" />
+
+        {/* Subtle patterned overlay */}
+        <div className="absolute inset-0 bg-grid-pattern opacity-10 pointer-events-none" />
+
+        {/* Text & Action Content */}
+        <div className="relative z-10 h-full p-5 sm:p-7 flex flex-col justify-end text-right text-white space-y-2 max-w-lg">
           {current.badge_text && (
-            <div className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-xs font-bold backdrop-blur-md border border-white/20">
+            <div className="inline-flex self-start items-center gap-1.5 rounded-control bg-white/20 px-2.5 py-0.5 text-xs font-black backdrop-blur-md border border-white/30 text-white shadow-xs">
               <Sparkles className="h-3.5 w-3.5 text-amber-300" />
               <span>{current.badge_text}</span>
             </div>
           )}
 
-          <h2 className="text-xl sm:text-3xl md:text-4xl font-black tracking-tight leading-tight">
+          <h2 className="text-lg sm:text-2xl font-black text-white tracking-tight leading-snug drop-shadow-sm">
             {current.title}
           </h2>
 
           {current.subtitle && (
-            <p className="text-xs sm:text-sm md:text-base text-white/80 leading-relaxed max-w-md line-clamp-2">
+            <p className="text-xs sm:text-sm text-white/90 leading-relaxed line-clamp-2 drop-shadow-xs font-normal">
               {current.subtitle}
             </p>
           )}
 
           {current.link_url && (
-            <div className="pt-2">
-              <Link to={current.link_url}>
-                <ShimmerButton
-                  background="rgba(255, 255, 255, 0.2)"
-                  shimmerColor="#ffffff"
-                  borderRadius="0.75rem"
-                  className="backdrop-blur-md border border-white/30 text-xs sm:text-sm font-bold text-white shadow-lg px-4 py-2"
-                >
-                  <span>{current.button_text || 'مشاهده و خرید'}</span>
-                  <span>←</span>
-                </ShimmerButton>
+            <div className="pt-1.5">
+              <Link
+                to={current.link_url}
+                className="inline-flex items-center gap-2 h-9 px-4 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs duration-motion ease-motion active:scale-[0.98] shadow-control transition-all"
+              >
+                <span>{current.button_text || 'مشاهده و خرید'}</span>
+                <span>←</span>
               </Link>
             </div>
           )}
         </div>
 
-        {/* Banner image illustration */}
-        {current.image_url && (
-          <div className="hidden sm:block relative z-10 shrink-0 w-48 md:w-72 lg:w-96 h-40 sm:h-56 md:h-64 rounded-2xl overflow-hidden shadow-2xl border border-white/10 group-hover:scale-105 transition-transform duration-500">
-            <img
-              src={current.image_url}
-              alt={current.title}
-              className="w-full h-full object-cover"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
-          </div>
-        )}
-
-        {/* Navigation arrows */}
+        {/* Left/Right Navigation arrows */}
         {banners.length > 1 && (
           <>
             <button
               type="button"
               onClick={handlePrev}
-              className="absolute right-3 top-1/2 -translate-y-1/2 z-20 flex h-9 w-9 items-center justify-center rounded-full bg-black/30 border border-white/20 text-white backdrop-blur-md opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/50"
+              className="absolute right-3 top-1/2 -translate-y-1/2 z-20 flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-control bg-slate-950/70 border border-white/20 text-white backdrop-blur-md opacity-0 group-hover:opacity-100 transition-opacity hover:bg-slate-950 cursor-pointer shadow-control"
               title="بنر قبلی"
+              aria-label="بنر قبلی"
             >
-              <ChevronRight className="h-5 w-5" />
+              <ChevronRight className="h-4 w-4" />
             </button>
             <button
               type="button"
               onClick={handleNext}
-              className="absolute left-3 top-1/2 -translate-y-1/2 z-20 flex h-9 w-9 items-center justify-center rounded-full bg-black/30 border border-white/20 text-white backdrop-blur-md opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/50"
+              className="absolute left-3 top-1/2 -translate-y-1/2 z-20 flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-control bg-slate-950/70 border border-white/20 text-white backdrop-blur-md opacity-0 group-hover:opacity-100 transition-opacity hover:bg-slate-950 cursor-pointer shadow-control"
               title="بنر بعدی"
+              aria-label="بنر بعدی"
             >
-              <ChevronLeft className="h-5 w-5" />
+              <ChevronLeft className="h-4 w-4" />
             </button>
           </>
         )}
 
-        {/* Pagination Dots */}
+        {/* Carousel Pagination Dots */}
         {banners.length > 1 && (
           <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5">
-            {banners.map((b, idx) => {
-              const dotKey = `carousel-dot-${b.id || idx}`
-              return (
-                <button
-                  key={dotKey}
-                  type="button"
-                  onClick={() => setCurrentIndex(idx)}
-                  className={`h-1.5 rounded-full transition-all ${
-                    idx === currentIndex
-                      ? 'w-6 bg-white'
-                      : 'w-1.5 bg-white/40 hover:bg-white/70'
-                  }`}
-                  title={`اسلاید ${idx + 1}`}
-                />
-              )
-            })}
+            {banners.map((b, idx) => (
+              <button
+                key={`dot-${b.id || idx}`}
+                type="button"
+                onClick={() => setCurrentIndex(idx)}
+                className={`h-1.5 rounded-full transition-all cursor-pointer ${
+                  idx === currentIndex
+                    ? 'w-6 bg-white'
+                    : 'w-1.5 bg-white/40 hover:bg-white/70'
+                }`}
+                title={`اسلاید ${idx + 1}`}
+                aria-label={`اسلاید ${idx + 1}`}
+              />
+            ))}
           </div>
         )}
       </div>

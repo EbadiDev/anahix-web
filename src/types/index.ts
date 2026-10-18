@@ -86,6 +86,8 @@ export interface Product {
   flash_sale_end_at?: string
   flash_sale_stock?: number
   flash_sale_sold?: number
+  original_price_toman?: number
+  discount_percent?: number
   is_best_seller?: boolean
   is_featured?: boolean
   rating_average?: number
@@ -484,6 +486,8 @@ export interface BannerItem {
   button_text?: string
   sort_order?: number
   is_active?: boolean
+  created_at?: string
+  updated_at?: string
 }
 
 export interface SMSTemplateItem {
@@ -1262,10 +1266,16 @@ export interface AdminBIKPIs {
   average_order_value_toman: number
   average_order_value_usdt: number
   total_customers: number
+  total_registered_users?: number
+  new_registered_users?: number
   virtual_numbers_revenue: number
   virtual_numbers_count: number
   store_products_revenue: number
   store_products_count: number
+  total_article_views?: number
+  total_article_likes?: number
+  total_help_views?: number
+  total_helpful_votes?: number
 }
 
 export interface AdminBITimeSeriesPoint {
@@ -1373,6 +1383,7 @@ export interface CreateOrUpdateLoyaltyTierRequest {
 }
 
 export interface CustomerLoyaltyProfile {
+  system_status?: 'active' | 'coming_soon' | 'disabled'
   current_tier: LoyaltyTier
   next_tier?: LoyaltyTier | null
   total_spent_toman: number

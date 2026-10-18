@@ -3,6 +3,7 @@ import {
   ChevronLeft,
   ChevronRight,
   CreditCard,
+  Flame,
   Headphones,
   Heart,
   HelpCircle,
@@ -62,6 +63,9 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
   const [customer, setCustomer] = useState<CustomerProfile | null>(null)
   const [products, setProducts] = useState<Product[]>([])
   const [banners, setBanners] = useState<BannerData[]>([])
+  const [middleBanners, setMiddleBanners] = useState<BannerData[]>([])
+  const [heroSideBanners, setHeroSideBanners] = useState<BannerData[]>([])
+  const [flashSaleBanners, setFlashSaleBanners] = useState<BannerData[]>([])
   const [articles, setArticles] = useState<ArticleListItem[]>([])
   const [payments, setPayments] = useState<PaymentGateway[]>([])
   const [isCartOpen, setIsCartOpen] = useState(false)
@@ -69,6 +73,8 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
 
   const catalogScrollRef = useRef<HTMLDivElement>(null)
   const blogScrollRef = useRef<HTMLDivElement>(null)
+  const middleBannersScrollRef = useRef<HTMLDivElement>(null)
+  const flashSaleScrollRef = useRef<HTMLDivElement>(null)
 
   const scrollCatalog = (direction: 'left' | 'right') => {
     if (catalogScrollRef.current) {
@@ -84,25 +90,58 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
     }
   }
 
+  const scrollMiddleBanners = (direction: 'left' | 'right') => {
+    if (middleBannersScrollRef.current) {
+      const offset = direction === 'left' ? -420 : 420
+      middleBannersScrollRef.current.scrollBy({
+        left: offset,
+        behavior: 'smooth',
+      })
+    }
+  }
+
+  const scrollFlashSale = (direction: 'left' | 'right') => {
+    if (flashSaleScrollRef.current) {
+      const offset = direction === 'left' ? -350 : 350
+      flashSaleScrollRef.current.scrollBy({
+        left: offset,
+        behavior: 'smooth',
+      })
+    }
+  }
+
   useEffect(() => {
     async function init() {
       setLoading(true)
       try {
-        const [prods, pays, cust, bns, arts] = await Promise.all([
-          apiService.getProducts(),
-          apiService.getPayments(),
-          apiService.getCustomerProfile(),
-          api.getBanners('main_slider').catch(() => []),
-          api
-            .getArticles({ page: 1, page_size: 3 })
-            .then((r: any) => r?.items || [])
-            .catch(() => []),
-        ])
+        const [prods, pays, cust, bns, midBns, sideBns, flashBns, arts] =
+          await Promise.all([
+            apiService.getProducts(),
+            apiService.getPayments(),
+            apiService.getCustomerProfile(),
+            api.getBanners('main_slider').catch(() => []),
+            api.getBanners('middle_strip').catch(() => []),
+            api.getBanners('hero_side').catch(() => []),
+            api.getBanners('flash_sale').catch(() => []),
+            api
+              .getArticles({ page: 1, page_size: 3 })
+              .then((r: any) => r?.items || [])
+              .catch(() => []),
+          ])
         setProducts(prods)
         setPayments(pays)
         if (cust) setCustomer(cust)
         if (bns && bns.length > 0) {
           setBanners(bns)
+        }
+        if (midBns && midBns.length > 0) {
+          setMiddleBanners(midBns)
+        }
+        if (sideBns && sideBns.length > 0) {
+          setHeroSideBanners(sideBns)
+        }
+        if (flashBns && flashBns.length > 0) {
+          setFlashSaleBanners(flashBns)
         }
         if (arts && arts.length > 0) {
           setArticles(arts)
@@ -302,7 +341,7 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
               </div>
 
               {/* Hero Slider/Banner Column */}
-              <div className="lg:col-span-5">
+              <div className="lg:col-span-5 space-y-3">
                 {banners.length > 0 ? (
                   <BannerCarousel banners={banners} />
                 ) : (
@@ -323,6 +362,49 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
                     </ArrowLink>
                   </div>
                 )}
+
+                {/* Hero Side / Sub-Hero Promotional Cards (Scrollable or Stacked) */}
+                {heroSideBanners.length > 0 && (
+                  <div className="space-y-2.5 max-h-[180px] overflow-y-auto scrollbar-thin">
+                    {heroSideBanners.map((sb) => (
+                      <Link
+                        key={sb.id}
+                        to={sb.link_url || '#'}
+                        className="group relative overflow-hidden rounded-surface border border-border/80 bg-card p-3 shadow-surface hover:border-brand/40 duration-motion transition-all flex items-center justify-between gap-3 select-none"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          {sb.image_url && (
+                            <img
+                              src={sb.image_url}
+                              alt={sb.title}
+                              className="w-12 h-12 rounded-control object-cover shrink-0 border border-border/60 group-hover:scale-105 transition-transform"
+                            />
+                          )}
+                          <div className="min-w-0 text-right">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="font-black text-xs text-foreground truncate">
+                                {sb.title}
+                              </span>
+                              {sb.badge_text && (
+                                <span className="text-[10px] px-1.5 py-0.2 rounded-control bg-brand/10 text-brand font-bold shrink-0">
+                                  {sb.badge_text}
+                                </span>
+                              )}
+                            </div>
+                            {sb.subtitle && (
+                              <p className="text-[11px] text-muted-foreground truncate mt-0.5">
+                                {sb.subtitle}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <ArrowLink to={sb.link_url || '#'}>
+                          {sb.button_text || 'مشاهده'}
+                        </ArrowLink>
+                      </Link>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -337,18 +419,120 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
         </ScrollReveal>
 
         {/* FLASH SALE / TIMED DISCOUNTS SECTION */}
-        {flashSaleProducts.length > 0 && (
+        {(flashSaleProducts.length > 0 || flashSaleBanners.length > 0) && (
           <ScrollReveal>
             <section id="flash-sale" className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-base sm:text-lg font-black text-foreground flex items-center gap-2">
+                    <Flame className="h-5 w-5 text-rose-500 animate-pulse" />
+                    <span>جشنواره تخفیف‌های شگفت‌انگیز و زمان‌دار</span>
+                  </h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    فرصت محدود خرید لایسنس‌ها با بالاترین درصد تخفیف نقدی
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  {/* Desktop Left/Right Scroll Chevrons if > 2 */}
+                  {(flashSaleProducts.length > 2 ||
+                    flashSaleBanners.length > 2) && (
+                    <div className="hidden sm:flex items-center gap-1.5 bg-muted/40 p-1 rounded-control border border-border/40">
+                      <button
+                        type="button"
+                        onClick={() => scrollFlashSale('right')}
+                        className="w-7 h-7 flex items-center justify-center rounded-control hover:bg-card text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                        title="اسکرول به راست"
+                        aria-label="اسکرول به راست"
+                      >
+                        <ChevronRight className="w-4 h-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => scrollFlashSale('left')}
+                        className="w-7 h-7 flex items-center justify-center rounded-control hover:bg-card text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                        title="اسکرول به چپ"
+                        aria-label="اسکرول به چپ"
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
+
+                  <ArrowLink to="/category/all?discount=true">
+                    مشاهده همه تخفیف‌ها
+                  </ArrowLink>
+                </div>
+              </div>
+
+              {/* Countdown Banner */}
               <FlashSaleCountdown endTime={flashSaleTargetDate} />
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {/* Optional Promotional Flash Banners */}
+              {flashSaleBanners.length > 0 && (
+                <div
+                  className={`grid gap-4 ${
+                    flashSaleBanners.length === 1
+                      ? 'grid-cols-1'
+                      : 'grid-cols-1 md:grid-cols-2'
+                  }`}
+                >
+                  {flashSaleBanners.map((fb) => (
+                    <Link
+                      key={fb.id}
+                      to={fb.link_url || '#flash-sale'}
+                      className="group relative overflow-hidden rounded-surface border border-rose-500/30 bg-card shadow-surface hover:border-rose-500/60 duration-motion transition-all block"
+                    >
+                      <div className="relative h-36 sm:h-44 w-full overflow-hidden">
+                        <img
+                          src={fb.image_url}
+                          alt={fb.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/40 to-transparent flex flex-col justify-end p-4 text-right text-white space-y-1 select-none">
+                          <div className="flex items-center gap-2">
+                            <span className="self-start px-2 py-0.5 rounded-control bg-rose-600 text-white font-black text-[10px] shadow-control flex items-center gap-1">
+                              <Flame className="w-3 h-3" />
+                              <span>
+                                {fb.badge_text || 'جشنواره شگفت‌انگیز'}
+                              </span>
+                            </span>
+                          </div>
+                          <h4 className="font-black text-sm sm:text-base text-white">
+                            {fb.title}
+                          </h4>
+                          {fb.subtitle && (
+                            <p className="text-xs text-white/80 line-clamp-1">
+                              {fb.subtitle}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              )}
+
+              {/* Products in Flash Sale (Scrollable if > 2) */}
+              <div
+                ref={flashSaleScrollRef}
+                className={
+                  flashSaleProducts.length > 2
+                    ? 'flex items-stretch gap-5 overflow-x-auto pb-4 scrollbar-none snap-x snap-mandatory scroll-smooth -mx-4 px-4 sm:mx-0 sm:px-0'
+                    : 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5'
+                }
+              >
                 {flashSaleProducts.map((product) => (
-                  <ProductCard
+                  <div
                     key={`flash-${product.id}`}
-                    product={product}
-                    onSelect={() => {}}
-                  />
+                    className={
+                      flashSaleProducts.length > 2
+                        ? 'w-[285px] sm:w-[320px] md:w-[340px] shrink-0 snap-start flex flex-col'
+                        : 'flex flex-col'
+                    }
+                  >
+                    <ProductCard product={product} onSelect={() => {}} />
+                  </div>
                 ))}
               </div>
             </section>
@@ -462,6 +646,119 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
             </div>
           </section>
         </ScrollReveal>
+
+        {/* PROMOTIONAL MIDDLE BANNERS (HORIZONTAL SCROLLER IF > 2 WITH VIBE FARSI HEADER) */}
+        {middleBanners.length > 0 && (
+          <ScrollReveal>
+            <section className="my-6 sm:my-8 space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-base sm:text-lg font-black text-foreground flex items-center gap-2">
+                    <Sparkles className="h-5 w-5 text-brand" />
+                    <span>پیشنهادهای شگفت‌انگیز و پروموشن‌های منتخب</span>
+                  </h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    فرصت‌های استثنایی خرید اکانت‌ها و شماره‌های مجازی با قیمت‌های
+                    ویژه
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  {/* Desktop Left/Right Scroll Chevrons if > 2 */}
+                  {middleBanners.length > 2 && (
+                    <div className="hidden sm:flex items-center gap-1.5 bg-muted/40 p-1 rounded-control border border-border/40">
+                      <button
+                        type="button"
+                        onClick={() => scrollMiddleBanners('right')}
+                        className="w-7 h-7 flex items-center justify-center rounded-control hover:bg-card text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                        title="اسکرول به راست"
+                        aria-label="اسکرول به راست"
+                      >
+                        <ChevronRight className="w-4 h-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => scrollMiddleBanners('left')}
+                        className="w-7 h-7 flex items-center justify-center rounded-control hover:bg-card text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                        title="اسکرول به چپ"
+                        aria-label="اسکرول به چپ"
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
+
+                  <ArrowLink to="/offers">مشاهده همه آفرها</ArrowLink>
+                </div>
+              </div>
+
+              {/* Scroller or Grid */}
+              <div
+                ref={middleBannersScrollRef}
+                className={
+                  middleBanners.length > 2
+                    ? 'flex items-stretch gap-5 overflow-x-auto pb-4 scrollbar-none snap-x snap-mandatory scroll-smooth -mx-4 px-4 sm:mx-0 sm:px-0'
+                    : 'grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6'
+                }
+              >
+                {middleBanners.map((mb) => (
+                  <div
+                    key={mb.id}
+                    className={
+                      middleBanners.length > 2
+                        ? 'w-[300px] sm:w-[420px] md:w-[480px] shrink-0 snap-start flex flex-col'
+                        : 'flex flex-col'
+                    }
+                  >
+                    <Link
+                      to={mb.link_url || '/'}
+                      className="group relative overflow-hidden rounded-surface border border-border/80 bg-card shadow-surface hover:border-brand/40 duration-motion ease-motion transition-all block h-full select-none"
+                    >
+                      <div className="relative h-44 sm:h-52 w-full overflow-hidden">
+                        <img
+                          src={mb.image_url}
+                          alt={mb.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        />
+                        {/* High contrast gradient scrim */}
+                        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/40 to-transparent flex flex-col justify-end p-5 text-right text-white space-y-1.5">
+                          {/* Badges / Timed Tag */}
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="self-start px-2.5 py-1 rounded-control bg-slate-950/85 backdrop-blur-md text-amber-300 border border-amber-400/30 font-black text-xs shadow-control flex items-center gap-1.5">
+                              <Flame className="w-3.5 h-3.5 text-amber-400" />
+                              <span>تخفیف زمان‌دار</span>
+                            </span>
+                            {mb.badge_text && (
+                              <span className="self-start px-2.5 py-1 rounded-control bg-brand text-white font-black text-xs shadow-control flex items-center gap-1.5">
+                                <Sparkles className="w-3.5 h-3.5" />
+                                <span>{mb.badge_text}</span>
+                              </span>
+                            )}
+                          </div>
+
+                          <h4 className="font-black text-sm sm:text-base text-white drop-shadow-xs">
+                            {mb.title}
+                          </h4>
+                          {mb.subtitle && (
+                            <p className="text-xs text-white/80 line-clamp-2 leading-relaxed">
+                              {mb.subtitle}
+                            </p>
+                          )}
+                          <div className="pt-1 flex items-center justify-between text-xs font-bold text-brand">
+                            <span className="underline underline-offset-4 flex items-center gap-1 group-hover:gap-2 transition-all">
+                              <span>{mb.button_text || 'مشاهده پیشنهاد'}</span>
+                              <span>←</span>
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </Link>
+                  </div>
+                ))}
+              </div>
+            </section>
+          </ScrollReveal>
+        )}
 
         {/* LATEST BLOG ARTICLES & TUTORIALS (WITH LIKE BUTTON & ARROW LINK) */}
         {articles.length > 0 && (

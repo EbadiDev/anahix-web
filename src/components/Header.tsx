@@ -864,10 +864,8 @@ export const Header: React.FC<HeaderProps> = ({
               </button>
             )}
 
-            {/* Dark / Light Mode Toggle - Only in Header (Hidden on < 425px, shown inside user dropdown) */}
-            {!isAdminPage && (
-              <ThemeToggle className="h-8 w-8 sm:h-9 sm:w-9 shrink-0 max-[424px]:hidden" />
-            )}
+            {/* Dark / Light Mode Toggle (Header & Admin Panel) - (Hidden on < 425px, shown inside user dropdown) */}
+            <ThemeToggle className="h-8 w-8 sm:h-9 sm:w-9 shrink-0 max-[424px]:hidden" />
           </div>
         </div>
 

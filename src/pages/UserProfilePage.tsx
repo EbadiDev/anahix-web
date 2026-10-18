@@ -15,6 +15,7 @@ import {
   User,
   UserCheck,
   Wallet,
+  X,
 } from 'lucide-react'
 import type React from 'react'
 import { useEffect, useMemo, useState } from 'react'
@@ -108,6 +109,13 @@ export const UserProfilePage: React.FC = () => {
 
   // Sync tab with URL
   const handleSelectTab = (tabId: string) => {
+    if (tabId === 'loyalty' && loyaltyStatus === 'coming_soon') {
+      setToastMsg({
+        type: 'info',
+        text: '🌟 بخش باشگاه مشتریان و سطوح وفاداری VIP به زودی رونمایی خواهد شد.',
+      })
+      return
+    }
     const valid = tabId as ProfileTabId
     if (validTabs.includes(valid)) {
       setActiveTab(valid)
@@ -155,6 +163,37 @@ export const UserProfilePage: React.FC = () => {
   }, [orders])
 
   const [supportBadgeCount, setSupportBadgeCount] = useState<number>(0)
+  const [loyaltyStatus, setLoyaltyStatus] = useState<
+    'active' | 'coming_soon' | 'disabled'
+  >('active')
+  const [toastMsg, setToastMsg] = useState<{
+    type: 'info' | 'error' | 'success'
+    text: string
+  } | null>(null)
+
+  useEffect(() => {
+    if (customer?.phone) {
+      apiService
+        .getCustomerLoyaltyProfile(customer.phone)
+        .then((p) => {
+          if (p?.system_status) {
+            setLoyaltyStatus(p.system_status)
+          }
+        })
+        .catch(() => {})
+    }
+  }, [customer?.phone])
+
+  useEffect(() => {
+    if (activeTab === 'loyalty' && loyaltyStatus === 'disabled') {
+      setActiveTab('overview')
+      setSearchParams({ tab: 'overview' })
+      setToastMsg({
+        type: 'info',
+        text: 'باشگاه مشتریان در حال حاضر غیرفعال است.',
+      })
+    }
+  }, [activeTab, loyaltyStatus])
 
   useEffect(() => {
     if (customer) {
@@ -239,21 +278,27 @@ export const UserProfilePage: React.FC = () => {
       icon: Wallet,
       group: 'financial',
     },
-    {
-      id: 'loyalty',
-      label: 'باشگاه مشتریان و VIP',
-      shortLabel: 'باشگاه VIP',
-      icon: Crown,
-      badge:
-        customer?.tier === 'gold'
-          ? 'طلایی 👑'
-          : customer?.tier === 'silver'
-            ? 'نقره‌ای ⭐'
-            : customer?.tier === 'diamond'
-              ? 'الماسی 💎'
-              : 'VIP',
-      group: 'financial',
-    },
+    ...(loyaltyStatus !== 'disabled'
+      ? [
+          {
+            id: 'loyalty' as const,
+            label: 'باشگاه مشتریان و VIP',
+            shortLabel: 'باشگاه VIP',
+            icon: Crown,
+            badge:
+              loyaltyStatus === 'coming_soon'
+                ? 'به‌زودی'
+                : customer?.tier === 'gold'
+                  ? 'طلایی 👑'
+                  : customer?.tier === 'silver'
+                    ? 'نقره‌ای ⭐'
+                    : customer?.tier === 'diamond'
+                      ? 'الماسی 💎'
+                      : 'VIP',
+            group: 'financial' as const,
+          },
+        ]
+      : []),
     {
       id: 'referral',
       label: 'همکاری در فروش و معرف',
@@ -294,6 +339,20 @@ export const UserProfilePage: React.FC = () => {
         activeOrdersCount={pendingOrdersCount + activeNumbersCount}
         onOpenCart={() => setIsCartOpen(true)}
       />
+
+      {toastMsg && (
+        <div className="fixed top-6 left-6 z-50 px-4 py-3 rounded-surface border border-border/80 bg-card text-foreground shadow-overlay flex items-center gap-3 animate-in fade-in slide-in-from-top-4 text-xs font-bold">
+          <Sparkles className="w-4 h-4 text-brand shrink-0" />
+          <span>{toastMsg.text}</span>
+          <button
+            type="button"
+            onClick={() => setToastMsg(null)}
+            className="p-1 rounded-control text-muted-foreground hover:text-foreground cursor-pointer"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
         {/* Clean Breadcrumb Navigation (Without duplicate buttons or harsh border) */}

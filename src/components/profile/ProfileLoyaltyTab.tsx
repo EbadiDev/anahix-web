@@ -137,6 +137,43 @@ export const ProfileLoyaltyTab: React.FC<ProfileLoyaltyTabProps> = ({
     )
   }
 
+  if (profile?.system_status === 'disabled') {
+    return (
+      <div className="rounded-surface border border-border/80 bg-card p-12 text-center text-muted-foreground space-y-3 shadow-surface">
+        <Crown className="w-12 h-12 text-muted-foreground/40 mx-auto" />
+        <h3 className="text-base font-black text-foreground">
+          باشگاه مشتریان در حال حاضر غیرفعال است
+        </h3>
+        <p className="text-xs max-w-md mx-auto leading-relaxed">
+          سرویس باشگاه مشتریان و سطوح وفاداری توسط مدیریت سیستم موقتاً غیرفعال
+          گردیده است.
+        </p>
+      </div>
+    )
+  }
+
+  if (profile?.system_status === 'coming_soon') {
+    return (
+      <div className="rounded-surface border border-border/80 bg-card p-10 text-center space-y-4 shadow-surface relative overflow-hidden">
+        <div className="w-14 h-14 rounded-surface bg-amber-500/10 border border-amber-500/30 text-amber-500 flex items-center justify-center mx-auto shadow-control">
+          <Sparkles className="w-7 h-7" />
+        </div>
+        <div className="space-y-1.5 max-w-md mx-auto">
+          <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-control bg-amber-500/10 text-amber-500 border border-amber-500/30 font-latin inline-block">
+            COMING SOON • به‌زودی
+          </span>
+          <h3 className="text-lg font-black text-foreground">
+            باشگاه مشتریان و سطوح VIP به زودی فعال می‌شود
+          </h3>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            سیستم پاداش هوشمند، تخفیف‌های خودکار سبد خرید و اولویت تحویل اپراتور
+            در حال آماده‌سازی و راه‌اندازی است.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
   const currentTier = profile?.current_tier
   const nextTier = profile?.next_tier
   const cardTheme = getCardTheme(currentTier?.code || 'bronze')

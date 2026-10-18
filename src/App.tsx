@@ -10,6 +10,7 @@ import { BlogListPage } from './pages/BlogListPage'
 import { CategoryDetailPage } from './pages/CategoryDetailPage'
 import { HelpDetailPage } from './pages/HelpDetailPage'
 import { HelpListPage } from './pages/HelpListPage'
+import { OffersPage } from './pages/OffersPage'
 import { OrderTrackingPage } from './pages/OrderTrackingPage'
 import { ProductDetailPage } from './pages/ProductDetailPage'
 import { StorefrontPage } from './pages/StorefrontPage'
@@ -64,6 +65,9 @@ export function App() {
 
             {/* Dedicated Dynamic Category Page */}
             <Route path="/category/:slug" element={<CategoryDetailPage />} />
+
+            {/* Promotional Offers & Banners Showcase */}
+            <Route path="/offers" element={<OffersPage />} />
 
             {/* Customer Profile (Protected by Auth Gate) */}
             <Route

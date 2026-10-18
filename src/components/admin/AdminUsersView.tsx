@@ -10,6 +10,7 @@ import {
   Copy,
   Eye,
   Key,
+  KeyRound,
   Layers,
   Mail,
   Minus,
@@ -17,6 +18,7 @@ import {
   Plus,
   Radio,
   RefreshCw,
+  Save,
   Search,
   Send,
   Share2,
@@ -24,6 +26,8 @@ import {
   ShieldAlert,
   ShieldCheck,
   Smartphone,
+  ToggleLeft,
+  ToggleRight,
   UserCheck,
   Users,
   UserX,
@@ -32,7 +36,8 @@ import {
 } from 'lucide-react'
 import type React from 'react'
 import { useEffect, useState } from 'react'
-import { apiService } from '../../services/api'
+import { createPortal } from 'react-dom'
+import { api, apiService } from '../../services/api'
 import type {
   AdminAdjustCustomerWalletRequest,
   AdminCustomerDetail360Response,
@@ -44,7 +49,9 @@ import type {
   AdminSendCustomerSMSRequest,
   AdminUpdateCustomerStatusRequest,
   CustomerTier,
+  ThemeSettings,
 } from '../../types'
+import { AdminHeaderBanner } from './AdminHeaderBanner'
 
 export const AdminUsersView: React.FC = () => {
   // Main Users Table State
@@ -119,6 +126,42 @@ export const AdminUsersView: React.FC = () => {
     type: 'success' | 'error'
     text: string
   } | null>(null)
+
+  // Multi-Auth System Settings (Moved from Theme Settings per architectural restructuring)
+  const [authSettings, setAuthSettings] = useState<ThemeSettings>({
+    event_name: 'عادی',
+    event_active: false,
+    primary_color: '#2563eb',
+    accent_color: '#3b82f6',
+    header_announcement: 'تمامی سرویس‌ها فعال است',
+    event_effect: 'none',
+    auth_google_enabled: true,
+    auth_github_enabled: true,
+    auth_password_enabled: true,
+    auth_otp_required: false,
+  })
+  const [authSaveLoading, setAuthSaveLoading] = useState(false)
+
+  useEffect(() => {
+    api
+      .getAdminThemeSettings()
+      .then((s) => {
+        if (s) setAuthSettings(s)
+      })
+      .catch(() => {})
+  }, [])
+
+  const handleSaveAuthSettings = async () => {
+    setAuthSaveLoading(true)
+    try {
+      await api.updateAdminThemeSettings(authSettings)
+      showToast('success', 'تنظیمات روش‌های ورود مشتریان با موفقیت ذخیره گردید')
+    } catch (err: any) {
+      showToast('error', err.message || 'خطا در ذخیره تنظیمات ورود')
+    } finally {
+      setAuthSaveLoading(false)
+    }
+  }
   const [copiedKey, setCopiedKey] = useState<string | null>(null)
 
   const showToast = (type: 'success' | 'error', text: string) => {
@@ -396,75 +439,214 @@ export const AdminUsersView: React.FC = () => {
       )}
 
       {/* Top Header Card & Stats Banner */}
-      <div className="bg-gradient-to-r from-blue-700 via-blue-600 to-indigo-700 text-white rounded-3xl p-6 sm:p-8 shadow-xl shadow-blue-600/10 relative overflow-hidden">
-        <div className="absolute -left-10 -bottom-10 w-60 h-60 bg-white/5 rounded-full blur-3xl pointer-events-none" />
-        <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-          <div className="space-y-2">
-            <div className="inline-flex items-center gap-2 bg-white/15 backdrop-blur-md px-3.5 py-1 rounded-full text-xs font-semibold border border-white/20">
-              <ShieldCheck className="w-4 h-4 text-blue-200" />
-              <span>مرکز کنترل و مدیریت کاربران آناهیکس (User 360°)</span>
+      <AdminHeaderBanner
+        icon={Users}
+        title="مدیریت جامع کاربران و نمای ۳۶۰ درجه (User 360°)"
+        subtitle="مشاهده پرونده کامل، کنترل کیف پول، سوابق سفارشات لایسنس و شماره‌های مجازی، مدیریت دسترسی‌ها و یادداشت‌های امنیتی"
+        badgeText="مرکز کنترل کاربران"
+        actions={
+          <button
+            type="button"
+            onClick={loadCustomers}
+            disabled={loading}
+            className="h-9 px-4 rounded-control bg-secondary text-secondary-foreground border border-border/60 hover:bg-muted text-xs font-bold transition-all shadow-control flex items-center gap-2 cursor-pointer duration-motion active:scale-[0.98]"
+          >
+            <RefreshCw
+              className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`}
+            />
+            <span>به‌روزرسانی داده‌ها</span>
+          </button>
+        }
+      />
+
+      {/* 4 Summary Stat Tiles */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-card rounded-surface border border-border/80 p-4 shadow-surface">
+          <div className="flex items-center justify-between text-muted-foreground text-xs mb-1">
+            <span>کل کاربران ثبت‌نامی</span>
+            <Users className="w-4 h-4 text-brand" />
+          </div>
+          <div className="text-2xl font-black text-foreground font-mono font-latin">
+            {(data?.total || 0).toLocaleString('fa-IR')}
+          </div>
+        </div>
+
+        <div className="bg-card rounded-surface border border-border/80 p-4 shadow-surface">
+          <div className="flex items-center justify-between text-muted-foreground text-xs mb-1">
+            <span>کاربران فعال</span>
+            <UserCheck className="w-4 h-4 text-emerald-400" />
+          </div>
+          <div className="text-2xl font-black text-emerald-400 font-mono font-latin">
+            {(data?.total_active || 0).toLocaleString('fa-IR')}
+          </div>
+        </div>
+
+        <div className="bg-card rounded-surface border border-border/80 p-4 shadow-surface">
+          <div className="flex items-center justify-between text-muted-foreground text-xs mb-1">
+            <span>همکاران و مشترکین VIP</span>
+            <Award className="w-4 h-4 text-amber-500" />
+          </div>
+          <div className="text-2xl font-black text-amber-500 font-mono font-latin">
+            {(data?.total_vip || 0).toLocaleString('fa-IR')}
+          </div>
+        </div>
+
+        <div className="bg-card rounded-surface border border-border/80 p-4 shadow-surface">
+          <div className="flex items-center justify-between text-muted-foreground text-xs mb-1">
+            <span>کل موجودی کیف پول‌ها</span>
+            <Wallet className="w-4 h-4 text-cyan-500" />
+          </div>
+          <div className="text-xl sm:text-2xl font-black font-mono font-latin text-foreground truncate">
+            {(data?.total_balance_toman || 0).toLocaleString('fa-IR')}{' '}
+            <span className="text-xs font-normal text-muted-foreground font-sans">
+              تومان
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* MULTI-AUTH SYSTEM CONTROLS (Relocated from Theme Settings per architecture instructions) */}
+      <div className="bg-card rounded-surface border border-border/80 p-5 sm:p-6 shadow-surface space-y-4 text-foreground">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/60 pb-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-control bg-secondary text-brand border border-border/60 flex items-center justify-center shrink-0">
+              <KeyRound className="w-4 h-4" />
             </div>
-            <h2 className="text-xl sm:text-2xl font-black tracking-tight">
-              مدیریت جامع کاربران و نمای ۳۶۰ درجه پرونده مشتریان
-            </h2>
-            <p className="text-xs sm:text-sm text-blue-100 max-w-2xl leading-relaxed">
-              مشاهده پرونده کامل، کنترل کیف پول، تاریخچه سفارشات لایسنس و
-              شماره‌های مجازی، مدیریت شبکه بازاریابی معرف‌ها و یادداشت‌های امنیتی
-              محرمانه اپراتورها.
-            </p>
+            <div>
+              <h3 className="text-sm font-black text-foreground">
+                تنظیمات روش‌های ورود و ثبت‌نام مشتریان (Multi-Auth System)
+              </h3>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                تعیین گزینه‌های ورود فعال در مدال احراز هویت (گوگل، گیت‌هاب، کلمه
+                عبور ثابت و کد پیامکی OTP)
+              </p>
+            </div>
           </div>
 
           <button
-            onClick={loadCustomers}
-            disabled={loading}
-            className="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 backdrop-blur-md text-white text-xs font-bold transition-all flex items-center gap-2 self-stretch md:self-auto justify-center"
+            type="button"
+            onClick={handleSaveAuthSettings}
+            disabled={authSaveLoading}
+            className="h-8 px-4 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs duration-motion active:scale-[0.98] shadow-control flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
           >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-            <span>به‌روزرسانی داده‌ها</span>
+            <Save className="w-3.5 h-3.5" />
+            <span>
+              {authSaveLoading ? 'در حال ذخیره...' : 'ذخیره تنظیمات ورود'}
+            </span>
           </button>
         </div>
 
-        {/* 4 Summary Stat Tiles */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mt-6 pt-6 border-t border-white/15">
-          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/10">
-            <div className="flex items-center justify-between text-blue-200 text-xs mb-1">
-              <span>کل کاربران ثبت‌نامی</span>
-              <Users className="w-4 h-4 opacity-80" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+          {/* Google */}
+          <div className="flex items-center justify-between p-3.5 rounded-control border border-border/60 bg-muted/20">
+            <div>
+              <span className="font-bold text-foreground block">
+                ورود با Google
+              </span>
+              <span className="text-[10px] text-muted-foreground">
+                جیمیل و آواتار خودکار
+              </span>
             </div>
-            <div className="text-2xl font-black font-mono">
-              {(data?.total || 0).toLocaleString('fa-IR')}
-            </div>
+            <button
+              type="button"
+              onClick={() =>
+                setAuthSettings((prev) => ({
+                  ...prev,
+                  auth_google_enabled: !prev.auth_google_enabled,
+                }))
+              }
+              className={`p-1 cursor-pointer transition-colors ${authSettings.auth_google_enabled ? 'text-brand' : 'text-muted-foreground'}`}
+            >
+              {authSettings.auth_google_enabled ? (
+                <ToggleRight className="w-7 h-7" />
+              ) : (
+                <ToggleLeft className="w-7 h-7" />
+              )}
+            </button>
           </div>
 
-          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/10">
-            <div className="flex items-center justify-between text-blue-200 text-xs mb-1">
-              <span>کاربران فعال</span>
-              <UserCheck className="w-4 h-4 text-emerald-300" />
+          {/* GitHub */}
+          <div className="flex items-center justify-between p-3.5 rounded-control border border-border/60 bg-muted/20">
+            <div>
+              <span className="font-bold text-foreground block">
+                ورود با GitHub
+              </span>
+              <span className="text-[10px] text-muted-foreground">
+                ویژه توسعه‌دهندگان
+              </span>
             </div>
-            <div className="text-2xl font-black font-mono text-emerald-300">
-              {(data?.total_active || 0).toLocaleString('fa-IR')}
-            </div>
+            <button
+              type="button"
+              onClick={() =>
+                setAuthSettings((prev) => ({
+                  ...prev,
+                  auth_github_enabled: !prev.auth_github_enabled,
+                }))
+              }
+              className={`p-1 cursor-pointer transition-colors ${authSettings.auth_github_enabled ? 'text-brand' : 'text-muted-foreground'}`}
+            >
+              {authSettings.auth_github_enabled ? (
+                <ToggleRight className="w-7 h-7" />
+              ) : (
+                <ToggleLeft className="w-7 h-7" />
+              )}
+            </button>
           </div>
 
-          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/10">
-            <div className="flex items-center justify-between text-blue-200 text-xs mb-1">
-              <span>همکاران و مشترکین VIP</span>
-              <Award className="w-4 h-4 text-amber-300" />
+          {/* Password */}
+          <div className="flex items-center justify-between p-3.5 rounded-control border border-border/60 bg-muted/20">
+            <div>
+              <span className="font-bold text-foreground block">
+                ورود با کلمه عبور
+              </span>
+              <span className="text-[10px] text-muted-foreground">
+                رمز عبور ثابت
+              </span>
             </div>
-            <div className="text-2xl font-black font-mono text-amber-300">
-              {(data?.total_vip || 0).toLocaleString('fa-IR')}
-            </div>
+            <button
+              type="button"
+              onClick={() =>
+                setAuthSettings((prev) => ({
+                  ...prev,
+                  auth_password_enabled: !prev.auth_password_enabled,
+                }))
+              }
+              className={`p-1 cursor-pointer transition-colors ${authSettings.auth_password_enabled ? 'text-brand' : 'text-muted-foreground'}`}
+            >
+              {authSettings.auth_password_enabled ? (
+                <ToggleRight className="w-7 h-7" />
+              ) : (
+                <ToggleLeft className="w-7 h-7" />
+              )}
+            </button>
           </div>
 
-          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/10">
-            <div className="flex items-center justify-between text-blue-200 text-xs mb-1">
-              <span>کل موجودی کیف پول‌ها</span>
-              <Wallet className="w-4 h-4 text-cyan-300" />
+          {/* OTP */}
+          <div className="flex items-center justify-between p-3.5 rounded-control border border-border/60 bg-muted/20">
+            <div>
+              <span className="font-bold text-foreground block">
+                الزام پیامک OTP
+              </span>
+              <span className="text-[10px] text-muted-foreground">
+                کد پیامکی دومرحله‌ای
+              </span>
             </div>
-            <div className="text-xl sm:text-2xl font-black font-mono text-cyan-200 truncate">
-              {(data?.total_balance_toman || 0).toLocaleString('fa-IR')}{' '}
-              <span className="text-xs font-normal">تومان</span>
-            </div>
+            <button
+              type="button"
+              onClick={() =>
+                setAuthSettings((prev) => ({
+                  ...prev,
+                  auth_otp_required: !prev.auth_otp_required,
+                }))
+              }
+              className={`p-1 cursor-pointer transition-colors ${authSettings.auth_otp_required ? 'text-brand' : 'text-muted-foreground'}`}
+            >
+              {authSettings.auth_otp_required ? (
+                <ToggleRight className="w-7 h-7" />
+              ) : (
+                <ToggleLeft className="w-7 h-7" />
+              )}
+            </button>
           </div>
         </div>
       </div>
@@ -886,305 +1068,580 @@ export const AdminUsersView: React.FC = () => {
       {/* ==================================================================== */}
       {/* 360-DEGREE CUSTOMER DRAWER / PROFILE MODAL                           */}
       {/* ==================================================================== */}
-      {selectedCustomerId && (
-        <div className="fixed inset-0 z-50 overflow-hidden bg-slate-900/60 backdrop-blur-sm flex justify-end animate-in fade-in duration-200">
+      {selectedCustomerId &&
+        createPortal(
           <div
-            className="w-full max-w-4xl bg-white dark:bg-[#020817] h-full shadow-2xl flex flex-col border-r border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 overflow-hidden animate-in slide-in-from-right duration-300"
-            dir="rtl"
+            className="fixed inset-0 overflow-hidden bg-black/80 backdrop-blur-md flex justify-end animate-in fade-in duration-200"
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              width: '100vw',
+              height: '100vh',
+              zIndex: 2147483600,
+            }}
           >
-            {/* Drawer Header */}
-            <div className="p-5 sm:p-6 bg-slate-50/80 dark:bg-slate-900/60 border-b border-slate-200 dark:border-slate-800 flex items-start justify-between gap-4 shrink-0">
-              <div className="flex items-start gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center font-bold text-lg shadow-md shadow-blue-500/20 shrink-0">
-                  {customer360?.customer.full_name?.charAt(0) || 'ک'}
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">
-                      {customer360?.customer.full_name || 'در حال بارگذاری...'}
-                    </h3>
-                    {customer360?.customer.tier && (
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
-                        سطح: {customer360.customer.tier.toUpperCase()}
-                      </span>
-                    )}
-                    {customer360?.customer.is_online && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">
-                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                        آنلاین
-                      </span>
-                    )}
+            <div
+              className="w-full max-w-4xl bg-card h-full shadow-overlay flex flex-col border-r border-border/80 text-foreground overflow-hidden animate-in slide-in-from-right duration-300"
+              dir="rtl"
+            >
+              {/* Drawer Header */}
+              <div className="p-5 sm:p-6 bg-muted/30 border-b border-border/60 flex items-start justify-between gap-4 shrink-0">
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center font-bold text-lg shadow-md shadow-blue-500/20 shrink-0">
+                    {customer360?.customer.full_name?.charAt(0) || 'ک'}
                   </div>
-                  <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 mt-1 font-mono">
-                    <span className="flex items-center gap-1">
-                      <Phone className="w-3.5 h-3.5" />
-                      {customer360?.customer.phone}
-                    </span>
-                    {customer360?.customer.email && (
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">
+                        {customer360?.customer.full_name ||
+                          'در حال بارگذاری...'}
+                      </h3>
+                      {customer360?.customer.tier && (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                          سطح: {customer360.customer.tier.toUpperCase()}
+                        </span>
+                      )}
+                      {customer360?.customer.is_online && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">
+                          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                          آنلاین
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 mt-1 font-mono">
                       <span className="flex items-center gap-1">
-                        <Mail className="w-3.5 h-3.5" />
-                        {customer360.customer.email}
+                        <Phone className="w-3.5 h-3.5" />
+                        {customer360?.customer.phone}
                       </span>
-                    )}
-                    <span className="font-sans text-[11px] text-slate-400">
-                      عضویت:{' '}
-                      {customer360?.customer.created_at &&
-                        new Date(
-                          customer360.customer.created_at,
-                        ).toLocaleDateString('fa-IR')}
-                    </span>
+                      {customer360?.customer.email && (
+                        <span className="flex items-center gap-1">
+                          <Mail className="w-3.5 h-3.5" />
+                          {customer360.customer.email}
+                        </span>
+                      )}
+                      <span className="font-sans text-[11px] text-slate-400">
+                        عضویت:{' '}
+                        {customer360?.customer.created_at &&
+                          new Date(
+                            customer360.customer.created_at,
+                          ).toLocaleDateString('fa-IR')}
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() =>
-                    customer360 && openWalletModal(customer360.customer)
-                  }
-                  className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-colors flex items-center gap-1.5 shadow-sm"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>شارژ / کسر</span>
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      customer360 && openWalletModal(customer360.customer)
+                    }
+                    className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-colors flex items-center gap-1.5 shadow-sm"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>شارژ / کسر</span>
+                  </button>
 
-                <button
-                  type="button"
-                  onClick={closeDrawer}
-                  className="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
-
-            {/* 5 Vital Tabs Bar */}
-            <div className="flex items-center border-b border-slate-200 dark:border-slate-800 px-4 sm:px-6 bg-white dark:bg-slate-900 shrink-0 overflow-x-auto text-xs font-semibold scrollbar-none">
-              <button
-                type="button"
-                onClick={() => setActiveDrawerTab('wallet')}
-                className={`py-3 px-3.5 border-b-2 flex items-center gap-2 transition-all whitespace-nowrap ${
-                  activeDrawerTab === 'wallet'
-                    ? 'border-blue-600 text-blue-600 dark:text-blue-400 font-bold'
-                    : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-                }`}
-              >
-                <Wallet className="w-4 h-4" />
-                <span>کیف پول و مدیریت مالی</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setActiveDrawerTab('orders')}
-                className={`py-3 px-3.5 border-b-2 flex items-center gap-2 transition-all whitespace-nowrap ${
-                  activeDrawerTab === 'orders'
-                    ? 'border-blue-600 text-blue-600 dark:text-blue-400 font-bold'
-                    : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-                }`}
-              >
-                <Layers className="w-4 h-4" />
-                <span>سفارشات لایسنس ({customer360?.orders.length || 0})</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setActiveDrawerTab('virtual_numbers')}
-                className={`py-3 px-3.5 border-b-2 flex items-center gap-2 transition-all whitespace-nowrap ${
-                  activeDrawerTab === 'virtual_numbers'
-                    ? 'border-blue-600 text-blue-600 dark:text-blue-400 font-bold'
-                    : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-                }`}
-              >
-                <Radio className="w-4 h-4" />
-                <span>
-                  شماره‌های مجازی ({customer360?.virtual_numbers.length || 0})
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setActiveDrawerTab('affiliate')}
-                className={`py-3 px-3.5 border-b-2 flex items-center gap-2 transition-all whitespace-nowrap ${
-                  activeDrawerTab === 'affiliate'
-                    ? 'border-blue-600 text-blue-600 dark:text-blue-400 font-bold'
-                    : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-                }`}
-              >
-                <Share2 className="w-4 h-4" />
-                <span>
-                  زیرمجموعه‌ها و ریفرال (
-                  {customer360?.affiliate_stats.referred_count || 0})
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setActiveDrawerTab('security')}
-                className={`py-3 px-3.5 border-b-2 flex items-center gap-2 transition-all whitespace-nowrap ${
-                  activeDrawerTab === 'security'
-                    ? 'border-blue-600 text-blue-600 dark:text-blue-400 font-bold'
-                    : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-                }`}
-              >
-                <Shield className="w-4 h-4" />
-                <span>کنترل دسترسی، یادداشت و پیامک</span>
-              </button>
-            </div>
-
-            {/* Drawer Body Area */}
-            <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-6">
-              {drawerLoading && (
-                <div className="py-24 text-center text-slate-400">
-                  <RefreshCw className="w-8 h-8 animate-spin mx-auto mb-3 text-blue-600" />
-                  <span>در حال بارگذاری پرونده ۳۶۰ درجه مشتری...</span>
+                  <button
+                    type="button"
+                    onClick={closeDrawer}
+                    className="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
                 </div>
-              )}
+              </div>
 
-              {!drawerLoading && customer360 && (
-                <>
-                  {/* TAB 1: WALLET & FINANCIAL ADJUSTMENT */}
-                  {activeDrawerTab === 'wallet' && (
-                    <div className="space-y-6">
-                      {/* Balance Cards */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div className="bg-gradient-to-br from-emerald-600 to-teal-700 text-white rounded-2xl p-5 shadow-lg shadow-emerald-600/10 relative overflow-hidden">
-                          <div className="flex items-center justify-between text-xs text-emerald-100 mb-1">
-                            <span>موجودی فعلی کیف پول</span>
-                            <Wallet className="w-5 h-5 opacity-80" />
-                          </div>
-                          <div className="text-3xl font-black font-mono mt-1">
-                            {customer360.customer.balance_toman.toLocaleString(
-                              'fa-IR',
-                            )}{' '}
-                            <span className="text-sm font-sans font-normal">
-                              تومان
-                            </span>
-                          </div>
-                          <div className="mt-4 pt-3 border-t border-white/20 flex items-center justify-between">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setWalletAction('credit')
-                                openWalletModal(customer360.customer)
-                              }}
-                              className="px-3 py-1.5 rounded-xl bg-white/20 hover:bg-white/30 text-xs font-bold transition-colors flex items-center gap-1.5"
-                            >
-                              <Plus className="w-3.5 h-3.5" />
-                              <span>شارژ دستی</span>
-                            </button>
+              {/* 5 Vital Tabs Bar */}
+              <div className="flex items-center border-b border-slate-200 dark:border-slate-800 px-4 sm:px-6 bg-white dark:bg-slate-900 shrink-0 overflow-x-auto text-xs font-semibold scrollbar-none">
+                <button
+                  type="button"
+                  onClick={() => setActiveDrawerTab('wallet')}
+                  className={`py-3 px-3.5 border-b-2 flex items-center gap-2 transition-all whitespace-nowrap ${
+                    activeDrawerTab === 'wallet'
+                      ? 'border-blue-600 text-blue-600 dark:text-blue-400 font-bold'
+                      : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                  }`}
+                >
+                  <Wallet className="w-4 h-4" />
+                  <span>کیف پول و مدیریت مالی</span>
+                </button>
 
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setWalletAction('debit')
-                                openWalletModal(customer360.customer)
-                              }}
-                              className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-medium transition-colors flex items-center gap-1.5"
-                            >
-                              <Minus className="w-3.5 h-3.5" />
-                              <span>کسر دستی</span>
-                            </button>
-                          </div>
-                        </div>
+                <button
+                  type="button"
+                  onClick={() => setActiveDrawerTab('orders')}
+                  className={`py-3 px-3.5 border-b-2 flex items-center gap-2 transition-all whitespace-nowrap ${
+                    activeDrawerTab === 'orders'
+                      ? 'border-blue-600 text-blue-600 dark:text-blue-400 font-bold'
+                      : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                  }`}
+                >
+                  <Layers className="w-4 h-4" />
+                  <span>
+                    سفارشات لایسنس ({customer360?.orders.length || 0})
+                  </span>
+                </button>
 
-                        <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 flex flex-col justify-between">
-                          <div>
-                            <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
-                              <span>موجودی پورسانت ریفرال</span>
-                              <Share2 className="w-4 h-4 text-blue-500" />
+                <button
+                  type="button"
+                  onClick={() => setActiveDrawerTab('virtual_numbers')}
+                  className={`py-3 px-3.5 border-b-2 flex items-center gap-2 transition-all whitespace-nowrap ${
+                    activeDrawerTab === 'virtual_numbers'
+                      ? 'border-blue-600 text-blue-600 dark:text-blue-400 font-bold'
+                      : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                  }`}
+                >
+                  <Radio className="w-4 h-4" />
+                  <span>
+                    شماره‌های مجازی ({customer360?.virtual_numbers.length || 0})
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setActiveDrawerTab('affiliate')}
+                  className={`py-3 px-3.5 border-b-2 flex items-center gap-2 transition-all whitespace-nowrap ${
+                    activeDrawerTab === 'affiliate'
+                      ? 'border-blue-600 text-blue-600 dark:text-blue-400 font-bold'
+                      : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                  }`}
+                >
+                  <Share2 className="w-4 h-4" />
+                  <span>
+                    زیرمجموعه‌ها و ریفرال (
+                    {customer360?.affiliate_stats.referred_count || 0})
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setActiveDrawerTab('security')}
+                  className={`py-3 px-3.5 border-b-2 flex items-center gap-2 transition-all whitespace-nowrap ${
+                    activeDrawerTab === 'security'
+                      ? 'border-blue-600 text-blue-600 dark:text-blue-400 font-bold'
+                      : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                  }`}
+                >
+                  <Shield className="w-4 h-4" />
+                  <span>کنترل دسترسی، یادداشت و پیامک</span>
+                </button>
+              </div>
+
+              {/* Drawer Body Area */}
+              <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-6">
+                {drawerLoading && (
+                  <div className="py-24 text-center text-slate-400">
+                    <RefreshCw className="w-8 h-8 animate-spin mx-auto mb-3 text-blue-600" />
+                    <span>در حال بارگذاری پرونده ۳۶۰ درجه مشتری...</span>
+                  </div>
+                )}
+
+                {!drawerLoading && customer360 && (
+                  <>
+                    {/* TAB 1: WALLET & FINANCIAL ADJUSTMENT */}
+                    {activeDrawerTab === 'wallet' && (
+                      <div className="space-y-6">
+                        {/* Balance Cards */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div className="bg-gradient-to-br from-emerald-600 to-teal-700 text-white rounded-2xl p-5 shadow-lg shadow-emerald-600/10 relative overflow-hidden">
+                            <div className="flex items-center justify-between text-xs text-emerald-100 mb-1">
+                              <span>موجودی فعلی کیف پول</span>
+                              <Wallet className="w-5 h-5 opacity-80" />
                             </div>
-                            <div className="text-2xl font-black font-mono text-slate-900 dark:text-white mt-1">
-                              {customer360.customer.referral_balance_toman.toLocaleString(
+                            <div className="text-3xl font-black font-mono mt-1">
+                              {customer360.customer.balance_toman.toLocaleString(
                                 'fa-IR',
                               )}{' '}
-                              <span className="text-xs font-sans font-normal text-slate-400">
+                              <span className="text-sm font-sans font-normal">
                                 تومان
                               </span>
                             </div>
+                            <div className="mt-4 pt-3 border-t border-white/20 flex items-center justify-between">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setWalletAction('credit')
+                                  openWalletModal(customer360.customer)
+                                }}
+                                className="px-3 py-1.5 rounded-xl bg-white/20 hover:bg-white/30 text-xs font-bold transition-colors flex items-center gap-1.5"
+                              >
+                                <Plus className="w-3.5 h-3.5" />
+                                <span>شارژ دستی</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setWalletAction('debit')
+                                  openWalletModal(customer360.customer)
+                                }}
+                                className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-medium transition-colors flex items-center gap-1.5"
+                              >
+                                <Minus className="w-3.5 h-3.5" />
+                                <span>کسر دستی</span>
+                              </button>
+                            </div>
                           </div>
-                          <p className="text-[11px] text-slate-500 mt-3 leading-relaxed">
-                            کاربر می‌تواند این مبلغ را مستقیماً به کیف پول خرید
-                            خود منتقل کرده یا درخواست تسویه ریالی ثبت کند.
-                          </p>
+
+                          <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 flex flex-col justify-between">
+                            <div>
+                              <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
+                                <span>موجودی پورسانت ریفرال</span>
+                                <Share2 className="w-4 h-4 text-blue-500" />
+                              </div>
+                              <div className="text-2xl font-black font-mono text-slate-900 dark:text-white mt-1">
+                                {customer360.customer.referral_balance_toman.toLocaleString(
+                                  'fa-IR',
+                                )}{' '}
+                                <span className="text-xs font-sans font-normal text-slate-400">
+                                  تومان
+                                </span>
+                              </div>
+                            </div>
+                            <p className="text-[11px] text-slate-500 mt-3 leading-relaxed">
+                              کاربر می‌تواند این مبلغ را مستقیماً به کیف پول خرید
+                              خود منتقل کرده یا درخواست تسویه ریالی ثبت کند.
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Transactions History Table */}
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                              <Clock className="w-4 h-4 text-blue-600" />
+                              تاریخچه تراکنش‌های کیف پول مشتری
+                            </h4>
+                            <span className="text-xs text-slate-400 font-mono">
+                              {customer360.wallet_transactions.length} تراکنش
+                              اخیر
+                            </span>
+                          </div>
+
+                          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+                            {customer360.wallet_transactions.length === 0 ? (
+                              <div className="p-8 text-center text-xs text-slate-400">
+                                هیچ تراکنش مالی برای این کاربر ثبت نشده است.
+                              </div>
+                            ) : (
+                              <div className="overflow-x-auto">
+                                <table className="w-full text-right text-xs">
+                                  <thead>
+                                    <tr className="bg-slate-50 dark:bg-slate-950 text-slate-400 border-b border-slate-100 dark:border-slate-800 font-medium">
+                                      <th className="py-2.5 px-3">کد تراکنش</th>
+                                      <th className="py-2.5 px-3">
+                                        نوع عملیات
+                                      </th>
+                                      <th className="py-2.5 px-3">
+                                        مبلغ (تومان)
+                                      </th>
+                                      <th className="py-2.5 px-3">شرح و علت</th>
+                                      <th className="py-2.5 px-3">تاریخ</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                                    {customer360.wallet_transactions.map(
+                                      (tx: any) => (
+                                        <tr
+                                          key={tx.id}
+                                          className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30"
+                                        >
+                                          <td className="py-3 px-3 font-mono font-bold text-slate-800 dark:text-slate-200">
+                                            {tx.transaction_number}
+                                          </td>
+                                          <td className="py-3 px-3">
+                                            <span
+                                              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold ${
+                                                tx.order_type ===
+                                                  'admin_adjustment' ||
+                                                tx.order_type === 'deposit'
+                                                  ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400'
+                                                  : 'bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-400'
+                                              }`}
+                                            >
+                                              {tx.order_type ===
+                                                'admin_adjustment' &&
+                                                'تعدیل دستی ادمین'}
+                                              {tx.order_type === 'deposit' &&
+                                                'شارژ آنلاین'}
+                                              {tx.order_type === 'refund' &&
+                                                'استرداد وجه'}
+                                              {tx.order_type ===
+                                                'store_order' && 'خرید اشتراک'}
+                                              {tx.order_type ===
+                                                'virtual_number' &&
+                                                'شماره مجازی'}
+                                            </span>
+                                          </td>
+                                          <td className="py-3 px-3 font-mono font-bold text-slate-900 dark:text-white">
+                                            {tx.amount_toman.toLocaleString(
+                                              'fa-IR',
+                                            )}
+                                          </td>
+                                          <td className="py-3 px-3 text-slate-600 dark:text-slate-300 max-w-[220px] truncate">
+                                            {tx.description || '-'}
+                                          </td>
+                                          <td className="py-3 px-3 font-mono text-slate-400 text-[11px]">
+                                            {new Date(
+                                              tx.created_at,
+                                            ).toLocaleDateString('fa-IR')}
+                                          </td>
+                                        </tr>
+                                      ),
+                                    )}
+                                  </tbody>
+                                </table>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
+                    )}
 
-                      {/* Transactions History Table */}
-                      <div className="space-y-3">
+                    {/* TAB 2: LICENSE ORDERS HISTORY */}
+                    {activeDrawerTab === 'orders' && (
+                      <div className="space-y-4">
                         <div className="flex items-center justify-between">
                           <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                            <Clock className="w-4 h-4 text-blue-600" />
-                            تاریخچه تراکنش‌های کیف پول مشتری
+                            <Layers className="w-4 h-4 text-blue-600" />
+                            تاریخچه خریدهای لایسنس و اشتراک‌های اختصاصی
                           </h4>
                           <span className="text-xs text-slate-400 font-mono">
-                            {customer360.wallet_transactions.length} تراکنش اخیر
+                            مجموع {customer360.orders.length} سفارش
                           </span>
                         </div>
 
-                        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
-                          {customer360.wallet_transactions.length === 0 ? (
-                            <div className="p-8 text-center text-xs text-slate-400">
-                              هیچ تراکنش مالی برای این کاربر ثبت نشده است.
-                            </div>
-                          ) : (
+                        {customer360.orders.length === 0 ? (
+                          <div className="bg-slate-50 dark:bg-slate-900 rounded-2xl p-12 text-center text-slate-400 text-xs">
+                            هنوز سفارشی برای این مشتری ثبت نشده است.
+                          </div>
+                        ) : (
+                          <div className="space-y-3">
+                            {customer360.orders.map((ord) => (
+                              <div
+                                key={ord.id}
+                                className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 space-y-3 hover:border-blue-300 dark:hover:border-blue-800 transition-colors"
+                              >
+                                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800 pb-2.5">
+                                  <div>
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-mono font-bold text-blue-600 dark:text-blue-400 text-xs">
+                                        {ord.order_number}
+                                      </span>
+                                      <span className="font-bold text-xs text-slate-900 dark:text-white">
+                                        {ord.product_title}
+                                      </span>
+                                    </div>
+                                    <span className="text-[11px] text-slate-400 font-mono mt-0.5">
+                                      ثبت:{' '}
+                                      {new Date(
+                                        ord.created_at,
+                                      ).toLocaleDateString('fa-IR')}{' '}
+                                      -{' '}
+                                      {new Date(
+                                        ord.created_at,
+                                      ).toLocaleTimeString('fa-IR', {
+                                        hour: '2-digit',
+                                        minute: '2-digit',
+                                      })}
+                                    </span>
+                                  </div>
+
+                                  <div className="flex items-center gap-2">
+                                    <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                                      {ord.status}
+                                    </span>
+                                    <span className="font-mono font-bold text-xs text-slate-900 dark:text-white">
+                                      {ord.total_amount_toman.toLocaleString(
+                                        'fa-IR',
+                                      )}{' '}
+                                      تومان
+                                    </span>
+                                  </div>
+                                </div>
+
+                                {/* Delivered Payload / Key Area */}
+                                {ord.delivered_payload ? (
+                                  <div className="bg-slate-50 dark:bg-slate-950 p-3 rounded-xl border border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3">
+                                    <div className="min-w-0">
+                                      <div className="text-[10px] text-slate-400 mb-0.5">
+                                        لایسنس / مشخصات تحویل داده شده به مشتری:
+                                      </div>
+                                      <div className="font-mono text-xs text-slate-800 dark:text-slate-200 truncate select-all">
+                                        {ord.delivered_payload}
+                                      </div>
+                                    </div>
+
+                                    <div className="flex items-center gap-1.5 shrink-0">
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          copyToClipboard(
+                                            ord.delivered_payload || '',
+                                            ord.id,
+                                          )
+                                        }
+                                        className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 hover:bg-white dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors"
+                                        title="کپی کلید"
+                                      >
+                                        {copiedKey === ord.id ? (
+                                          <Check className="w-3.5 h-3.5 text-emerald-500" />
+                                        ) : (
+                                          <Copy className="w-3.5 h-3.5" />
+                                        )}
+                                      </button>
+
+                                      <button
+                                        type="button"
+                                        onClick={() => openReplaceKeyModal(ord)}
+                                        className="px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/80 text-blue-600 dark:text-blue-300 border border-blue-200 dark:border-blue-800 text-[11px] font-bold hover:bg-blue-100 transition-colors flex items-center gap-1"
+                                      >
+                                        <Key className="w-3 h-3" />
+                                        <span>تعویض کلید</span>
+                                      </button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center justify-between text-xs text-slate-400 py-1">
+                                    <span>
+                                      هنوز کلید یا لایسنسی تحویل داده نشده است.
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => openReplaceKeyModal(ord)}
+                                      className="px-2.5 py-1 rounded-lg bg-blue-600 text-white text-[11px] font-bold hover:bg-blue-700 transition-colors flex items-center gap-1"
+                                    >
+                                      <Key className="w-3 h-3" />
+                                      <span>ثبت / درج لایسنس</span>
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* TAB 3: VIRTUAL NUMBERS HISTORY */}
+                    {activeDrawerTab === 'virtual_numbers' && (
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                            <Radio className="w-4 h-4 text-blue-600" />
+                            تاریخچه شماره‌های مجازی خریداری‌شده (5SIM)
+                          </h4>
+                          <span className="text-xs text-slate-400 font-mono">
+                            {customer360.virtual_numbers.length} شماره
+                          </span>
+                        </div>
+
+                        {customer360.virtual_numbers.length === 0 ? (
+                          <div className="bg-slate-50 dark:bg-slate-900 rounded-2xl p-12 text-center text-slate-400 text-xs">
+                            این کاربر هیچ خرید شماره مجازی نداشته است.
+                          </div>
+                        ) : (
+                          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
                             <div className="overflow-x-auto">
                               <table className="w-full text-right text-xs">
                                 <thead>
                                   <tr className="bg-slate-50 dark:bg-slate-950 text-slate-400 border-b border-slate-100 dark:border-slate-800 font-medium">
-                                    <th className="py-2.5 px-3">کد تراکنش</th>
-                                    <th className="py-2.5 px-3">نوع عملیات</th>
-                                    <th className="py-2.5 px-3">
-                                      مبلغ (تومان)
+                                    <th className="py-3 px-3">کشور و سرویس</th>
+                                    <th className="py-3 px-3">شماره دریافتی</th>
+                                    <th className="py-3 px-3">
+                                      کد SMS دریافتی
                                     </th>
-                                    <th className="py-2.5 px-3">شرح و علت</th>
-                                    <th className="py-2.5 px-3">تاریخ</th>
+                                    <th className="py-3 px-3">قیمت (تومان)</th>
+                                    <th className="py-3 px-3">وضعیت</th>
+                                    <th className="py-3 px-3">تاریخ</th>
                                   </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                                  {customer360.wallet_transactions.map(
-                                    (tx: any) => (
+                                  {customer360.virtual_numbers.map(
+                                    (vn: any) => (
                                       <tr
-                                        key={tx.id}
+                                        key={vn.id}
                                         className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30"
                                       >
-                                        <td className="py-3 px-3 font-mono font-bold text-slate-800 dark:text-slate-200">
-                                          {tx.transaction_number}
-                                        </td>
                                         <td className="py-3 px-3">
-                                          <span
-                                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold ${
-                                              tx.order_type ===
-                                                'admin_adjustment' ||
-                                              tx.order_type === 'deposit'
-                                                ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400'
-                                                : 'bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-400'
-                                            }`}
-                                          >
-                                            {tx.order_type ===
-                                              'admin_adjustment' &&
-                                              'تعدیل دستی ادمین'}
-                                            {tx.order_type === 'deposit' &&
-                                              'شارژ آنلاین'}
-                                            {tx.order_type === 'refund' &&
-                                              'استرداد وجه'}
-                                            {tx.order_type === 'store_order' &&
-                                              'خرید اشتراک'}
-                                            {tx.order_type ===
-                                              'virtual_number' && 'شماره مجازی'}
-                                          </span>
+                                          <div className="flex items-center gap-2">
+                                            <span className="text-base">
+                                              {vn.country_flag || '🌐'}
+                                            </span>
+                                            <div>
+                                              <div className="font-bold text-slate-900 dark:text-white">
+                                                {vn.service_name_fa ||
+                                                  vn.service}
+                                              </div>
+                                              <div className="text-[10px] text-slate-400">
+                                                {vn.country_name_fa ||
+                                                  vn.country}{' '}
+                                                ({vn.operator})
+                                              </div>
+                                            </div>
+                                          </div>
                                         </td>
+
+                                        <td className="py-3 px-3 font-mono font-bold text-slate-800 dark:text-slate-200">
+                                          {vn.phone}
+                                        </td>
+
+                                        <td className="py-3 px-3">
+                                          {vn.sms_code ? (
+                                            <div className="inline-flex items-center gap-1 bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 font-mono font-bold px-2.5 py-1 rounded-lg">
+                                              <span>{vn.sms_code}</span>
+                                              <button
+                                                type="button"
+                                                onClick={() =>
+                                                  copyToClipboard(
+                                                    vn.sms_code,
+                                                    vn.id,
+                                                  )
+                                                }
+                                                className="p-0.5 hover:bg-emerald-200 rounded"
+                                                title="کپی کد"
+                                              >
+                                                {copiedKey === vn.id ? (
+                                                  <Check className="w-3 h-3" />
+                                                ) : (
+                                                  <Copy className="w-3 h-3" />
+                                                )}
+                                              </button>
+                                            </div>
+                                          ) : (
+                                            <span className="text-slate-400">
+                                              در انتظار پیامک...
+                                            </span>
+                                          )}
+                                        </td>
+
                                         <td className="py-3 px-3 font-mono font-bold text-slate-900 dark:text-white">
-                                          {tx.amount_toman.toLocaleString(
+                                          {vn.price_toman.toLocaleString(
                                             'fa-IR',
                                           )}
                                         </td>
-                                        <td className="py-3 px-3 text-slate-600 dark:text-slate-300 max-w-[220px] truncate">
-                                          {tx.description || '-'}
+
+                                        <td className="py-3 px-3">
+                                          <span
+                                            className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                              vn.status === 'RECEIVED' ||
+                                              vn.status === 'FINISHED'
+                                                ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400'
+                                                : vn.status === 'CANCELED'
+                                                  ? 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400'
+                                                  : 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400'
+                                            }`}
+                                          >
+                                            {vn.status}
+                                          </span>
                                         </td>
-                                        <td className="py-3 px-3 font-mono text-slate-400 text-[11px]">
+
+                                        <td className="py-3 px-3 font-mono text-[11px] text-slate-400">
                                           {new Date(
-                                            tx.created_at,
+                                            vn.created_at,
                                           ).toLocaleDateString('fa-IR')}
                                         </td>
                                       </tr>
@@ -1193,802 +1650,600 @@ export const AdminUsersView: React.FC = () => {
                                 </tbody>
                               </table>
                             </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* TAB 2: LICENSE ORDERS HISTORY */}
-                  {activeDrawerTab === 'orders' && (
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                          <Layers className="w-4 h-4 text-blue-600" />
-                          تاریخچه خریدهای لایسنس و اشتراک‌های اختصاصی
-                        </h4>
-                        <span className="text-xs text-slate-400 font-mono">
-                          مجموع {customer360.orders.length} سفارش
-                        </span>
-                      </div>
-
-                      {customer360.orders.length === 0 ? (
-                        <div className="bg-slate-50 dark:bg-slate-900 rounded-2xl p-12 text-center text-slate-400 text-xs">
-                          هنوز سفارشی برای این مشتری ثبت نشده است.
-                        </div>
-                      ) : (
-                        <div className="space-y-3">
-                          {customer360.orders.map((ord) => (
-                            <div
-                              key={ord.id}
-                              className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 space-y-3 hover:border-blue-300 dark:hover:border-blue-800 transition-colors"
-                            >
-                              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800 pb-2.5">
-                                <div>
-                                  <div className="flex items-center gap-2">
-                                    <span className="font-mono font-bold text-blue-600 dark:text-blue-400 text-xs">
-                                      {ord.order_number}
-                                    </span>
-                                    <span className="font-bold text-xs text-slate-900 dark:text-white">
-                                      {ord.product_title}
-                                    </span>
-                                  </div>
-                                  <span className="text-[11px] text-slate-400 font-mono mt-0.5">
-                                    ثبت:{' '}
-                                    {new Date(
-                                      ord.created_at,
-                                    ).toLocaleDateString('fa-IR')}{' '}
-                                    -{' '}
-                                    {new Date(
-                                      ord.created_at,
-                                    ).toLocaleTimeString('fa-IR', {
-                                      hour: '2-digit',
-                                      minute: '2-digit',
-                                    })}
-                                  </span>
-                                </div>
-
-                                <div className="flex items-center gap-2">
-                                  <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
-                                    {ord.status}
-                                  </span>
-                                  <span className="font-mono font-bold text-xs text-slate-900 dark:text-white">
-                                    {ord.total_amount_toman.toLocaleString(
-                                      'fa-IR',
-                                    )}{' '}
-                                    تومان
-                                  </span>
-                                </div>
-                              </div>
-
-                              {/* Delivered Payload / Key Area */}
-                              {ord.delivered_payload ? (
-                                <div className="bg-slate-50 dark:bg-slate-950 p-3 rounded-xl border border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3">
-                                  <div className="min-w-0">
-                                    <div className="text-[10px] text-slate-400 mb-0.5">
-                                      لایسنس / مشخصات تحویل داده شده به مشتری:
-                                    </div>
-                                    <div className="font-mono text-xs text-slate-800 dark:text-slate-200 truncate select-all">
-                                      {ord.delivered_payload}
-                                    </div>
-                                  </div>
-
-                                  <div className="flex items-center gap-1.5 shrink-0">
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        copyToClipboard(
-                                          ord.delivered_payload || '',
-                                          ord.id,
-                                        )
-                                      }
-                                      className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 hover:bg-white dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors"
-                                      title="کپی کلید"
-                                    >
-                                      {copiedKey === ord.id ? (
-                                        <Check className="w-3.5 h-3.5 text-emerald-500" />
-                                      ) : (
-                                        <Copy className="w-3.5 h-3.5" />
-                                      )}
-                                    </button>
-
-                                    <button
-                                      type="button"
-                                      onClick={() => openReplaceKeyModal(ord)}
-                                      className="px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/80 text-blue-600 dark:text-blue-300 border border-blue-200 dark:border-blue-800 text-[11px] font-bold hover:bg-blue-100 transition-colors flex items-center gap-1"
-                                    >
-                                      <Key className="w-3 h-3" />
-                                      <span>تعویض کلید</span>
-                                    </button>
-                                  </div>
-                                </div>
-                              ) : (
-                                <div className="flex items-center justify-between text-xs text-slate-400 py-1">
-                                  <span>
-                                    هنوز کلید یا لایسنسی تحویل داده نشده است.
-                                  </span>
-                                  <button
-                                    type="button"
-                                    onClick={() => openReplaceKeyModal(ord)}
-                                    className="px-2.5 py-1 rounded-lg bg-blue-600 text-white text-[11px] font-bold hover:bg-blue-700 transition-colors flex items-center gap-1"
-                                  >
-                                    <Key className="w-3 h-3" />
-                                    <span>ثبت / درج لایسنس</span>
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* TAB 3: VIRTUAL NUMBERS HISTORY */}
-                  {activeDrawerTab === 'virtual_numbers' && (
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                          <Radio className="w-4 h-4 text-blue-600" />
-                          تاریخچه شماره‌های مجازی خریداری‌شده (5SIM)
-                        </h4>
-                        <span className="text-xs text-slate-400 font-mono">
-                          {customer360.virtual_numbers.length} شماره
-                        </span>
-                      </div>
-
-                      {customer360.virtual_numbers.length === 0 ? (
-                        <div className="bg-slate-50 dark:bg-slate-900 rounded-2xl p-12 text-center text-slate-400 text-xs">
-                          این کاربر هیچ خرید شماره مجازی نداشته است.
-                        </div>
-                      ) : (
-                        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
-                          <div className="overflow-x-auto">
-                            <table className="w-full text-right text-xs">
-                              <thead>
-                                <tr className="bg-slate-50 dark:bg-slate-950 text-slate-400 border-b border-slate-100 dark:border-slate-800 font-medium">
-                                  <th className="py-3 px-3">کشور و سرویس</th>
-                                  <th className="py-3 px-3">شماره دریافتی</th>
-                                  <th className="py-3 px-3">کد SMS دریافتی</th>
-                                  <th className="py-3 px-3">قیمت (تومان)</th>
-                                  <th className="py-3 px-3">وضعیت</th>
-                                  <th className="py-3 px-3">تاریخ</th>
-                                </tr>
-                              </thead>
-                              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                                {customer360.virtual_numbers.map((vn: any) => (
-                                  <tr
-                                    key={vn.id}
-                                    className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30"
-                                  >
-                                    <td className="py-3 px-3">
-                                      <div className="flex items-center gap-2">
-                                        <span className="text-base">
-                                          {vn.country_flag || '🌐'}
-                                        </span>
-                                        <div>
-                                          <div className="font-bold text-slate-900 dark:text-white">
-                                            {vn.service_name_fa || vn.service}
-                                          </div>
-                                          <div className="text-[10px] text-slate-400">
-                                            {vn.country_name_fa || vn.country} (
-                                            {vn.operator})
-                                          </div>
-                                        </div>
-                                      </div>
-                                    </td>
-
-                                    <td className="py-3 px-3 font-mono font-bold text-slate-800 dark:text-slate-200">
-                                      {vn.phone}
-                                    </td>
-
-                                    <td className="py-3 px-3">
-                                      {vn.sms_code ? (
-                                        <div className="inline-flex items-center gap-1 bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 font-mono font-bold px-2.5 py-1 rounded-lg">
-                                          <span>{vn.sms_code}</span>
-                                          <button
-                                            type="button"
-                                            onClick={() =>
-                                              copyToClipboard(
-                                                vn.sms_code,
-                                                vn.id,
-                                              )
-                                            }
-                                            className="p-0.5 hover:bg-emerald-200 rounded"
-                                            title="کپی کد"
-                                          >
-                                            {copiedKey === vn.id ? (
-                                              <Check className="w-3 h-3" />
-                                            ) : (
-                                              <Copy className="w-3 h-3" />
-                                            )}
-                                          </button>
-                                        </div>
-                                      ) : (
-                                        <span className="text-slate-400">
-                                          در انتظار پیامک...
-                                        </span>
-                                      )}
-                                    </td>
-
-                                    <td className="py-3 px-3 font-mono font-bold text-slate-900 dark:text-white">
-                                      {vn.price_toman.toLocaleString('fa-IR')}
-                                    </td>
-
-                                    <td className="py-3 px-3">
-                                      <span
-                                        className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                                          vn.status === 'RECEIVED' ||
-                                          vn.status === 'FINISHED'
-                                            ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400'
-                                            : vn.status === 'CANCELED'
-                                              ? 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400'
-                                              : 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400'
-                                        }`}
-                                      >
-                                        {vn.status}
-                                      </span>
-                                    </td>
-
-                                    <td className="py-3 px-3 font-mono text-[11px] text-slate-400">
-                                      {new Date(
-                                        vn.created_at,
-                                      ).toLocaleDateString('fa-IR')}
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* TAB 4: AFFILIATE & REFERRAL NETWORK */}
-                  {activeDrawerTab === 'affiliate' && (
-                    <div className="space-y-6">
-                      {/* Referral Code Box */}
-                      <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl p-5 flex items-center justify-between gap-4">
-                        <div>
-                          <div className="text-xs text-blue-200">
-                            کد معرف اختصاصی این کاربر:
-                          </div>
-                          <div className="text-2xl font-black font-mono mt-0.5 tracking-wider">
-                            {customer360.affiliate_stats.referral_code}
-                          </div>
-                        </div>
-
-                        <button
-                          type="button"
-                          onClick={() =>
-                            copyToClipboard(
-                              customer360.affiliate_stats.referral_code,
-                              'ref-code',
-                            )
-                          }
-                          className="px-3.5 py-2 rounded-xl bg-white/20 hover:bg-white/30 text-white text-xs font-bold transition-colors flex items-center gap-1.5"
-                        >
-                          {copiedKey === 'ref-code' ? (
-                            <Check className="w-4 h-4 text-emerald-300" />
-                          ) : (
-                            <Copy className="w-4 h-4" />
-                          )}
-                          <span>کپی کد معرف</span>
-                        </button>
-                      </div>
-
-                      {/* 4 Stats Cards */}
-                      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                        <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5">
-                          <div className="text-[11px] text-slate-400">
-                            تعداد زیرمجموعه‌ها
-                          </div>
-                          <div className="text-xl font-black font-mono text-slate-900 dark:text-white mt-1">
-                            {customer360.affiliate_stats.referred_count.toLocaleString(
-                              'fa-IR',
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5">
-                          <div className="text-[11px] text-slate-400">
-                            کل درآمد کمیسیون
-                          </div>
-                          <div className="text-lg font-black font-mono text-emerald-600 dark:text-emerald-400 mt-1">
-                            {customer360.affiliate_stats.total_commission_toman.toLocaleString(
-                              'fa-IR',
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5">
-                          <div className="text-[11px] text-slate-400">
-                            انتقال به کیف پول
-                          </div>
-                          <div className="text-lg font-black font-mono text-blue-600 dark:text-blue-400 mt-1">
-                            {customer360.affiliate_stats.transferred_commission_toman.toLocaleString(
-                              'fa-IR',
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5">
-                          <div className="text-[11px] text-slate-400">
-                            آماده تسویه
-                          </div>
-                          <div className="text-lg font-black font-mono text-amber-600 dark:text-amber-400 mt-1">
-                            {customer360.affiliate_stats.available_commission_toman.toLocaleString(
-                              'fa-IR',
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Referred Customers List */}
-                      <div className="space-y-3">
-                        <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                          <Users className="w-4 h-4 text-blue-600" />
-                          لیست کاربران عضو شده با لینک این مشتری
-                        </h4>
-
-                        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
-                          {customer360.affiliate_stats.referred_users.length ===
-                          0 ? (
-                            <div className="p-8 text-center text-xs text-slate-400">
-                              هنوز کاربری با لینک این معرف عضو نشده است.
-                            </div>
-                          ) : (
-                            <table className="w-full text-right text-xs">
-                              <thead>
-                                <tr className="bg-slate-50 dark:bg-slate-950 text-slate-400 border-b border-slate-100 dark:border-slate-800 font-medium">
-                                  <th className="py-2.5 px-3">نام و مشخصات</th>
-                                  <th className="py-2.5 px-3">شماره تماس</th>
-                                  <th className="py-2.5 px-3">تاریخ عضویت</th>
-                                </tr>
-                              </thead>
-                              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                                {customer360.affiliate_stats.referred_users.map(
-                                  (ru) => (
-                                    <tr
-                                      key={ru.id}
-                                      className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30"
-                                    >
-                                      <td className="py-2.5 px-3 font-bold text-slate-800 dark:text-slate-200">
-                                        {ru.full_name}
-                                      </td>
-                                      <td className="py-2.5 px-3 font-mono text-slate-600 dark:text-slate-300">
-                                        {ru.phone}
-                                      </td>
-                                      <td className="py-2.5 px-3 font-mono text-slate-400 text-[11px]">
-                                        {new Date(
-                                          ru.created_at,
-                                        ).toLocaleDateString('fa-IR')}
-                                      </td>
-                                    </tr>
-                                  ),
-                                )}
-                              </tbody>
-                            </table>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* TAB 5: ACCESS CONTROL, INTERNAL NOTES & DIRECT SMS */}
-                  {activeDrawerTab === 'security' && (
-                    <div className="space-y-6">
-                      {/* Security & Access Controls */}
-                      <form
-                        onSubmit={handleSaveSecurityNotes}
-                        className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 space-y-4"
-                      >
-                        <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                          <ShieldCheck className="w-4 h-4 text-blue-600" />
-                          سطح کاربری، وضعیت انسداد و یادداشت‌های محرمانه اپراتور
-                        </h4>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          <div>
-                            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                              تعیین سطح کاربری:
-                            </label>
-                            <select
-                              value={editTier}
-                              onChange={(e) =>
-                                setEditTier(e.target.value as CustomerTier)
-                              }
-                              className="w-full py-2 px-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-600"
-                            >
-                              <option value="standard">
-                                کاربر عادی (Standard)
-                              </option>
-                              <option value="colleague">
-                                همکار / فروشنده (Colleague)
-                              </option>
-                              <option value="vip">
-                                مشترک ویژه سازمانی (VIP Pro)
-                              </option>
-                            </select>
-                          </div>
-
-                          <div>
-                            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                              دلیل مسدودسازی حساب (در صورت مسدود بودن):
-                            </label>
-                            <input
-                              type="text"
-                              value={editBlockReason}
-                              onChange={(e) =>
-                                setEditBlockReason(e.target.value)
-                              }
-                              placeholder="مثلاً: تلاش برای تقلب یا نقض قوانین"
-                              className="w-full py-2 px-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-600 font-sans"
-                            />
-                          </div>
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                            یادداشت‌های محرمانه داخلی اپراتورها (Internal Notes):
-                          </label>
-                          <textarea
-                            rows={3}
-                            value={editNotes}
-                            onChange={(e) => setEditNotes(e.target.value)}
-                            placeholder="مثلاً: مشتری بسیار وفادار است، در تحویل اکانت‌های ۲FA حساس دقت شود..."
-                            className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-600 font-sans leading-relaxed"
-                          />
-                        </div>
-
-                        {securityFeedback && (
-                          <div
-                            className={`p-3 rounded-xl text-xs font-medium flex items-center gap-2 ${
-                              securityFeedback.type === 'success'
-                                ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
-                                : 'bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300'
-                            }`}
-                          >
-                            <CheckCircle2 className="w-4 h-4 shrink-0" />
-                            <span>{securityFeedback.text}</span>
                           </div>
                         )}
+                      </div>
+                    )}
 
-                        <div className="flex justify-end">
-                          <button
-                            type="submit"
-                            disabled={securitySubmitting}
-                            className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-colors flex items-center gap-2 shadow-sm"
-                          >
-                            {securitySubmitting && (
-                              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                            )}
-                            <span>ذخیره تنظیمات و یادداشت</span>
-                          </button>
-                        </div>
-                      </form>
-
-                      {/* Direct SMS Sender using SMS.ir */}
-                      <form
-                        onSubmit={handleSendDirectSMS}
-                        className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 space-y-4"
-                      >
-                        <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                    {/* TAB 4: AFFILIATE & REFERRAL NETWORK */}
+                    {activeDrawerTab === 'affiliate' && (
+                      <div className="space-y-6">
+                        {/* Referral Code Box */}
+                        <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl p-5 flex items-center justify-between gap-4">
                           <div>
-                            <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                              <Smartphone className="w-4 h-4 text-emerald-600" />
-                              ارسال پیامک مستقیم به مشتری از طریق پنل SMS.ir
-                            </h4>
-                            <p className="text-xs text-slate-500 mt-0.5">
-                              ارسال به شماره موبایل {customer360.customer.phone}
-                            </p>
+                            <div className="text-xs text-blue-200">
+                              کد معرف اختصاصی این کاربر:
+                            </div>
+                            <div className="text-2xl font-black font-mono mt-0.5 tracking-wider">
+                              {customer360.affiliate_stats.referral_code}
+                            </div>
                           </div>
-                          <span className="text-[11px] bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 font-bold px-2 py-0.5 rounded-full">
-                            SMS.ir Gateway
-                          </span>
-                        </div>
 
-                        <div>
-                          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                            متن پیامک ارسالی:
-                          </label>
-                          <textarea
-                            rows={3}
-                            value={smsMessage}
-                            onChange={(e) => setSmsMessage(e.target.value)}
-                            placeholder="متن پیام خود به کاربر را اینجا تایپ کنید (مثلاً اعلام رفع مشکل، هدیه شارژ کیف پول و...)"
-                            className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-600 font-sans leading-relaxed"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                            شناسه قالب اعتبارسنجی (اختیاری - ویژه ارسال سریع
-                            Verify):
-                          </label>
-                          <input
-                            type="number"
-                            value={smsTemplateId || ''}
-                            onChange={(e) =>
-                              setSmsTemplateId(
-                                e.target.value
-                                  ? Number(e.target.value)
-                                  : undefined,
+                          <button
+                            type="button"
+                            onClick={() =>
+                              copyToClipboard(
+                                customer360.affiliate_stats.referral_code,
+                                'ref-code',
                               )
                             }
-                            placeholder="در صورت ارسال متنی عادی خالی بگذارید"
-                            className="w-full py-2 px-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-600 font-mono"
-                          />
-                        </div>
-
-                        {smsFeedback && (
-                          <div
-                            className={`p-3 rounded-xl text-xs font-medium flex items-center gap-2 ${
-                              smsFeedback.type === 'success'
-                                ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
-                                : 'bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300'
-                            }`}
+                            className="px-3.5 py-2 rounded-xl bg-white/20 hover:bg-white/30 text-white text-xs font-bold transition-colors flex items-center gap-1.5"
                           >
-                            <CheckCircle2 className="w-4 h-4 shrink-0" />
-                            <span>{smsFeedback.text}</span>
-                          </div>
-                        )}
-
-                        <div className="flex justify-end">
-                          <button
-                            type="submit"
-                            disabled={smsSubmitting}
-                            className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-colors flex items-center gap-2 shadow-sm"
-                          >
-                            <Send className="w-3.5 h-3.5" />
-                            <span>
-                              {smsSubmitting
-                                ? 'در حال ارسال پیامک...'
-                                : 'ارسال مستقیم پیامک'}
-                            </span>
+                            {copiedKey === 'ref-code' ? (
+                              <Check className="w-4 h-4 text-emerald-300" />
+                            ) : (
+                              <Copy className="w-4 h-4" />
+                            )}
+                            <span>کپی کد معرف</span>
                           </button>
                         </div>
-                      </form>
-                    </div>
-                  )}
-                </>
-              )}
+
+                        {/* 4 Stats Cards */}
+                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                          <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5">
+                            <div className="text-[11px] text-slate-400">
+                              تعداد زیرمجموعه‌ها
+                            </div>
+                            <div className="text-xl font-black font-mono text-slate-900 dark:text-white mt-1">
+                              {customer360.affiliate_stats.referred_count.toLocaleString(
+                                'fa-IR',
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5">
+                            <div className="text-[11px] text-slate-400">
+                              کل درآمد کمیسیون
+                            </div>
+                            <div className="text-lg font-black font-mono text-emerald-600 dark:text-emerald-400 mt-1">
+                              {customer360.affiliate_stats.total_commission_toman.toLocaleString(
+                                'fa-IR',
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5">
+                            <div className="text-[11px] text-slate-400">
+                              انتقال به کیف پول
+                            </div>
+                            <div className="text-lg font-black font-mono text-blue-600 dark:text-blue-400 mt-1">
+                              {customer360.affiliate_stats.transferred_commission_toman.toLocaleString(
+                                'fa-IR',
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5">
+                            <div className="text-[11px] text-slate-400">
+                              آماده تسویه
+                            </div>
+                            <div className="text-lg font-black font-mono text-amber-600 dark:text-amber-400 mt-1">
+                              {customer360.affiliate_stats.available_commission_toman.toLocaleString(
+                                'fa-IR',
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Referred Customers List */}
+                        <div className="space-y-3">
+                          <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                            <Users className="w-4 h-4 text-blue-600" />
+                            لیست کاربران عضو شده با لینک این مشتری
+                          </h4>
+
+                          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+                            {customer360.affiliate_stats.referred_users
+                              .length === 0 ? (
+                              <div className="p-8 text-center text-xs text-slate-400">
+                                هنوز کاربری با لینک این معرف عضو نشده است.
+                              </div>
+                            ) : (
+                              <table className="w-full text-right text-xs">
+                                <thead>
+                                  <tr className="bg-slate-50 dark:bg-slate-950 text-slate-400 border-b border-slate-100 dark:border-slate-800 font-medium">
+                                    <th className="py-2.5 px-3">
+                                      نام و مشخصات
+                                    </th>
+                                    <th className="py-2.5 px-3">شماره تماس</th>
+                                    <th className="py-2.5 px-3">تاریخ عضویت</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                                  {customer360.affiliate_stats.referred_users.map(
+                                    (ru) => (
+                                      <tr
+                                        key={ru.id}
+                                        className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30"
+                                      >
+                                        <td className="py-2.5 px-3 font-bold text-slate-800 dark:text-slate-200">
+                                          {ru.full_name}
+                                        </td>
+                                        <td className="py-2.5 px-3 font-mono text-slate-600 dark:text-slate-300">
+                                          {ru.phone}
+                                        </td>
+                                        <td className="py-2.5 px-3 font-mono text-slate-400 text-[11px]">
+                                          {new Date(
+                                            ru.created_at,
+                                          ).toLocaleDateString('fa-IR')}
+                                        </td>
+                                      </tr>
+                                    ),
+                                  )}
+                                </tbody>
+                              </table>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* TAB 5: ACCESS CONTROL, INTERNAL NOTES & DIRECT SMS */}
+                    {activeDrawerTab === 'security' && (
+                      <div className="space-y-6">
+                        {/* Security & Access Controls */}
+                        <form
+                          onSubmit={handleSaveSecurityNotes}
+                          className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 space-y-4"
+                        >
+                          <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                            <ShieldCheck className="w-4 h-4 text-blue-600" />
+                            سطح کاربری، وضعیت انسداد و یادداشت‌های محرمانه
+                            اپراتور
+                          </h4>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                                تعیین سطح کاربری:
+                              </label>
+                              <select
+                                value={editTier}
+                                onChange={(e) =>
+                                  setEditTier(e.target.value as CustomerTier)
+                                }
+                                className="w-full py-2 px-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-600"
+                              >
+                                <option value="standard">
+                                  کاربر عادی (Standard)
+                                </option>
+                                <option value="colleague">
+                                  همکار / فروشنده (Colleague)
+                                </option>
+                                <option value="vip">
+                                  مشترک ویژه سازمانی (VIP Pro)
+                                </option>
+                              </select>
+                            </div>
+
+                            <div>
+                              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                                دلیل مسدودسازی حساب (در صورت مسدود بودن):
+                              </label>
+                              <input
+                                type="text"
+                                value={editBlockReason}
+                                onChange={(e) =>
+                                  setEditBlockReason(e.target.value)
+                                }
+                                placeholder="مثلاً: تلاش برای تقلب یا نقض قوانین"
+                                className="w-full py-2 px-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-600 font-sans"
+                              />
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                              یادداشت‌های محرمانه داخلی اپراتورها (Internal
+                              Notes):
+                            </label>
+                            <textarea
+                              rows={3}
+                              value={editNotes}
+                              onChange={(e) => setEditNotes(e.target.value)}
+                              placeholder="مثلاً: مشتری بسیار وفادار است، در تحویل اکانت‌های ۲FA حساس دقت شود..."
+                              className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-600 font-sans leading-relaxed"
+                            />
+                          </div>
+
+                          {securityFeedback && (
+                            <div
+                              className={`p-3 rounded-xl text-xs font-medium flex items-center gap-2 ${
+                                securityFeedback.type === 'success'
+                                  ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
+                                  : 'bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300'
+                              }`}
+                            >
+                              <CheckCircle2 className="w-4 h-4 shrink-0" />
+                              <span>{securityFeedback.text}</span>
+                            </div>
+                          )}
+
+                          <div className="flex justify-end">
+                            <button
+                              type="submit"
+                              disabled={securitySubmitting}
+                              className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-colors flex items-center gap-2 shadow-sm"
+                            >
+                              {securitySubmitting && (
+                                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                              )}
+                              <span>ذخیره تنظیمات و یادداشت</span>
+                            </button>
+                          </div>
+                        </form>
+
+                        {/* Direct SMS Sender using SMS.ir */}
+                        <form
+                          onSubmit={handleSendDirectSMS}
+                          className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 space-y-4"
+                        >
+                          <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                            <div>
+                              <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                                <Smartphone className="w-4 h-4 text-emerald-600" />
+                                ارسال پیامک مستقیم به مشتری از طریق پنل SMS.ir
+                              </h4>
+                              <p className="text-xs text-slate-500 mt-0.5">
+                                ارسال به شماره موبایل{' '}
+                                {customer360.customer.phone}
+                              </p>
+                            </div>
+                            <span className="text-[11px] bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 font-bold px-2 py-0.5 rounded-full">
+                              SMS.ir Gateway
+                            </span>
+                          </div>
+
+                          <div>
+                            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                              متن پیامک ارسالی:
+                            </label>
+                            <textarea
+                              rows={3}
+                              value={smsMessage}
+                              onChange={(e) => setSmsMessage(e.target.value)}
+                              placeholder="متن پیام خود به کاربر را اینجا تایپ کنید (مثلاً اعلام رفع مشکل، هدیه شارژ کیف پول و...)"
+                              className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-600 font-sans leading-relaxed"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                              شناسه قالب اعتبارسنجی (اختیاری - ویژه ارسال سریع
+                              Verify):
+                            </label>
+                            <input
+                              type="number"
+                              value={smsTemplateId || ''}
+                              onChange={(e) =>
+                                setSmsTemplateId(
+                                  e.target.value
+                                    ? Number(e.target.value)
+                                    : undefined,
+                                )
+                              }
+                              placeholder="در صورت ارسال متنی عادی خالی بگذارید"
+                              className="w-full py-2 px-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-600 font-mono"
+                            />
+                          </div>
+
+                          {smsFeedback && (
+                            <div
+                              className={`p-3 rounded-xl text-xs font-medium flex items-center gap-2 ${
+                                smsFeedback.type === 'success'
+                                  ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
+                                  : 'bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300'
+                              }`}
+                            >
+                              <CheckCircle2 className="w-4 h-4 shrink-0" />
+                              <span>{smsFeedback.text}</span>
+                            </div>
+                          )}
+
+                          <div className="flex justify-end">
+                            <button
+                              type="submit"
+                              disabled={smsSubmitting}
+                              className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-colors flex items-center gap-2 shadow-sm"
+                            >
+                              <Send className="w-3.5 h-3.5" />
+                              <span>
+                                {smsSubmitting
+                                  ? 'در حال ارسال پیامک...'
+                                  : 'ارسال مستقیم پیامک'}
+                              </span>
+                            </button>
+                          </div>
+                        </form>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
             </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body,
+        )}
 
       {/* ==================================================================== */}
       {/* WALLET MANUAL CREDIT/DEBIT MODAL                                    */}
       {/* ==================================================================== */}
-      {isWalletModalOpen && walletTargetUser && (
-        <div className="fixed inset-0 z-50 overflow-hidden bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+      {isWalletModalOpen &&
+        walletTargetUser &&
+        createPortal(
           <div
-            className="w-full max-w-lg bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 p-6 space-y-5 animate-in zoom-in-95 duration-200"
+            className="fixed inset-0 overflow-y-auto bg-black/80 backdrop-blur-md p-3 sm:p-6 animate-in fade-in"
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              width: '100vw',
+              height: '100vh',
+              zIndex: 2147483600,
+            }}
             dir="rtl"
           >
-            <div className="flex items-start justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
-              <div>
-                <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                  <Coins className="w-5 h-5 text-emerald-600" />
-                  شارژ یا کسر دستی موجودی کیف پول کاربر
-                </h3>
-                <p className="text-xs text-slate-500 mt-1">
-                  مشتری: {walletTargetUser.full_name} ({walletTargetUser.phone})
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setIsWalletModalOpen(false)}
-                className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+            <div className="min-h-full w-full flex items-start sm:items-center justify-center">
+              <div
+                className="w-full max-w-lg my-auto bg-card text-card-foreground rounded-surface shadow-overlay border border-border/80 p-6 space-y-5 animate-in zoom-in-95 duration-200"
+                dir="rtl"
               >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+                <div className="flex items-start justify-between border-b border-border/60 pb-4">
+                  <div>
+                    <h3 className="text-base font-black text-foreground flex items-center gap-2">
+                      <Coins className="w-5 h-5 text-emerald-500" />
+                      شارژ یا کسر دستی موجودی کیف پول کاربر
+                    </h3>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      مشتری: {walletTargetUser.full_name} (
+                      {walletTargetUser.phone})
+                    </p>
+                  </div>
 
-            <form onSubmit={handleWalletSubmit} className="space-y-4">
-              {/* Current Balance Indicator */}
-              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-950 flex items-center justify-between text-xs">
-                <span className="text-slate-500">موجودی فعلی حساب:</span>
-                <span className="font-mono font-bold text-slate-900 dark:text-white">
-                  {walletTargetUser.balance_toman.toLocaleString('fa-IR')} تومان
-                </span>
-              </div>
-
-              {/* Action Toggle (Credit / Debit) */}
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setWalletAction('credit')}
-                  className={`py-2.5 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 border ${
-                    walletAction === 'credit'
-                      ? 'bg-emerald-600 text-white border-emerald-600 shadow-md shadow-emerald-600/20'
-                      : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'
-                  }`}
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>شارژ (افزایش موجودی)</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setWalletAction('debit')}
-                  className={`py-2.5 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 border ${
-                    walletAction === 'debit'
-                      ? 'bg-red-600 text-white border-red-600 shadow-md shadow-red-600/20'
-                      : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'
-                  }`}
-                >
-                  <Minus className="w-4 h-4" />
-                  <span>کسر (کاهش موجودی)</span>
-                </button>
-              </div>
-
-              {/* Amount Input & Quick Chips */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                  مبلغ تراکنش (تومان):
-                </label>
-                <input
-                  type="number"
-                  min={1000}
-                  step={1000}
-                  value={walletAmount}
-                  onChange={(e) => setWalletAmount(Number(e.target.value))}
-                  required
-                  className="w-full py-2.5 px-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white font-mono text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-600 text-left"
-                />
-
-                <div className="flex flex-wrap items-center gap-1.5 mt-2">
-                  {[50000, 100000, 200000, 500000, 1000000].map((amt) => (
-                    <button
-                      key={amt}
-                      type="button"
-                      onClick={() => setWalletAmount(amt)}
-                      className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-[11px] font-mono text-slate-700 dark:text-slate-300 transition-colors"
-                    >
-                      {amt.toLocaleString('fa-IR')}
-                    </button>
-                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setIsWalletModalOpen(false)}
+                    className="p-1.5 rounded-control text-muted-foreground hover:text-foreground hover:bg-muted cursor-pointer transition-colors"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
                 </div>
-              </div>
 
-              {/* Mandatory Reason Field */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                  علت تراکنش <span className="text-red-500">* (اجباری)</span>:
-                </label>
-                <textarea
-                  rows={2}
-                  value={walletReason}
-                  onChange={(e) => setWalletReason(e.target.value)}
-                  required
-                  placeholder="مثلاً: واریز کارت به کارت آفلاین فیش شماره ۱۲۳۴۵، یا جبران خسارت قطعی اکانت"
-                  className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-600 font-sans"
-                />
-                <p className="text-[11px] text-slate-400 mt-1">
-                  این علت در لاگ حسابرسی (AuditLog) و لاگ مالی تراکنش‌های مشتری
-                  ثبت خواهد شد.
-                </p>
-              </div>
+                <form onSubmit={handleWalletSubmit} className="space-y-4">
+                  {/* Current Balance Indicator */}
+                  <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-950 flex items-center justify-between text-xs">
+                    <span className="text-slate-500">موجودی فعلی حساب:</span>
+                    <span className="font-mono font-bold text-slate-900 dark:text-white">
+                      {walletTargetUser.balance_toman.toLocaleString('fa-IR')}{' '}
+                      تومان
+                    </span>
+                  </div>
 
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => setIsWalletModalOpen(false)}
-                  className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-800 text-xs font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                >
-                  انصراف
-                </button>
+                  {/* Action Toggle (Credit / Debit) */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setWalletAction('credit')}
+                      className={`py-2.5 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 border ${
+                        walletAction === 'credit'
+                          ? 'bg-emerald-600 text-white border-emerald-600 shadow-md shadow-emerald-600/20'
+                          : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'
+                      }`}
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>شارژ (افزایش موجودی)</span>
+                    </button>
 
-                <button
-                  type="submit"
-                  disabled={walletSubmitting}
-                  className={`px-5 py-2.5 rounded-xl text-white text-xs font-bold transition-all shadow-md flex items-center gap-2 ${
-                    walletAction === 'credit'
-                      ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/20'
-                      : 'bg-red-600 hover:bg-red-700 shadow-red-600/20'
-                  }`}
-                >
-                  {walletSubmitting && (
-                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                  )}
-                  <span>
-                    {walletAction === 'credit'
-                      ? 'تایید و شارژ کیف پول'
-                      : 'تایید و کسر از کیف پول'}
-                  </span>
-                </button>
+                    <button
+                      type="button"
+                      onClick={() => setWalletAction('debit')}
+                      className={`py-2.5 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 border ${
+                        walletAction === 'debit'
+                          ? 'bg-red-600 text-white border-red-600 shadow-md shadow-red-600/20'
+                          : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'
+                      }`}
+                    >
+                      <Minus className="w-4 h-4" />
+                      <span>کسر (کاهش موجودی)</span>
+                    </button>
+                  </div>
+
+                  {/* Amount Input & Quick Chips */}
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                      مبلغ تراکنش (تومان):
+                    </label>
+                    <input
+                      type="number"
+                      min={1000}
+                      step={1000}
+                      value={walletAmount}
+                      onChange={(e) => setWalletAmount(Number(e.target.value))}
+                      required
+                      className="w-full py-2.5 px-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white font-mono text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-600 text-left"
+                    />
+
+                    <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                      {[50000, 100000, 200000, 500000, 1000000].map((amt) => (
+                        <button
+                          key={amt}
+                          type="button"
+                          onClick={() => setWalletAmount(amt)}
+                          className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-[11px] font-mono text-slate-700 dark:text-slate-300 transition-colors"
+                        >
+                          {amt.toLocaleString('fa-IR')}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Mandatory Reason Field */}
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                      علت تراکنش{' '}
+                      <span className="text-red-500">* (اجباری)</span>:
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={walletReason}
+                      onChange={(e) => setWalletReason(e.target.value)}
+                      required
+                      placeholder="مثلاً: واریز کارت به کارت آفلاین فیش شماره ۱۲۳۴۵، یا جبران خسارت قطعی اکانت"
+                      className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-600 font-sans"
+                    />
+                    <p className="text-[11px] text-slate-400 mt-1">
+                      این علت در لاگ حسابرسی (AuditLog) و لاگ مالی تراکنش‌های
+                      مشتری ثبت خواهد شد.
+                    </p>
+                  </div>
+
+                  <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+                    <button
+                      type="button"
+                      onClick={() => setIsWalletModalOpen(false)}
+                      className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-800 text-xs font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                    >
+                      انصراف
+                    </button>
+
+                    <button
+                      type="submit"
+                      disabled={walletSubmitting}
+                      className={`px-5 py-2.5 rounded-xl text-white text-xs font-bold transition-all shadow-md flex items-center gap-2 ${
+                        walletAction === 'credit'
+                          ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/20'
+                          : 'bg-red-600 hover:bg-red-700 shadow-red-600/20'
+                      }`}
+                    >
+                      {walletSubmitting && (
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      )}
+                      <span>
+                        {walletAction === 'credit'
+                          ? 'تایید و شارژ کیف پول'
+                          : 'تایید و کسر از کیف پول'}
+                      </span>
+                    </button>
+                  </div>
+                </form>
               </div>
-            </form>
-          </div>
-        </div>
-      )}
+            </div>
+          </div>,
+          document.body,
+        )}
 
       {/* ==================================================================== */}
       {/* REPLACE KEY MODAL                                                    */}
       {/* ==================================================================== */}
-      {isReplaceKeyOpen && replaceTargetOrder && (
-        <div className="fixed inset-0 z-50 overflow-hidden bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+      {isReplaceKeyOpen &&
+        replaceTargetOrder &&
+        createPortal(
           <div
-            className="w-full max-w-lg bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 p-6 space-y-5 animate-in zoom-in-95 duration-200"
+            className="fixed inset-0 overflow-y-auto bg-black/80 backdrop-blur-md p-3 sm:p-6 animate-in fade-in"
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              width: '100vw',
+              height: '100vh',
+              zIndex: 2147483600,
+            }}
             dir="rtl"
           >
-            <div className="flex items-start justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
-              <div>
-                <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                  <Key className="w-5 h-5 text-blue-600" />
-                  تعویض یا درج کلید و لایسنس جدید
-                </h3>
-                <p className="text-xs text-slate-500 mt-1">
-                  سفارش: {replaceTargetOrder.order_number} (
-                  {replaceTargetOrder.product_title})
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setIsReplaceKeyOpen(false)}
-                className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+            <div className="min-h-full w-full flex items-start sm:items-center justify-center">
+              <div
+                className="w-full max-w-lg my-auto bg-card text-card-foreground rounded-surface shadow-overlay border border-border/80 p-6 space-y-5 animate-in zoom-in-95 duration-200"
+                dir="rtl"
               >
-                <X className="w-5 h-5" />
-              </button>
+                <div className="flex items-start justify-between border-b border-border/60 pb-4">
+                  <div>
+                    <h3 className="text-base font-black text-foreground flex items-center gap-2">
+                      <Key className="w-5 h-5 text-brand" />
+                      تعویض یا درج کلید و لایسنس جدید
+                    </h3>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      سفارش: {replaceTargetOrder.order_number} (
+                      {replaceTargetOrder.product_title})
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsReplaceKeyOpen(false)}
+                    className="p-1.5 rounded-control text-muted-foreground hover:text-foreground hover:bg-muted cursor-pointer transition-colors"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <form onSubmit={handleReplaceKeySubmit} className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                      کلید، لایسنس یا اکانت جدید تحویلی به خریدار:
+                    </label>
+                    <textarea
+                      rows={4}
+                      value={newKeyPayload}
+                      onChange={(e) => setNewKeyPayload(e.target.value)}
+                      required
+                      placeholder="کلید یا لینک فعال‌سازی جدید را اینجا وارد فرمایید..."
+                      className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs font-mono text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-600 text-left"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                      علت تعویض کلید (جهت ثبت در لاگ و حسابرسی):
+                    </label>
+                    <input
+                      type="text"
+                      value={replaceKeyReason}
+                      onChange={(e) => setReplaceKeyReason(e.target.value)}
+                      placeholder="مثلاً: قطع شدن اکانت قبلی، درخواست تمدید، رفع اشکال لایسنس"
+                      className="w-full py-2 px-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-600 font-sans"
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+                    <button
+                      type="button"
+                      onClick={() => setIsReplaceKeyOpen(false)}
+                      className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-800 text-xs font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                    >
+                      انصراف
+                    </button>
+
+                    <button
+                      type="submit"
+                      disabled={replaceKeySubmitting}
+                      className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all shadow-md shadow-blue-600/20 flex items-center gap-2"
+                    >
+                      {replaceKeySubmitting && (
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      )}
+                      <span>ثبت و تعویض کلید</span>
+                    </button>
+                  </div>
+                </form>
+              </div>
             </div>
-
-            <form onSubmit={handleReplaceKeySubmit} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                  کلید، لایسنس یا اکانت جدید تحویلی به خریدار:
-                </label>
-                <textarea
-                  rows={4}
-                  value={newKeyPayload}
-                  onChange={(e) => setNewKeyPayload(e.target.value)}
-                  required
-                  placeholder="کلید یا لینک فعال‌سازی جدید را اینجا وارد فرمایید..."
-                  className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs font-mono text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-600 text-left"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                  علت تعویض کلید (جهت ثبت در لاگ و حسابرسی):
-                </label>
-                <input
-                  type="text"
-                  value={replaceKeyReason}
-                  onChange={(e) => setReplaceKeyReason(e.target.value)}
-                  placeholder="مثلاً: قطع شدن اکانت قبلی، درخواست تمدید، رفع اشکال لایسنس"
-                  className="w-full py-2 px-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-600 font-sans"
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => setIsReplaceKeyOpen(false)}
-                  className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-800 text-xs font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                >
-                  انصراف
-                </button>
-
-                <button
-                  type="submit"
-                  disabled={replaceKeySubmitting}
-                  className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all shadow-md shadow-blue-600/20 flex items-center gap-2"
-                >
-                  {replaceKeySubmitting && (
-                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                  )}
-                  <span>ثبت و تعویض کلید</span>
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body,
+        )}
     </div>
   )
 }

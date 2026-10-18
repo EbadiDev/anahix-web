@@ -13,12 +13,14 @@ import {
 } from 'lucide-react'
 import type React from 'react'
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { apiService } from '../../services/api'
 import type {
   AdminOrderListResult,
   AdminUpdateOrderStatusRequest,
 } from '../../types'
 import { OfficialInvoiceModal } from '../invoice/OfficialInvoiceModal'
+import { AdminHeaderBanner } from './AdminHeaderBanner'
 
 export const AdminOrdersTableView: React.FC = () => {
   // State
@@ -226,80 +228,72 @@ export const AdminOrdersTableView: React.FC = () => {
       )}
 
       {/* Header Banner */}
-      <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 text-xs font-bold text-blue-600 dark:text-blue-400 mb-1">
-            <Layers className="w-4 h-4" />
-            <span>مدیریت کلیه سفارشات فروشگاه</span>
-          </div>
-          <h2 className="text-xl font-black text-slate-900 dark:text-white">
-            میز کار و جدول جامع سفارشات و لایسنس‌ها
-          </h2>
-          <p className="text-xs text-slate-500 mt-1">
-            فیلتر و مدیریت تمام سفارش‌های پرداخت شده، تایید شده، در صف، تکمیل‌شده
-            یا مرجوعی، همراه با قابلیت استرداد خودکار به کیف پول مشتری.
-          </p>
-        </div>
+      <AdminHeaderBanner
+        icon={Layers}
+        title="میز کار و جدول جامع سفارشات و لایسنس‌ها"
+        subtitle="فیلتر و مدیریت تمام سفارش‌های پرداخت شده، تایید شده، در صف، تکمیل‌شده یا مرجوعی، همراه با قابلیت استرداد خودکار به کیف پول"
+        badgeText="مدیریت سفارشات"
+        actions={
+          <button
+            type="button"
+            onClick={loadOrders}
+            disabled={loading}
+            className="h-9 px-4 rounded-control bg-secondary text-secondary-foreground border border-border/60 hover:bg-muted text-xs font-bold transition-all shadow-control flex items-center gap-2 cursor-pointer duration-motion active:scale-[0.98]"
+          >
+            <RefreshCw
+              className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`}
+            />
+            <span>به‌روزرسانی سفارشات</span>
+          </button>
+        }
+      />
 
-        <button
-          onClick={loadOrders}
-          disabled={loading}
-          className="px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors flex items-center gap-2 self-stretch md:self-auto justify-center"
-        >
-          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-          <span>به‌روزرسانی سفارشات</span>
-        </button>
-      </div>
-
-      {/* Filter Tabs & Search Controls */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 sm:p-5 shadow-sm space-y-4">
-        {/* Status Horizontal Tabs */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none text-xs font-bold">
-          {[
-            { id: 'all', label: 'همه سفارشات' },
-            { id: 'paid', label: 'تایید شده / پرداخت شده' },
-            { id: 'in_queue', label: 'در صف اپراتور' },
-            { id: 'processing', label: 'در حال پردازش' },
-            { id: 'awaiting_customer_action', label: 'منتظر کد ۲FA' },
-            { id: 'completed', label: 'تکمیل شده' },
-            { id: 'cancelled', label: 'لغو شده' },
-            { id: 'refunded', label: 'مرجوعی / عودت وجه' },
-            { id: 'pending_payment', label: 'در انتظار پرداخت' },
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => {
-                setStatusFilter(tab.id)
-                setPage(1)
-              }}
-              className={`px-3.5 py-2 rounded-xl transition-all whitespace-nowrap shrink-0 ${
-                statusFilter === tab.id
-                  ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20 font-black'
-                  : 'bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Search bar & Secondary filters */}
-        <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
-          <form onSubmit={handleSearchSubmit} className="flex-1 relative">
-            <Search className="w-4 h-4 text-slate-400 absolute right-3.5 top-3 pointer-events-none" />
+      {/* Search Bar & 3 Responsive Dropdowns (Status, Delivery, Gateway) */}
+      <div className="bg-card rounded-surface border border-border/80 p-4 sm:p-5 shadow-surface">
+        <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3">
+          {/* Compact Search Bar */}
+          <form
+            onSubmit={handleSearchSubmit}
+            className="flex-1 min-w-[200px] sm:min-w-[280px] relative"
+          >
+            <Search className="w-4 h-4 text-muted-foreground absolute right-3.5 top-2.5 pointer-events-none" />
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="جستجو بر اساس: شماره سفارش، شماره موبایل خریدار، یا ایمیل..."
-              className="w-full pl-4 pr-10 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-600 font-sans"
+              placeholder="جستجو: شماره سفارش، موبایل یا ایمیل..."
+              className="w-full pl-4 pr-10 h-9 rounded-control border border-border/60 bg-muted/20 text-xs text-foreground placeholder:text-muted-foreground outline-none focus:border-brand font-sans"
             />
           </form>
 
-          {/* Delivery Type Dropdown */}
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] text-slate-400 shrink-0">
+          {/* 1. Status Filter Dropdown (Converted from bulky tabs to sleek dropdown per user request) */}
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span className="text-[11px] text-muted-foreground shrink-0 font-bold whitespace-nowrap">
+              وضعیت:
+            </span>
+            <select
+              value={statusFilter}
+              onChange={(e) => {
+                setStatusFilter(e.target.value)
+                setPage(1)
+              }}
+              className="h-9 px-3 rounded-control border border-border/60 bg-muted/20 text-xs text-foreground outline-none focus:border-brand font-bold"
+            >
+              <option value="all">همه وضعیت‌ها</option>
+              <option value="paid">تایید شده / پرداخت شده</option>
+              <option value="in_queue">در صف اپراتور</option>
+              <option value="processing">در حال پردازش</option>
+              <option value="awaiting_customer_action">منتظر کد ۲FA</option>
+              <option value="completed">تکمیل شده</option>
+              <option value="cancelled">لغو شده</option>
+              <option value="refunded">مرجوعی / عودت وجه</option>
+              <option value="pending_payment">در انتظار پرداخت</option>
+            </select>
+          </div>
+
+          {/* 2. Delivery Type Dropdown */}
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span className="text-[11px] text-muted-foreground shrink-0 font-bold whitespace-nowrap">
               روش تحویل:
             </span>
             <select
@@ -308,7 +302,7 @@ export const AdminOrdersTableView: React.FC = () => {
                 setDeliveryTypeFilter(e.target.value)
                 setPage(1)
               }}
-              className="py-2 px-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs text-slate-800 dark:text-slate-200 focus:outline-none"
+              className="h-9 px-3 rounded-control border border-border/60 bg-muted/20 text-xs text-foreground outline-none focus:border-brand"
             >
               <option value="all">همه روش‌ها</option>
               <option value="instant">تحویل آنی و خودکار</option>
@@ -319,16 +313,18 @@ export const AdminOrdersTableView: React.FC = () => {
             </select>
           </div>
 
-          {/* Payment Method Dropdown */}
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] text-slate-400 shrink-0">درگاه:</span>
+          {/* 3. Payment Method Dropdown */}
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span className="text-[11px] text-muted-foreground shrink-0 font-bold whitespace-nowrap">
+              درگاه:
+            </span>
             <select
               value={paymentMethodFilter}
               onChange={(e) => {
                 setPaymentMethodFilter(e.target.value)
                 setPage(1)
               }}
-              className="py-2 px-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs text-slate-800 dark:text-slate-200 focus:outline-none"
+              className="h-9 px-3 rounded-control border border-border/60 bg-muted/20 text-xs text-foreground outline-none focus:border-brand"
             >
               <option value="all">همه درگاه‌ها</option>
               <option value="balance">کیف پول</option>
@@ -340,25 +336,28 @@ export const AdminOrdersTableView: React.FC = () => {
         </div>
       </div>
 
-      {/* Orders Table */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+      {/* Orders Table - Centered with Graphite Tokens */}
+      <div className="bg-card rounded-surface border border-border/80 shadow-surface overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-right text-xs">
+          <table className="w-full text-center text-xs">
             <thead>
-              <tr className="border-b border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-950/40 text-slate-500 dark:text-slate-400 font-semibold select-none">
-                <th className="py-4 px-4">شماره سفارش و تاریخ</th>
-                <th className="py-4 px-4">عنوان محصول و آیتم</th>
-                <th className="py-4 px-4">مشتری و شماره تماس</th>
-                <th className="py-4 px-4">مبلغ و درگاه پرداخت</th>
+              <tr className="border-b border-border/60 bg-muted/30 text-muted-foreground font-semibold select-none text-center">
+                <th className="py-4 px-4 text-center">شماره سفارش و تاریخ</th>
+                <th className="py-4 px-4 text-center">عنوان محصول و آیتم</th>
+                <th className="py-4 px-4 text-center">مشتری و شماره تماس</th>
+                <th className="py-4 px-4 text-center">مبلغ و درگاه پرداخت</th>
                 <th className="py-4 px-4 text-center">وضعیت سفارش</th>
-                <th className="py-4 px-4 text-left">عملیات مدیریت</th>
+                <th className="py-4 px-4 text-center">عملیات مدیریت</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
+            <tbody className="divide-y divide-border/60">
               {loading && (
                 <tr>
-                  <td colSpan={6} className="py-16 text-center text-slate-400">
-                    <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-blue-600" />
+                  <td
+                    colSpan={6}
+                    className="py-16 text-center text-muted-foreground"
+                  >
+                    <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-brand" />
                     <span>در حال فراخوانی سفارش‌ها...</span>
                   </td>
                 </tr>
@@ -366,8 +365,11 @@ export const AdminOrdersTableView: React.FC = () => {
 
               {!loading && (!data?.orders || data.orders.length === 0) && (
                 <tr>
-                  <td colSpan={6} className="py-16 text-center text-slate-500">
-                    <Package className="w-10 h-10 mx-auto mb-2 text-slate-300 dark:text-slate-600" />
+                  <td
+                    colSpan={6}
+                    className="py-16 text-center text-muted-foreground"
+                  >
+                    <Package className="w-10 h-10 mx-auto mb-2 opacity-50" />
                     <span className="font-bold">
                       سفارشی با این مشخصات یافت نشد.
                     </span>
@@ -382,52 +384,52 @@ export const AdminOrdersTableView: React.FC = () => {
                   return (
                     <tr
                       key={oid}
-                      className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors"
+                      className="hover:bg-muted/40 transition-colors"
                     >
                       {/* Order Number & Date */}
-                      <td className="py-3.5 px-4">
-                        <div className="font-mono font-bold text-blue-600 dark:text-blue-400">
+                      <td className="py-3.5 px-4 text-center">
+                        <div className="font-mono font-bold text-brand font-latin">
                           {ord.order_number}
                         </div>
-                        <div className="text-[11px] text-slate-400 font-mono mt-0.5">
+                        <div className="text-[11px] text-muted-foreground font-mono mt-0.5 font-latin">
                           {new Date(ord.created_at).toLocaleDateString('fa-IR')}
                         </div>
                       </td>
 
                       {/* Product Title */}
-                      <td className="py-3.5 px-4">
-                        <div className="font-bold text-slate-900 dark:text-white line-clamp-1">
+                      <td className="py-3.5 px-4 text-center">
+                        <div className="font-bold text-foreground line-clamp-1">
                           {ord.product_title || 'سفارش هوش مصنوعی'}
                         </div>
-                        <div className="text-[10px] text-slate-400 mt-0.5">
+                        <div className="text-[10px] text-muted-foreground mt-0.5">
                           شیوه تحویل:{' '}
-                          <span className="font-semibold text-slate-600 dark:text-slate-300">
+                          <span className="font-semibold text-foreground">
                             {ord.delivery_type}
                           </span>
                         </div>
                       </td>
 
                       {/* Customer Info */}
-                      <td className="py-3.5 px-4 font-mono">
-                        <div className="font-bold text-slate-800 dark:text-slate-200">
+                      <td className="py-3.5 px-4 font-mono font-latin text-center">
+                        <div className="font-bold text-foreground">
                           {ord.customer_phone}
                         </div>
                         {ord.customer_email && (
-                          <div className="text-[10px] text-slate-400 truncate max-w-[150px]">
+                          <div className="text-[10px] text-muted-foreground truncate max-w-[150px] mx-auto">
                             {ord.customer_email}
                           </div>
                         )}
                       </td>
 
                       {/* Total Amount & Gateway */}
-                      <td className="py-3.5 px-4 font-mono">
-                        <div className="font-bold text-sm text-slate-900 dark:text-white">
+                      <td className="py-3.5 px-4 font-mono font-latin text-center">
+                        <div className="font-bold text-sm text-foreground">
                           {ord.total_amount_toman.toLocaleString('fa-IR')}{' '}
-                          <span className="text-[10px] font-sans font-normal text-slate-400">
+                          <span className="text-[10px] font-sans font-normal text-muted-foreground">
                             تومان
                           </span>
                         </div>
-                        <div className="text-[10px] text-slate-500 font-sans">
+                        <div className="text-[10px] text-muted-foreground font-sans">
                           روش:{' '}
                           {ord.payment_method === 'balance'
                             ? 'کیف پول'
@@ -442,20 +444,20 @@ export const AdminOrdersTableView: React.FC = () => {
                       {/* Status Badge */}
                       <td className="py-3.5 px-4 text-center">
                         <span
-                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold border ${badge.classes}`}
+                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-control text-[10px] font-bold border ${badge.classes}`}
                         >
                           {badge.label}
                         </span>
                       </td>
 
                       {/* Actions */}
-                      <td className="py-3.5 px-4 text-left">
-                        <div className="flex items-center justify-end gap-1.5">
+                      <td className="py-3.5 px-4 text-center">
+                        <div className="flex items-center justify-center gap-1.5">
                           {/* Change Status Button */}
                           <button
                             type="button"
                             onClick={() => openStatusModal(ord)}
-                            className="px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900 text-[11px] font-bold border border-blue-200 dark:border-blue-800 transition-colors"
+                            className="px-2.5 py-1 rounded-control bg-brand/10 text-brand hover:bg-brand/20 text-[11px] font-bold border border-brand/30 transition-colors cursor-pointer duration-motion active:scale-[0.98]"
                           >
                             تغییر وضعیت
                           </button>
@@ -467,7 +469,7 @@ export const AdminOrdersTableView: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => setPromptOrderId(oid)}
-                              className="p-1.5 rounded-lg bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 hover:bg-amber-100 border border-amber-200 dark:border-amber-800 transition-colors"
+                              className="p-1.5 rounded-control bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 border border-amber-500/30 transition-colors cursor-pointer duration-motion active:scale-[0.98]"
                               title="ارسال درخواست کد ۲FA"
                             >
                               <Smartphone className="w-4 h-4" />
@@ -478,7 +480,7 @@ export const AdminOrdersTableView: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => setInvoiceOrderNo(ord.order_number)}
-                            className="p-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 border border-slate-200 dark:border-slate-700 transition-colors"
+                            className="p-1.5 rounded-control bg-muted text-muted-foreground hover:text-foreground border border-border/60 transition-colors cursor-pointer duration-motion active:scale-[0.98]"
                             title="مشاهده فاکتور رسمی"
                           >
                             <ReceiptText className="w-4 h-4" />
@@ -494,7 +496,7 @@ export const AdminOrdersTableView: React.FC = () => {
 
         {/* Pagination */}
         {data && data.total > 0 && (
-          <div className="p-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500">
+          <div className="p-4 border-t border-border/60 flex items-center justify-between text-xs text-muted-foreground">
             <div>
               صفحه {data.page} از {Math.ceil(data.total / data.page_size) || 1}{' '}
               (مجموع {data.total.toLocaleString('fa-IR')} سفارش)
@@ -505,7 +507,7 @@ export const AdminOrdersTableView: React.FC = () => {
                 type="button"
                 disabled={page <= 1}
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
-                className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 disabled:opacity-40 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                className="px-3 py-1.5 rounded-control border border-border/60 disabled:opacity-40 hover:bg-muted transition-colors cursor-pointer duration-motion active:scale-[0.98]"
               >
                 قبلی
               </button>
@@ -513,7 +515,7 @@ export const AdminOrdersTableView: React.FC = () => {
                 type="button"
                 disabled={page >= Math.ceil(data.total / data.page_size)}
                 onClick={() => setPage((p) => p + 1)}
-                className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 disabled:opacity-40 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                className="px-3 py-1.5 rounded-control border border-border/60 disabled:opacity-40 hover:bg-muted transition-colors cursor-pointer duration-motion active:scale-[0.98]"
               >
                 بعدی
               </button>
@@ -525,179 +527,218 @@ export const AdminOrdersTableView: React.FC = () => {
       {/* ==================================================================== */}
       {/* STATUS CHANGER MODAL                                                 */}
       {/* ==================================================================== */}
-      {isStatusModalOpen && selectedOrder && (
-        <div className="fixed inset-0 z-50 overflow-hidden bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+      {isStatusModalOpen &&
+        selectedOrder &&
+        createPortal(
           <div
-            className="w-full max-w-lg bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 p-6 space-y-5 animate-in zoom-in-95 duration-200"
+            className="fixed inset-0 overflow-y-auto bg-black/80 backdrop-blur-md p-3 sm:p-6 animate-in fade-in"
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              width: '100vw',
+              height: '100vh',
+              zIndex: 2147483600,
+            }}
             dir="rtl"
           >
-            <div className="flex items-start justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
-              <div>
-                <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                  <Tag className="w-5 h-5 text-blue-600" />
-                  به‌روزرسانی و تغییر وضعیت سفارش
-                </h3>
-                <p className="text-xs text-slate-500 mt-1 font-mono">
-                  سفارش شماره: {selectedOrder.order_number}
-                </p>
-              </div>
+            <div className="min-h-full w-full flex items-start sm:items-center justify-center">
+              <div className="w-full max-w-lg my-auto bg-card text-card-foreground rounded-surface shadow-overlay border border-border/80 p-6 space-y-5 animate-in zoom-in-95 duration-200">
+                <div className="flex items-start justify-between border-b border-border/60 pb-4">
+                  <div>
+                    <h3 className="text-base font-black text-foreground flex items-center gap-2">
+                      <Tag className="w-5 h-5 text-brand" />
+                      به‌روزرسانی و تغییر وضعیت سفارش
+                    </h3>
+                    <p className="text-xs text-muted-foreground mt-1 font-mono font-latin">
+                      سفارش شماره: {selectedOrder.order_number}
+                    </p>
+                  </div>
 
-              <button
-                type="button"
-                onClick={() => setIsStatusModalOpen(false)}
-                className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleStatusSubmit} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                  وضعیت جدید سفارش:
-                </label>
-                <select
-                  value={newStatus}
-                  onChange={(e) => setNewStatus(e.target.value)}
-                  className="w-full py-2.5 px-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-600"
-                >
-                  <option value="paid">پرداخت شده / تایید شده (Paid)</option>
-                  <option value="in_queue">
-                    در صف پردازش اپراتور (In Queue)
-                  </option>
-                  <option value="processing">در حال پردازش (Processing)</option>
-                  <option value="awaiting_customer_action">
-                    منتظر اقدام مشتری / کد ۲FA (Awaiting Action)
-                  </option>
-                  <option value="completed">
-                    تکمیل و تحویل داده شده (Completed)
-                  </option>
-                  <option value="cancelled">لغو سفارش (Cancelled)</option>
-                  <option value="refunded">مرجوعی و عودت وجه (Refunded)</option>
-                </select>
-              </div>
-
-              {/* Automatic Refund to Customer Wallet Toggle */}
-              {(newStatus === 'cancelled' || newStatus === 'refunded') && (
-                <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 space-y-2">
-                  <label className="flex items-center gap-2 cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={refundToWallet}
-                      onChange={(e) => setRefundToWallet(e.target.checked)}
-                      className="rounded border-amber-300 text-amber-600 focus:ring-amber-500 w-4 h-4"
-                    />
-                    <span className="text-xs font-bold text-amber-900 dark:text-amber-200">
-                      استرداد خودکار وجه سفارش به کیف پول مشتری (
-                      {selectedOrder.total_amount_toman.toLocaleString('fa-IR')}{' '}
-                      تومان)
-                    </span>
-                  </label>
-                  <p className="text-[11px] text-amber-700 dark:text-amber-300 leading-relaxed pr-6">
-                    در صورت فعال بودن این گزینه، مبلغ پرداختی سفارش فوراً به
-                    موجودی کیف پول کاربر اضافه شده و سند تراکنش استردادی ثبت
-                    می‌گردد.
-                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setIsStatusModalOpen(false)}
+                    className="p-1.5 rounded-control text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
                 </div>
-              )}
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                  یادداشت و توضیحات اپراتور:
-                </label>
-                <textarea
-                  rows={3}
-                  value={operatorNotes}
-                  onChange={(e) => setOperatorNotes(e.target.value)}
-                  placeholder="توضیحات و علت تغییر وضعیت جهت ثبت در سیستم..."
-                  className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-600 font-sans"
-                />
-              </div>
+                <form onSubmit={handleStatusSubmit} className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-bold text-foreground mb-1.5">
+                      وضعیت جدید سفارش:
+                    </label>
+                    <select
+                      value={newStatus}
+                      onChange={(e) => setNewStatus(e.target.value)}
+                      className="w-full h-10 px-3 rounded-field border border-border/60 bg-muted/30 text-xs font-bold text-foreground outline-none focus:border-brand"
+                    >
+                      <option value="paid">
+                        پرداخت شده / تایید شده (Paid)
+                      </option>
+                      <option value="in_queue">
+                        در صف پردازش اپراتور (In Queue)
+                      </option>
+                      <option value="processing">
+                        در حال پردازش (Processing)
+                      </option>
+                      <option value="awaiting_customer_action">
+                        منتظر اقدام مشتری / کد ۲FA (Awaiting Action)
+                      </option>
+                      <option value="completed">
+                        تکمیل و تحویل داده شده (Completed)
+                      </option>
+                      <option value="cancelled">لغو سفارش (Cancelled)</option>
+                      <option value="refunded">
+                        مرجوعی و عودت وجه (Refunded)
+                      </option>
+                    </select>
+                  </div>
 
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => setIsStatusModalOpen(false)}
-                  className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-800 text-xs font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                >
-                  انصراف
-                </button>
-
-                <button
-                  type="submit"
-                  disabled={statusSubmitting}
-                  className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all shadow-md shadow-blue-600/20 flex items-center gap-2"
-                >
-                  {statusSubmitting && (
-                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  {/* Automatic Refund to Customer Wallet Toggle */}
+                  {(newStatus === 'cancelled' || newStatus === 'refunded') && (
+                    <div className="p-4 rounded-surface bg-amber-500/10 border border-amber-500/30 space-y-2">
+                      <label className="flex items-center gap-2 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={refundToWallet}
+                          onChange={(e) => setRefundToWallet(e.target.checked)}
+                          className="rounded-control accent-amber-500 w-4 h-4"
+                        />
+                        <span className="text-xs font-bold text-foreground">
+                          استرداد خودکار وجه سفارش به کیف پول مشتری (
+                          {selectedOrder.total_amount_toman.toLocaleString(
+                            'fa-IR',
+                          )}{' '}
+                          تومان)
+                        </span>
+                      </label>
+                      <p className="text-[11px] text-muted-foreground leading-relaxed pr-6">
+                        در صورت فعال بودن این گزینه، مبلغ پرداختی سفارش فوراً به
+                        موجودی کیف پول کاربر اضافه شده و سند تراکنش استردادی ثبت
+                        می‌گردد.
+                      </p>
+                    </div>
                   )}
-                  <span>ذخیره وضعیت جدید</span>
-                </button>
+
+                  <div>
+                    <label className="block text-xs font-bold text-foreground mb-1.5">
+                      یادداشت و توضیحات اپراتور:
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={operatorNotes}
+                      onChange={(e) => setOperatorNotes(e.target.value)}
+                      placeholder="توضیحات و علت تغییر وضعیت جهت ثبت در سیستم..."
+                      className="w-full p-3 rounded-field border border-border/60 bg-muted/30 text-xs text-foreground outline-none focus:border-brand font-sans"
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-end gap-3 pt-3 border-t border-border/60">
+                    <button
+                      type="button"
+                      onClick={() => setIsStatusModalOpen(false)}
+                      className="h-9 px-4 rounded-control border border-border/60 text-xs font-bold text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer duration-motion active:scale-[0.98]"
+                    >
+                      انصراف
+                    </button>
+
+                    <button
+                      type="submit"
+                      disabled={statusSubmitting}
+                      className="h-9 px-5 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground text-xs font-black shadow-control flex items-center gap-2 cursor-pointer duration-motion active:scale-[0.98]"
+                    >
+                      {statusSubmitting && (
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      )}
+                      <span>ذخیره وضعیت جدید</span>
+                    </button>
+                  </div>
+                </form>
               </div>
-            </form>
-          </div>
-        </div>
-      )}
+            </div>
+          </div>,
+          document.body,
+        )}
 
       {/* ==================================================================== */}
       {/* 2FA PROMPT REQUEST MODAL                                             */}
       {/* ==================================================================== */}
-      {promptOrderId && (
-        <div className="fixed inset-0 z-50 overflow-hidden bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+      {promptOrderId &&
+        createPortal(
           <div
-            className="w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 p-6 space-y-4"
+            className="fixed inset-0 overflow-y-auto bg-black/80 backdrop-blur-md p-3 sm:p-6 animate-in fade-in"
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              width: '100vw',
+              height: '100vh',
+              zIndex: 2147483600,
+            }}
             dir="rtl"
           >
-            <div className="flex items-start justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-              <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <Smartphone className="w-5 h-5 text-amber-500" />
-                ارسال درخواست کد دو مرحله‌ای (2FA)
-              </h3>
-              <button
-                type="button"
-                onClick={() => setPromptOrderId(null)}
-                className="p-1 rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+            <div className="min-h-full w-full flex items-start sm:items-center justify-center">
+              <div className="w-full max-w-md my-auto bg-card text-card-foreground rounded-surface shadow-overlay border border-border/80 p-6 space-y-4 animate-in zoom-in-95">
+                <div className="flex items-start justify-between border-b border-border/60 pb-3">
+                  <h3 className="text-base font-black text-foreground flex items-center gap-2">
+                    <Smartphone className="w-5 h-5 text-amber-500" />
+                    ارسال درخواست کد دو مرحله‌ای (2FA)
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => setPromptOrderId(null)}
+                    className="p-1 rounded-control text-muted-foreground hover:text-foreground cursor-pointer"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                پیام ارسالی به کاربر:
-              </label>
-              <textarea
-                rows={3}
-                value={promptMessage}
-                onChange={(e) => setPromptMessage(e.target.value)}
-                className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500 font-sans"
-              />
-            </div>
+                <div>
+                  <label className="block text-xs font-bold text-foreground mb-1.5">
+                    پیام ارسالی به کاربر:
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={promptMessage}
+                    onChange={(e) => setPromptMessage(e.target.value)}
+                    className="w-full p-3 rounded-field border border-border/60 bg-muted/30 text-xs text-foreground outline-none focus:border-brand font-sans"
+                  />
+                </div>
 
-            <div className="flex items-center justify-end gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => setPromptOrderId(null)}
-                className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-800 text-xs font-medium text-slate-600 dark:text-slate-400"
-              >
-                انصراف
-              </button>
+                <div className="flex items-center justify-end gap-2 pt-2 border-t border-border/60">
+                  <button
+                    type="button"
+                    onClick={() => setPromptOrderId(null)}
+                    className="h-9 px-4 rounded-control border border-border/60 text-xs font-bold text-muted-foreground hover:text-foreground hover:bg-muted cursor-pointer duration-motion active:scale-[0.98]"
+                  >
+                    انصراف
+                  </button>
 
-              <button
-                type="button"
-                disabled={sendingPrompt}
-                onClick={() => handleSend2FAPrompt(promptOrderId)}
-                className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold transition-all shadow-md shadow-amber-500/20 flex items-center gap-2"
-              >
-                <Send className="w-3.5 h-3.5" />
-                <span>
-                  {sendingPrompt ? 'در حال ارسال...' : 'ارسال درخواست به مشتری'}
-                </span>
-              </button>
+                  <button
+                    type="button"
+                    disabled={sendingPrompt}
+                    onClick={() => handleSend2FAPrompt(promptOrderId)}
+                    className="h-9 px-5 rounded-control bg-amber-500 hover:bg-amber-600 text-white text-xs font-black shadow-control flex items-center gap-2 cursor-pointer duration-motion active:scale-[0.98]"
+                  >
+                    <Send className="w-3.5 h-3.5" />
+                    <span>
+                      {sendingPrompt
+                        ? 'در حال ارسال...'
+                        : 'ارسال درخواست به مشتری'}
+                    </span>
+                  </button>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body,
+        )}
 
       {/* Official Tax Invoice Modal */}
       {invoiceOrderNo && (

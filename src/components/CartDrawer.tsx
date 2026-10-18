@@ -250,10 +250,35 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
           setDbPayments(list)
         }
       })
-      // 2. Fetch live promotional coupons from DB / Admin
+      // 2. Fetch live promotional coupons from DB / Admin & active calendar campaigns
       apiService.getPublicCoupons().then((list) => {
-        if (list && Array.isArray(list)) {
-          setPromotionalCoupons(list)
+        const allCoupons = Array.isArray(list) ? [...list] : []
+        try {
+          const rawEvents = localStorage.getItem('anahix_calendar_events')
+          if (rawEvents) {
+            const evts = JSON.parse(rawEvents)
+            if (Array.isArray(evts)) {
+              for (const e of evts) {
+                if (
+                  e.couponCode &&
+                  !allCoupons.some((c) => c.code === e.couponCode)
+                ) {
+                  allCoupons.push({
+                    id: e.id || `c-${e.couponCode}`,
+                    code: e.couponCode,
+                    discount_type: 'percentage',
+                    discount_value: e.discountPercent || 20,
+                    description: `تخفیف جشنواره: ${e.title}`,
+                    valid: true,
+                    is_active: true,
+                  } as any)
+                }
+              }
+            }
+          }
+        } catch {}
+        if (allCoupons.length > 0) {
+          setPromotionalCoupons(allCoupons)
         }
       })
       // 3. Fetch checkout channel settings from DB / Admin

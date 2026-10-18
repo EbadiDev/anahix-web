@@ -20,6 +20,7 @@ import {
 } from 'lucide-react'
 import type React from 'react'
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { apiService } from '../../services/api'
 import type { AdminActionLogRecord } from '../../types'
 
@@ -472,110 +473,133 @@ export const AdminActionLogView: React.FC = () => {
       </div>
 
       {/* Details Modal */}
-      {selectedLog && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-150">
-          <div className="w-full max-w-xl rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150">
-            <div className="p-5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <FileCode className="w-5 h-5 text-blue-500" />
-                <h3 className="font-bold text-sm text-slate-900 dark:text-white">
-                  جزئیات رویداد سیستمی
-                </h3>
-              </div>
-              <button
-                onClick={() => setSelectedLog(null)}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="p-5 space-y-4 text-xs">
-              <div className="grid grid-cols-2 gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800/80">
-                <div>
-                  <span className="text-slate-400">مدیر اقدام‌کننده:</span>
-                  <div className="font-bold mt-0.5 text-slate-800 dark:text-slate-200">
-                    @{selectedLog.admin_username}
+      {selectedLog &&
+        createPortal(
+          <div
+            className="fixed inset-0 overflow-y-auto bg-black/80 backdrop-blur-md p-3 sm:p-6 animate-in fade-in duration-150"
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              width: '100vw',
+              height: '100vh',
+              zIndex: 2147483600,
+            }}
+            dir="rtl"
+          >
+            <div className="min-h-full w-full flex items-start sm:items-center justify-center">
+              <div className="w-full max-w-xl my-auto rounded-surface bg-card border border-border/80 shadow-overlay overflow-hidden animate-in zoom-in-95 duration-150 text-foreground">
+                <div className="p-5 border-b border-border/60 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <FileCode className="w-5 h-5 text-brand" />
+                    <h3 className="font-black text-sm text-foreground">
+                      جزئیات رویداد سیستمی
+                    </h3>
                   </div>
-                </div>
-                <div>
-                  <span className="text-slate-400">رویداد:</span>
-                  <div className="mt-0.5">
-                    {getActionBadge(selectedLog.action)}
-                  </div>
-                </div>
-                <div>
-                  <span className="text-slate-400">آدرس IP:</span>
-                  <div
-                    className="font-mono mt-0.5 text-slate-800 dark:text-slate-200"
-                    dir="ltr"
+                  <button
+                    type="button"
+                    onClick={() => setSelectedLog(null)}
+                    className="p-1 rounded-control text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
                   >
-                    {selectedLog.ip_address}
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <div className="p-5 space-y-4 text-xs">
+                  <div className="grid grid-cols-2 gap-3 p-3 rounded-control bg-muted/20 border border-border/60">
+                    <div>
+                      <span className="text-muted-foreground">
+                        مدیر اقدام‌کننده:
+                      </span>
+                      <div className="font-bold mt-0.5 text-foreground font-latin">
+                        @{selectedLog.admin_username}
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">رویداد:</span>
+                      <div className="mt-0.5">
+                        {getActionBadge(selectedLog.action)}
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">آدرس IP:</span>
+                      <div
+                        className="font-mono mt-0.5 text-foreground font-latin"
+                        dir="ltr"
+                      >
+                        {selectedLog.ip_address}
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">زمان ثبت:</span>
+                      <div className="mt-0.5 text-foreground">
+                        {formatDate(selectedLog.created_at)}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <span className="text-muted-foreground block mb-1">
+                      شرح عملیات:
+                    </span>
+                    <p className="p-3 rounded-control bg-muted/20 border border-border/60 leading-relaxed font-medium text-foreground">
+                      {selectedLog.description}
+                    </p>
+                  </div>
+
+                  {selectedLog.user_agent && (
+                    <div>
+                      <span className="text-muted-foreground block mb-1">
+                        دستگاه / مرورگر:
+                      </span>
+                      <p
+                        className="p-2.5 rounded-control bg-muted/20 border border-border/60 font-mono text-[10px] text-muted-foreground break-all"
+                        dir="ltr"
+                      >
+                        {selectedLog.user_agent}
+                      </p>
+                    </div>
+                  )}
+
+                  <div>
+                    <span className="text-muted-foreground block mb-1">
+                      داده‌های ساختاریافته (Payload Details):
+                    </span>
+                    <pre
+                      className="p-3 rounded-control bg-muted/30 border border-border/60 text-foreground font-mono text-[11px] overflow-x-auto max-h-48 scrollbar-thin font-latin"
+                      dir="ltr"
+                    >
+                      {(() => {
+                        try {
+                          return JSON.stringify(
+                            JSON.parse(selectedLog.details || '{}'),
+                            null,
+                            2,
+                          )
+                        } catch {
+                          return selectedLog.details || '{}'
+                        }
+                      })()}
+                    </pre>
                   </div>
                 </div>
-                <div>
-                  <span className="text-slate-400">زمان ثبت:</span>
-                  <div className="mt-0.5 text-slate-800 dark:text-slate-200">
-                    {formatDate(selectedLog.created_at)}
-                  </div>
-                </div>
-              </div>
 
-              <div>
-                <span className="text-slate-400 block mb-1">شرح عملیات:</span>
-                <p className="p-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800/80 leading-relaxed font-medium text-slate-800 dark:text-slate-200">
-                  {selectedLog.description}
-                </p>
-              </div>
-
-              {selectedLog.user_agent && (
-                <div>
-                  <span className="text-slate-400 block mb-1">
-                    دستگاه / مرورگر:
-                  </span>
-                  <p
-                    className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800/80 font-mono text-[10px] text-slate-600 dark:text-slate-400 break-all"
-                    dir="ltr"
+                <div className="p-4 border-t border-border/60 bg-muted/10 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedLog(null)}
+                    className="h-9 px-5 rounded-control text-xs font-black bg-primary hover:bg-primary-hover text-primary-foreground transition-all duration-motion active:scale-[0.98] shadow-control cursor-pointer"
                   >
-                    {selectedLog.user_agent}
-                  </p>
+                    بستن پنجره
+                  </button>
                 </div>
-              )}
-
-              <div>
-                <span className="text-slate-400 block mb-1">
-                  داده‌های ساختاریافته (Payload Details):
-                </span>
-                <pre
-                  className="p-3 rounded-xl bg-slate-950 text-emerald-400 font-mono text-[11px] overflow-x-auto max-h-48 border border-slate-800"
-                  dir="ltr"
-                >
-                  {(() => {
-                    try {
-                      return JSON.stringify(
-                        JSON.parse(selectedLog.details || '{}'),
-                        null,
-                        2,
-                      )
-                    } catch {
-                      return selectedLog.details || '{}'
-                    }
-                  })()}
-                </pre>
               </div>
             </div>
-
-            <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/40 flex justify-end">
-              <button
-                onClick={() => setSelectedLog(null)}
-                className="px-4 py-2 rounded-xl text-xs font-semibold bg-blue-600 text-white hover:bg-blue-700 transition-colors"
-              >
-                بستن پنجره
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body,
+        )}
     </div>
   )
 }

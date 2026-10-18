@@ -332,30 +332,30 @@ export const TransactionsLogView: React.FC = () => {
       </div>
 
       {/* Transactions Table */}
-      <div className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+      <div className="rounded-surface bg-card border border-border/80 shadow-surface overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-right text-xs">
+          <table className="w-full text-center text-xs">
             <thead>
-              <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/50 text-slate-500 dark:text-slate-400 font-semibold">
-                <th className="py-3 px-4">شناسه تراکنش</th>
-                <th className="py-3 px-4">نوع عملیات</th>
-                <th className="py-3 px-4">مشتری</th>
-                <th className="py-3 px-4">مبلغ پرداختی</th>
-                <th className="py-3 px-4">درگاه / شیوه</th>
-                <th className="py-3 px-4">کد پیگیری</th>
-                <th className="py-3 px-4">وضعیت</th>
-                <th className="py-3 px-4">تاریخ و زمان</th>
+              <tr className="border-b border-border/60 bg-muted/30 text-muted-foreground font-semibold select-none text-center">
+                <th className="py-3 px-4 text-center">شناسه تراکنش</th>
+                <th className="py-3 px-4 text-center">نوع عملیات</th>
+                <th className="py-3 px-4 text-center">مشتری</th>
+                <th className="py-3 px-4 text-center">مبلغ پرداختی</th>
+                <th className="py-3 px-4 text-center">درگاه / شیوه</th>
+                <th className="py-3 px-4 text-center">کد پیگیری</th>
+                <th className="py-3 px-4 text-center">وضعیت</th>
+                <th className="py-3 px-4 text-center">تاریخ و زمان</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
+            <tbody className="divide-y divide-border/60">
               {loading ? (
                 <tr>
                   <td
                     colSpan={8}
-                    className="py-12 text-center text-slate-400 dark:text-slate-500"
+                    className="py-12 text-center text-muted-foreground"
                   >
                     <div className="flex flex-col items-center justify-center gap-2">
-                      <RefreshCw className="w-5 h-5 animate-spin text-blue-500" />
+                      <RefreshCw className="w-5 h-5 animate-spin text-brand" />
                       <span>در حال فراخوانی دفتر کل تراکنش‌ها...</span>
                     </div>
                   </td>
@@ -364,14 +364,14 @@ export const TransactionsLogView: React.FC = () => {
                 <tr>
                   <td
                     colSpan={8}
-                    className="py-12 text-center text-slate-400 dark:text-slate-500"
+                    className="py-12 text-center text-muted-foreground"
                   >
                     <div className="flex flex-col items-center justify-center gap-2">
-                      <ReceiptText className="w-8 h-8 opacity-40 text-slate-400" />
-                      <span className="font-medium text-slate-600 dark:text-slate-400">
+                      <ReceiptText className="w-8 h-8 opacity-40 text-muted-foreground" />
+                      <span className="font-medium text-foreground">
                         هیچ تراکنشی با فیلترهای انتخابی یافت نشد
                       </span>
-                      <p className="text-[11px] text-slate-400">
+                      <p className="text-[11px] text-muted-foreground">
                         تراکنش‌های حاصل از ثبت سفارش‌ها یا شماره‌های مجازی در این
                         بخش نمایش داده می‌شوند.
                       </p>
@@ -382,51 +382,54 @@ export const TransactionsLogView: React.FC = () => {
                 transactions.map((tx) => (
                   <tr
                     key={tx.id}
-                    className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors"
+                    className="hover:bg-muted/40 transition-colors"
                   >
                     {/* Transaction Number */}
-                    <td className="py-3.5 px-4 font-mono font-medium text-slate-900 dark:text-white">
-                      <div className="flex items-center gap-1.5">
-                        <span className="truncate max-w-[140px] text-xs">
+                    <td className="py-3.5 px-4 font-mono font-medium text-foreground text-center">
+                      <div className="flex items-center justify-center gap-1.5">
+                        <span className="truncate max-w-[140px] text-xs font-latin">
                           {tx.transaction_number}
                         </span>
                         <button
+                          type="button"
                           onClick={() =>
                             handleCopy(tx.transaction_number, tx.id)
                           }
-                          className="p-1 rounded text-slate-400 hover:text-blue-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                          className="p-1 rounded text-muted-foreground hover:text-brand hover:bg-muted transition-colors cursor-pointer"
                           title="کپی شناسه"
                         >
                           {copiedId === tx.id ? (
-                            <Check className="w-3 h-3 text-emerald-500" />
+                            <Check className="w-3 h-3 text-emerald-400" />
                           ) : (
                             <Copy className="w-3 h-3" />
                           )}
                         </button>
                       </div>
                       {tx.description && (
-                        <div className="text-[10px] text-slate-400 dark:text-slate-500 font-sans truncate max-w-[180px] mt-0.5">
+                        <div className="text-[10px] text-muted-foreground font-sans truncate max-w-[180px] mx-auto mt-0.5">
                           {tx.description}
                         </div>
                       )}
                     </td>
 
                     {/* Order Type */}
-                    <td className="py-3.5 px-4">
-                      {getTypeBadge(tx.order_type)}
+                    <td className="py-3.5 px-4 text-center">
+                      <div className="flex justify-center">
+                        {getTypeBadge(tx.order_type)}
+                      </div>
                     </td>
 
                     {/* Customer Info */}
-                    <td className="py-3.5 px-4">
+                    <td className="py-3.5 px-4 text-center">
                       <div
-                        className="font-mono text-xs text-slate-800 dark:text-slate-200"
+                        className="font-mono text-xs text-foreground font-latin"
                         dir="ltr"
                       >
                         {tx.customer_phone || '-'}
                       </div>
                       {tx.customer_email && (
                         <div
-                          className="text-[10px] text-slate-400 truncate max-w-[140px]"
+                          className="text-[10px] text-muted-foreground truncate max-w-[140px] mx-auto font-latin"
                           dir="ltr"
                         >
                           {tx.customer_email}
@@ -435,48 +438,52 @@ export const TransactionsLogView: React.FC = () => {
                     </td>
 
                     {/* Amount */}
-                    <td className="py-3.5 px-4 font-bold text-slate-900 dark:text-white">
-                      <div className="flex items-baseline gap-1">
+                    <td className="py-3.5 px-4 font-bold text-foreground text-center">
+                      <div className="flex items-baseline justify-center gap-1 font-latin">
                         <span className="text-sm">
                           {tx.amount_toman.toLocaleString('fa-IR')}
                         </span>
-                        <span className="text-[10px] font-normal text-slate-500">
+                        <span className="text-[10px] font-normal text-muted-foreground font-sans">
                           تومان
                         </span>
                       </div>
                       {tx.amount_usd > 0 && (
-                        <div className="text-[10px] font-mono text-slate-400">
+                        <div className="text-[10px] font-mono text-muted-foreground font-latin">
                           ${tx.amount_usd.toFixed(2)}
                         </div>
                       )}
                     </td>
 
                     {/* Payment Platform */}
-                    <td className="py-3.5 px-4 text-slate-600 dark:text-slate-300">
-                      <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-[11px]">
+                    <td className="py-3.5 px-4 text-center text-muted-foreground">
+                      <span className="px-2 py-0.5 rounded-control bg-secondary text-secondary-foreground border border-border/40 text-[11px] font-medium">
                         {getPlatformLabel(tx.payment_method)}
                       </span>
                     </td>
 
                     {/* Payment Ref ID */}
-                    <td className="py-3.5 px-4 font-mono text-[11px] text-slate-600 dark:text-slate-400">
+                    <td className="py-3.5 px-4 font-mono font-latin text-[11px] text-center text-muted-foreground">
                       {tx.payment_ref_id ? (
                         <span
-                          className="truncate max-w-[120px] inline-block"
+                          className="truncate max-w-[120px] inline-block font-latin"
                           title={tx.payment_ref_id}
                         >
                           {tx.payment_ref_id}
                         </span>
                       ) : (
-                        <span className="text-slate-400">-</span>
+                        <span className="text-muted-foreground">-</span>
                       )}
                     </td>
 
                     {/* Status */}
-                    <td className="py-3.5 px-4">{getStatusBadge(tx.status)}</td>
+                    <td className="py-3.5 px-4 text-center">
+                      <div className="flex justify-center">
+                        {getStatusBadge(tx.status)}
+                      </div>
+                    </td>
 
                     {/* Date */}
-                    <td className="py-3.5 px-4 text-slate-500 dark:text-slate-400 text-[11px] whitespace-nowrap">
+                    <td className="py-3.5 px-4 text-muted-foreground text-center text-[11px] whitespace-nowrap font-latin">
                       {formatDate(tx.created_at)}
                     </td>
                   </tr>
@@ -487,7 +494,7 @@ export const TransactionsLogView: React.FC = () => {
         </div>
 
         {/* Pagination Footer */}
-        <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/40 flex items-center justify-between text-xs text-slate-500">
+        <div className="p-4 border-t border-border/60 bg-muted/20 flex items-center justify-between text-xs text-muted-foreground">
           <div>
             نمایش {transactions.length > 0 ? (page - 1) * pageSize + 1 : 0} تا{' '}
             {Math.min(page * pageSize, total)} از{' '}
@@ -496,19 +503,21 @@ export const TransactionsLogView: React.FC = () => {
 
           <div className="flex items-center gap-1.5">
             <button
+              type="button"
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page <= 1 || loading}
-              className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              className="px-3 py-1.5 rounded-control border border-border/60 bg-card disabled:opacity-40 disabled:cursor-not-allowed hover:bg-muted transition-colors cursor-pointer duration-motion active:scale-[0.98]"
             >
               صفحه قبل
             </button>
-            <span className="px-2.5 py-1 font-semibold text-slate-700 dark:text-slate-300">
+            <span className="px-2.5 py-1 font-semibold text-foreground">
               {page} از {totalPages}
             </span>
             <button
+              type="button"
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={page >= totalPages || loading}
-              className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              className="px-3 py-1.5 rounded-control border border-border/60 bg-card disabled:opacity-40 disabled:cursor-not-allowed hover:bg-muted transition-colors cursor-pointer duration-motion active:scale-[0.98]"
             >
               صفحه بعد
             </button>

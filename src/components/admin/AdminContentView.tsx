@@ -24,6 +24,7 @@ import {
 } from 'lucide-react'
 import type React from 'react'
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { api } from '../../services/api'
 import type {
   ArticleComment,
@@ -1888,265 +1889,331 @@ export const AdminContentView: React.FC = () => {
       )}
 
       {/* ----------------- CATEGORY CREATE/EDIT MODAL ----------------- */}
-      {isCategoryModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
-          <div className="w-full max-w-md bg-card border border-border rounded-2xl p-6 shadow-xl text-right dir-rtl space-y-4">
-            <h3 className="font-bold text-base text-foreground">
-              {categoryForm.id ? 'ویرایش دسته‌بندی' : 'افزودن دسته‌بندی جدید'}
-            </h3>
-            <div className="space-y-3">
-              <div>
-                <label className="text-xs font-medium text-muted-foreground block mb-1">
-                  نام دسته *
-                </label>
-                <input
-                  type="text"
-                  value={categoryForm.name}
-                  onChange={(e) =>
-                    setCategoryForm({ ...categoryForm, name: e.target.value })
-                  }
-                  placeholder="مثلاً: اخبار و رویدادهای AI"
-                  className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-hidden"
-                />
-              </div>
+      {isCategoryModalOpen &&
+        createPortal(
+          <div
+            className="fixed inset-0 overflow-y-auto bg-black/80 backdrop-blur-md p-3 sm:p-6 animate-in fade-in"
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              width: '100vw',
+              height: '100vh',
+              zIndex: 2147483600,
+            }}
+            dir="rtl"
+          >
+            <div className="min-h-full w-full flex items-start sm:items-center justify-center">
+              <div className="w-full max-w-md my-auto bg-card border border-border/80 rounded-surface p-6 shadow-overlay text-right space-y-4 animate-in zoom-in-95 text-foreground">
+                <div className="flex items-center justify-between pb-3 border-b border-border/60">
+                  <h3 className="font-black text-base text-foreground">
+                    {categoryForm.id
+                      ? 'ویرایش دسته‌بندی'
+                      : 'افزودن دسته‌بندی جدید'}
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => setIsCategoryModalOpen(false)}
+                    className="p-1 rounded-control text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-xs font-bold text-foreground block mb-1">
+                      نام دسته *
+                    </label>
+                    <input
+                      type="text"
+                      value={categoryForm.name}
+                      onChange={(e) =>
+                        setCategoryForm({
+                          ...categoryForm,
+                          name: e.target.value,
+                        })
+                      }
+                      placeholder="مثلاً: اخبار و رویدادهای AI"
+                      className="w-full h-10 px-3 rounded-field border border-border/60 bg-muted/20 text-foreground text-xs outline-none focus:border-brand"
+                    />
+                  </div>
 
-              <div>
-                <label className="text-xs font-medium text-muted-foreground block mb-1">
-                  پیوند یکتا (Slug) *
-                </label>
-                <input
-                  type="text"
-                  value={categoryForm.slug}
-                  onChange={(e) =>
-                    setCategoryForm({ ...categoryForm, slug: e.target.value })
-                  }
-                  placeholder="ai-news"
-                  dir="ltr"
-                  className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm font-mono text-left focus:outline-hidden"
-                />
-              </div>
+                  <div>
+                    <label className="text-xs font-bold text-foreground block mb-1">
+                      پیوند یکتا (Slug) *
+                    </label>
+                    <input
+                      type="text"
+                      value={categoryForm.slug}
+                      onChange={(e) =>
+                        setCategoryForm({
+                          ...categoryForm,
+                          slug: e.target.value,
+                        })
+                      }
+                      placeholder="ai-news"
+                      dir="ltr"
+                      className="w-full h-10 px-3 rounded-field border border-border/60 bg-muted/20 text-foreground text-xs font-mono font-latin text-left outline-none focus:border-brand"
+                    />
+                  </div>
 
-              <div>
-                <label className="text-xs font-medium text-muted-foreground block mb-1">
-                  نوع دسته
-                </label>
-                <select
-                  value={categoryForm.type}
-                  onChange={(e) =>
-                    setCategoryForm({
-                      ...categoryForm,
-                      type: e.target.value as any,
-                    })
-                  }
-                  className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-hidden"
-                >
-                  <option value="blog">وبلاگ و اخبار</option>
-                  <option value="help">پایگاه دانش و راهنماها</option>
-                  <option value="product">
-                    محصولات فروشگاه (Product Catalog)
-                  </option>
-                </select>
-              </div>
+                  <div>
+                    <label className="text-xs font-bold text-foreground block mb-1">
+                      نوع دسته
+                    </label>
+                    <select
+                      value={categoryForm.type}
+                      onChange={(e) =>
+                        setCategoryForm({
+                          ...categoryForm,
+                          type: e.target.value as any,
+                        })
+                      }
+                      className="w-full h-10 px-3 rounded-field border border-border/60 bg-muted/20 text-foreground text-xs outline-none focus:border-brand"
+                    >
+                      <option value="blog">وبلاگ و اخبار</option>
+                      <option value="help">پایگاه دانش و راهنماها</option>
+                      <option value="product">
+                        محصولات فروشگاه (Product Catalog)
+                      </option>
+                    </select>
+                  </div>
 
-              <div>
-                <label className="text-xs font-medium text-muted-foreground block mb-1">
-                  توضیحات کوتاه
-                </label>
-                <textarea
-                  rows={2}
-                  value={categoryForm.description}
-                  onChange={(e) =>
-                    setCategoryForm({
-                      ...categoryForm,
-                      description: e.target.value,
-                    })
-                  }
-                  placeholder="توضیح کوتاه درباره این بخش..."
-                  className="w-full rounded-xl border border-border bg-background p-2.5 text-sm focus:outline-hidden"
-                />
-              </div>
+                  <div>
+                    <label className="text-xs font-bold text-foreground block mb-1">
+                      توضیحات کوتاه
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={categoryForm.description}
+                      onChange={(e) =>
+                        setCategoryForm({
+                          ...categoryForm,
+                          description: e.target.value,
+                        })
+                      }
+                      placeholder="توضیح کوتاه درباره این بخش..."
+                      className="w-full p-2.5 rounded-field border border-border/60 bg-muted/20 text-foreground text-xs outline-none focus:border-brand leading-relaxed"
+                    />
+                  </div>
 
-              <div>
-                <label className="text-xs font-medium text-muted-foreground block mb-1">
-                  ترتیب نمایش (Sort Order)
-                </label>
-                <input
-                  type="number"
-                  value={categoryForm.sort_order}
-                  onChange={(e) =>
-                    setCategoryForm({
-                      ...categoryForm,
-                      sort_order: Number(e.target.value),
-                    })
-                  }
-                  className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-hidden"
-                />
+                  <div>
+                    <label className="text-xs font-bold text-foreground block mb-1">
+                      ترتیب نمایش (Sort Order)
+                    </label>
+                    <input
+                      type="number"
+                      value={categoryForm.sort_order}
+                      onChange={(e) =>
+                        setCategoryForm({
+                          ...categoryForm,
+                          sort_order: Number(e.target.value),
+                        })
+                      }
+                      className="w-full h-10 px-3 rounded-field border border-border/60 bg-muted/20 text-foreground text-xs outline-none focus:border-brand"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-3 border-t border-border/60">
+                  <button
+                    type="button"
+                    onClick={() => setIsCategoryModalOpen(false)}
+                    className="h-9 px-4 rounded-control border border-border/60 text-xs font-bold text-muted-foreground hover:text-foreground hover:bg-muted cursor-pointer duration-motion active:scale-[0.98]"
+                  >
+                    انصراف
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSaveCategory}
+                    className="h-9 px-5 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground text-xs font-black shadow-control cursor-pointer duration-motion active:scale-[0.98]"
+                  >
+                    ذخیره دسته‌بندی
+                  </button>
+                </div>
               </div>
             </div>
-
-            <div className="flex items-center justify-end gap-2 pt-3 border-t border-border">
-              <button
-                type="button"
-                onClick={() => setIsCategoryModalOpen(false)}
-                className="px-4 py-2 rounded-xl text-xs font-medium text-muted-foreground hover:bg-muted"
-              >
-                انصراف
-              </button>
-              <button
-                type="button"
-                onClick={handleSaveCategory}
-                className="px-5 py-2 bg-primary text-primary-foreground text-xs font-semibold rounded-xl hover:opacity-90"
-              >
-                ذخیره دسته‌بندی
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body,
+        )}
 
       {/* ----------------- TEMPLATE CREATE/EDIT MODAL ----------------- */}
-      {isTemplateModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
-          <div className="w-full max-w-2xl bg-card border border-border rounded-2xl p-6 shadow-xl text-right dir-rtl space-y-4 max-h-[90vh] overflow-y-auto">
-            <h3 className="font-bold text-base text-foreground">
-              {templateForm.id
-                ? 'ویرایش قالب آماده نگارش'
-                : 'افزودن قالب آماده جدید به دیتابیس'}
-            </h3>
-            <div className="space-y-3">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground block mb-1">
-                    عنوان قالب *
-                  </label>
-                  <input
-                    type="text"
-                    value={templateForm.title}
-                    onChange={(e) =>
-                      setTemplateForm({
-                        ...templateForm,
-                        title: e.target.value,
-                      })
-                    }
-                    placeholder="مثلاً: قالب آموزش گام‌به‌گام"
-                    className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-hidden"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground block mb-1">
-                    پیوند یکتا (Slug) *
-                  </label>
-                  <input
-                    type="text"
-                    value={templateForm.slug}
-                    onChange={(e) =>
-                      setTemplateForm({ ...templateForm, slug: e.target.value })
-                    }
-                    placeholder="tutorial-template"
-                    dir="ltr"
-                    className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm font-mono text-left focus:outline-hidden"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground block mb-1">
-                    بخش مورد استفاده
-                  </label>
-                  <select
-                    value={templateForm.type}
-                    onChange={(e) =>
-                      setTemplateForm({
-                        ...templateForm,
-                        type: e.target.value as any,
-                      })
-                    }
-                    className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-hidden"
+      {isTemplateModalOpen &&
+        createPortal(
+          <div
+            className="fixed inset-0 overflow-y-auto bg-black/80 backdrop-blur-md p-3 sm:p-6 animate-in fade-in"
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              width: '100vw',
+              height: '100vh',
+              zIndex: 2147483600,
+            }}
+            dir="rtl"
+          >
+            <div className="min-h-full w-full flex items-start sm:items-center justify-center">
+              <div className="w-full max-w-2xl my-auto bg-card border border-border/80 rounded-surface p-6 shadow-overlay text-right space-y-4 animate-in zoom-in-95 text-foreground">
+                <div className="flex items-center justify-between pb-3 border-b border-border/60">
+                  <h3 className="font-black text-base text-foreground">
+                    {templateForm.id
+                      ? 'ویرایش قالب آماده نگارش'
+                      : 'افزودن قالب آماده جدید به دیتابیس'}
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => setIsTemplateModalOpen(false)}
+                    className="p-1 rounded-control text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
                   >
-                    <option value="all">
-                      عمومی (هم وبلاگ و هم پایگاه دانش)
-                    </option>
-                    <option value="blog">مخصوص مقالات وبلاگ</option>
-                    <option value="help">مخصوص راهنماهای پایگاه دانش</option>
-                  </select>
+                    <X className="w-4 h-4" />
+                  </button>
                 </div>
 
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground block mb-1">
-                    ترتیب نمایش
-                  </label>
-                  <input
-                    type="number"
-                    value={templateForm.sort_order}
-                    onChange={(e) =>
-                      setTemplateForm({
-                        ...templateForm,
-                        sort_order: Number(e.target.value),
-                      })
-                    }
-                    className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-hidden"
-                  />
+                <div className="space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-bold text-foreground block mb-1">
+                        عنوان قالب *
+                      </label>
+                      <input
+                        type="text"
+                        value={templateForm.title}
+                        onChange={(e) =>
+                          setTemplateForm({
+                            ...templateForm,
+                            title: e.target.value,
+                          })
+                        }
+                        placeholder="مثلاً: قالب آموزش گام‌به‌گام"
+                        className="w-full h-10 px-3 rounded-field border border-border/60 bg-muted/20 text-foreground text-xs outline-none focus:border-brand"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-bold text-foreground block mb-1">
+                        پیوند یکتا (Slug) *
+                      </label>
+                      <input
+                        type="text"
+                        value={templateForm.slug}
+                        onChange={(e) =>
+                          setTemplateForm({
+                            ...templateForm,
+                            slug: e.target.value,
+                          })
+                        }
+                        placeholder="tutorial-template"
+                        dir="ltr"
+                        className="w-full h-10 px-3 rounded-field border border-border/60 bg-muted/20 text-foreground text-xs font-mono font-latin text-left outline-none focus:border-brand"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-bold text-foreground block mb-1">
+                        بخش مورد استفاده
+                      </label>
+                      <select
+                        value={templateForm.type}
+                        onChange={(e) =>
+                          setTemplateForm({
+                            ...templateForm,
+                            type: e.target.value as any,
+                          })
+                        }
+                        className="w-full h-10 px-3 rounded-field border border-border/60 bg-muted/20 text-foreground text-xs outline-none focus:border-brand"
+                      >
+                        <option value="all">
+                          عمومی (هم وبلاگ و هم پایگاه دانش)
+                        </option>
+                        <option value="blog">مخصوص مقالات وبلاگ</option>
+                        <option value="help">
+                          مخصوص راهنماهای پایگاه دانش
+                        </option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-bold text-foreground block mb-1">
+                        ترتیب نمایش
+                      </label>
+                      <input
+                        type="number"
+                        value={templateForm.sort_order}
+                        onChange={(e) =>
+                          setTemplateForm({
+                            ...templateForm,
+                            sort_order: Number(e.target.value),
+                          })
+                        }
+                        className="w-full h-10 px-3 rounded-field border border-border/60 bg-muted/20 text-foreground text-xs outline-none focus:border-brand"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-foreground block mb-1">
+                      توضیحات کوتاه
+                    </label>
+                    <input
+                      type="text"
+                      value={templateForm.description}
+                      onChange={(e) =>
+                        setTemplateForm({
+                          ...templateForm,
+                          description: e.target.value,
+                        })
+                      }
+                      placeholder="توضیح کوتاه درباره هدف این قالب..."
+                      className="w-full h-10 px-3 rounded-field border border-border/60 bg-muted/20 text-foreground text-xs outline-none focus:border-brand"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-foreground block mb-1">
+                      متن و ساختار قالب (Markdown استاندارد) *
+                    </label>
+                    <textarea
+                      rows={8}
+                      value={templateForm.template_content}
+                      onChange={(e) =>
+                        setTemplateForm({
+                          ...templateForm,
+                          template_content: e.target.value,
+                        })
+                      }
+                      placeholder="## عنوان بخش اول&#10;&#10;متن پیش‌فرض قالب..."
+                      className="w-full p-3 rounded-field border border-border/60 bg-muted/20 font-mono text-xs text-foreground outline-none focus:border-brand leading-relaxed font-latin"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-3 border-t border-border/60">
+                  <button
+                    type="button"
+                    onClick={() => setIsTemplateModalOpen(false)}
+                    className="h-9 px-4 rounded-control border border-border/60 text-xs font-bold text-muted-foreground hover:text-foreground hover:bg-muted cursor-pointer duration-motion active:scale-[0.98]"
+                  >
+                    انصراف
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSaveTemplate}
+                    className="h-9 px-5 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground text-xs font-black shadow-control cursor-pointer duration-motion active:scale-[0.98]"
+                  >
+                    ذخیره قالب
+                  </button>
                 </div>
               </div>
-
-              <div>
-                <label className="text-xs font-medium text-muted-foreground block mb-1">
-                  توضیحات کوتاه
-                </label>
-                <input
-                  type="text"
-                  value={templateForm.description}
-                  onChange={(e) =>
-                    setTemplateForm({
-                      ...templateForm,
-                      description: e.target.value,
-                    })
-                  }
-                  placeholder="توضیح کوتاه درباره هدف این قالب..."
-                  className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-hidden"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-medium text-muted-foreground block mb-1">
-                  متن و ساختار قالب (Markdown استاندارد) *
-                </label>
-                <textarea
-                  rows={8}
-                  value={templateForm.template_content}
-                  onChange={(e) =>
-                    setTemplateForm({
-                      ...templateForm,
-                      template_content: e.target.value,
-                    })
-                  }
-                  placeholder="## عنوان بخش اول&#10;&#10;متن پیش‌فرض قالب..."
-                  className="w-full rounded-xl border border-border bg-background p-3 font-mono text-xs focus:outline-hidden leading-relaxed"
-                />
-              </div>
             </div>
-
-            <div className="flex items-center justify-end gap-2 pt-3 border-t border-border">
-              <button
-                type="button"
-                onClick={() => setIsTemplateModalOpen(false)}
-                className="px-4 py-2 rounded-xl text-xs font-medium text-muted-foreground hover:bg-muted"
-              >
-                انصراف
-              </button>
-              <button
-                type="button"
-                onClick={handleSaveTemplate}
-                className="px-5 py-2 bg-primary text-primary-foreground text-xs font-semibold rounded-xl hover:opacity-90"
-              >
-                ذخیره قالب
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body,
+        )}
     </div>
   )
 }

@@ -1,6 +1,7 @@
 import {
   AlertTriangle,
   Bold,
+  CheckCircle2,
   Clock,
   Code,
   Eye,
@@ -14,6 +15,7 @@ import {
   Link as LinkIcon,
   List,
   ListOrdered,
+  Loader2,
   Maximize2,
   Minimize2,
   Minus,
@@ -21,10 +23,13 @@ import {
   Sparkles,
   Split,
   Table,
+  Upload,
   Wand2,
+  X,
 } from 'lucide-react'
 import type React from 'react'
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { api } from '../../services/api'
 import type { ContentTemplate } from '../../types'
 import { MarkdownRenderer } from './MarkdownRenderer'
@@ -58,8 +63,37 @@ export const RichContentEditor: React.FC<RichContentEditorProps> = ({
   const [showImageModal, setShowImageModal] = useState(false)
   const [imageAlt, setImageAlt] = useState('')
   const [imageUrl, setImageUrl] = useState('')
+  const [isUploadingImage, setIsUploadingImage] = useState(false)
+  const [imageUploadSuccess, setImageUploadSuccess] = useState(false)
   const [dbTemplates, setDbTemplates] = useState<ContentTemplate[]>([])
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  const handleUploadImageFile = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setIsUploadingImage(true)
+    setImageUploadSuccess(false)
+    try {
+      const resp = await api.uploadMedia(file)
+      if (resp?.file_url) {
+        setImageUrl(resp.file_url)
+        setImageUploadSuccess(true)
+        if (!imageAlt) {
+          const cleanName = file.name
+            .replace(/\.[^/.]+$/, '')
+            .replace(/[-_]/g, ' ')
+          setImageAlt(cleanName)
+        }
+      }
+    } catch (err: any) {
+      alert(`خطا در آپلود تصویر: ${err.message || 'مشکل در ارتباط با سرور'}`)
+    } finally {
+      setIsUploadingImage(false)
+    }
+  }
 
   // Fetch dynamic templates from database
   useEffect(() => {
@@ -527,132 +561,245 @@ export const RichContentEditor: React.FC<RichContentEditorProps> = ({
       </div>
 
       {/* Link Insertion Modal */}
-      {showLinkModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
-          <div className="w-full max-w-md bg-card border border-border rounded-2xl p-5 shadow-xl text-right dir-rtl space-y-4">
-            <h3 className="font-bold text-base text-foreground flex items-center gap-2">
-              <LinkIcon className="h-4 w-4 text-primary" />
-              درج لینک در متن
-            </h3>
-            <div className="space-y-3">
-              <div>
-                <label className="text-xs font-medium text-muted-foreground block mb-1">
-                  عنوان نمایشی لینک
-                </label>
-                <input
-                  type="text"
-                  value={linkText}
-                  onChange={(e) => setLinkText(e.target.value)}
-                  placeholder="مثلاً: خرید اکانت جمینای ادونسد"
-                  className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-primary/40"
-                />
+      {showLinkModal &&
+        createPortal(
+          <div
+            className="fixed inset-0 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in"
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              width: '100vw',
+              height: '100vh',
+              zIndex: 2147483647,
+            }}
+            dir="rtl"
+          >
+            <div className="w-full max-w-md bg-card border border-border/80 rounded-surface p-5 shadow-overlay text-right space-y-4 animate-in zoom-in-95">
+              <div className="flex items-center justify-between pb-3 border-b border-border/60">
+                <h3 className="font-black text-sm text-foreground flex items-center gap-2">
+                  <LinkIcon className="h-4 w-4 text-brand" />
+                  درج لینک در متن
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setShowLinkModal(false)}
+                  className="p-1 rounded-control text-muted-foreground hover:text-foreground cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
               </div>
-              <div>
-                <label className="text-xs font-medium text-muted-foreground block mb-1">
-                  آدرس اینترنتی (URL)
-                </label>
-                <input
-                  type="text"
-                  value={linkUrl}
-                  onChange={(e) => setLinkUrl(e.target.value)}
-                  placeholder="https://... یا /products/gemini"
-                  dir="ltr"
-                  className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-primary/40 text-left font-mono"
-                />
-              </div>
-            </div>
-            <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
-              <button
-                type="button"
-                onClick={() => setShowLinkModal(false)}
-                className="px-4 py-1.5 rounded-xl text-xs font-medium text-muted-foreground hover:bg-muted"
-              >
-                انصراف
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  if (linkUrl) {
-                    insertText(
-                      `[${linkText || 'لینک دلخواه'}](${linkUrl})`,
-                      '',
-                      '',
-                    )
-                    setLinkText('')
-                    setLinkUrl('')
-                    setShowLinkModal(false)
-                  }
-                }}
-                className="px-4 py-1.5 rounded-xl text-xs font-semibold bg-primary text-primary-foreground hover:opacity-90"
-              >
-                افزودن لینک
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
-      {/* Image Insertion Modal */}
-      {showImageModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
-          <div className="w-full max-w-md bg-card border border-border rounded-2xl p-5 shadow-xl text-right dir-rtl space-y-4">
-            <h3 className="font-bold text-base text-foreground flex items-center gap-2">
-              <Image className="h-4 w-4 text-primary" />
-              درج تصویر در محتوا
-            </h3>
-            <div className="space-y-3">
-              <div>
-                <label className="text-xs font-medium text-muted-foreground block mb-1">
-                  توضیح تصویر (Alt Text برای سئو)
-                </label>
-                <input
-                  type="text"
-                  value={imageAlt}
-                  onChange={(e) => setImageAlt(e.target.value)}
-                  placeholder="مثلاً: اسکرین‌شات محیط کاربری جمینای ادونسد"
-                  className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-primary/40"
-                />
+              <div className="space-y-3 text-xs">
+                <div>
+                  <label className="font-bold text-foreground block mb-1">
+                    عنوان نمایشی لینک
+                  </label>
+                  <input
+                    type="text"
+                    value={linkText}
+                    onChange={(e) => setLinkText(e.target.value)}
+                    placeholder="مثلاً: خرید اکانت جمینای ادونسد"
+                    className="w-full h-10 px-3 rounded-field border border-border/60 bg-muted/20 text-foreground outline-none focus:border-brand"
+                  />
+                </div>
+                <div>
+                  <label className="font-bold text-foreground block mb-1">
+                    آدرس اینترنتی (URL)
+                  </label>
+                  <input
+                    type="text"
+                    value={linkUrl}
+                    onChange={(e) => setLinkUrl(e.target.value)}
+                    placeholder="https://... یا /products/gemini"
+                    dir="ltr"
+                    className="w-full h-10 px-3 rounded-field border border-border/60 bg-muted/20 text-foreground text-left font-mono font-latin outline-none focus:border-brand"
+                  />
+                </div>
               </div>
-              <div>
-                <label className="text-xs font-medium text-muted-foreground block mb-1">
-                  آدرس تصویر (Image URL)
-                </label>
-                <input
-                  type="text"
-                  value={imageUrl}
-                  onChange={(e) => setImageUrl(e.target.value)}
-                  placeholder="https://.../photo.jpg"
-                  dir="ltr"
-                  className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-primary/40 text-left font-mono"
-                />
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-border/60">
+                <button
+                  type="button"
+                  onClick={() => setShowLinkModal(false)}
+                  className="h-9 px-4 rounded-control border border-border/60 bg-card hover:bg-muted text-xs font-bold text-muted-foreground hover:text-foreground cursor-pointer duration-motion active:scale-[0.98]"
+                >
+                  انصراف
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (linkUrl) {
+                      insertText(
+                        `[${linkText || 'لینک دلخواه'}](${linkUrl})`,
+                        '',
+                        '',
+                      )
+                      setLinkText('')
+                      setLinkUrl('')
+                      setShowLinkModal(false)
+                    }
+                  }}
+                  className="h-9 px-5 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground text-xs font-black shadow-control cursor-pointer duration-motion active:scale-[0.98]"
+                >
+                  افزودن لینک
+                </button>
               </div>
             </div>
-            <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
-              <button
-                type="button"
-                onClick={() => setShowImageModal(false)}
-                className="px-4 py-1.5 rounded-xl text-xs font-medium text-muted-foreground hover:bg-muted"
-              >
-                انصراف
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  if (imageUrl) {
-                    insertBlock(`![${imageAlt || 'تصویر محتوا'}](${imageUrl})`)
-                    setImageAlt('')
-                    setImageUrl('')
-                    setShowImageModal(false)
-                  }
-                }}
-                className="px-4 py-1.5 rounded-xl text-xs font-semibold bg-primary text-primary-foreground hover:opacity-90"
-              >
-                درج تصویر
-              </button>
+          </div>,
+          document.body,
+        )}
+
+      {/* Image Insertion & Direct File Upload Modal */}
+      {showImageModal &&
+        createPortal(
+          <div
+            className="fixed inset-0 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in"
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              width: '100vw',
+              height: '100vh',
+              zIndex: 2147483647,
+            }}
+            dir="rtl"
+          >
+            <div className="w-full max-w-lg bg-card border border-border/80 rounded-surface p-5 sm:p-6 shadow-overlay space-y-4 animate-in zoom-in-95">
+              <div className="flex items-center justify-between pb-3 border-b border-border/60">
+                <h3 className="font-black text-sm sm:text-base text-foreground flex items-center gap-2">
+                  <Image className="h-4 w-4 text-brand" />
+                  درج و آپلود مستقیم تصویر سئو
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setShowImageModal(false)}
+                  className="p-1 rounded-control text-muted-foreground hover:text-foreground cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Direct File Uploader Box */}
+              <div className="p-4 rounded-control border-2 border-dashed border-border/80 bg-muted/20 hover:bg-muted/40 transition-colors text-center space-y-2">
+                <div className="w-10 h-10 rounded-control bg-secondary text-brand border border-border/60 flex items-center justify-center mx-auto shadow-control">
+                  {isUploadingImage ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  ) : (
+                    <Upload className="w-5 h-5" />
+                  )}
+                </div>
+                <div>
+                  <label
+                    htmlFor="editor-image-file-upload"
+                    className="text-xs font-bold text-brand hover:underline cursor-pointer"
+                  >
+                    {isUploadingImage
+                      ? 'در حال آپلود فایل روی سرور...'
+                      : 'انتخاب تصویر از کامپیوتر یا دستگاه'}
+                  </label>
+                  <input
+                    id="editor-image-file-upload"
+                    type="file"
+                    accept="image/*"
+                    disabled={isUploadingImage}
+                    onChange={handleUploadImageFile}
+                    className="hidden"
+                  />
+                  <p className="text-[10px] text-muted-foreground mt-0.5">
+                    فرمت‌های JPG، PNG، WEBP و GIF تا حداکثر ۱۰ مگابایت
+                  </p>
+                </div>
+                {imageUploadSuccess && (
+                  <div className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-control">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>فایل با موفقیت روی سرور بارگذاری شد</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-3 text-xs">
+                <div>
+                  <label className="font-bold text-foreground block mb-1">
+                    آدرس تصویر (URL)
+                  </label>
+                  <input
+                    type="text"
+                    value={imageUrl}
+                    onChange={(e) => setImageUrl(e.target.value)}
+                    placeholder="https://... یا پس از آپلود خودکار پر می‌شود"
+                    dir="ltr"
+                    className="w-full h-10 px-3 rounded-field border border-border/60 bg-muted/20 text-foreground font-mono font-latin outline-none focus:border-brand"
+                  />
+                </div>
+
+                <div>
+                  <label className="font-bold text-foreground block mb-1">
+                    متن جایگزین و کلیدواژه سئو (Alt Text)
+                  </label>
+                  <input
+                    type="text"
+                    value={imageAlt}
+                    onChange={(e) => setImageAlt(e.target.value)}
+                    placeholder="مثال: آموزش فعال‌سازی اشتراک ChatGPT Plus قانونی"
+                    className="w-full h-10 px-3 rounded-field border border-border/60 bg-muted/20 text-foreground outline-none focus:border-brand"
+                  />
+                  <p className="text-[10px] text-muted-foreground mt-1">
+                    متن کوتاه و دقیقی که موتورهای جستجوی گوگل برای سئو ایندکس
+                    می‌کنند.
+                  </p>
+                </div>
+              </div>
+
+              {/* Preview if image URL exists */}
+              {imageUrl && (
+                <div className="p-2 rounded-control bg-muted/30 border border-border/60 flex items-center gap-3">
+                  <img
+                    src={imageUrl}
+                    alt={imageAlt || 'پیش‌نمایش'}
+                    className="w-12 h-12 rounded-control object-cover border border-border shrink-0"
+                  />
+                  <div
+                    className="min-w-0 flex-1 text-[11px] font-mono text-muted-foreground truncate"
+                    dir="ltr"
+                  >
+                    {imageUrl}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-border/60">
+                <button
+                  type="button"
+                  onClick={() => setShowImageModal(false)}
+                  className="h-9 px-4 rounded-control border border-border/60 bg-card hover:bg-muted text-xs font-bold text-muted-foreground hover:text-foreground cursor-pointer duration-motion active:scale-[0.98]"
+                >
+                  انصراف
+                </button>
+                <button
+                  type="button"
+                  disabled={!imageUrl.trim()}
+                  onClick={() => {
+                    if (imageUrl) {
+                      insertBlock(`![${imageAlt || 'تصویر سئو'}](${imageUrl})`)
+                      setImageAlt('')
+                      setImageUrl('')
+                      setShowImageModal(false)
+                    }
+                  }}
+                  className="h-9 px-5 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground text-xs font-black shadow-control cursor-pointer duration-motion active:scale-[0.98] disabled:opacity-50"
+                >
+                  درج در محتوا
+                </button>
+              </div>
             </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body,
+        )}
     </div>
   )
 }

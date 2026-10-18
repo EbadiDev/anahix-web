@@ -105,8 +105,13 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     if (couponDiscount > subtotal) couponDiscount = subtotal
   }
 
-  // Calculate dynamic loyalty discount from database tier
-  const loyaltyDiscountPercent = loyaltyProfile?.active_discount_pct || 0
+  // Calculate dynamic loyalty discount from database tier (only when system is active)
+  const isLoyaltyActive =
+    loyaltyProfile?.system_status !== 'disabled' &&
+    loyaltyProfile?.system_status !== 'coming_soon'
+  const loyaltyDiscountPercent = isLoyaltyActive
+    ? loyaltyProfile?.active_discount_pct || 0
+    : 0
   const loyaltyDiscount =
     loyaltyDiscountPercent > 0 ? (subtotal * loyaltyDiscountPercent) / 100 : 0
 
