@@ -418,8 +418,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   return createPortal(
     <div
       dir="rtl"
-      className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-fade-in-up"
-      style={{ top: 0, left: 0, right: 0, bottom: 0 }}
+      className="fixed inset-0 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in-up"
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        width: '100vw',
+        height: '100vh',
+        zIndex: 2147483647,
+      }}
     >
       <div className="relative w-full max-w-md overflow-hidden rounded-surface border border-border/80 bg-card p-6 sm:p-8 shadow-overlay text-card-foreground">
         {/* Glow ambient background in Graphite style */}

@@ -52,10 +52,11 @@ export const ProfilePersonalTab: React.FC<ProfilePersonalTabProps> = ({
   const [successMsg, setSuccessMsg] = useState('')
   const [errorMsg, setErrorMsg] = useState('')
 
-  // 1. Email Verification Modal State
+  // 1. Email Verification & Change Modal State
   const [isEmailModalOpen, setIsEmailModalOpen] = useState(false)
+  const [newEmail, setNewEmail] = useState(email)
+  const [emailStep, setEmailStep] = useState<'input' | 'verify'>('input')
   const [emailOtpCode, setEmailOtpCode] = useState(['', '', '', '', ''])
-  const [emailSent, setEmailSent] = useState(false)
   const [emailVerifying, setEmailVerifying] = useState(false)
   const isEmailPreVerified = Boolean(
     customer.email_verified ||
@@ -101,20 +102,22 @@ export const ProfilePersonalTab: React.FC<ProfilePersonalTabProps> = ({
   }
 
   // --- Email Verification Handlers ---
-  const handleSendEmailVerification = async () => {
-    if (!email?.includes('@')) {
-      error('ایمیل نامعتبر', 'لطفاً ابتدا یک آدرس ایمیل معتبر وارد کنید.')
+  const handleSendEmailVerification = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault()
+    const target = newEmail.trim().toLowerCase()
+    if (!target.includes('@') || !target.includes('.')) {
+      error('ایمیل نامعتبر', 'لطفاً یک آدرس ایمیل معتبر وارد کنید.')
       return
     }
     setEmailVerifying(true)
     setTimeout(() => {
       setEmailVerifying(false)
-      setEmailSent(true)
+      setEmailStep('verify')
       info(
         'کد تایید ارسال شد',
-        `کد تایید ۵ رقمی به آدرس ${email} ارسال شد (کد آزمایشی: 12345).`,
+        `کد تایید ۵ رقمی به آدرس ${target} ارسال شد (کد آزمایشی: 12345).`,
       )
-    }, 1000)
+    }, 800)
   }
 
   const handleConfirmEmailOtp = async (e: React.FormEvent) => {
@@ -127,18 +130,20 @@ export const ProfilePersonalTab: React.FC<ProfilePersonalTabProps> = ({
 
     setEmailVerifying(true)
     try {
+      const target = newEmail.trim().toLowerCase()
+      setEmail(target)
+      setIsEmailVerified(true)
       const updated = await apiService.updateCustomerProfile({
-        email: email.trim(),
+        email: target,
         email_verified: true,
       } as any)
       onProfileUpdated(updated)
-      setIsEmailVerified(true)
       setIsEmailModalOpen(false)
-      setEmailSent(false)
+      setEmailStep('input')
       setEmailOtpCode(['', '', '', '', ''])
       success(
         'ایمیل تایید شد',
-        'آدرس ایمیل شما با موفقیت اعتبارسنجی و تایید گردید.',
+        'آدرس ایمیل شما با موفقیت تایید و جایگزین گردید.',
       )
     } catch (err: any) {
       error('خطا در تایید ایمیل', err.message || 'کد تایید نامعتبر است.')
@@ -232,12 +237,20 @@ export const ProfilePersonalTab: React.FC<ProfilePersonalTabProps> = ({
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-control bg-secondary text-secondary-foreground border border-border/60 flex items-center justify-center font-bold text-base shadow-control">
-              {firstName
-                ? firstName.slice(0, 1)
-                : customer.full_name
-                  ? customer.full_name.slice(0, 1)
-                  : customer.phone.slice(-2)}
+            <div className="w-11 h-11 rounded-control bg-secondary text-secondary-foreground border border-border/60 flex items-center justify-center font-bold text-base shadow-control overflow-hidden">
+              {customer.avatar_url ? (
+                <img
+                  src={customer.avatar_url}
+                  alt={customer.full_name || 'کاربر'}
+                  className="w-full h-full object-cover rounded-control"
+                />
+              ) : firstName ? (
+                firstName.slice(0, 1)
+              ) : customer.full_name ? (
+                customer.full_name.slice(0, 1)
+              ) : (
+                customer.phone.slice(-2)
+              )}
             </div>
           </div>
         </div>
@@ -298,7 +311,7 @@ export const ProfilePersonalTab: React.FC<ProfilePersonalTabProps> = ({
               />
             </div>
 
-            {/* Email Address with Verification Gate - Symmetrical with Phone */}
+            {/* Email Address with Verification Gate - Locked & Symmetrical with Phone */}
             <div className="space-y-1.5 text-right">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -323,14 +336,17 @@ export const ProfilePersonalTab: React.FC<ProfilePersonalTabProps> = ({
 
                 <button
                   type="button"
-                  onClick={() => setIsEmailModalOpen(true)}
+                  onClick={() => {
+                    setIsEmailModalOpen(true)
+                    setEmailStep('input')
+                    setNewEmail(email || '')
+                    setEmailOtpCode(['', '', '', '', ''])
+                  }}
                   className="text-[10px] font-bold text-brand hover:underline flex items-center gap-1 cursor-pointer"
                 >
                   <Mail className="w-3 h-3 text-brand" />
                   <span>
-                    {isEmailVerified
-                      ? 'تغییر یا صحت‌سنجی'
-                      : 'صحت‌سنجی و تایید ایمیل'}
+                    {email ? 'تغییر آدرس ایمیل' : 'ثبت و تایید ایمیل'}
                   </span>
                 </button>
               </div>
@@ -338,17 +354,17 @@ export const ProfilePersonalTab: React.FC<ProfilePersonalTabProps> = ({
               <div className="relative">
                 <input
                   id="personal-email"
-                  type="email"
+                  type="text"
                   dir="ltr"
-                  value={email}
-                  onChange={(e) => {
-                    setEmail(e.target.value)
-                    setIsEmailVerified(false)
-                  }}
-                  placeholder="user@example.com"
-                  className="w-full h-10 px-3.5 pl-9 rounded-field bg-muted/40 border border-border/40 text-foreground font-latin text-left text-xs outline-none focus:border-foreground/40 transition-colors"
+                  value={email || 'ایمیلی ثبت نشده است'}
+                  disabled
+                  className="w-full h-10 px-3.5 pl-9 rounded-field bg-muted/20 border border-border/30 text-foreground font-latin text-left text-xs cursor-not-allowed font-bold"
                 />
-                <Mail className="w-4 h-4 absolute left-3 top-3 text-muted-foreground pointer-events-none" />
+                <Mail
+                  className={`w-3.5 h-3.5 absolute left-3 top-3.5 ${
+                    isEmailVerified ? 'text-emerald-500' : 'text-amber-500'
+                  } pointer-events-none`}
+                />
               </div>
 
               {isEmailVerified ? (
@@ -469,7 +485,7 @@ export const ProfilePersonalTab: React.FC<ProfilePersonalTabProps> = ({
         </form>
       </div>
 
-      {/* 1. EMAIL VERIFICATION MODAL */}
+      {/* 1. EMAIL VERIFICATION & CHANGE MODAL */}
       {isEmailModalOpen &&
         createPortal(
           <div
@@ -485,7 +501,9 @@ export const ProfilePersonalTab: React.FC<ProfilePersonalTabProps> = ({
                       <Mail className="w-4 h-4" />
                     </div>
                     <h3 className="text-sm font-black text-foreground">
-                      صحت‌سنجی و اعتبارسنجی آدرس ایمیل
+                      {email
+                        ? 'تغییر آدرس ایمیل حساب کاربری'
+                        : 'ثبت و تایید آدرس ایمیل'}
                     </h3>
                   </div>
                   <button
@@ -497,30 +515,48 @@ export const ProfilePersonalTab: React.FC<ProfilePersonalTabProps> = ({
                   </button>
                 </div>
 
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  جهت اطمینان از صحت آدرس ایمیل، یک کد تایید ۵ رقمی به آدرس زیر
-                  ارسال می‌شود:
-                </p>
-
-                <div className="p-3 rounded-control bg-muted/30 border border-border/40 font-mono text-center text-xs text-foreground font-latin">
-                  {email || customer.email}
-                </div>
-
-                {!emailSent ? (
-                  <button
-                    type="button"
-                    disabled={emailVerifying}
-                    onClick={handleSendEmailVerification}
-                    className="w-full h-10 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs duration-motion ease-motion active:scale-[0.98] shadow-control flex items-center justify-center gap-2 cursor-pointer"
+                {emailStep === 'input' ? (
+                  <form
+                    onSubmit={handleSendEmailVerification}
+                    className="space-y-4"
                   >
-                    {emailVerifying ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <span>ارسال کد تایید به این ایمیل</span>
-                    )}
-                  </button>
+                    <div className="space-y-1.5 text-right">
+                      <label className="text-xs font-bold text-foreground">
+                        آدرس ایمیل جدید:
+                      </label>
+                      <input
+                        type="email"
+                        dir="ltr"
+                        required
+                        value={newEmail}
+                        onChange={(e) => setNewEmail(e.target.value)}
+                        placeholder="name@example.com"
+                        className="w-full h-10 px-3.5 rounded-field bg-muted/30 border border-border/60 text-foreground font-latin text-xs outline-none focus:border-brand"
+                      />
+                      <p className="text-[11px] text-muted-foreground mt-1">
+                        یک کد تایید ۵ رقمی جهت اطمینان از صحت دسترسی به این
+                        ایمیل ارسال خواهد شد.
+                      </p>
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={emailVerifying || !newEmail.trim()}
+                      className="w-full h-10 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs duration-motion ease-motion active:scale-[0.98] shadow-control flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                    >
+                      {emailVerifying ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <span>ارسال کد تایید به این ایمیل</span>
+                      )}
+                    </button>
+                  </form>
                 ) : (
                   <form onSubmit={handleConfirmEmailOtp} className="space-y-4">
+                    <div className="p-3 rounded-control bg-muted/30 border border-border/40 font-mono text-center text-xs text-foreground font-latin">
+                      {newEmail}
+                    </div>
+
                     <div className="space-y-1.5 text-center">
                       <label className="text-xs font-bold text-foreground block">
                         کد تایید ۵ رقمی ارسال شده به ایمیل:
@@ -540,17 +576,27 @@ export const ProfilePersonalTab: React.FC<ProfilePersonalTabProps> = ({
                       </div>
                     </div>
 
-                    <button
-                      type="submit"
-                      disabled={emailVerifying}
-                      className="w-full h-10 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs duration-motion ease-motion active:scale-[0.98] shadow-control flex items-center justify-center gap-2 cursor-pointer"
-                    >
-                      {emailVerifying ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <span>تایید نهایی و ثبت ایمیل</span>
-                      )}
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setEmailStep('input')}
+                        className="h-10 px-4 rounded-control border border-border/60 bg-muted/30 hover:bg-muted text-xs font-bold text-foreground cursor-pointer duration-motion active:scale-[0.98]"
+                      >
+                        ویرایش ایمیل
+                      </button>
+
+                      <button
+                        type="submit"
+                        disabled={emailVerifying}
+                        className="flex-1 h-10 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs duration-motion ease-motion active:scale-[0.98] shadow-control flex items-center justify-center gap-2 cursor-pointer"
+                      >
+                        {emailVerifying ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <span>تایید نهایی و ثبت ایمیل</span>
+                        )}
+                      </button>
+                    </div>
                   </form>
                 )}
               </div>

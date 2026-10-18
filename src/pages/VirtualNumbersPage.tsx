@@ -909,9 +909,7 @@ export const VirtualNumbersPage: React.FC = () => {
             <div className="text-center space-y-3.5 max-w-3xl mx-auto pt-2">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-control bg-brand/10 border border-brand/30 text-brand text-xs font-bold">
                 <ShieldCheck className="w-3.5 h-3.5" />
-                <span>
-                  سامانه هوشمند شماره‌های مجازی آناهیکس (انطباق با نامبرلند)
-                </span>
+                <span>سامانه هوشمند شماره‌های مجازی آناهیکس</span>
               </div>
               <h1 className="text-2xl sm:text-4xl font-black text-foreground tracking-tight leading-tight">
                 خرید شماره مجازی دریافت پیامک (SMS OTP)

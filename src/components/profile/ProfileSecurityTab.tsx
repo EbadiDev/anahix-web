@@ -210,7 +210,7 @@ export const ProfileSecurityTab: React.FC<ProfileSecurityTabProps> = ({
                   {isRealPhone ? (
                     <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-control">
                       <CheckCircle2 className="w-3 h-3" />
-                      <span>تاییدشده</span>
+                      <span>تایید شده</span>
                     </span>
                   ) : (
                     <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-amber-500/10 text-amber-500 border border-amber-500/20 px-2 py-0.5 rounded-control">
@@ -242,7 +242,7 @@ export const ProfileSecurityTab: React.FC<ProfileSecurityTabProps> = ({
                   {isEmailVerified ? (
                     <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-control">
                       <CheckCircle2 className="w-3 h-3" />
-                      <span>تایید شده ✓</span>
+                      <span>تایید شده</span>
                     </span>
                   ) : customer.email ? (
                     <span className="text-[10px] text-rose-500 bg-rose-500/10 border border-rose-500/30 px-2 py-0.5 rounded-control font-bold">
@@ -329,11 +329,7 @@ export const ProfileSecurityTab: React.FC<ProfileSecurityTabProps> = ({
                       ارسال کد به ایمیل
                     </span>
                   </div>
-                  {isEmailVerified ? (
-                    <span className="text-[9px] text-emerald-400 font-bold bg-emerald-500/10 px-1.5 py-0.2 rounded-control">
-                      تایید شده ✓
-                    </span>
-                  ) : customer.email ? (
+                  {!isEmailVerified && customer.email ? (
                     <span className="text-[9px] text-rose-500 font-bold bg-rose-500/10 px-1.5 py-0.2 rounded-control">
                       تایید نشده
                     </span>

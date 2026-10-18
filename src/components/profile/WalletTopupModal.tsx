@@ -68,8 +68,17 @@ export const WalletTopupModal: React.FC<WalletTopupModalProps> = ({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-in fade-in"
-      style={{ top: 0, left: 0, right: 0, bottom: 0 }}
+      className="fixed inset-0 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in"
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        width: '100vw',
+        height: '100vh',
+        zIndex: 2147483647,
+      }}
       dir="rtl"
     >
       <div className="w-full max-w-md bg-card rounded-surface border border-border/80 shadow-overlay p-6 space-y-5 text-foreground animate-in zoom-in-95">

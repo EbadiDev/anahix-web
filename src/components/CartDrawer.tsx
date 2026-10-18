@@ -10,6 +10,7 @@ import {
   KeyRound,
   Landmark,
   Loader2,
+  LogIn,
   Mail,
   Minus,
   Percent,
@@ -24,7 +25,7 @@ import {
   Zap,
 } from 'lucide-react'
 import type React from 'react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useCart } from '../lib/cartStore'
 import { apiService } from '../services/api'
@@ -177,6 +178,22 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   )
   const [phoneError, setPhoneError] = useState<string | null>(null)
   const [submitError, setSubmitError] = useState<string | null>(null)
+  const errorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const triggerError = (msg: string) => {
+    setSubmitError(msg)
+    if (errorTimerRef.current) clearTimeout(errorTimerRef.current)
+    errorTimerRef.current = setTimeout(() => {
+      setSubmitError(null)
+    }, 6000)
+  }
+
+  useEffect(() => {
+    return () => {
+      if (errorTimerRef.current) clearTimeout(errorTimerRef.current)
+    }
+  }, [])
+
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
   const [isTopupModalOpen, setIsTopupModalOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -471,7 +488,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
 
     // Auth gate check
     if (!isUserLoggedIn) {
-      setSubmitError(
+      triggerError(
         'برای نهایی‌سازی سفارش و اتصال به درگاه، لطفاً ابتدا وارد حساب کاربری خود شوید یا ثبت‌نام کنید.',
       )
       setIsAuthModalOpen(true)
@@ -501,7 +518,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
     for (const it of modeCItems) {
       const c = itemCreds[String(it.product.id)]
       if (!c?.email?.trim() || !c?.password?.trim()) {
-        setSubmitError(
+        triggerError(
           `لطفاً اطلاعات اکانت مربوط به «${it.product.title_fa}» را وارد نمایید.`,
         )
         return
@@ -511,14 +528,12 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
     // Balance check
     if (selectedPlatform === 'balance') {
       if (!isUserLoggedIn) {
-        setSubmitError(
-          'جهت پرداخت از کیف پول ابتدا باید وارد حساب کاربری شوید.',
-        )
+        triggerError('جهت پرداخت از کیف پول ابتدا باید وارد حساب کاربری شوید.')
         setIsAuthModalOpen(true)
         return
       }
       if (!isBalanceSufficient) {
-        setSubmitError(
+        triggerError(
           `موجودی کیف پول شما (${toPersianDigits(walletBalance.toLocaleString('fa-IR'))} تومان) کمتر از مبلغ کل است. لطفاً درگاه شاپرک را انتخاب کنید یا کیف پول خود را شارژ نمایید.`,
         )
         return
@@ -561,10 +576,25 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
         })
       }
     } catch (err: any) {
-      setSubmitError(err.message || 'خطا در ثبت سفارش. لطفاً دوباره تلاش کنید.')
+      triggerError(err.message || 'خطا در ثبت سفارش. لطفاً دوباره تلاش کنید.')
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  // Mobile validation for advancing from items to checkout
+  const handleProceedToCheckout = () => {
+    for (const it of modeCItems) {
+      const c = itemCreds[String(it.product.id)]
+      if (!c?.email?.trim() || !c?.password?.trim()) {
+        triggerError(
+          `جهت ادامه، لطفاً ابتدا مشخصات اکانت (ایمیل و پسورد) را برای «${it.product.title_fa}» وارد نمایید.`,
+        )
+        return
+      }
+    }
+    setSubmitError(null)
+    setMobileStep('checkout')
   }
 
   if (!isOpen) return null
@@ -580,7 +610,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
         bottom: 0,
         width: '100vw',
         height: '100vh',
-        zIndex: 2147483647,
+        zIndex: 2147483600,
       }}
       dir="rtl"
     >
@@ -591,25 +621,24 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
       />
 
       {/* Main Centered Workbench Modal (max-w-5xl) - Graphite Minimal Technical */}
-      <div className="relative w-full h-full sm:h-auto sm:max-h-[88vh] sm:max-w-5xl bg-card border border-border/80 sm:rounded-surface sm:shadow-overlay flex flex-col overflow-hidden animate-in zoom-in-95 fade-in duration-200 z-10 text-foreground">
+      <div className="relative w-full h-[100dvh] max-h-[100dvh] sm:h-auto sm:max-h-[88vh] sm:max-w-5xl bg-card border border-border/80 sm:rounded-surface sm:shadow-overlay flex flex-col overflow-hidden animate-in zoom-in-95 fade-in duration-200 z-10 text-foreground">
         {/* 1. Modal Top Bar */}
-        <div className="px-4 sm:px-6 py-3.5 sm:py-4 border-b border-border/60 bg-card flex items-center justify-between gap-3 shrink-0">
-          <div className="flex items-center gap-2.5 sm:gap-3">
+        <div className="px-3 sm:px-6 py-2.5 sm:py-3.5 border-b border-border/60 bg-card flex items-center justify-between gap-2 sm:gap-3 shrink-0">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             {mobileStep === 'checkout' && (
               <button
                 type="button"
                 onClick={() => setMobileStep('items')}
-                className="lg:hidden p-1.5 rounded-control border border-border/60 bg-muted/40 hover:bg-muted text-foreground text-xs font-bold flex items-center gap-1 cursor-pointer duration-motion active:scale-[0.98]"
+                className="lg:hidden h-8 px-2.5 rounded-control border border-border/60 bg-muted/40 hover:bg-muted text-foreground text-xs font-bold flex items-center gap-1 cursor-pointer duration-motion active:scale-[0.98] shrink-0"
                 title="بازگشت به اقلام"
+                aria-label="بازگشت به اقلام"
               >
                 <ArrowRight className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">
-                  اقلام ({toPersianDigits(itemCount)})
-                </span>
+                <span>بازگشت</span>
               </button>
             )}
 
-            <div className="relative flex items-center justify-center w-9 h-9 sm:w-11 sm:h-11 rounded-control bg-secondary text-secondary-foreground border border-border/60 shadow-control shrink-0">
+            <div className="relative flex items-center justify-center w-8 h-8 sm:w-11 sm:h-11 rounded-control bg-secondary text-secondary-foreground border border-border/60 shadow-control shrink-0">
               <ShoppingBag className="w-4 h-4 sm:w-5 sm:h-5 text-brand" />
               {itemCount > 0 && (
                 <span className="absolute -top-1 -right-1 flex h-4 sm:h-5 min-w-[18px] sm:min-w-[20px] px-1 sm:px-1.5 items-center justify-center rounded-control bg-primary text-[10px] sm:text-[11px] font-black text-primary-foreground shadow-control animate-pulse font-latin">
@@ -617,24 +646,32 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 </span>
               )}
             </div>
-            <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <h3 className="font-black text-sm sm:text-base text-foreground">
-                  {mobileStep === 'checkout'
-                    ? 'تسویه‌حساب و روش پرداخت'
-                    : 'سبد خرید شما'}
-                </h3>
-              </div>
+
+            <div className="min-w-0">
+              <h3 className="font-black text-xs sm:text-base text-foreground whitespace-nowrap truncate">
+                {mobileStep === 'checkout' ? (
+                  <>
+                    <span className="sm:hidden">تسویه‌حساب</span>
+                    <span className="hidden sm:inline">
+                      تسویه‌حساب و روش پرداخت
+                    </span>
+                  </>
+                ) : (
+                  'سبد خرید شما'
+                )}
+              </h3>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             {items.length > 0 && (
               <button
                 type="button"
                 onClick={clearCart}
                 title="خالی کردن کل سبد"
-                className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-control text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors border border-transparent hover:border-destructive/20 duration-motion ease-motion active:scale-[0.98] cursor-pointer"
+                className={`${
+                  mobileStep === 'checkout' ? 'hidden sm:flex' : 'flex'
+                } items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-control text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors border border-transparent hover:border-destructive/20 duration-motion ease-motion active:scale-[0.98] cursor-pointer`}
               >
                 <Trash2 className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">خالی کردن سبد</span>
@@ -651,17 +688,29 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
           </div>
         </div>
 
-        {/* Global Submit Error Banner */}
+        {/* Consolidated Single Error Toast / Banner with auto-dismiss & close button */}
         {submitError && (
-          <div className="mx-4 sm:mx-6 mt-3 p-3 rounded-xl bg-rose-500/10 border border-rose-500/25 flex items-center gap-2 text-xs text-rose-500 font-medium animate-in fade-in shrink-0">
-            <AlertCircle className="w-4 h-4 shrink-0" />
-            <span>{submitError}</span>
+          <div className="mx-4 sm:mx-6 mt-3 p-3 rounded-surface bg-rose-500/10 border border-rose-500/30 flex items-start sm:items-center justify-between gap-2.5 text-xs text-rose-500 font-bold animate-in fade-in slide-in-from-top-1 shrink-0">
+            <div className="flex items-start sm:items-center gap-2 flex-1 min-w-0">
+              <AlertCircle className="w-4 h-4 shrink-0 text-rose-500 mt-0.5 sm:mt-0" />
+              <span className="leading-relaxed break-words whitespace-normal flex-1">
+                {submitError}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSubmitError(null)}
+              className="p-1 rounded-control text-rose-500 hover:bg-rose-500/20 transition-colors cursor-pointer shrink-0"
+              title="بستن پیام خطا"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
           </div>
         )}
 
         {/* 2. Modal Body */}
         {items.length === 0 ? (
-          <div className="flex-1 py-16 sm:py-20 flex flex-col items-center justify-center text-center p-6 space-y-5 overflow-y-auto">
+          <div className="flex-1 min-h-0 py-16 sm:py-20 flex flex-col items-center justify-center text-center p-6 space-y-5 overflow-y-auto">
             <div className="relative">
               <div className="w-20 h-20 rounded-control bg-secondary text-secondary-foreground border border-border/60 flex items-center justify-center shadow-control">
                 <ShoppingBag className="w-10 h-10 text-brand stroke-[1.5]" />
@@ -688,13 +737,13 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
             </button>
           </div>
         ) : (
-          <div className="flex-1 overflow-hidden flex flex-col lg:flex-row relative">
+          <div className="flex-1 min-h-0 overflow-hidden flex flex-col lg:flex-row relative">
             {/* Items Column (Desktop: visible, Mobile: visible only on mobileStep === 'items') */}
             <div
-              className={`flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 ${
+              className={`flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 space-y-4 overscroll-contain ${
                 mobileStep === 'checkout'
                   ? 'hidden lg:block'
-                  : 'block pb-24 lg:pb-6'
+                  : 'block pb-28 lg:pb-6'
               }`}
             >
               <div className="flex items-center justify-between pb-2 border-b border-border/60">
@@ -977,7 +1026,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
 
                     <button
                       type="button"
-                      onClick={() => setMobileStep('checkout')}
+                      onClick={handleProceedToCheckout}
                       className="h-10 px-5 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs duration-motion ease-motion active:scale-[0.98] shadow-control flex items-center gap-1.5 cursor-pointer"
                     >
                       <span>
@@ -992,159 +1041,178 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
 
             {/* Financial & Payment Column (Visible lg:flex on desktop, on mobile visible only when mobileStep === 'checkout') */}
             <div
-              className={`w-full lg:w-[410px] shrink-0 lg:border-r border-border/60 bg-card p-4 sm:p-6 flex flex-col justify-between overflow-y-auto space-y-4 ${
+              className={`w-full lg:w-[410px] shrink-0 min-h-0 lg:border-r border-border/60 bg-card p-4 sm:p-6 flex flex-col overflow-y-auto space-y-4 pb-28 lg:pb-6 overscroll-contain ${
                 mobileStep === 'checkout' ? 'flex' : 'hidden lg:flex'
               }`}
             >
               <div className="space-y-4">
-                {/* Mobile Back Link in Step 2 */}
-                {mobileStep === 'checkout' && (
-                  <button
-                    type="button"
-                    onClick={() => setMobileStep('items')}
-                    className="lg:hidden text-xs text-brand hover:underline font-bold flex items-center gap-1.5 pb-2 border-b border-border/40 cursor-pointer"
-                  >
-                    <ArrowRight className="w-3.5 h-3.5" />
-                    <span>
-                      بازگشت به ویرایش اقلام و مشخصات (
-                      {toPersianDigits(itemCount)} قلم)
-                    </span>
-                  </button>
-                )}
-
                 {/* 1. Creative Destination & Contact Selector (Configurable from Admin Panel & DB) */}
                 {checkoutSettings.section_enabled && (
-                  <div className="space-y-2.5 p-3.5 rounded-surface border border-border/60 bg-muted/20">
-                    <div className="flex items-center justify-between">
-                      <label className="text-xs font-black text-foreground block">
-                        {checkoutSettings.title}
-                      </label>
-                    </div>
-
-                    {/* Channel Switcher (SMS vs Email - based on admin enabled flags) */}
-                    {checkoutSettings.sms_enabled &&
-                      checkoutSettings.email_enabled && (
-                        <div className="flex items-center gap-1.5 p-1 rounded-control bg-muted/40 border border-border/40">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setDeliveryChannel('mobile')
-                              setPhoneError(null)
-                            }}
-                            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-control text-xs font-bold transition-all duration-motion ease-motion active:scale-[0.98] cursor-pointer ${
-                              deliveryChannel === 'mobile'
-                                ? 'bg-primary text-primary-foreground font-black shadow-control'
-                                : 'text-muted-foreground hover:text-foreground'
-                            }`}
-                          >
-                            <Smartphone className="w-3.5 h-3.5" />
-                            <span>{checkoutSettings.sms_label}</span>
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setDeliveryChannel('email')
-                              setPhoneError(null)
-                            }}
-                            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-control text-xs font-bold transition-all duration-motion ease-motion active:scale-[0.98] cursor-pointer ${
-                              deliveryChannel === 'email'
-                                ? 'bg-primary text-primary-foreground font-black shadow-control'
-                                : 'text-muted-foreground hover:text-foreground'
-                            }`}
-                          >
-                            <Mail className="w-3.5 h-3.5" />
-                            <span>{checkoutSettings.email_label}</span>
-                          </button>
+                  <div className="relative rounded-surface border border-border/60 bg-muted/20 overflow-hidden">
+                    {/* If user is not logged in, overlay a frosted blur with a Login/Register button */}
+                    {!isUserLoggedIn && (
+                      <div className="absolute inset-0 z-20 backdrop-blur-xs bg-card/85 p-4 flex flex-col items-center justify-center text-center space-y-2 animate-in fade-in select-none">
+                        <div className="w-8 h-8 rounded-control bg-secondary text-brand border border-border/60 flex items-center justify-center shadow-control">
+                          <LogIn className="w-4 h-4 text-brand" />
                         </div>
-                      )}
-
-                    {/* Quick Select Account Chips (if user has phone or email in account) */}
-                    {(savedAccountPhone || savedAccountEmail) && (
-                      <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
-                        {savedAccountPhone && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setDeliveryChannel('mobile')
-                              setPhone(savedAccountPhone)
-                              setPhoneError(null)
-                            }}
-                            className={`text-[10px] font-latin px-2.5 py-1 rounded-control border transition-all cursor-pointer flex items-center gap-1 ${
-                              deliveryChannel === 'mobile' &&
-                              phone === savedAccountPhone
-                                ? 'border-brand/50 bg-brand/10 text-brand font-bold'
-                                : 'border-border/60 bg-card hover:bg-muted text-muted-foreground hover:text-foreground'
-                            }`}
-                          >
-                            <Smartphone className="w-3 h-3 text-brand" />
-                            <span>{savedAccountPhone}</span>
-                            <span className="text-[9px] font-sans opacity-70">
-                              (شماره شما)
-                            </span>
-                          </button>
-                        )}
-
-                        {savedAccountEmail && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setDeliveryChannel('email')
-                              setEmailAddress(savedAccountEmail)
-                              setPhoneError(null)
-                            }}
-                            className={`text-[10px] font-latin px-2.5 py-1 rounded-control border transition-all cursor-pointer flex items-center gap-1 ${
-                              deliveryChannel === 'email' &&
-                              emailAddress === savedAccountEmail
-                                ? 'border-brand/50 bg-brand/10 text-brand font-bold'
-                                : 'border-border/60 bg-card hover:bg-muted text-muted-foreground hover:text-foreground'
-                            }`}
-                          >
-                            <Mail className="w-3 h-3 text-brand" />
-                            <span className="truncate max-w-[150px]">
-                              {savedAccountEmail}
-                            </span>
-                            <span className="text-[9px] font-sans opacity-70">
-                              (ایمیل شما)
-                            </span>
-                          </button>
-                        )}
+                        <div className="space-y-0.5 max-w-xs">
+                          <h5 className="text-xs font-black text-foreground">
+                            نیازمند ورود به حساب کاربری
+                          </h5>
+                          <p className="text-[11px] text-muted-foreground leading-relaxed">
+                            جهت صدور فاکتور و ادامه پرداخت، لطفاً ابتدا وارد حساب
+                            خود شوید.
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setIsAuthModalOpen(true)}
+                          className="h-8.5 px-4 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs duration-motion ease-motion active:scale-[0.98] shadow-control flex items-center gap-1.5 cursor-pointer"
+                        >
+                          <LogIn className="w-3.5 h-3.5" />
+                          <span>ورود / ثبت‌نام سریع</span>
+                        </button>
                       </div>
                     )}
 
-                    {/* Dynamic Input based on Selected Channel */}
-                    <div>
-                      {deliveryChannel === 'mobile' ? (
-                        <Input
-                          type="tel"
-                          dir="ltr"
-                          value={phone}
-                          onChange={(e) => {
-                            setPhone(e.target.value)
-                            setPhoneError(null)
-                          }}
-                          placeholder="09xxxxxxxxx (شماره موبایل جهت پیامک تحویل)"
-                          className="h-10 text-xs font-latin rounded-control bg-background border-border/80 focus:border-brand"
-                        />
-                      ) : (
-                        <Input
-                          type="email"
-                          dir="ltr"
-                          value={emailAddress}
-                          onChange={(e) => {
-                            setEmailAddress(e.target.value)
-                            setPhoneError(null)
-                          }}
-                          placeholder="name@example.com (آدرس ایمیل دریافت لایسنس)"
-                          className="h-10 text-xs font-latin rounded-control bg-background border-border/80 focus:border-brand"
-                        />
+                    <div
+                      className={`space-y-2.5 p-3.5 ${
+                        !isUserLoggedIn
+                          ? 'filter blur-[2.5px] opacity-25 pointer-events-none select-none'
+                          : ''
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-black text-foreground block">
+                          {checkoutSettings.title}
+                        </label>
+                      </div>
+
+                      {/* Channel Switcher (SMS vs Email - based on admin enabled flags) */}
+                      {checkoutSettings.sms_enabled &&
+                        checkoutSettings.email_enabled && (
+                          <div className="flex items-center gap-1.5 p-1 rounded-control bg-muted/40 border border-border/40">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setDeliveryChannel('mobile')
+                                setPhoneError(null)
+                              }}
+                              className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-control text-xs font-bold transition-all duration-motion ease-motion active:scale-[0.98] cursor-pointer ${
+                                deliveryChannel === 'mobile'
+                                  ? 'bg-primary text-primary-foreground font-black shadow-control'
+                                  : 'text-muted-foreground hover:text-foreground'
+                              }`}
+                            >
+                              <Smartphone className="w-3.5 h-3.5" />
+                              <span>{checkoutSettings.sms_label}</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setDeliveryChannel('email')
+                                setPhoneError(null)
+                              }}
+                              className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-control text-xs font-bold transition-all duration-motion ease-motion active:scale-[0.98] cursor-pointer ${
+                                deliveryChannel === 'email'
+                                  ? 'bg-primary text-primary-foreground font-black shadow-control'
+                                  : 'text-muted-foreground hover:text-foreground'
+                              }`}
+                            >
+                              <Mail className="w-3.5 h-3.5" />
+                              <span>{checkoutSettings.email_label}</span>
+                            </button>
+                          </div>
+                        )}
+
+                      {/* Quick Select Account Chips (if user has phone or email in account) */}
+                      {(savedAccountPhone || savedAccountEmail) && (
+                        <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+                          {savedAccountPhone && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setDeliveryChannel('mobile')
+                                setPhone(savedAccountPhone)
+                                setPhoneError(null)
+                              }}
+                              className={`text-[10px] font-latin px-2.5 py-1 rounded-control border transition-all cursor-pointer flex items-center gap-1 ${
+                                deliveryChannel === 'mobile' &&
+                                phone === savedAccountPhone
+                                  ? 'border-brand/50 bg-brand/10 text-brand font-bold'
+                                  : 'border-border/60 bg-card hover:bg-muted text-muted-foreground hover:text-foreground'
+                              }`}
+                            >
+                              <Smartphone className="w-3 h-3 text-brand" />
+                              <span>{savedAccountPhone}</span>
+                              <span className="text-[9px] font-sans opacity-70">
+                                (شماره شما)
+                              </span>
+                            </button>
+                          )}
+
+                          {savedAccountEmail && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setDeliveryChannel('email')
+                                setEmailAddress(savedAccountEmail)
+                                setPhoneError(null)
+                              }}
+                              className={`text-[10px] font-latin px-2.5 py-1 rounded-control border transition-all cursor-pointer flex items-center gap-1 ${
+                                deliveryChannel === 'email' &&
+                                emailAddress === savedAccountEmail
+                                  ? 'border-brand/50 bg-brand/10 text-brand font-bold'
+                                  : 'border-border/60 bg-card hover:bg-muted text-muted-foreground hover:text-foreground'
+                              }`}
+                            >
+                              <Mail className="w-3 h-3 text-brand" />
+                              <span className="truncate max-w-[150px]">
+                                {savedAccountEmail}
+                              </span>
+                              <span className="text-[9px] font-sans opacity-70">
+                                (ایمیل شما)
+                              </span>
+                            </button>
+                          )}
+                        </div>
                       )}
 
-                      {phoneError && (
-                        <p className="text-[11px] text-destructive font-bold mt-1">
-                          {phoneError}
-                        </p>
-                      )}
+                      {/* Dynamic Input based on Selected Channel */}
+                      <div>
+                        {deliveryChannel === 'mobile' ? (
+                          <Input
+                            type="tel"
+                            dir="ltr"
+                            value={phone}
+                            onChange={(e) => {
+                              setPhone(e.target.value)
+                              setPhoneError(null)
+                            }}
+                            placeholder="09xxxxxxxxx (شماره موبایل جهت پیامک تحویل)"
+                            className="h-10 text-xs font-latin rounded-control bg-background border-border/80 focus:border-brand"
+                          />
+                        ) : (
+                          <Input
+                            type="email"
+                            dir="ltr"
+                            value={emailAddress}
+                            onChange={(e) => {
+                              setEmailAddress(e.target.value)
+                              setPhoneError(null)
+                            }}
+                            placeholder="name@example.com (آدرس ایمیل دریافت لایسنس)"
+                            className="h-10 text-xs font-latin rounded-control bg-background border-border/80 focus:border-brand"
+                          />
+                        )}
+
+                        {phoneError && (
+                          <p className="text-[11px] text-destructive font-bold mt-1">
+                            {phoneError}
+                          </p>
+                        )}
+                      </div>
                     </div>
                   </div>
                 )}
@@ -1335,65 +1403,75 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
               </div>
 
               {/* 5. Checkout CTA Button & Balance Warnings */}
-              <div className="space-y-3 pt-2">
-                {submitError && (
-                  <div className="p-3 rounded-control bg-destructive/10 border border-destructive/30 text-xs text-destructive flex items-center gap-2 animate-in fade-in">
-                    <AlertCircle className="w-4 h-4 shrink-0" />
-                    <span>{submitError}</span>
-                  </div>
-                )}
-
+              <div className="space-y-3 pt-3 mt-auto shrink-0">
                 {/* Explicit Balance Insufficient Warning Card */}
-                {selectedPlatform === 'balance' && !isBalanceSufficient && (
-                  <div className="p-3 rounded-control bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-400 text-xs space-y-2 animate-in fade-in">
-                    <div className="flex items-center gap-1.5 font-bold">
-                      <AlertCircle className="w-4 h-4 shrink-0 text-amber-500" />
-                      <span>موجودی کیف پول شما کمتر از مبلغ سفارش است</span>
+                {isUserLoggedIn &&
+                  selectedPlatform === 'balance' &&
+                  !isBalanceSufficient && (
+                    <div className="p-3 rounded-control bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-400 text-xs space-y-2 animate-in fade-in">
+                      <div className="flex items-center gap-1.5 font-bold">
+                        <AlertCircle className="w-4 h-4 shrink-0 text-amber-500" />
+                        <span>موجودی کیف پول شما کمتر از مبلغ سفارش است</span>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground leading-relaxed">
+                        موجودی شما{' '}
+                        {toPersianDigits(walletBalance.toLocaleString('fa-IR'))}{' '}
+                        تومان و مبلغ کل{' '}
+                        {toPersianDigits(total.toLocaleString('fa-IR'))} تومان
+                        است. می‌توانید درگاه شاپرک را انتخاب کرده یا کیف پول خود
+                        را به صورت آنی شارژ کنید.
+                      </p>
+                      <div className="flex items-center gap-2 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedPlatform('zarinpal')}
+                          className="px-3 py-1.5 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs duration-motion active:scale-95 shadow-control cursor-pointer"
+                        >
+                          سوییچ به درگاه شاپرک
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setIsTopupModalOpen(true)}
+                          className="px-3 py-1.5 rounded-control border border-border/80 bg-muted/40 hover:bg-muted text-foreground text-xs font-bold transition duration-motion active:scale-95 cursor-pointer"
+                        >
+                          شارژ آنی کیف پول
+                        </button>
+                      </div>
                     </div>
-                    <p className="text-[11px] text-muted-foreground leading-relaxed">
-                      موجودی شما{' '}
-                      {toPersianDigits(walletBalance.toLocaleString('fa-IR'))}{' '}
-                      تومان و مبلغ کل{' '}
-                      {toPersianDigits(total.toLocaleString('fa-IR'))} تومان
-                      است. می‌توانید درگاه شاپرک را انتخاب کرده یا کیف پول خود را
-                      به صورت آنی شارژ کنید.
-                    </p>
-                    <div className="flex items-center gap-2 pt-1">
-                      <button
-                        type="button"
-                        onClick={() => setSelectedPlatform('zarinpal')}
-                        className="px-3 py-1.5 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs duration-motion active:scale-95 shadow-control cursor-pointer"
-                      >
-                        سوییچ به درگاه شاپرک
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setIsTopupModalOpen(true)}
-                        className="px-3 py-1.5 rounded-control border border-border/80 bg-muted/40 hover:bg-muted text-foreground text-xs font-bold transition duration-motion active:scale-95 cursor-pointer"
-                      >
-                        شارژ آنی کیف پول
-                      </button>
-                    </div>
-                  </div>
-                )}
+                  )}
 
                 <button
                   type="button"
-                  onClick={handleFinalSubmit}
+                  onClick={() => {
+                    if (!isUserLoggedIn) {
+                      setIsAuthModalOpen(true)
+                      return
+                    }
+                    handleFinalSubmit()
+                  }}
                   disabled={
                     isSubmitting ||
-                    (selectedPlatform === 'balance' && !isBalanceSufficient)
+                    (isUserLoggedIn &&
+                      selectedPlatform === 'balance' &&
+                      !isBalanceSufficient)
                   }
                   className={`w-full h-11 rounded-control font-black text-xs sm:text-sm duration-motion ease-motion active:scale-[0.98] shadow-control flex items-center justify-center gap-2 cursor-pointer ${
-                    selectedPlatform === 'balance' && !isBalanceSufficient
-                      ? 'bg-muted text-muted-foreground cursor-not-allowed opacity-60'
-                      : 'bg-primary hover:bg-primary-hover text-primary-foreground'
+                    !isUserLoggedIn
+                      ? 'bg-primary hover:bg-primary-hover text-primary-foreground shadow-control'
+                      : selectedPlatform === 'balance' && !isBalanceSufficient
+                        ? 'bg-muted text-muted-foreground cursor-not-allowed opacity-60'
+                        : 'bg-primary hover:bg-primary-hover text-primary-foreground'
                   }`}
                 >
                   {isSubmitting ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
                       <span>در حال ثبت سفارش...</span>
+                    </>
+                  ) : !isUserLoggedIn ? (
+                    <>
+                      <LogIn className="w-4 h-4" />
+                      <span>ورود به حساب جهت ثبت و پرداخت سفارش</span>
                     </>
                   ) : selectedPlatform === 'balance' && !isBalanceSufficient ? (
                     <span>موجودی کیف پول ناکافی است</span>
