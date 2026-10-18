@@ -3,6 +3,7 @@ import {
   Gift,
   KeyRound,
   Loader2,
+  Mail,
   Palette,
   Save,
   ShieldCheck,
@@ -44,6 +45,12 @@ export const AdminThemeSettingsView: React.FC = () => {
     auth_github_enabled: true,
     auth_password_enabled: true,
     auth_otp_required: false,
+    checkout_channel_section_enabled: true,
+    checkout_channel_sms_enabled: true,
+    checkout_channel_email_enabled: true,
+    checkout_channel_title: 'دریافت فاکتور و لایسنس سفارش:',
+    checkout_channel_sms_label: 'پیامک به موبایل',
+    checkout_channel_email_label: 'ارسال به ایمیل',
   })
 
   const loadSettings = async () => {
@@ -675,6 +682,185 @@ export const AdminThemeSettingsView: React.FC = () => {
                   <ToggleLeft className="h-7 w-7" />
                 )}
               </button>
+            </div>
+          </div>
+        </div>
+
+        {/* 5. Checkout Channels Management (SMS vs Email Settings) */}
+        <div className="rounded-3xl border border-border/80 bg-card p-6 shadow-xs space-y-5">
+          <div className="flex items-center justify-between border-b border-border/60 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-secondary text-brand border border-border/60 flex items-center justify-center shrink-0 shadow-control">
+                <Smartphone className="w-5 h-5 text-brand" />
+              </div>
+              <div>
+                <h3 className="text-sm font-black text-foreground">
+                  مدیریت کانال‌های دریافت فاکتور و لایسنس در سبد خرید
+                </h3>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  تنظیم نمایش، فعال/غیرفعال‌سازی کانال‌های پیامک و ایمیل و
+                  شخصی‌سازی متن دکمه‌ها
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() =>
+                setSettings((prev) => ({
+                  ...prev,
+                  checkout_channel_section_enabled:
+                    prev.checkout_channel_section_enabled === undefined
+                      ? false
+                      : !prev.checkout_channel_section_enabled,
+                }))
+              }
+              className={`p-1 rounded-2xl transition-colors cursor-pointer ${
+                settings.checkout_channel_section_enabled !== false
+                  ? 'text-brand'
+                  : 'text-muted-foreground'
+              }`}
+              title="فعال یا غیرفعال‌سازی کل بخش کانال‌های دریافت در سبد خرید"
+            >
+              {settings.checkout_channel_section_enabled !== false ? (
+                <ToggleRight className="h-8 w-8" />
+              ) : (
+                <ToggleLeft className="h-8 w-8" />
+              )}
+            </button>
+          </div>
+
+          <div className="space-y-4 text-xs">
+            {/* Section Title Input */}
+            <div className="space-y-1.5 text-right">
+              <label className="block font-bold text-foreground">
+                عنوان بخش در ستون تسویه‌حساب سبد خرید:
+              </label>
+              <input
+                type="text"
+                value={
+                  settings.checkout_channel_title ||
+                  'دریافت فاکتور و لایسنس سفارش:'
+                }
+                onChange={(e) =>
+                  setSettings((prev) => ({
+                    ...prev,
+                    checkout_channel_title: e.target.value,
+                  }))
+                }
+                placeholder="دریافت فاکتور و لایسنس سفارش:"
+                className="w-full h-10 px-3.5 rounded-field bg-muted/30 border border-border/60 text-foreground text-xs outline-none focus:border-brand transition-colors"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+              {/* Channel 1: SMS Channel */}
+              <div className="p-4 rounded-surface border border-border/60 bg-muted/15 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Smartphone className="w-4 h-4 text-brand" />
+                    <span className="font-bold text-foreground">
+                      کانال پیامک به موبایل
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setSettings((prev) => ({
+                        ...prev,
+                        checkout_channel_sms_enabled:
+                          prev.checkout_channel_sms_enabled === undefined
+                            ? false
+                            : !prev.checkout_channel_sms_enabled,
+                      }))
+                    }
+                    className={`p-1 cursor-pointer transition-colors ${
+                      settings.checkout_channel_sms_enabled !== false
+                        ? 'text-brand'
+                        : 'text-muted-foreground'
+                    }`}
+                  >
+                    {settings.checkout_channel_sms_enabled !== false ? (
+                      <ToggleRight className="h-7 w-7" />
+                    ) : (
+                      <ToggleLeft className="h-7 w-7" />
+                    )}
+                  </button>
+                </div>
+                <div>
+                  <label className="block text-[11px] text-muted-foreground mb-1 font-medium">
+                    متن روی دکمه پیامک:
+                  </label>
+                  <input
+                    type="text"
+                    value={
+                      settings.checkout_channel_sms_label || 'پیامک به موبایل'
+                    }
+                    onChange={(e) =>
+                      setSettings((prev) => ({
+                        ...prev,
+                        checkout_channel_sms_label: e.target.value,
+                      }))
+                    }
+                    placeholder="پیامک به موبایل"
+                    className="w-full h-9 px-3 rounded-control bg-background border border-border/60 text-foreground text-xs outline-none focus:border-brand"
+                  />
+                </div>
+              </div>
+
+              {/* Channel 2: Email Channel */}
+              <div className="p-4 rounded-surface border border-border/60 bg-muted/15 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Mail className="w-4 h-4 text-brand" />
+                    <span className="font-bold text-foreground">
+                      کانال ارسال به ایمیل
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setSettings((prev) => ({
+                        ...prev,
+                        checkout_channel_email_enabled:
+                          prev.checkout_channel_email_enabled === undefined
+                            ? false
+                            : !prev.checkout_channel_email_enabled,
+                      }))
+                    }
+                    className={`p-1 cursor-pointer transition-colors ${
+                      settings.checkout_channel_email_enabled !== false
+                        ? 'text-brand'
+                        : 'text-muted-foreground'
+                    }`}
+                  >
+                    {settings.checkout_channel_email_enabled !== false ? (
+                      <ToggleRight className="h-7 w-7" />
+                    ) : (
+                      <ToggleLeft className="h-7 w-7" />
+                    )}
+                  </button>
+                </div>
+                <div>
+                  <label className="block text-[11px] text-muted-foreground mb-1 font-medium">
+                    متن روی دکمه ایمیل:
+                  </label>
+                  <input
+                    type="text"
+                    value={
+                      settings.checkout_channel_email_label || 'ارسال به ایمیل'
+                    }
+                    onChange={(e) =>
+                      setSettings((prev) => ({
+                        ...prev,
+                        checkout_channel_email_label: e.target.value,
+                      }))
+                    }
+                    placeholder="ارسال به ایمیل"
+                    className="w-full h-9 px-3 rounded-control bg-background border border-border/60 text-foreground text-xs outline-none focus:border-brand"
+                  />
+                </div>
+              </div>
             </div>
           </div>
         </div>

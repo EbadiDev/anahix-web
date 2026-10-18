@@ -2,6 +2,7 @@ import {
   Bell,
   BookOpen,
   Bot,
+  CheckCircle2,
   ChevronDown,
   ChevronLeft,
   Code2,
@@ -761,59 +762,70 @@ export const Header: React.FC<HeaderProps> = ({
                       )}
                     </div>
 
-                    {/* Notification Items List */}
+                    {/* Notification Items List - Only display unread, clean empty state when read */}
                     <div className="max-h-72 overflow-y-auto space-y-1.5 pr-0.5">
-                      {inAppNotifs.length === 0 ? (
-                        <div className="py-6 text-center text-xs text-muted-foreground">
-                          پیام یا اعلانی وجود ندارد.
+                      {inAppNotifs.filter((n) => !n.is_read).length === 0 ? (
+                        <div className="py-7 text-center space-y-2 select-none">
+                          <div className="w-10 h-10 rounded-control bg-secondary text-secondary-foreground border border-border/60 flex items-center justify-center mx-auto shadow-control">
+                            <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                          </div>
+                          <p className="text-xs font-black text-foreground">
+                            تمامی اعلان‌ها خوانده شده‌اند
+                          </p>
+                          <p className="text-[11px] text-muted-foreground">
+                            در حال حاضر پیام یا اطلاع‌رسانی جدیدی وجود ندارد.
+                          </p>
                         </div>
                       ) : (
-                        inAppNotifs.slice(0, 4).map((item) => (
-                          <Link
-                            key={item.id}
-                            to="/profile?tab=notifications"
-                            onClick={async () => {
-                              setNotifDropdownOpen(false)
-                              if (!item.is_read) {
-                                await api.markNotificationAsRead(item.id)
-                                setUnreadNotifCount((prev) =>
-                                  Math.max(0, prev - 1),
-                                )
-                                setInAppNotifs((prev) =>
-                                  prev.map((n) =>
-                                    n.id === item.id
-                                      ? { ...n, is_read: true }
-                                      : n,
-                                  ),
-                                )
-                              }
-                            }}
-                            className={`block p-2.5 rounded-control transition-all border duration-motion ease-motion text-right group ${
-                              !item.is_read
-                                ? 'bg-secondary border-border/80'
-                                : 'bg-muted/10 border-transparent hover:bg-muted/30'
-                            }`}
-                          >
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="flex items-center gap-2 min-w-0">
-                                {!item.is_read && (
-                                  <span className="w-1.5 h-1.5 rounded-full bg-brand shrink-0 animate-pulse" />
-                                )}
-                                <h5 className="text-xs font-bold text-foreground group-hover:text-primary transition-colors truncate">
-                                  {item.title}
-                                </h5>
+                        inAppNotifs
+                          .filter((n) => !n.is_read)
+                          .slice(0, 4)
+                          .map((item) => (
+                            <Link
+                              key={item.id}
+                              to="/profile?tab=notifications"
+                              onClick={async () => {
+                                setNotifDropdownOpen(false)
+                                if (!item.is_read) {
+                                  await api.markNotificationAsRead(item.id)
+                                  setUnreadNotifCount((prev) =>
+                                    Math.max(0, prev - 1),
+                                  )
+                                  setInAppNotifs((prev) =>
+                                    prev.map((n) =>
+                                      n.id === item.id
+                                        ? { ...n, is_read: true }
+                                        : n,
+                                    ),
+                                  )
+                                }
+                              }}
+                              className={`block p-2.5 rounded-control transition-all border duration-motion ease-motion text-right group ${
+                                !item.is_read
+                                  ? 'bg-secondary border-border/80'
+                                  : 'bg-muted/10 border-transparent hover:bg-muted/30'
+                              }`}
+                            >
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  {!item.is_read && (
+                                    <span className="w-1.5 h-1.5 rounded-full bg-brand shrink-0 animate-pulse" />
+                                  )}
+                                  <h5 className="text-xs font-bold text-foreground group-hover:text-primary transition-colors truncate">
+                                    {item.title}
+                                  </h5>
+                                </div>
+                                <span className="text-[10px] text-muted-foreground shrink-0 font-latin">
+                                  {new Date(item.created_at).toLocaleDateString(
+                                    'fa-IR',
+                                  )}
+                                </span>
                               </div>
-                              <span className="text-[10px] text-muted-foreground shrink-0 font-latin">
-                                {new Date(item.created_at).toLocaleDateString(
-                                  'fa-IR',
-                                )}
-                              </span>
-                            </div>
-                            <p className="text-[11px] text-muted-foreground mt-1 truncate leading-relaxed">
-                              {item.message}
-                            </p>
-                          </Link>
-                        ))
+                              <p className="text-[11px] text-muted-foreground mt-1 truncate leading-relaxed">
+                                {item.message}
+                              </p>
+                            </Link>
+                          ))
                       )}
                     </div>
 

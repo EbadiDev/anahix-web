@@ -67,6 +67,11 @@ export const ProfileSecurityTab: React.FC<ProfileSecurityTabProps> = ({
   const isRealPhone = Boolean(
     customer.phone && !/^098[0-9a-f]{8}$/i.test(customer.phone),
   )
+  const isEmailVerified = Boolean(
+    customer.email_verified ||
+      customer.auth_provider === 'google' ||
+      customer.auth_provider === 'github',
+  )
   const [resetStep, setResetStep] = useState<
     'choose_channel' | 'verify_otp' | 'set_new_password'
   >('choose_channel')
@@ -78,10 +83,18 @@ export const ProfileSecurityTab: React.FC<ProfileSecurityTabProps> = ({
 
   // Step 1: Send verification code via chosen channel
   const handleSendCode = async () => {
-    if (channel === 'email' && !customer.email) {
+    if (channel === 'email' && (!customer.email || !isEmailVerified)) {
       error(
-        'ایمیل ثبت نشده است',
-        'ابتدا در بخش اطلاعات کاربری یک ایمیل معتبر ثبت کنید.',
+        'ایمیل تایید نشده است',
+        'جهت استفاده از ایمیل برای احراز هویت ۲FA، ابتدا در بخش اطلاعات کاربری آدرس ایمیل خود را اعتبارسنجی و تایید کنید.',
+      )
+      return
+    }
+
+    if (channel === 'sms' && !isRealPhone) {
+      error(
+        'شماره موبایل ثبت نشده است',
+        'ابتدا در بخش اطلاعات کاربری یک شماره همراه معتبر تایید نمایید.',
       )
       return
     }
@@ -226,10 +239,14 @@ export const ProfileSecurityTab: React.FC<ProfileSecurityTabProps> = ({
                   <span className="text-xs font-bold text-foreground">
                     آدرس ایمیل
                   </span>
-                  {customer.email ? (
+                  {isEmailVerified ? (
                     <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-control">
                       <CheckCircle2 className="w-3 h-3" />
-                      <span>فعال</span>
+                      <span>تایید شده ✓</span>
+                    </span>
+                  ) : customer.email ? (
+                    <span className="text-[10px] text-rose-500 bg-rose-500/10 border border-rose-500/30 px-2 py-0.5 rounded-control font-bold">
+                      نیازمند تایید
                     </span>
                   ) : (
                     <span className="text-[10px] text-muted-foreground bg-muted/60 px-2 py-0.5 rounded-control">
@@ -298,18 +315,29 @@ export const ProfileSecurityTab: React.FC<ProfileSecurityTabProps> = ({
               <button
                 type="button"
                 onClick={() => setChannel('email')}
-                disabled={!customer.email}
+                disabled={!customer.email || !isEmailVerified}
                 className={`p-3.5 rounded-control border text-right transition-all duration-motion ease-motion cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
                   channel === 'email'
                     ? 'border-brand bg-brand/10 shadow-control ring-1 ring-brand/30'
                     : 'border-border/60 bg-muted/20 hover:bg-muted/40'
                 }`}
               >
-                <div className="flex items-center gap-2.5">
-                  <Mail className="w-4 h-4 text-brand" />
-                  <span className="text-xs font-bold text-foreground">
-                    ارسال کد به ایمیل
-                  </span>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Mail className="w-4 h-4 text-brand" />
+                    <span className="text-xs font-bold text-foreground">
+                      ارسال کد به ایمیل
+                    </span>
+                  </div>
+                  {isEmailVerified ? (
+                    <span className="text-[9px] text-emerald-400 font-bold bg-emerald-500/10 px-1.5 py-0.2 rounded-control">
+                      تایید شده ✓
+                    </span>
+                  ) : customer.email ? (
+                    <span className="text-[9px] text-rose-500 font-bold bg-rose-500/10 px-1.5 py-0.2 rounded-control">
+                      تایید نشده
+                    </span>
+                  ) : null}
                 </div>
                 <span
                   className="text-[11px] font-latin text-muted-foreground block mt-1 truncate"

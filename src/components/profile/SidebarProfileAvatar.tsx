@@ -1,9 +1,12 @@
 import {
+  AlertCircle,
   Camera,
   CheckCircle2,
   Crown,
   Loader2,
+  Mail,
   ShieldAlert,
+  Smartphone,
   User,
 } from 'lucide-react'
 import type React from 'react'
@@ -28,13 +31,27 @@ export const SidebarProfileAvatar: React.FC<SidebarProfileAvatarProps> = ({
   const { success, error } = useNotification()
   const [uploading, setUploading] = useState(false)
 
-  // Verification status logic: verified if real phone exists and is authenticated
+  // Verification status logic: considers phone, email & auth provider
   const isSyntheticPhone = Boolean(
     customer.phone && /^098[0-9a-f]{8}$/i.test(customer.phone),
   )
-  const isPhoneVerified = Boolean(
-    customer.phone && customer.is_active && !isSyntheticPhone,
+  const hasRealPhone = Boolean(customer.phone && !isSyntheticPhone)
+  const hasEmail = Boolean(customer.email?.includes('@'))
+
+  const isEmailVerified = Boolean(
+    customer.email_verified ||
+      customer.auth_provider === 'google' ||
+      customer.auth_provider === 'github',
   )
+  const isPhoneVerified = Boolean(
+    hasRealPhone &&
+      (customer.phone_verified ||
+        customer.auth_provider === 'phone' ||
+        customer.is_active),
+  )
+
+  const isFullyVerified = isPhoneVerified && (hasEmail ? isEmailVerified : true)
+  const isUnverified = !isPhoneVerified && (!hasEmail || !isEmailVerified)
 
   const isAdmin = Boolean(customer.is_admin || apiService.getAdminUser())
 
@@ -80,23 +97,33 @@ export const SidebarProfileAvatar: React.FC<SidebarProfileAvatarProps> = ({
         )}
 
         {/* Verification Status Pill */}
-        {isPhoneVerified ? (
+        {isFullyVerified ? (
           <span
-            className="inline-flex items-center gap-1 text-[10px] font-bold bg-emerald-500/10 text-emerald-500 border border-emerald-500/30 px-2 py-0.5 rounded-control"
-            title="حساب کاربری با پیامک تایید شده است"
+            className="inline-flex items-center gap-1 text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-control shadow-xs"
+            title="حساب کاربری کاملاً احراز هویت شده است"
           >
-            <CheckCircle2 className="w-3 h-3 text-emerald-500" />
+            <CheckCircle2 className="w-3 h-3 text-emerald-400" />
             <span>احراز هویت شده</span>
           </span>
+        ) : isUnverified ? (
+          <button
+            type="button"
+            onClick={onNavigateToPersonal}
+            className="inline-flex items-center gap-1 text-[10px] font-bold bg-rose-500/10 text-rose-500 border border-rose-500/30 px-2 py-0.5 rounded-control hover:bg-rose-500/20 transition-colors cursor-pointer animate-pulse"
+            title="هیچ اطلاعاتی تایید نشده است. جهت احراز هویت کلیک کنید"
+          >
+            <AlertCircle className="w-3 h-3 text-rose-500" />
+            <span>نیاز به تایید فوری</span>
+          </button>
         ) : (
           <button
             type="button"
             onClick={onNavigateToPersonal}
             className="inline-flex items-center gap-1 text-[10px] font-bold bg-amber-500/10 text-amber-500 border border-amber-500/30 px-2 py-0.5 rounded-control hover:bg-amber-500/20 transition-colors cursor-pointer"
-            title="جهت تایید هویت به بخش اطلاعات کاربری مراجعه کنید"
+            title="جهت تایید هویت مکمل به بخش اطلاعات کاربری مراجعه کنید"
           >
             <ShieldAlert className="w-3 h-3 text-amber-500" />
-            <span>نیاز به تایید</span>
+            <span>نیازمند تایید مکمل</span>
           </button>
         )}
       </div>
@@ -119,21 +146,27 @@ export const SidebarProfileAvatar: React.FC<SidebarProfileAvatarProps> = ({
             </div>
           )}
 
-          {/* Status Tick Badge (Green for verified, Orange for pending) */}
+          {/* Status Tick Badge (Green for verified, Rose for unverified, Orange for pending) */}
           <span
             className={`absolute -bottom-1 -right-1 h-5 w-5 rounded-full border-2 border-card flex items-center justify-center shadow-control ${
-              isPhoneVerified
+              isFullyVerified
                 ? 'bg-emerald-500 text-white'
-                : 'bg-amber-500 text-zinc-950'
+                : isUnverified
+                  ? 'bg-rose-500 text-white'
+                  : 'bg-amber-500 text-zinc-950'
             }`}
             title={
-              isPhoneVerified
-                ? 'شماره موبایل تایید شده'
-                : 'نیازمند احراز هویت در پنل کاربری'
+              isFullyVerified
+                ? 'حساب کاربری کاملاً تایید شده'
+                : isUnverified
+                  ? 'نیازمند احراز هویت فوری'
+                  : 'نیازمند تایید مکمل در پنل کاربری'
             }
           >
-            {isPhoneVerified ? (
+            {isFullyVerified ? (
               <CheckCircle2 className="h-3 w-3 stroke-[2.5]" />
+            ) : isUnverified ? (
+              <AlertCircle className="h-3 w-3 stroke-[2.5]" />
             ) : (
               <ShieldAlert className="h-3 w-3 stroke-[2.5]" />
             )}
@@ -164,35 +197,69 @@ export const SidebarProfileAvatar: React.FC<SidebarProfileAvatarProps> = ({
           </label>
         </div>
 
-        {/* User Info & Identity with Typewriter Animation */}
-        <div className="space-y-1 flex-1 min-w-0">
+        {/* User Info & Identity with Creative Dual Channel Display */}
+        <div className="space-y-1.5 flex-1 min-w-0">
           <h4 className="text-sm font-black text-foreground truncate min-h-[22px]">
             <TypewriterText
               words={[
                 customer.full_name || 'کاربر گرامی',
-                formatDisplayPhone(customer.phone, customer.email),
+                ...(hasRealPhone ? [customer.phone] : []),
+                ...(hasEmail ? [customer.email || ''] : []),
                 'خوش آمدید',
               ]}
               className="text-foreground font-black"
             />
           </h4>
-          <p
-            className="text-[11px] font-mono text-muted-foreground font-latin"
-            dir="ltr"
-          >
-            {formatDisplayPhone(customer.phone, customer.email)}
-          </p>
+
+          {/* Creative Display of Both Mobile & Email when both present */}
+          {hasRealPhone && hasEmail ? (
+            <div className="pt-1 space-y-1 select-all" dir="ltr">
+              <div className="inline-flex items-center justify-center gap-1.5 px-2 py-0.5 rounded-control bg-muted/40 border border-border/40 text-[10px] sm:text-[11px] font-mono font-latin text-foreground">
+                <Smartphone className="w-3 h-3 text-brand shrink-0" />
+                <span>{customer.phone}</span>
+                {isPhoneVerified ? (
+                  <CheckCircle2 className="w-2.5 h-2.5 text-emerald-400 shrink-0" />
+                ) : (
+                  <ShieldAlert className="w-2.5 h-2.5 text-rose-500 shrink-0" />
+                )}
+              </div>
+              <div className="inline-flex items-center justify-center gap-1.5 px-2 py-0.5 rounded-control bg-muted/40 border border-border/40 text-[10px] sm:text-[11px] font-mono font-latin text-foreground max-w-full">
+                <Mail className="w-3 h-3 text-brand shrink-0" />
+                <span className="truncate max-w-[150px] sm:max-w-[180px]">
+                  {customer.email}
+                </span>
+                {isEmailVerified ? (
+                  <CheckCircle2 className="w-2.5 h-2.5 text-emerald-400 shrink-0" />
+                ) : (
+                  <ShieldAlert className="w-2.5 h-2.5 text-rose-500 shrink-0" />
+                )}
+              </div>
+            </div>
+          ) : (
+            <p
+              className="text-[11px] font-mono text-muted-foreground font-latin"
+              dir="ltr"
+            >
+              {formatDisplayPhone(customer.phone, customer.email)}
+            </p>
+          )}
         </div>
       </div>
 
       {/* Quick Personal Info Link if pending */}
-      {!isPhoneVerified && (
+      {!isFullyVerified && (
         <button
           type="button"
           onClick={onNavigateToPersonal}
-          className="w-full py-2 px-3 text-xs font-bold rounded-control bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 border border-amber-500/20 transition-colors duration-motion cursor-pointer block text-center"
+          className={`w-full py-2 px-3 text-xs font-bold rounded-control transition-colors duration-motion cursor-pointer block text-center border ${
+            isUnverified
+              ? 'bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 border-rose-500/30'
+              : 'bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 border-amber-500/30'
+          }`}
         >
-          تکمیل و تایید اطلاعات کاربری ←
+          {isUnverified
+            ? 'احراز هویت فوری حساب کاربری ←'
+            : 'تکمیل و تایید اطلاعات کاربری ←'}
         </button>
       )}
     </div>

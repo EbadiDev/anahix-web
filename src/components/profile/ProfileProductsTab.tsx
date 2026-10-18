@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import type React from 'react'
 import { useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Link } from 'react-router-dom'
 import type { Order } from '../../types'
 import { toPersianDigits } from '../../utils/formatters'
@@ -227,92 +228,97 @@ export const ProfileProductsTab: React.FC<ProfileProductsTabProps> = ({
       )}
 
       {/* Product Detail / License Modal - Graphite Overlay */}
-      {selectedProduct && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-in fade-in"
-          dir="rtl"
-        >
-          <div className="w-full max-w-md bg-card text-card-foreground rounded-surface border border-border/80 shadow-overlay p-6 space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-border/60">
-              <div>
-                <h3 className="text-sm font-black text-foreground">
-                  {selectedProduct.product_title}
-                </h3>
-                <p className="text-xs text-muted-foreground font-mono mt-0.5 font-latin">
-                  #{selectedProduct.order_no}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setSelectedProduct(null)}
-                className="p-1 rounded-control text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {selectedProduct.delivered_link ? (
-              <div className="space-y-2">
-                <span className="text-xs font-semibold text-foreground">
-                  لینک دعوت اشتراک فعال:
-                </span>
-                <div className="p-2.5 rounded-control bg-muted/30 border border-border/60 flex items-center justify-between gap-2">
-                  <span className="text-xs font-mono truncate text-brand font-latin">
-                    {selectedProduct.delivered_link}
-                  </span>
+      {selectedProduct &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[99999] overflow-y-auto bg-black/75 backdrop-blur-md p-3 sm:p-6 animate-in fade-in"
+            style={{ top: 0, left: 0, right: 0, bottom: 0 }}
+            dir="rtl"
+          >
+            <div className="min-h-full w-full flex items-start sm:items-center justify-center">
+              <div className="w-full max-w-md my-auto bg-card text-card-foreground rounded-surface border border-border/80 shadow-overlay p-6 space-y-4 animate-in zoom-in-95">
+                <div className="flex items-center justify-between pb-3 border-b border-border/60">
+                  <div>
+                    <h3 className="text-sm font-black text-foreground">
+                      {selectedProduct.product_title}
+                    </h3>
+                    <p className="text-xs text-muted-foreground font-mono mt-0.5 font-latin">
+                      #{selectedProduct.order_no}
+                    </p>
+                  </div>
                   <button
                     type="button"
-                    onClick={() =>
-                      copyToClipboard(
-                        selectedProduct.delivered_link || '',
-                        'modal_link',
-                      )
-                    }
-                    className="h-7 px-3 rounded-control bg-primary text-primary-foreground font-black text-xs duration-motion ease-motion active:scale-[0.98] shadow-control cursor-pointer shrink-0"
+                    onClick={() => setSelectedProduct(null)}
+                    className="p-1 rounded-control text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
                   >
-                    {copiedKey === 'modal_link' ? 'کپی شد' : 'کپی'}
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {selectedProduct.delivered_link ? (
+                  <div className="space-y-2">
+                    <span className="text-xs font-semibold text-foreground">
+                      لینک دعوت اشتراک فعال:
+                    </span>
+                    <div className="p-2.5 rounded-control bg-muted/30 border border-border/60 flex items-center justify-between gap-2">
+                      <span className="text-xs font-mono truncate text-brand font-latin">
+                        {selectedProduct.delivered_link}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          copyToClipboard(
+                            selectedProduct.delivered_link || '',
+                            'modal_link',
+                          )
+                        }
+                        className="h-7 px-3 rounded-control bg-primary text-primary-foreground font-black text-xs duration-motion ease-motion active:scale-[0.98] shadow-control cursor-pointer shrink-0"
+                      >
+                        {copiedKey === 'modal_link' ? 'کپی شد' : 'کپی'}
+                      </button>
+                    </div>
+                  </div>
+                ) : selectedProduct.delivered_credentials ? (
+                  <div className="p-3.5 rounded-control bg-muted/30 border border-border/60 space-y-2.5 text-xs font-mono font-latin">
+                    <div className="flex justify-between items-center">
+                      <span className="text-muted-foreground">
+                        نام کاربری / ایمیل:
+                      </span>
+                      <span className="text-foreground font-bold">
+                        {selectedProduct.delivered_credentials.email}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-muted-foreground">رمز عبور:</span>
+                      <span className="text-foreground font-bold">
+                        {selectedProduct.delivered_credentials.password}
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-4 rounded-control bg-amber-500/10 border border-amber-500/20 text-xs text-amber-500 flex items-center gap-2">
+                    <Clock className="w-4 h-4 shrink-0" />
+                    <span>
+                      سفارش در صف اپراتور قرار دارد و به زودی اطلاعات تحویل ثبت
+                      خواهد شد.
+                    </span>
+                  </div>
+                )}
+
+                <div className="pt-2 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedProduct(null)}
+                    className="h-8 px-4 rounded-control border border-border/60 bg-card hover:bg-muted text-xs font-bold text-foreground duration-motion ease-motion active:scale-[0.98] cursor-pointer"
+                  >
+                    بستن
                   </button>
                 </div>
               </div>
-            ) : selectedProduct.delivered_credentials ? (
-              <div className="p-3.5 rounded-control bg-muted/30 border border-border/60 space-y-2.5 text-xs font-mono font-latin">
-                <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">
-                    نام کاربری / ایمیل:
-                  </span>
-                  <span className="text-foreground font-bold">
-                    {selectedProduct.delivered_credentials.email}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">رمز عبور:</span>
-                  <span className="text-foreground font-bold">
-                    {selectedProduct.delivered_credentials.password}
-                  </span>
-                </div>
-              </div>
-            ) : (
-              <div className="p-4 rounded-control bg-amber-500/10 border border-amber-500/20 text-xs text-amber-500 flex items-center gap-2">
-                <Clock className="w-4 h-4 shrink-0" />
-                <span>
-                  سفارش در صف اپراتور قرار دارد و به زودی اطلاعات تحویل ثبت
-                  خواهد شد.
-                </span>
-              </div>
-            )}
-
-            <div className="pt-2 flex justify-end">
-              <button
-                type="button"
-                onClick={() => setSelectedProduct(null)}
-                className="h-8 px-4 rounded-control border border-border/60 bg-card hover:bg-muted text-xs font-bold text-foreground duration-motion ease-motion active:scale-[0.98] cursor-pointer"
-              >
-                بستن
-              </button>
             </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body,
+        )}
     </div>
   )
 }

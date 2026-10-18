@@ -501,10 +501,7 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
               {activeOrder.customer_phone && (
                 <>
                   <span className="opacity-40">•</span>
-                  <span
-                    className="font-latin text-muted-foreground"
-                    dir="ltr"
-                  >
+                  <span className="font-latin text-muted-foreground" dir="ltr">
                     {activeOrder.customer_phone}
                   </span>
                 </>

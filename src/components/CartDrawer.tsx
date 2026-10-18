@@ -10,13 +10,13 @@ import {
   KeyRound,
   Landmark,
   Loader2,
+  Mail,
   Minus,
   Percent,
   Plus,
   ShieldCheck,
   ShoppingBag,
   Smartphone,
-  Sparkles,
   Tag,
   Trash2,
   Wallet,
@@ -24,10 +24,11 @@ import {
   Zap,
 } from 'lucide-react'
 import type React from 'react'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useCart } from '../lib/cartStore'
 import { apiService } from '../services/api'
-import type { CustomerProfile, PaymentGateway } from '../types'
+import type { CustomerProfile, PaymentGateway, ThemeSettings } from '../types'
 import { toPersianDigits } from '../utils/formatters'
 import { AuthModal } from './AuthModal'
 import { ClaudeIcon, CursorIcon, GeminiIcon, OpenAIIcon } from './BrandIcons'
@@ -78,23 +79,21 @@ function getProductBrandConfig(category: string, title: string) {
   }
 }
 
-function getGatewayIcon(iconType: string) {
-  switch (iconType) {
-    case 'wallet':
-      return (
-        <Wallet className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-      )
-    case 'credit-card':
-    case 'zarinpal':
-      return <CreditCard className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-    case 'bank':
-      return <Landmark className="h-4 w-4 text-sky-600 dark:text-sky-400" />
-    case 'bitcoin':
-    case 'crypto':
-      return <Coins className="h-4 w-4 text-amber-500" />
-    default:
-      return <CreditCard className="h-4 w-4 text-blue-600" />
+function getGatewayIcon(iconType?: string, platform?: string) {
+  const t = `${iconType || ''} ${platform || ''}`.toLowerCase()
+  if (t.includes('wallet') || t.includes('balance')) {
+    return <Wallet className="h-4 w-4 text-emerald-500" />
   }
+  if (t.includes('zarinpal') || t.includes('credit') || t.includes('card')) {
+    return <CreditCard className="h-4 w-4 text-brand" />
+  }
+  if (t.includes('bank') || t.includes('landmark')) {
+    return <Landmark className="h-4 w-4 text-sky-500" />
+  }
+  if (t.includes('bitcoin') || t.includes('crypto')) {
+    return <Coins className="h-4 w-4 text-amber-500" />
+  }
+  return <CreditCard className="h-4 w-4 text-brand" />
 }
 
 interface CartDrawerProps {
@@ -106,6 +105,7 @@ interface CartDrawerProps {
     items: { product_id: string; plan_id?: string; quantity: number }[]
     payment_platform: string
     customer_phone: string
+    customer_email?: string
     account_email?: string
     account_password?: string
     customer_notes?: string
@@ -163,6 +163,18 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
     }
     return ''
   })
+  const [emailAddress, setEmailAddress] = useState(() => customer?.email || '')
+  const [deliveryChannel, setDeliveryChannel] = useState<'mobile' | 'email'>(
+    () => {
+      if (
+        customer?.email &&
+        (!customer?.phone || /^098[0-9a-f]{8}$/i.test(customer.phone))
+      ) {
+        return 'email'
+      }
+      return 'mobile'
+    },
+  )
   const [phoneError, setPhoneError] = useState<string | null>(null)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
@@ -170,14 +182,82 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [internalCustomer, setInternalCustomer] =
     useState<CustomerProfile | null>(customer || null)
+  const [dbPayments, setDbPayments] = useState<PaymentGateway[]>([])
+  const [promotionalCoupons, setPromotionalCoupons] = useState<
+    Array<{ code: string; label: string }>
+  >([])
+  const [checkoutSettings, setCheckoutSettings] = useState<{
+    section_enabled: boolean
+    sms_enabled: boolean
+    email_enabled: boolean
+    title: string
+    sms_label: string
+    email_label: string
+  }>({
+    section_enabled: true,
+    sms_enabled: true,
+    email_enabled: true,
+    title: 'دریافت فاکتور و لایسنس سفارش:',
+    sms_label: 'پیامک به موبایل',
+    email_label: 'ارسال به ایمیل',
+  })
 
-  // Auto-resolve customer profile from apiService if not passed via props
+  // Auto-resolve customer profile, gateways, and public coupons from apiService
   useEffect(() => {
     if (customer) {
       setInternalCustomer(customer)
+      if (customer.email && !emailAddress) setEmailAddress(customer.email)
+      if (
+        customer.phone &&
+        !phone &&
+        !/^098[0-9a-f]{8}$/i.test(customer.phone)
+      ) {
+        setPhone(customer.phone)
+      }
     } else if (apiService.isCustomerLoggedIn()) {
       apiService.getCustomerProfile().then((p) => {
-        if (p) setInternalCustomer(p)
+        if (p) {
+          setInternalCustomer(p)
+          if (p.email && !emailAddress) setEmailAddress(p.email)
+          if (p.phone && !phone && !/^098[0-9a-f]{8}$/i.test(p.phone)) {
+            setPhone(p.phone)
+          }
+        }
+      })
+    }
+
+    if (isOpen) {
+      // 1. Fetch live payment gateways from DB / Admin
+      apiService.getPayments().then((list) => {
+        if (list && Array.isArray(list)) {
+          setDbPayments(list)
+        }
+      })
+      // 2. Fetch live promotional coupons from DB / Admin
+      apiService.getPublicCoupons().then((list) => {
+        if (list && Array.isArray(list)) {
+          setPromotionalCoupons(list)
+        }
+      })
+      // 3. Fetch checkout channel settings from DB / Admin
+      apiService.getThemeSettings().then((theme: ThemeSettings) => {
+        if (theme) {
+          setCheckoutSettings({
+            section_enabled: theme.checkout_channel_section_enabled !== false,
+            sms_enabled: theme.checkout_channel_sms_enabled !== false,
+            email_enabled: theme.checkout_channel_email_enabled !== false,
+            title:
+              theme.checkout_channel_title || 'دریافت فاکتور و لایسنس سفارش:',
+            sms_label: theme.checkout_channel_sms_label || 'پیامک به موبایل',
+            email_label: theme.checkout_channel_email_label || 'ارسال به ایمیل',
+          })
+          if (
+            theme.checkout_channel_sms_enabled === false &&
+            theme.checkout_channel_email_enabled !== false
+          ) {
+            setDeliveryChannel('email')
+          }
+        }
       })
     }
   }, [customer, isOpen])
@@ -185,6 +265,28 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   const activeCustomer = customer || internalCustomer
   const isUserLoggedIn =
     apiService.isCustomerLoggedIn() || Boolean(activeCustomer)
+
+  const savedAccountPhone = useMemo(() => {
+    const raw = activeCustomer?.phone || customer?.phone || ''
+    if (raw && !/^098[0-9a-f]{8}$/i.test(raw)) {
+      return raw
+    }
+    return ''
+  }, [activeCustomer?.phone, customer?.phone])
+
+  const savedAccountEmail = activeCustomer?.email || customer?.email || ''
+
+  useEffect(() => {
+    if (savedAccountPhone && !phone) {
+      setPhone(savedAccountPhone)
+    }
+  }, [savedAccountPhone, phone])
+
+  useEffect(() => {
+    if (savedAccountEmail && !emailAddress) {
+      setEmailAddress(savedAccountEmail)
+    }
+  }, [savedAccountEmail, emailAddress])
 
   // Design 1: Contextual Per-Item Credentials state (product.id -> { email, password, showPassword })
   const [itemCreds, setItemCreds] = useState<
@@ -224,8 +326,6 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
     }
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [isOpen, onClose])
-
-  if (!isOpen) return null
 
   const handleApplyCoupon = async (codeToApply?: string) => {
     const code = (codeToApply || couponCodeInput).trim().toUpperCase()
@@ -324,30 +424,45 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   const walletBalance = activeCustomer?.balance_toman || 0
   const isBalanceSufficient = walletBalance >= total
 
-  // List of gateways (prop or fallbacks)
-  const availableGateways: PaymentGateway[] =
-    payments.length > 0
-      ? payments
-      : [
-          {
-            id: -1,
-            name: 'موجودی کیف پول (آنی)',
-            platform: 'balance',
-            is_default: true,
-            fee_percentage: 0,
-            icon_type: 'wallet',
-            description_fa: 'کسر مستقیم از کیف پول آناهیکس',
-          },
-          {
-            id: 1,
-            name: 'درگاه پرداخت شاپرک',
-            platform: 'zarinpal',
-            is_default: false,
-            fee_percentage: 0,
-            icon_type: 'credit-card',
-            description_fa: 'کلیه کارت‌های عضو شتاب',
-          },
-        ]
+  // Gateways resolved from DB / Admin with CardToCard strictly disabled
+  const availableGateways = useMemo(() => {
+    const sourceList =
+      payments.length > 0 ? payments : dbPayments.length > 0 ? dbPayments : []
+
+    const filtered = sourceList.filter((p) => {
+      // Must not be card_to_card per admin instructions
+      if (p.platform === 'card_to_card') return false
+      // If enable flag is set, must be enabled
+      if ((p as any).enable !== undefined && !(p as any).enable) return false
+      return true
+    })
+
+    if (filtered.length > 0) return filtered
+
+    return [
+      {
+        id: -1,
+        name: 'کیف پول / موجودی حساب',
+        name_fa: 'کیف پول / موجودی حساب',
+        platform: 'balance',
+        is_default: true,
+        fee_percentage: 0,
+        icon_type: 'wallet',
+        description_fa: 'پرداخت مستقیم و آنی از طریق شارژ کیف پول حساب کاربری',
+      },
+      {
+        id: 1,
+        name: 'درگاه پرداخت زرین‌پال (کارت‌های شتاب)',
+        name_fa: 'درگاه پرداخت زرین‌پال (کارت‌های شتاب)',
+        platform: 'zarinpal',
+        is_default: false,
+        fee_percentage: 0,
+        icon_type: 'credit-card',
+        description_fa:
+          'پرداخت امن اینترنتی با تمامی کارت‌های بانکی عضو شبکه شتاب',
+      },
+    ]
+  }, [payments, dbPayments])
 
   // Submit Handler
   const handleFinalSubmit = async () => {
@@ -364,11 +479,22 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
     }
 
     const cleanPhone = phone.trim()
-    if (!cleanPhone || cleanPhone.length < 11) {
-      setPhoneError(
-        'لطفاً شماره موبایل معتبر (۱۱ رقمی، مانند 0912...) وارد کنید.',
-      )
-      return
+    const cleanEmail = emailAddress.trim()
+
+    if (deliveryChannel === 'mobile') {
+      if (!cleanPhone || cleanPhone.length < 11) {
+        setPhoneError(
+          'لطفاً شماره موبایل معتبر (۱۱ رقمی، مانند 0912...) وارد کنید.',
+        )
+        return
+      }
+    } else {
+      if (!cleanEmail?.includes('@') || !cleanEmail.includes('.')) {
+        setPhoneError(
+          'لطفاً آدرس ایمیل معتبر جهت ارسال فاکتور و لایسنس وارد نمایید.',
+        )
+        return
+      }
     }
 
     // Validate Mode C items
@@ -424,8 +550,11 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
             quantity: it.quantity,
           })),
           payment_platform: selectedPlatform,
-          customer_phone: cleanPhone,
-          account_email: firstCred?.email,
+          customer_phone:
+            cleanPhone ||
+            (savedAccountPhone ? savedAccountPhone : '09120000000'),
+          customer_email: cleanEmail || savedAccountEmail || firstCred?.email,
+          account_email: firstCred?.email || cleanEmail || savedAccountEmail,
           account_password: firstCred?.password,
           customer_notes: notes,
           coupon_code: coupon?.code,
@@ -438,15 +567,21 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
     }
   }
 
-  const popularCoupons = [
-    { code: 'WELCOME10', label: '۱۰٪ هدیه خوش‌آمدگویی' },
-    { code: 'ANAHIX50', label: '۵۰ هزار تومان تخفیف' },
-    { code: 'TELEGRAM20', label: '۲۰٪ تخفیف تلگرام' },
-  ]
+  if (!isOpen) return null
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center sm:p-4 md:p-6 overflow-hidden"
+      className="fixed inset-0 flex items-center justify-center sm:p-4 md:p-6 overflow-hidden"
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        width: '100vw',
+        height: '100vh',
+        zIndex: 2147483647,
+      }}
       dir="rtl"
     >
       {/* Ambient Backdrop */}
@@ -489,9 +624,6 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                     ? 'تسویه‌حساب و روش پرداخت'
                     : 'سبد خرید شما'}
                 </h3>
-                <span className="text-[10px] sm:text-[11px] font-mono px-2 py-0.5 rounded-control bg-muted text-muted-foreground border border-border/60 font-bold">
-                  {toPersianDigits(itemCount)} محصول دیجیتال
-                </span>
               </div>
             </div>
           </div>
@@ -534,9 +666,6 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
               <div className="w-20 h-20 rounded-control bg-secondary text-secondary-foreground border border-border/60 flex items-center justify-center shadow-control">
                 <ShoppingBag className="w-10 h-10 text-brand stroke-[1.5]" />
               </div>
-              <div className="absolute -bottom-1 -right-1 w-7 h-7 rounded-control bg-zinc-900 border border-zinc-800 flex items-center justify-center text-brand shadow-control">
-                <Sparkles className="w-3.5 h-3.5" />
-              </div>
             </div>
 
             <div className="space-y-1.5 max-w-sm">
@@ -554,7 +683,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
               onClick={onClose}
               className="h-11 px-7 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs sm:text-sm duration-motion ease-motion active:scale-[0.98] shadow-control flex items-center gap-2 cursor-pointer"
             >
-              <Sparkles className="w-4 h-4" />
+              <ShoppingBag className="w-4 h-4" />
               <span>مشاهده و انتخاب اشتراک‌ها</span>
             </button>
           </div>
@@ -584,7 +713,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
               {modeCItems.length >= 2 && isFirstCredFilled && (
                 <div className="p-3 rounded-control bg-brand/10 border border-brand/30 flex items-center justify-between gap-3 text-xs animate-in fade-in">
                   <div className="flex items-center gap-2 text-foreground font-bold min-w-0">
-                    <Sparkles className="w-4 h-4 text-brand shrink-0" />
+                    <KeyRound className="w-4 h-4 text-brand shrink-0" />
                     <span className="truncate">
                       {toPersianDigits(modeCItems.length)} سرویس نیازمند مشخصات
                       اکانت شخصی
@@ -665,7 +794,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
 
                               <span className="text-muted-foreground text-[10px] sm:text-[11px] flex items-center gap-1">
                                 <span>واحد:</span>
-                                <span className="font-mono font-bold text-foreground font-latin">
+                                <span className="font-bold text-foreground font-latin">
                                   {unitPrice.toLocaleString('fa-IR')}
                                 </span>
                                 <span>تومان</span>
@@ -729,7 +858,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                                   )
                                 }
                                 placeholder="name@example.com"
-                                className="h-8 text-xs font-mono font-latin rounded-control bg-muted/30 border-border/60 text-foreground"
+                                className="h-8 text-xs font-latin rounded-control bg-muted/30 border-border/60 text-foreground"
                               />
                             </div>
                             <div>
@@ -769,7 +898,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                                   )
                                 }
                                 placeholder="••••••••"
-                                className="h-8 text-xs font-mono font-latin rounded-control bg-muted/30 border-border/60 text-foreground"
+                                className="h-8 text-xs font-latin rounded-control bg-muted/30 border-border/60 text-foreground"
                               />
                             </div>
                           </div>
@@ -838,7 +967,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                       <span className="text-[11px] text-muted-foreground block">
                         مجموع کل اقلام
                       </span>
-                      <div className="flex items-baseline gap-1 font-black text-base text-foreground font-mono font-latin">
+                      <div className="flex items-baseline gap-1 font-black text-base text-foreground font-latin">
                         <span>{total.toLocaleString('fa-IR')}</span>
                         <span className="text-[10px] font-normal text-muted-foreground font-sans">
                           تومان
@@ -883,28 +1012,142 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                   </button>
                 )}
 
-                {/* 1. Customer Phone Input */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-foreground block">
-                    شماره موبایل جهت دریافت فاکتور و پیگیری:
-                  </label>
-                  <Input
-                    type="tel"
-                    dir="ltr"
-                    value={phone}
-                    onChange={(e) => {
-                      setPhone(e.target.value)
-                      setPhoneError(null)
-                    }}
-                    placeholder="09xxxxxxxxx"
-                    className="h-10 text-xs font-mono rounded-xl bg-background border-border focus:ring-1 focus:ring-blue-500"
-                  />
-                  {phoneError && (
-                    <p className="text-[11px] text-rose-500 font-medium">
-                      {phoneError}
-                    </p>
-                  )}
-                </div>
+                {/* 1. Creative Destination & Contact Selector (Configurable from Admin Panel & DB) */}
+                {checkoutSettings.section_enabled && (
+                  <div className="space-y-2.5 p-3.5 rounded-surface border border-border/60 bg-muted/20">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-black text-foreground block">
+                        {checkoutSettings.title}
+                      </label>
+                    </div>
+
+                    {/* Channel Switcher (SMS vs Email - based on admin enabled flags) */}
+                    {checkoutSettings.sms_enabled &&
+                      checkoutSettings.email_enabled && (
+                        <div className="flex items-center gap-1.5 p-1 rounded-control bg-muted/40 border border-border/40">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setDeliveryChannel('mobile')
+                              setPhoneError(null)
+                            }}
+                            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-control text-xs font-bold transition-all duration-motion ease-motion active:scale-[0.98] cursor-pointer ${
+                              deliveryChannel === 'mobile'
+                                ? 'bg-primary text-primary-foreground font-black shadow-control'
+                                : 'text-muted-foreground hover:text-foreground'
+                            }`}
+                          >
+                            <Smartphone className="w-3.5 h-3.5" />
+                            <span>{checkoutSettings.sms_label}</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setDeliveryChannel('email')
+                              setPhoneError(null)
+                            }}
+                            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-control text-xs font-bold transition-all duration-motion ease-motion active:scale-[0.98] cursor-pointer ${
+                              deliveryChannel === 'email'
+                                ? 'bg-primary text-primary-foreground font-black shadow-control'
+                                : 'text-muted-foreground hover:text-foreground'
+                            }`}
+                          >
+                            <Mail className="w-3.5 h-3.5" />
+                            <span>{checkoutSettings.email_label}</span>
+                          </button>
+                        </div>
+                      )}
+
+                    {/* Quick Select Account Chips (if user has phone or email in account) */}
+                    {(savedAccountPhone || savedAccountEmail) && (
+                      <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+                        {savedAccountPhone && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setDeliveryChannel('mobile')
+                              setPhone(savedAccountPhone)
+                              setPhoneError(null)
+                            }}
+                            className={`text-[10px] font-latin px-2.5 py-1 rounded-control border transition-all cursor-pointer flex items-center gap-1 ${
+                              deliveryChannel === 'mobile' &&
+                              phone === savedAccountPhone
+                                ? 'border-brand/50 bg-brand/10 text-brand font-bold'
+                                : 'border-border/60 bg-card hover:bg-muted text-muted-foreground hover:text-foreground'
+                            }`}
+                          >
+                            <Smartphone className="w-3 h-3 text-brand" />
+                            <span>{savedAccountPhone}</span>
+                            <span className="text-[9px] font-sans opacity-70">
+                              (شماره شما)
+                            </span>
+                          </button>
+                        )}
+
+                        {savedAccountEmail && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setDeliveryChannel('email')
+                              setEmailAddress(savedAccountEmail)
+                              setPhoneError(null)
+                            }}
+                            className={`text-[10px] font-latin px-2.5 py-1 rounded-control border transition-all cursor-pointer flex items-center gap-1 ${
+                              deliveryChannel === 'email' &&
+                              emailAddress === savedAccountEmail
+                                ? 'border-brand/50 bg-brand/10 text-brand font-bold'
+                                : 'border-border/60 bg-card hover:bg-muted text-muted-foreground hover:text-foreground'
+                            }`}
+                          >
+                            <Mail className="w-3 h-3 text-brand" />
+                            <span className="truncate max-w-[150px]">
+                              {savedAccountEmail}
+                            </span>
+                            <span className="text-[9px] font-sans opacity-70">
+                              (ایمیل شما)
+                            </span>
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Dynamic Input based on Selected Channel */}
+                    <div>
+                      {deliveryChannel === 'mobile' ? (
+                        <Input
+                          type="tel"
+                          dir="ltr"
+                          value={phone}
+                          onChange={(e) => {
+                            setPhone(e.target.value)
+                            setPhoneError(null)
+                          }}
+                          placeholder="09xxxxxxxxx (شماره موبایل جهت پیامک تحویل)"
+                          className="h-10 text-xs font-latin rounded-control bg-background border-border/80 focus:border-brand"
+                        />
+                      ) : (
+                        <Input
+                          type="email"
+                          dir="ltr"
+                          value={emailAddress}
+                          onChange={(e) => {
+                            setEmailAddress(e.target.value)
+                            setPhoneError(null)
+                          }}
+                          placeholder="name@example.com (آدرس ایمیل دریافت لایسنس)"
+                          className="h-10 text-xs font-latin rounded-control bg-background border-border/80 focus:border-brand"
+                        />
+                      )}
+
+                      {phoneError && (
+                        <p className="text-[11px] text-destructive font-bold mt-1">
+                          {phoneError}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 {/* 2. Embedded Payment Method Selector (انتخاب روش پرداخت:) */}
                 <div className="space-y-2">
@@ -912,7 +1155,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                     انتخاب روش پرداخت:
                   </label>
                   <div className="space-y-1.5">
-                    {availableGateways.map((p) => {
+                    {availableGateways.map((p: PaymentGateway) => {
                       const isSelected = selectedPlatform === p.platform
                       return (
                         <div
@@ -926,7 +1169,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                         >
                           <div className="flex items-center gap-2.5">
                             <div className="flex h-8 w-8 items-center justify-center rounded-control bg-secondary border border-border/80 text-foreground shrink-0 shadow-control">
-                              {getGatewayIcon(p.icon_type)}
+                              {getGatewayIcon(p.icon_type, p.platform)}
                             </div>
                             <div>
                               <div className="flex items-center gap-1.5">
@@ -1005,7 +1248,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                           value={couponCodeInput}
                           onChange={(e) => setCouponCodeInput(e.target.value)}
                           placeholder="کد تخفیف (مثال: WELCOME10)"
-                          className="h-10 text-xs uppercase font-mono font-latin rounded-field bg-muted/20 border border-border/60 px-3 text-foreground outline-none focus:border-foreground/40 transition-colors flex-1"
+                          className="h-10 text-xs uppercase font-latin rounded-field bg-muted/20 border border-border/60 px-3 text-foreground outline-none focus:border-foreground/40 transition-colors flex-1"
                         />
                         <button
                           type="submit"
@@ -1023,31 +1266,35 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                         </div>
                       )}
 
-                      {/* Quick Chips with Persian labels */}
-                      <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
-                        {popularCoupons.map((p) => {
-                          const isThisApplied =
-                            coupon?.code === p.code ||
-                            quickCouponApplied === p.code
-                          return (
-                            <button
-                              key={p.code}
-                              type="button"
-                              onClick={() => handleApplyCoupon(p.code)}
-                              className={`text-[10px] font-mono font-latin px-2 py-0.5 rounded-control border transition-all duration-motion cursor-pointer ${
-                                isThisApplied
-                                  ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400 font-bold'
-                                  : 'border-border/60 bg-muted/20 hover:bg-muted text-foreground'
-                              }`}
-                            >
-                              {isThisApplied ? `✓ ${p.code}` : p.code}{' '}
-                              <span className="text-[9px] text-muted-foreground font-sans">
-                                ({p.label})
-                              </span>
-                            </button>
-                          )
-                        })}
-                      </div>
+                      {/* Quick Chips from Database / Admin Panel */}
+                      {promotionalCoupons.length > 0 && (
+                        <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+                          {promotionalCoupons.map((p) => {
+                            const isThisApplied =
+                              coupon?.code === p.code ||
+                              quickCouponApplied === p.code
+                            return (
+                              <button
+                                key={p.code}
+                                type="button"
+                                onClick={() => handleApplyCoupon(p.code)}
+                                className={`text-[10px] font-latin px-2 py-0.5 rounded-control border transition-all duration-motion cursor-pointer ${
+                                  isThisApplied
+                                    ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400 font-bold'
+                                    : 'border-border/60 bg-muted/20 hover:bg-muted text-foreground'
+                                }`}
+                              >
+                                {isThisApplied ? `✓ ${p.code}` : p.code}{' '}
+                                {p.label && (
+                                  <span className="text-[9px] text-muted-foreground font-sans">
+                                    ({p.label})
+                                  </span>
+                                )}
+                              </button>
+                            )
+                          })}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -1056,7 +1303,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 <div className="rounded-surface border border-border/80 bg-card p-4 space-y-2.5 text-xs shadow-surface">
                   <div className="flex justify-between text-muted-foreground">
                     <span>ارزش کل اقلام:</span>
-                    <span className="font-mono font-bold text-foreground text-sm font-latin">
+                    <span className="font-bold text-foreground text-sm font-latin">
                       {subtotal.toLocaleString('fa-IR')} تومان
                     </span>
                   </div>
@@ -1067,7 +1314,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                         <Percent className="w-3.5 h-3.5" />
                         تخفیف پروموشن:
                       </span>
-                      <span className="font-mono text-sm font-latin">
+                      <span className="text-sm font-latin">
                         -{discount.toLocaleString('fa-IR')} تومان
                       </span>
                     </div>
@@ -1077,7 +1324,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                     <span className="font-black text-sm text-foreground">
                       مبلغ قابل پرداخت:
                     </span>
-                    <div className="flex items-baseline gap-1 text-xl font-black text-foreground font-mono font-latin">
+                    <div className="flex items-baseline gap-1 text-xl font-black text-foreground font-latin">
                       <span>{total.toLocaleString('fa-IR')}</span>
                       <span className="text-xs font-normal text-muted-foreground font-sans">
                         تومان
@@ -1190,6 +1437,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
           }
         }}
       />
-    </div>
+    </div>,
+    document.body,
   )
 }

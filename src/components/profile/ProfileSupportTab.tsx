@@ -658,640 +658,662 @@ export const ProfileSupportTab: React.FC<ProfileSupportTabProps> = ({
       )}
 
       {/* 4. Ticket Conversation Thread Modal */}
-      {activeTicketId && ticketDetail && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/75 backdrop-blur-md animate-in fade-in"
-          dir="rtl"
-        >
-          <div className="w-full max-w-2xl bg-card text-card-foreground rounded-surface border border-border/80 shadow-overlay overflow-hidden flex flex-col h-[90vh] max-h-[800px] animate-in zoom-in-95">
-            {/* Modal Header */}
-            <div className="p-4 sm:p-5 border-b border-border/60 bg-card flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h3 className="text-sm sm:text-base font-black text-foreground truncate">
-                    {ticketDetail.ticket.subject}
-                  </h3>
-                  <span className="text-xs font-mono font-bold text-brand bg-brand/10 border border-brand/20 px-2 py-0.5 rounded-control font-latin">
-                    #{ticketDetail.ticket.ticket_number}
-                  </span>
-                  {getStatusBadge(ticketDetail.ticket.status)}
-                </div>
-
-                <div className="flex items-center gap-2 text-[11px] text-muted-foreground mt-1 flex-wrap">
-                  <span>
-                    دپارتمان:{' '}
-                    {getDepartmentLabel(ticketDetail.ticket.department)}
-                  </span>
-                  {ticketDetail.ticket.related_order_no && (
-                    <>
-                      <span>•</span>
-                      <span className="text-brand font-mono font-bold font-latin">
-                        سفارش #{ticketDetail.ticket.related_order_no}
+      {activeTicketId &&
+        ticketDetail &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[99999] overflow-y-auto bg-black/75 backdrop-blur-md p-2 sm:p-4 animate-in fade-in"
+            style={{ top: 0, left: 0, right: 0, bottom: 0 }}
+            dir="rtl"
+          >
+            <div className="min-h-full w-full flex items-start sm:items-center justify-center">
+              <div className="w-full max-w-2xl my-auto bg-card text-card-foreground rounded-surface border border-border/80 shadow-overlay overflow-hidden flex flex-col h-[90vh] max-h-[800px] animate-in zoom-in-95">
+                {/* Modal Header */}
+                <div className="p-4 sm:p-5 border-b border-border/60 bg-card flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="text-sm sm:text-base font-black text-foreground truncate">
+                        {ticketDetail.ticket.subject}
+                      </h3>
+                      <span className="text-xs font-mono font-bold text-brand bg-brand/10 border border-brand/20 px-2 py-0.5 rounded-control font-latin">
+                        #{ticketDetail.ticket.ticket_number}
                       </span>
-                    </>
-                  )}
-                  {ticketDetail.ticket.notify_via_sms && (
-                    <>
-                      <span>•</span>
-                      <span className="text-emerald-400 flex items-center gap-1 font-medium">
-                        <Phone className="w-3 h-3" />
-                        اطلاع‌رسانی پیامک فعال
-                      </span>
-                    </>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 shrink-0">
-                <button
-                  type="button"
-                  onClick={() => loadTicketDetail(activeTicketId, true)}
-                  className="w-8 h-8 rounded-control border border-border/60 bg-card hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center text-xs transition-colors cursor-pointer"
-                  title="تازه‌سازی گفتگو"
-                >
-                  <RefreshCw className="w-3.5 h-3.5" />
-                </button>
-
-                {ticketDetail.ticket.status !== 'closed' && (
-                  <button
-                    type="button"
-                    onClick={handleCloseTicket}
-                    className="h-8 px-2.5 rounded-control border border-border/60 bg-card hover:bg-muted text-muted-foreground hover:text-foreground text-xs font-medium transition-colors cursor-pointer"
-                    title="بستن تیکت"
-                  >
-                    بستن تیکت
-                  </button>
-                )}
-
-                <button
-                  type="button"
-                  onClick={() => setActiveTicketId(null)}
-                  className="w-8 h-8 rounded-control bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors cursor-pointer"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-
-            {/* Conversation Messages Container */}
-            <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4 bg-muted/20">
-              {loadingDetail ? (
-                <div className="py-12 text-center text-xs text-muted-foreground">
-                  <RefreshCw className="w-6 h-6 text-brand animate-spin mx-auto mb-2" />
-                  در حال بارگذاری سابقه پیام‌ها...
-                </div>
-              ) : (
-                ticketDetail.messages.map((msg) => {
-                  const isUser = msg.sender_type === 'customer'
-
-                  return (
-                    <div
-                      key={msg.id}
-                      className={`flex flex-col ${isUser ? 'items-start' : 'items-end'}`}
-                    >
-                      <div
-                        className={`max-w-[88%] sm:max-w-[80%] p-4 rounded-surface text-xs sm:text-sm leading-relaxed ${
-                          isUser
-                            ? 'bg-primary text-primary-foreground rounded-br-xs shadow-control'
-                            : 'bg-card text-foreground border border-border/60 rounded-bl-xs shadow-surface'
-                        }`}
-                      >
-                        {/* Message Header */}
-                        <div
-                          className={`flex items-center justify-between gap-4 mb-2 pb-1.5 border-b text-[11px] font-mono font-latin ${
-                            isUser
-                              ? 'border-primary-foreground/20 text-primary-foreground/80'
-                              : 'border-border/60 text-muted-foreground'
-                          }`}
-                        >
-                          <div className="flex items-center gap-1.5">
-                            {!isUser && (
-                              <ShieldCheck className="w-3.5 h-3.5 text-brand shrink-0" />
-                            )}
-                            <span className="font-bold font-sans">
-                              {isUser
-                                ? 'شما (کاربر)'
-                                : msg.sender_name || 'کارشناس رسمی آناهیکس'}
-                            </span>
-                          </div>
-                          <span className="text-[10px]">
-                            {formatPersianDate(msg.created_at)}
-                          </span>
-                        </div>
-
-                        {/* Message Text */}
-                        <p className="whitespace-pre-wrap font-sans">
-                          {msg.message}
-                        </p>
-
-                        {/* Attachments Section */}
-                        {msg.attachments && msg.attachments.length > 0 && (
-                          <div className="mt-3 pt-2.5 border-t border-slate-200/40 dark:border-slate-700/40 space-y-2">
-                            <span
-                              className={`text-[10px] font-bold block ${isUser ? 'text-blue-100' : 'text-slate-400'}`}
-                            >
-                              پیوست‌ها ({msg.attachments.length}):
-                            </span>
-
-                            <div className="flex flex-wrap gap-2">
-                              {msg.attachments.map((att) => (
-                                <div key={att.id} className="relative group">
-                                  {att.is_image ? (
-                                    <div
-                                      onClick={() => setZoomImage(att.file_url)}
-                                      className="cursor-pointer overflow-hidden rounded-xl border border-slate-200/60 dark:border-slate-700 bg-slate-950/10 relative w-24 h-24 sm:w-28 sm:h-28"
-                                    >
-                                      <img
-                                        src={att.file_url}
-                                        alt={att.file_name}
-                                        className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                                      />
-                                      <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
-                                        <Eye className="w-4 h-4" />
-                                      </div>
-                                    </div>
-                                  ) : (
-                                    <a
-                                      href={att.file_url}
-                                      target="_blank"
-                                      rel="noreferrer"
-                                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-[11px] font-mono transition-colors ${
-                                        isUser
-                                          ? 'border-blue-400 bg-blue-700/50 hover:bg-blue-700 text-white'
-                                          : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300'
-                                      }`}
-                                    >
-                                      <Download className="w-3.5 h-3.5" />
-                                      <span className="truncate max-w-[120px]">
-                                        {att.file_name}
-                                      </span>
-                                    </a>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
+                      {getStatusBadge(ticketDetail.ticket.status)}
                     </div>
-                  )
-                })
-              )}
-              <div ref={messagesEndRef} />
-            </div>
 
-            {/* Satisfaction Rating Box (if resolved/closed) */}
-            {(ticketDetail.ticket.status === 'resolved' ||
-              ticketDetail.ticket.status === 'closed') && (
-              <div className="p-3.5 bg-amber-50/60 dark:bg-amber-950/20 border-t border-amber-200/50 dark:border-amber-900/30">
-                {ratedSuccess ? (
-                  <div className="flex items-center justify-between text-xs text-amber-800 dark:text-amber-300 font-bold">
-                    <span className="flex items-center gap-1.5">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                      نظر شما برای این تیکت ثبت شده است ({ratingVal} از ۵ ستاره)
-                    </span>
-                    <div className="flex items-center gap-0.5">
-                      {[1, 2, 3, 4, 5].map((s) => (
-                        <Star
-                          key={s}
-                          className={`w-3.5 h-3.5 ${
-                            s <= ratingVal
-                              ? 'fill-amber-400 text-amber-400'
-                              : 'text-slate-300'
-                          }`}
-                        />
-                      ))}
+                    <div className="flex items-center gap-2 text-[11px] text-muted-foreground mt-1 flex-wrap">
+                      <span>
+                        دپارتمان:{' '}
+                        {getDepartmentLabel(ticketDetail.ticket.department)}
+                      </span>
+                      {ticketDetail.ticket.related_order_no && (
+                        <>
+                          <span>•</span>
+                          <span className="text-brand font-mono font-bold font-latin">
+                            سفارش #{ticketDetail.ticket.related_order_no}
+                          </span>
+                        </>
+                      )}
+                      {ticketDetail.ticket.notify_via_sms && (
+                        <>
+                          <span>•</span>
+                          <span className="text-emerald-400 flex items-center gap-1 font-medium">
+                            <Phone className="w-3 h-3" />
+                            اطلاع‌رسانی پیامک فعال
+                          </span>
+                        </>
+                      )}
                     </div>
                   </div>
-                ) : (
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between flex-wrap gap-2">
-                      <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                        <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                        نحوه پاسخگویی و رفع مشکل خود را ارزیابی فرمایید:
-                      </span>
 
-                      <div className="flex items-center gap-1">
-                        {[1, 2, 3, 4, 5].map((s) => (
-                          <button
-                            key={s}
-                            type="button"
-                            onClick={() => setRatingVal(s)}
-                            className="p-1 hover:scale-110 transition-transform"
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => loadTicketDetail(activeTicketId, true)}
+                      className="w-8 h-8 rounded-control border border-border/60 bg-card hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center text-xs transition-colors cursor-pointer"
+                      title="تازه‌سازی گفتگو"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" />
+                    </button>
+
+                    {ticketDetail.ticket.status !== 'closed' && (
+                      <button
+                        type="button"
+                        onClick={handleCloseTicket}
+                        className="h-8 px-2.5 rounded-control border border-border/60 bg-card hover:bg-muted text-muted-foreground hover:text-foreground text-xs font-medium transition-colors cursor-pointer"
+                        title="بستن تیکت"
+                      >
+                        بستن تیکت
+                      </button>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => setActiveTicketId(null)}
+                      className="w-8 h-8 rounded-control bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors cursor-pointer"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Conversation Messages Container */}
+                <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4 bg-muted/20">
+                  {loadingDetail ? (
+                    <div className="py-12 text-center text-xs text-muted-foreground">
+                      <RefreshCw className="w-6 h-6 text-brand animate-spin mx-auto mb-2" />
+                      در حال بارگذاری سابقه پیام‌ها...
+                    </div>
+                  ) : (
+                    ticketDetail.messages.map((msg) => {
+                      const isUser = msg.sender_type === 'customer'
+
+                      return (
+                        <div
+                          key={msg.id}
+                          className={`flex flex-col ${isUser ? 'items-start' : 'items-end'}`}
+                        >
+                          <div
+                            className={`max-w-[88%] sm:max-w-[80%] p-4 rounded-surface text-xs sm:text-sm leading-relaxed ${
+                              isUser
+                                ? 'bg-primary text-primary-foreground rounded-br-xs shadow-control'
+                                : 'bg-card text-foreground border border-border/60 rounded-bl-xs shadow-surface'
+                            }`}
                           >
+                            {/* Message Header */}
+                            <div
+                              className={`flex items-center justify-between gap-4 mb-2 pb-1.5 border-b text-[11px] font-mono font-latin ${
+                                isUser
+                                  ? 'border-primary-foreground/20 text-primary-foreground/80'
+                                  : 'border-border/60 text-muted-foreground'
+                              }`}
+                            >
+                              <div className="flex items-center gap-1.5">
+                                {!isUser && (
+                                  <ShieldCheck className="w-3.5 h-3.5 text-brand shrink-0" />
+                                )}
+                                <span className="font-bold font-sans">
+                                  {isUser
+                                    ? 'شما (کاربر)'
+                                    : msg.sender_name || 'کارشناس رسمی آناهیکس'}
+                                </span>
+                              </div>
+                              <span className="text-[10px]">
+                                {formatPersianDate(msg.created_at)}
+                              </span>
+                            </div>
+
+                            {/* Message Text */}
+                            <p className="whitespace-pre-wrap font-sans">
+                              {msg.message}
+                            </p>
+
+                            {/* Attachments Section */}
+                            {msg.attachments && msg.attachments.length > 0 && (
+                              <div className="mt-3 pt-2.5 border-t border-slate-200/40 dark:border-slate-700/40 space-y-2">
+                                <span
+                                  className={`text-[10px] font-bold block ${isUser ? 'text-blue-100' : 'text-slate-400'}`}
+                                >
+                                  پیوست‌ها ({msg.attachments.length}):
+                                </span>
+
+                                <div className="flex flex-wrap gap-2">
+                                  {msg.attachments.map((att) => (
+                                    <div
+                                      key={att.id}
+                                      className="relative group"
+                                    >
+                                      {att.is_image ? (
+                                        <div
+                                          onClick={() =>
+                                            setZoomImage(att.file_url)
+                                          }
+                                          className="cursor-pointer overflow-hidden rounded-xl border border-slate-200/60 dark:border-slate-700 bg-slate-950/10 relative w-24 h-24 sm:w-28 sm:h-28"
+                                        >
+                                          <img
+                                            src={att.file_url}
+                                            alt={att.file_name}
+                                            className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                                          />
+                                          <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
+                                            <Eye className="w-4 h-4" />
+                                          </div>
+                                        </div>
+                                      ) : (
+                                        <a
+                                          href={att.file_url}
+                                          target="_blank"
+                                          rel="noreferrer"
+                                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-[11px] font-mono transition-colors ${
+                                            isUser
+                                              ? 'border-blue-400 bg-blue-700/50 hover:bg-blue-700 text-white'
+                                              : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300'
+                                          }`}
+                                        >
+                                          <Download className="w-3.5 h-3.5" />
+                                          <span className="truncate max-w-[120px]">
+                                            {att.file_name}
+                                          </span>
+                                        </a>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })
+                  )}
+                  <div ref={messagesEndRef} />
+                </div>
+
+                {/* Satisfaction Rating Box (if resolved/closed) */}
+                {(ticketDetail.ticket.status === 'resolved' ||
+                  ticketDetail.ticket.status === 'closed') && (
+                  <div className="p-3.5 bg-amber-50/60 dark:bg-amber-950/20 border-t border-amber-200/50 dark:border-amber-900/30">
+                    {ratedSuccess ? (
+                      <div className="flex items-center justify-between text-xs text-amber-800 dark:text-amber-300 font-bold">
+                        <span className="flex items-center gap-1.5">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                          نظر شما برای این تیکت ثبت شده است ({ratingVal} از ۵
+                          ستاره)
+                        </span>
+                        <div className="flex items-center gap-0.5">
+                          {[1, 2, 3, 4, 5].map((s) => (
                             <Star
-                              className={`w-4 h-4 ${
+                              key={s}
+                              className={`w-3.5 h-3.5 ${
                                 s <= ratingVal
                                   ? 'fill-amber-400 text-amber-400'
-                                  : 'text-slate-300 dark:text-slate-600'
+                                  : 'text-slate-300'
                               }`}
                             />
-                          </button>
-                        ))}
+                          ))}
+                        </div>
                       </div>
-                    </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between flex-wrap gap-2">
+                          <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                            <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                            نحوه پاسخگویی و رفع مشکل خود را ارزیابی فرمایید:
+                          </span>
 
-                    <div className="flex items-center gap-2">
-                      <Input
-                        type="text"
-                        placeholder="نظر یا پیشنهاد شما درباره پاسخگویی (اختیاری)..."
-                        value={ratingComment}
-                        onChange={(e) => setRatingComment(e.target.value)}
-                        className="h-8 text-xs rounded-xl bg-white dark:bg-slate-900"
-                      />
-                      <Button
-                        size="sm"
-                        onClick={handleSubmitRating}
-                        disabled={submittingRating}
-                        className="h-8 px-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold shrink-0"
-                      >
-                        ثبت امتیاز
-                      </Button>
-                    </div>
+                          <div className="flex items-center gap-1">
+                            {[1, 2, 3, 4, 5].map((s) => (
+                              <button
+                                key={s}
+                                type="button"
+                                onClick={() => setRatingVal(s)}
+                                className="p-1 hover:scale-110 transition-transform"
+                              >
+                                <Star
+                                  className={`w-4 h-4 ${
+                                    s <= ratingVal
+                                      ? 'fill-amber-400 text-amber-400'
+                                      : 'text-slate-300 dark:text-slate-600'
+                                  }`}
+                                />
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <Input
+                            type="text"
+                            placeholder="نظر یا پیشنهاد شما درباره پاسخگویی (اختیاری)..."
+                            value={ratingComment}
+                            onChange={(e) => setRatingComment(e.target.value)}
+                            className="h-8 text-xs rounded-xl bg-white dark:bg-slate-900"
+                          />
+                          <Button
+                            size="sm"
+                            onClick={handleSubmitRating}
+                            disabled={submittingRating}
+                            className="h-8 px-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold shrink-0"
+                          >
+                            ثبت امتیاز
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
-              </div>
-            )}
 
-            {/* Reply Input Box */}
-            <div className="p-3 sm:p-4 border-t border-border/60 bg-card space-y-2">
-              {/* Attachment Preview Chips */}
-              {replyAttachments.length > 0 && (
-                <div className="flex flex-wrap gap-2 pb-1">
-                  {replyAttachments.map((att, idx) => (
-                    <div
-                      key={att.id}
-                      className="flex items-center gap-1.5 px-2.5 py-1 rounded-control bg-secondary border border-border/80 text-[11px] text-foreground font-mono font-latin"
-                    >
-                      {att.is_image ? (
-                        <ImageIcon className="w-3 h-3 text-brand" />
-                      ) : (
-                        <FileText className="w-3 h-3 text-muted-foreground" />
-                      )}
-                      <span className="truncate max-w-[130px]">
-                        {att.file_name}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setReplyAttachments(
-                            replyAttachments.filter((_, i) => i !== idx),
+                {/* Reply Input Box */}
+                <div className="p-3 sm:p-4 border-t border-border/60 bg-card space-y-2">
+                  {/* Attachment Preview Chips */}
+                  {replyAttachments.length > 0 && (
+                    <div className="flex flex-wrap gap-2 pb-1">
+                      {replyAttachments.map((att, idx) => (
+                        <div
+                          key={att.id}
+                          className="flex items-center gap-1.5 px-2.5 py-1 rounded-control bg-secondary border border-border/80 text-[11px] text-foreground font-mono font-latin"
+                        >
+                          {att.is_image ? (
+                            <ImageIcon className="w-3 h-3 text-brand" />
+                          ) : (
+                            <FileText className="w-3 h-3 text-muted-foreground" />
+                          )}
+                          <span className="truncate max-w-[130px]">
+                            {att.file_name}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setReplyAttachments(
+                                replyAttachments.filter((_, i) => i !== idx),
+                              )
+                            }
+                            className="text-muted-foreground hover:text-destructive mr-1 cursor-pointer"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="flex items-center gap-2">
+                    <input
+                      ref={replyFileInputRef}
+                      type="file"
+                      className="hidden"
+                      accept="image/*,.pdf,.zip,.log,.txt"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0]
+                        if (f) {
+                          handleUploadFile(
+                            f,
+                            (att) =>
+                              setReplyAttachments([...replyAttachments, att]),
+                            setIsUploadingReplyAtt,
                           )
                         }
-                        className="text-muted-foreground hover:text-destructive mr-1 cursor-pointer"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  ))}
+                      }}
+                    />
+
+                    <button
+                      type="button"
+                      disabled={isUploadingReplyAtt}
+                      onClick={() => replyFileInputRef.current?.click()}
+                      className="h-10 px-3 rounded-control border border-border/60 bg-card hover:bg-muted text-muted-foreground hover:text-foreground text-xs shrink-0 cursor-pointer duration-motion active:scale-[0.98]"
+                      title="پیوست تصویر، اسکرین‌شات یا فایل"
+                    >
+                      <Paperclip
+                        className={`w-4 h-4 ${isUploadingReplyAtt ? 'animate-pulse text-brand' : ''}`}
+                      />
+                    </button>
+
+                    <input
+                      type="text"
+                      placeholder="پاسخ خود را بنویسید (اسکرین‌شات را می‌توانید مستقیم Paste کنید)..."
+                      value={replyText}
+                      onChange={(e) => setReplyText(e.target.value)}
+                      onKeyDown={(e) =>
+                        e.key === 'Enter' && !e.shiftKey && handleSendReply()
+                      }
+                      onPaste={(e) =>
+                        handlePasteImage(
+                          e,
+                          (att) =>
+                            setReplyAttachments([...replyAttachments, att]),
+                          setIsUploadingReplyAtt,
+                        )
+                      }
+                      className="h-10 text-xs sm:text-sm rounded-field flex-1 border border-border/60 bg-muted/20 px-3 text-foreground outline-none focus:border-foreground/40 transition-colors"
+                    />
+
+                    <button
+                      type="button"
+                      onClick={handleSendReply}
+                      disabled={
+                        sendingReply ||
+                        (!replyText.trim() && replyAttachments.length === 0)
+                      }
+                      className="h-10 px-4 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs shrink-0 active:scale-[0.98] duration-motion ease-motion shadow-control flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                    >
+                      <Send className="w-3.5 h-3.5 ml-1" />
+                      <span>ارسال</span>
+                    </button>
+                  </div>
+
+                  {/* Preferences footer in reply box */}
+                  <div className="flex items-center justify-between text-[11px] text-muted-foreground px-1 pt-1">
+                    <label className="flex items-center gap-1.5 cursor-pointer hover:text-foreground">
+                      <input
+                        type="checkbox"
+                        checked={replyNotifySMS}
+                        onChange={(e) => setReplyNotifySMS(e.target.checked)}
+                        className="rounded-control accent-brand w-3.5 h-3.5"
+                      />
+                      <span>ارسال پیامک با دریافت پاسخ جدید از پشتیبانی</span>
+                    </label>
+                    <span className="hidden sm:inline">
+                      کلید Enter جهت ارسال سریع
+                    </span>
+                  </div>
                 </div>
-              )}
-
-              <div className="flex items-center gap-2">
-                <input
-                  ref={replyFileInputRef}
-                  type="file"
-                  className="hidden"
-                  accept="image/*,.pdf,.zip,.log,.txt"
-                  onChange={(e) => {
-                    const f = e.target.files?.[0]
-                    if (f) {
-                      handleUploadFile(
-                        f,
-                        (att) =>
-                          setReplyAttachments([...replyAttachments, att]),
-                        setIsUploadingReplyAtt,
-                      )
-                    }
-                  }}
-                />
-
-                <button
-                  type="button"
-                  disabled={isUploadingReplyAtt}
-                  onClick={() => replyFileInputRef.current?.click()}
-                  className="h-10 px-3 rounded-control border border-border/60 bg-card hover:bg-muted text-muted-foreground hover:text-foreground text-xs shrink-0 cursor-pointer duration-motion active:scale-[0.98]"
-                  title="پیوست تصویر، اسکرین‌شات یا فایل"
-                >
-                  <Paperclip
-                    className={`w-4 h-4 ${isUploadingReplyAtt ? 'animate-pulse text-brand' : ''}`}
-                  />
-                </button>
-
-                <input
-                  type="text"
-                  placeholder="پاسخ خود را بنویسید (اسکرین‌شات را می‌توانید مستقیم Paste کنید)..."
-                  value={replyText}
-                  onChange={(e) => setReplyText(e.target.value)}
-                  onKeyDown={(e) =>
-                    e.key === 'Enter' && !e.shiftKey && handleSendReply()
-                  }
-                  onPaste={(e) =>
-                    handlePasteImage(
-                      e,
-                      (att) => setReplyAttachments([...replyAttachments, att]),
-                      setIsUploadingReplyAtt,
-                    )
-                  }
-                  className="h-10 text-xs sm:text-sm rounded-field flex-1 border border-border/60 bg-muted/20 px-3 text-foreground outline-none focus:border-foreground/40 transition-colors"
-                />
-
-                <button
-                  type="button"
-                  onClick={handleSendReply}
-                  disabled={
-                    sendingReply ||
-                    (!replyText.trim() && replyAttachments.length === 0)
-                  }
-                  className="h-10 px-4 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs shrink-0 active:scale-[0.98] duration-motion ease-motion shadow-control flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-                >
-                  <Send className="w-3.5 h-3.5 ml-1" />
-                  <span>ارسال</span>
-                </button>
-              </div>
-
-              {/* Preferences footer in reply box */}
-              <div className="flex items-center justify-between text-[11px] text-muted-foreground px-1 pt-1">
-                <label className="flex items-center gap-1.5 cursor-pointer hover:text-foreground">
-                  <input
-                    type="checkbox"
-                    checked={replyNotifySMS}
-                    onChange={(e) => setReplyNotifySMS(e.target.checked)}
-                    className="rounded-control accent-brand w-3.5 h-3.5"
-                  />
-                  <span>ارسال پیامک با دریافت پاسخ جدید از پشتیبانی</span>
-                </label>
-                <span className="hidden sm:inline">
-                  کلید Enter جهت ارسال سریع
-                </span>
               </div>
             </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body,
+        )}
 
       {/* 5. Create New Ticket Modal with Order Linking & File Upload */}
-      {isCreateOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-md animate-in fade-in"
-          dir="rtl"
-        >
-          <div className="w-full max-w-xl bg-card text-card-foreground rounded-surface border border-border/80 shadow-overlay p-5 sm:p-6 space-y-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between pb-3 border-b border-border/60">
-              <h3 className="text-base font-bold text-foreground flex items-center gap-2">
-                <div className="w-7 h-7 rounded-control bg-secondary text-brand flex items-center justify-center">
-                  <LifeBuoy className="w-4 h-4" />
-                </div>
-                <span>ثبت تیکت پشتیبانی جدید</span>
-              </h3>
-              <button
-                type="button"
-                onClick={() => setIsCreateOpen(false)}
-                className="w-8 h-8 rounded-control bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center cursor-pointer transition-colors"
-              >
-                ✕
-              </button>
-            </div>
-
-            <form onSubmit={handleCreateTicket} className="space-y-4 text-xs">
-              <div>
-                <label className="block font-semibold text-foreground mb-1.5">
-                  موضوع تیکت <span className="text-destructive">*</span>
-                </label>
-                <input
-                  type="text"
-                  placeholder="مثال: مشکل در تایید شماره تلگرام یا خطای لایسنس"
-                  value={newSubject}
-                  onChange={(e) => setNewSubject(e.target.value)}
-                  className="w-full h-10 px-3.5 rounded-field bg-muted/20 border border-border/60 text-foreground outline-none focus:border-foreground/40 transition-colors"
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-semibold text-foreground mb-1.5">
-                    دپارتمان پشتیبانی
-                  </label>
-                  <select
-                    value={newDepartment}
-                    onChange={(e) => setNewDepartment(e.target.value)}
-                    className="w-full h-10 px-3 rounded-field border border-border/60 bg-muted/20 text-foreground text-xs outline-none focus:border-foreground/40 transition-colors cursor-pointer"
-                  >
-                    {DEPARTMENTS.map((d) => (
-                      <option key={d.id} value={d.id}>
-                        {d.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block font-semibold text-foreground mb-1.5">
-                    اولویت تیکت
-                  </label>
-                  <select
-                    value={newPriority}
-                    onChange={(e) =>
-                      setNewPriority(e.target.value as TicketPriorityType)
-                    }
-                    className="w-full h-10 px-3 rounded-field border border-border/60 bg-muted/20 text-foreground text-xs outline-none focus:border-foreground/40 transition-colors cursor-pointer"
-                  >
-                    {PRIORITIES.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* Order Linking Selector */}
-              <div>
-                <label className="block font-semibold text-foreground mb-1.5">
-                  اتصال به سفارش مرتبط (اختیاری)
-                </label>
-                <select
-                  value={newRelatedOrder}
-                  onChange={(e) => setNewRelatedOrder(e.target.value)}
-                  className="w-full h-10 px-3 rounded-field border border-border/60 bg-muted/20 text-foreground text-xs font-mono font-latin outline-none focus:border-foreground/40 transition-colors cursor-pointer"
-                >
-                  <option value="">بدون اتصال به سفارش مشخص</option>
-                  {orders && orders.length > 0 && (
-                    <optgroup label="سفارش‌های اشتراک و اکانت هوش مصنوعی">
-                      {orders.map((o) => (
-                        <option key={o.order_no} value={o.order_no}>
-                          #{o.order_no} — {o.product_title} (
-                          {o.amount_toman?.toLocaleString('fa-IR')} تومان)
-                        </option>
-                      ))}
-                    </optgroup>
-                  )}
-                  {virtualOrders && virtualOrders.length > 0 && (
-                    <optgroup label="سفارش‌های شماره مجازی (5SIM)">
-                      {virtualOrders.map((v) => (
-                        <option key={v.order_no} value={v.order_no}>
-                          #{v.order_no} — {v.service_name_fa} (
-                          {v.country_name_fa})
-                        </option>
-                      ))}
-                    </optgroup>
-                  )}
-                </select>
-                <p className="text-[11px] text-muted-foreground mt-1">
-                  اتصال تیکت به شماره سفارش، سرعت پردازش درخواست را تا ۳ برابر
-                  افزایش می‌دهد.
-                </p>
-              </div>
-
-              {/* Message Box with Paste Support */}
-              <div>
-                <label className="block font-semibold text-foreground mb-1.5">
-                  شرح مشکل یا سوال با جزئیات{' '}
-                  <span className="text-destructive">*</span>
-                </label>
-                <textarea
-                  rows={4}
-                  placeholder="لطفاً شرح کامل مشکل را بنویسید. همچنین می‌توانید اسکرین‌شات از خطای لایسنس را مستقیماً با Ctrl+V پیوست نمایید..."
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  onPaste={(e) =>
-                    handlePasteImage(
-                      e,
-                      (att) => setNewAttachments([...newAttachments, att]),
-                      setIsUploadingNewAtt,
-                    )
-                  }
-                  className="w-full p-3.5 rounded-field border border-border/60 bg-muted/20 text-foreground text-xs outline-none focus:border-foreground/40 leading-relaxed transition-colors"
-                  required
-                />
-              </div>
-
-              {/* File / Screenshot Attachment Uploader */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <label className="font-semibold text-foreground">
-                    پیوست اسکرین‌شات از خطا یا فاکتور
-                  </label>
-                  <span className="text-[11px] text-muted-foreground">
-                    حداکثر ۱۰ مگابایت
-                  </span>
-                </div>
-
-                <input
-                  ref={newFileInputRef}
-                  type="file"
-                  className="hidden"
-                  accept="image/*,.pdf,.zip,.log,.txt"
-                  onChange={(e) => {
-                    const f = e.target.files?.[0]
-                    if (f) {
-                      handleUploadFile(
-                        f,
-                        (att) => setNewAttachments([...newAttachments, att]),
-                        setIsUploadingNewAtt,
-                      )
-                    }
-                  }}
-                />
-
-                <div className="flex flex-wrap items-center gap-2">
+      {isCreateOpen &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[99999] overflow-y-auto bg-black/75 backdrop-blur-md p-3 sm:p-4 animate-in fade-in"
+            style={{ top: 0, left: 0, right: 0, bottom: 0 }}
+            dir="rtl"
+          >
+            <div className="min-h-full w-full flex items-start sm:items-center justify-center">
+              <div className="w-full max-w-xl my-auto bg-card text-card-foreground rounded-surface border border-border/80 shadow-overlay p-5 sm:p-6 space-y-4 max-h-[90vh] overflow-y-auto animate-in zoom-in-95">
+                <div className="flex items-center justify-between pb-3 border-b border-border/60">
+                  <h3 className="text-base font-bold text-foreground flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-control bg-secondary text-brand flex items-center justify-center">
+                      <LifeBuoy className="w-4 h-4" />
+                    </div>
+                    <span>ثبت تیکت پشتیبانی جدید</span>
+                  </h3>
                   <button
                     type="button"
-                    disabled={isUploadingNewAtt}
-                    onClick={() => newFileInputRef.current?.click()}
-                    className="h-9 px-3.5 rounded-control border border-dashed border-border text-xs font-semibold hover:border-foreground/50 text-muted-foreground hover:text-foreground flex items-center gap-1.5 cursor-pointer duration-motion active:scale-[0.98]"
+                    onClick={() => setIsCreateOpen(false)}
+                    className="w-8 h-8 rounded-control bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center cursor-pointer transition-colors"
                   >
-                    <Paperclip className="w-3.5 h-3.5" />
-                    <span>
-                      {isUploadingNewAtt
-                        ? 'در حال آپلود...'
-                        : 'افزودن فایل پیوست'}
-                    </span>
+                    ✕
                   </button>
+                </div>
 
-                  {newAttachments.map((att, idx) => (
-                    <div
-                      key={att.id}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-control bg-secondary border border-border/80 text-[11px] text-foreground font-mono font-latin"
+                <form
+                  onSubmit={handleCreateTicket}
+                  className="space-y-4 text-xs"
+                >
+                  <div>
+                    <label className="block font-semibold text-foreground mb-1.5">
+                      موضوع تیکت <span className="text-destructive">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="مثال: مشکل در تایید شماره تلگرام یا خطای لایسنس"
+                      value={newSubject}
+                      onChange={(e) => setNewSubject(e.target.value)}
+                      className="w-full h-10 px-3.5 rounded-field bg-muted/20 border border-border/60 text-foreground outline-none focus:border-foreground/40 transition-colors"
+                      required
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block font-semibold text-foreground mb-1.5">
+                        دپارتمان پشتیبانی
+                      </label>
+                      <select
+                        value={newDepartment}
+                        onChange={(e) => setNewDepartment(e.target.value)}
+                        className="w-full h-10 px-3 rounded-field border border-border/60 bg-muted/20 text-foreground text-xs outline-none focus:border-foreground/40 transition-colors cursor-pointer"
+                      >
+                        {DEPARTMENTS.map((d) => (
+                          <option key={d.id} value={d.id}>
+                            {d.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block font-semibold text-foreground mb-1.5">
+                        اولویت تیکت
+                      </label>
+                      <select
+                        value={newPriority}
+                        onChange={(e) =>
+                          setNewPriority(e.target.value as TicketPriorityType)
+                        }
+                        className="w-full h-10 px-3 rounded-field border border-border/60 bg-muted/20 text-foreground text-xs outline-none focus:border-foreground/40 transition-colors cursor-pointer"
+                      >
+                        {PRIORITIES.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Order Linking Selector */}
+                  <div>
+                    <label className="block font-semibold text-foreground mb-1.5">
+                      اتصال به سفارش مرتبط (اختیاری)
+                    </label>
+                    <select
+                      value={newRelatedOrder}
+                      onChange={(e) => setNewRelatedOrder(e.target.value)}
+                      className="w-full h-10 px-3 rounded-field border border-border/60 bg-muted/20 text-foreground text-xs font-mono font-latin outline-none focus:border-foreground/40 transition-colors cursor-pointer"
                     >
-                      {att.is_image ? (
-                        <ImageIcon className="w-3.5 h-3.5 text-brand" />
-                      ) : (
-                        <FileText className="w-3.5 h-3.5 text-muted-foreground" />
+                      <option value="">بدون اتصال به سفارش مشخص</option>
+                      {orders && orders.length > 0 && (
+                        <optgroup label="سفارش‌های اشتراک و اکانت هوش مصنوعی">
+                          {orders.map((o) => (
+                            <option key={o.order_no} value={o.order_no}>
+                              #{o.order_no} — {o.product_title} (
+                              {o.amount_toman?.toLocaleString('fa-IR')} تومان)
+                            </option>
+                          ))}
+                        </optgroup>
                       )}
-                      <span className="truncate max-w-[120px]">
-                        {att.file_name}
+                      {virtualOrders && virtualOrders.length > 0 && (
+                        <optgroup label="سفارش‌های شماره مجازی (5SIM)">
+                          {virtualOrders.map((v) => (
+                            <option key={v.order_no} value={v.order_no}>
+                              #{v.order_no} — {v.service_name_fa} (
+                              {v.country_name_fa})
+                            </option>
+                          ))}
+                        </optgroup>
+                      )}
+                    </select>
+                    <p className="text-[11px] text-muted-foreground mt-1">
+                      اتصال تیکت به شماره سفارش، سرعت پردازش درخواست را تا ۳
+                      برابر افزایش می‌دهد.
+                    </p>
+                  </div>
+
+                  {/* Message Box with Paste Support */}
+                  <div>
+                    <label className="block font-semibold text-foreground mb-1.5">
+                      شرح مشکل یا سوال با جزئیات{' '}
+                      <span className="text-destructive">*</span>
+                    </label>
+                    <textarea
+                      rows={4}
+                      placeholder="لطفاً شرح کامل مشکل را بنویسید. همچنین می‌توانید اسکرین‌شات از خطای لایسنس را مستقیماً با Ctrl+V پیوست نمایید..."
+                      value={newMessage}
+                      onChange={(e) => setNewMessage(e.target.value)}
+                      onPaste={(e) =>
+                        handlePasteImage(
+                          e,
+                          (att) => setNewAttachments([...newAttachments, att]),
+                          setIsUploadingNewAtt,
+                        )
+                      }
+                      className="w-full p-3.5 rounded-field border border-border/60 bg-muted/20 text-foreground text-xs outline-none focus:border-foreground/40 leading-relaxed transition-colors"
+                      required
+                    />
+                  </div>
+
+                  {/* File / Screenshot Attachment Uploader */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="font-semibold text-foreground">
+                        پیوست اسکرین‌شات از خطا یا فاکتور
+                      </label>
+                      <span className="text-[11px] text-muted-foreground">
+                        حداکثر ۱۰ مگابایت
                       </span>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setNewAttachments(
-                            newAttachments.filter((_, i) => i !== idx),
+                    </div>
+
+                    <input
+                      ref={newFileInputRef}
+                      type="file"
+                      className="hidden"
+                      accept="image/*,.pdf,.zip,.log,.txt"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0]
+                        if (f) {
+                          handleUploadFile(
+                            f,
+                            (att) =>
+                              setNewAttachments([...newAttachments, att]),
+                            setIsUploadingNewAtt,
                           )
                         }
-                        className="text-muted-foreground hover:text-destructive mr-1 cursor-pointer"
+                      }}
+                    />
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        disabled={isUploadingNewAtt}
+                        onClick={() => newFileInputRef.current?.click()}
+                        className="h-9 px-3.5 rounded-control border border-dashed border-border text-xs font-semibold hover:border-foreground/50 text-muted-foreground hover:text-foreground flex items-center gap-1.5 cursor-pointer duration-motion active:scale-[0.98]"
                       >
-                        ✕
+                        <Paperclip className="w-3.5 h-3.5" />
+                        <span>
+                          {isUploadingNewAtt
+                            ? 'در حال آپلود...'
+                            : 'افزودن فایل پیوست'}
+                        </span>
                       </button>
+
+                      {newAttachments.map((att, idx) => (
+                        <div
+                          key={att.id}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-control bg-secondary border border-border/80 text-[11px] text-foreground font-mono font-latin"
+                        >
+                          {att.is_image ? (
+                            <ImageIcon className="w-3.5 h-3.5 text-brand" />
+                          ) : (
+                            <FileText className="w-3.5 h-3.5 text-muted-foreground" />
+                          )}
+                          <span className="truncate max-w-[120px]">
+                            {att.file_name}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setNewAttachments(
+                                newAttachments.filter((_, i) => i !== idx),
+                              )
+                            }
+                            className="text-muted-foreground hover:text-destructive mr-1 cursor-pointer"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              </div>
+                  </div>
 
-              {/* Notification Toggles */}
-              <div className="p-3.5 rounded-control bg-muted/20 border border-border/60 space-y-2">
-                <span className="text-[11px] font-bold text-foreground block">
-                  تنظیمات اطلاع‌رسانی خودکار:
-                </span>
-
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={newNotifySMS}
-                      onChange={(e) => setNewNotifySMS(e.target.checked)}
-                      className="rounded-control accent-brand w-4 h-4"
-                    />
-                    <span className="text-foreground flex items-center gap-1">
-                      <Phone className="w-3.5 h-3.5 text-emerald-400" />
-                      ارسال پیامک به محض پاسخ کارشناس پشتیبانی
+                  {/* Notification Toggles */}
+                  <div className="p-3.5 rounded-control bg-muted/20 border border-border/60 space-y-2">
+                    <span className="text-[11px] font-bold text-foreground block">
+                      تنظیمات اطلاع‌رسانی خودکار:
                     </span>
-                  </label>
 
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={newNotifyEmail}
-                      onChange={(e) => setNewNotifyEmail(e.target.checked)}
-                      className="rounded-control accent-brand w-4 h-4"
-                    />
-                    <span className="text-foreground">ارسال ایمیل</span>
-                  </label>
-                </div>
-              </div>
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={newNotifySMS}
+                          onChange={(e) => setNewNotifySMS(e.target.checked)}
+                          className="rounded-control accent-brand w-4 h-4"
+                        />
+                        <span className="text-foreground flex items-center gap-1">
+                          <Phone className="w-3.5 h-3.5 text-emerald-400" />
+                          ارسال پیامک به محض پاسخ کارشناس پشتیبانی
+                        </span>
+                      </label>
 
-              {/* Modal Buttons */}
-              <div className="pt-2 flex items-center justify-end gap-2.5">
-                <button
-                  type="button"
-                  onClick={() => setIsCreateOpen(false)}
-                  className="h-10 text-xs rounded-control px-4 border border-border/60 bg-card hover:bg-muted text-muted-foreground hover:text-foreground font-bold cursor-pointer duration-motion active:scale-[0.98]"
-                >
-                  انصراف
-                </button>
-                <button
-                  type="submit"
-                  disabled={submittingTicket || isUploadingNewAtt}
-                  className="h-10 px-6 text-xs rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black shadow-control active:scale-[0.98] duration-motion ease-motion cursor-pointer disabled:opacity-50"
-                >
-                  {submittingTicket ? 'در حال ثبت...' : 'ثبت و ارسال تیکت'}
-                </button>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={newNotifyEmail}
+                          onChange={(e) => setNewNotifyEmail(e.target.checked)}
+                          className="rounded-control accent-brand w-4 h-4"
+                        />
+                        <span className="text-foreground">ارسال ایمیل</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Modal Buttons */}
+                  <div className="pt-2 flex items-center justify-end gap-2.5">
+                    <button
+                      type="button"
+                      onClick={() => setIsCreateOpen(false)}
+                      className="h-10 text-xs rounded-control px-4 border border-border/60 bg-card hover:bg-muted text-muted-foreground hover:text-foreground font-bold cursor-pointer duration-motion active:scale-[0.98]"
+                    >
+                      انصراف
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={submittingTicket || isUploadingNewAtt}
+                      className="h-10 px-6 text-xs rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black shadow-control active:scale-[0.98] duration-motion ease-motion cursor-pointer disabled:opacity-50"
+                    >
+                      {submittingTicket ? 'در حال ثبت...' : 'ثبت و ارسال تیکت'}
+                    </button>
+                  </div>
+                </form>
               </div>
-            </form>
-          </div>
-        </div>
-      )}
+            </div>
+          </div>,
+          document.body,
+        )}
 
       {/* 6. Lightbox Zoom Modal for Images (Portal to document.body with z-[999999] so it never renders under ticket modal) */}
       {zoomImage &&

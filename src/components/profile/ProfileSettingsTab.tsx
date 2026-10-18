@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import type React from 'react'
 import { useState } from 'react'
+import { createPortal } from 'react-dom'
 
 interface ProfileSettingsTabProps {
   onLogout: () => void
@@ -234,46 +235,51 @@ export const ProfileSettingsTab: React.FC<ProfileSettingsTabProps> = ({
       </div>
 
       {/* Delete Confirmation Modal */}
-      {isDeleteModalOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-in fade-in"
-          dir="rtl"
-        >
-          <div className="w-full max-w-md bg-card text-card-foreground rounded-surface border border-destructive/60 shadow-overlay p-6 space-y-4 animate-in zoom-in-95">
-            <div className="flex items-center gap-3 text-destructive">
-              <ShieldAlert className="w-6 h-6 shrink-0" />
-              <h3 className="text-sm font-black">
-                آیا از حذف حساب مطمئن هستید؟
-              </h3>
-            </div>
+      {isDeleteModalOpen &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[99999] overflow-y-auto bg-black/75 backdrop-blur-md p-3 sm:p-6 animate-in fade-in"
+            style={{ top: 0, left: 0, right: 0, bottom: 0 }}
+            dir="rtl"
+          >
+            <div className="min-h-full w-full flex items-start sm:items-center justify-center">
+              <div className="w-full max-w-md my-auto bg-card text-card-foreground rounded-surface border border-destructive/60 shadow-overlay p-6 space-y-4 animate-in zoom-in-95">
+                <div className="flex items-center gap-3 text-destructive">
+                  <ShieldAlert className="w-6 h-6 shrink-0" />
+                  <h3 className="text-sm font-black">
+                    آیا از حذف حساب مطمئن هستید؟
+                  </h3>
+                </div>
 
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              این عملیات برگشت‌ناپذیر است. موجودی کیف پول و لایسنس‌های فعال شما
-              غیرقابل استرداد خواهند بود.
-            </p>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  این عملیات برگشت‌ناپذیر است. موجودی کیف پول و لایسنس‌های فعال
+                  شما غیرقابل استرداد خواهند بود.
+                </p>
 
-            <div className="pt-2 flex items-center justify-end gap-2.5">
-              <button
-                type="button"
-                onClick={() => setIsDeleteModalOpen(false)}
-                className="h-9 px-4 rounded-control border border-border/60 bg-card hover:bg-muted text-foreground text-xs font-bold duration-motion active:scale-[0.98] cursor-pointer"
-              >
-                انصراف
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setIsDeleteModalOpen(false)
-                  onLogout()
-                }}
-                className="h-9 px-4 rounded-control bg-destructive hover:bg-destructive/90 text-destructive-foreground text-xs font-black shadow-control duration-motion active:scale-[0.98] cursor-pointer"
-              >
-                بله، حساب حذف شود
-              </button>
+                <div className="pt-2 flex items-center justify-end gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setIsDeleteModalOpen(false)}
+                    className="h-9 px-4 rounded-control border border-border/60 bg-card hover:bg-muted text-foreground text-xs font-bold duration-motion active:scale-[0.98] cursor-pointer"
+                  >
+                    انصراف
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsDeleteModalOpen(false)
+                      onLogout()
+                    }}
+                    className="h-9 px-4 rounded-control bg-destructive hover:bg-destructive/90 text-destructive-foreground text-xs font-black shadow-control duration-motion active:scale-[0.98] cursor-pointer"
+                  >
+                    بله، حساب حذف شود
+                  </button>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body,
+        )}
     </div>
   )
 }

@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 import type React from 'react'
 import { useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Link } from 'react-router-dom'
 import type { CustomerProfile, Order, VirtualNumberOrder } from '../../types'
 import { formatToman, toPersianDigits } from '../../utils/formatters'
@@ -384,217 +385,233 @@ export const ProfileOrdersTab: React.FC<ProfileOrdersTabProps> = ({
       </div>
 
       {/* 3. Comprehensive Order Detail Modal - Graphite Minimal Technical */}
-      {selectedOrder && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-in fade-in"
-          dir="rtl"
-        >
-          <div className="w-full max-w-lg bg-card text-card-foreground rounded-surface border border-border/80 shadow-overlay p-6 space-y-5 animate-in zoom-in-95">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between pb-3 border-b border-border/60">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-control bg-secondary text-secondary-foreground border border-border/60 flex items-center justify-center shrink-0 shadow-control">
-                  <Package className="w-4 h-4 text-brand" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-foreground">
-                    جزئیات سفارش #{selectedOrder.order_no}
-                  </h3>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {selectedOrder.product_title}
-                  </p>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setSelectedOrder(null)}
-                className="p-1 rounded-control text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
-                aria-label="بستن"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Order Status Stepper */}
-            <div className="p-3.5 rounded-control bg-muted/20 border border-border/60 space-y-3">
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-muted-foreground">وضعیت سفارش:</span>
-                <span
-                  className={`font-black text-xs px-2.5 py-0.5 rounded-control ${
-                    selectedOrder.status === 'COMPLETED'
-                      ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
-                      : 'bg-brand/10 text-brand border border-brand/30'
-                  }`}
-                >
-                  {selectedOrder.status === 'COMPLETED'
-                    ? 'تحویل داده شده'
-                    : 'در صف اپراتور / در حال پردازش'}
-                </span>
-              </div>
-
-              <div className="grid grid-cols-3 gap-2 text-center text-[10px] font-bold pt-1 border-t border-border/40">
-                <div className="text-emerald-400 space-y-0.5">
-                  <div className="w-5 h-5 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 mx-auto flex items-center justify-center">
-                    <Check className="w-3 h-3" />
+      {selectedOrder &&
+        createPortal(
+          <div
+            className="fixed inset-0 overflow-y-auto bg-black/80 backdrop-blur-md p-3 sm:p-6 animate-in fade-in"
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              width: '100vw',
+              height: '100vh',
+              zIndex: 2147483647,
+            }}
+            dir="rtl"
+          >
+            <div className="min-h-full w-full flex items-start sm:items-center justify-center">
+              <div className="w-full max-w-lg my-auto bg-card text-card-foreground rounded-surface border border-border/80 shadow-overlay p-5 sm:p-6 space-y-5 animate-in zoom-in-95">
+                {/* Modal Header */}
+                <div className="flex items-center justify-between pb-3 border-b border-border/60">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-control bg-secondary text-secondary-foreground border border-border/60 flex items-center justify-center shrink-0 shadow-control">
+                      <Package className="w-4 h-4 text-brand" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-black text-foreground">
+                        جزئیات سفارش #{selectedOrder.order_no}
+                      </h3>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {selectedOrder.product_title}
+                      </p>
+                    </div>
                   </div>
-                  <span>ثبت سفارش</span>
-                </div>
-                <div className="text-emerald-400 space-y-0.5">
-                  <div className="w-5 h-5 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 mx-auto flex items-center justify-center">
-                    <Check className="w-3 h-3" />
-                  </div>
-                  <span>پرداخت موفق</span>
-                </div>
-                <div
-                  className={`space-y-0.5 ${
-                    selectedOrder.status === 'COMPLETED'
-                      ? 'text-emerald-400'
-                      : 'text-brand'
-                  }`}
-                >
-                  <div
-                    className={`w-5 h-5 rounded-full mx-auto flex items-center justify-center ${
-                      selectedOrder.status === 'COMPLETED'
-                        ? 'bg-emerald-500/20 border border-emerald-500/40 text-emerald-400'
-                        : 'bg-brand/20 border border-brand/40 text-brand animate-pulse'
-                    }`}
-                  >
-                    {selectedOrder.status === 'COMPLETED' ? (
-                      <Check className="w-3 h-3" />
-                    ) : (
-                      <Clock className="w-3 h-3" />
-                    )}
-                  </div>
-                  <span>تحویل لایسنس</span>
-                </div>
-              </div>
-            </div>
 
-            {/* Delivered Credentials or Link */}
-            {selectedOrder.delivered_link && (
-              <div className="p-3.5 rounded-control bg-muted/30 border border-border/60 space-y-2">
-                <span className="text-xs font-bold text-foreground block">
-                  لینک دعوت اختصاصی اشتراک:
-                </span>
-                <div className="flex items-center justify-between gap-2 bg-card p-2.5 rounded-control border border-border/60">
-                  <span className="text-xs font-mono truncate text-brand font-latin">
-                    {selectedOrder.delivered_link}
-                  </span>
                   <button
                     type="button"
-                    onClick={() =>
-                      copyToClipboard(
-                        selectedOrder.delivered_link || '',
-                        'link',
-                        'لینک اشتراک',
-                      )
-                    }
-                    className="h-7 text-xs px-3 rounded-control bg-primary text-primary-foreground font-black shrink-0 duration-motion ease-motion active:scale-[0.98] cursor-pointer shadow-control"
+                    onClick={() => setSelectedOrder(null)}
+                    className="p-1 rounded-control text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
+                    aria-label="بستن"
                   >
-                    {copiedKey === 'link' ? 'کپی شد!' : 'کپی لینک'}
+                    <X className="w-5 h-5" />
                   </button>
                 </div>
-              </div>
-            )}
 
-            {selectedOrder.delivered_credentials && (
-              <div className="p-3.5 rounded-control bg-muted/30 border border-border/60 space-y-2.5 text-xs">
-                <span className="font-bold text-foreground block">
-                  اطلاعات اکانت تحویل‌شده:
-                </span>
-                <div className="space-y-2 font-mono">
-                  <div className="flex justify-between items-center bg-card p-2 rounded-control border border-border/40">
-                    <span className="text-muted-foreground font-sans">
-                      نام کاربری / ایمیل:
-                    </span>
-                    <span className="text-foreground font-bold font-latin">
-                      {selectedOrder.delivered_credentials.email}
+                {/* Order Status Stepper */}
+                <div className="p-3.5 rounded-control bg-muted/20 border border-border/60 space-y-3">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">وضعیت سفارش:</span>
+                    <span
+                      className={`font-black text-xs px-2.5 py-0.5 rounded-control ${
+                        selectedOrder.status === 'COMPLETED'
+                          ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
+                          : 'bg-brand/10 text-brand border border-brand/30'
+                      }`}
+                    >
+                      {selectedOrder.status === 'COMPLETED'
+                        ? 'تحویل داده شده'
+                        : 'در صف اپراتور / در حال پردازش'}
                     </span>
                   </div>
-                  <div className="flex justify-between items-center bg-card p-2 rounded-control border border-border/40">
-                    <span className="text-muted-foreground font-sans">
-                      کلمه عبور:
+
+                  <div className="grid grid-cols-3 gap-2 text-center text-[10px] font-bold pt-1 border-t border-border/40">
+                    <div className="text-emerald-400 space-y-0.5">
+                      <div className="w-5 h-5 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 mx-auto flex items-center justify-center">
+                        <Check className="w-3 h-3" />
+                      </div>
+                      <span>ثبت سفارش</span>
+                    </div>
+                    <div className="text-emerald-400 space-y-0.5">
+                      <div className="w-5 h-5 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 mx-auto flex items-center justify-center">
+                        <Check className="w-3 h-3" />
+                      </div>
+                      <span>پرداخت موفق</span>
+                    </div>
+                    <div
+                      className={`space-y-0.5 ${
+                        selectedOrder.status === 'COMPLETED'
+                          ? 'text-emerald-400'
+                          : 'text-brand'
+                      }`}
+                    >
+                      <div
+                        className={`w-5 h-5 rounded-full mx-auto flex items-center justify-center ${
+                          selectedOrder.status === 'COMPLETED'
+                            ? 'bg-emerald-500/20 border border-emerald-500/40 text-emerald-400'
+                            : 'bg-brand/20 border border-brand/40 text-brand animate-pulse'
+                        }`}
+                      >
+                        {selectedOrder.status === 'COMPLETED' ? (
+                          <Check className="w-3 h-3" />
+                        ) : (
+                          <Clock className="w-3 h-3" />
+                        )}
+                      </div>
+                      <span>تحویل لایسنس</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Delivered Credentials or Link */}
+                {selectedOrder.delivered_link && (
+                  <div className="p-3.5 rounded-control bg-muted/30 border border-border/60 space-y-2">
+                    <span className="text-xs font-bold text-foreground block">
+                      لینک دعوت اختصاصی اشتراک:
                     </span>
-                    <span className="text-foreground font-bold font-latin">
-                      {selectedOrder.delivered_credentials.password}
+                    <div className="flex items-center justify-between gap-2 bg-card p-2.5 rounded-control border border-border/60">
+                      <span className="text-xs font-mono truncate text-brand font-latin">
+                        {selectedOrder.delivered_link}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          copyToClipboard(
+                            selectedOrder.delivered_link || '',
+                            'link',
+                            'لینک اشتراک',
+                          )
+                        }
+                        className="h-7 text-xs px-3 rounded-control bg-primary text-primary-foreground font-black shrink-0 duration-motion ease-motion active:scale-[0.98] cursor-pointer shadow-control"
+                      >
+                        {copiedKey === 'link' ? 'کپی شد!' : 'کپی لینک'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {selectedOrder.delivered_credentials && (
+                  <div className="p-3.5 rounded-control bg-muted/30 border border-border/60 space-y-2.5 text-xs">
+                    <span className="font-bold text-foreground block">
+                      اطلاعات اکانت تحویل‌شده:
+                    </span>
+                    <div className="space-y-2 font-mono">
+                      <div className="flex justify-between items-center bg-card p-2 rounded-control border border-border/40">
+                        <span className="text-muted-foreground font-sans">
+                          نام کاربری / ایمیل:
+                        </span>
+                        <span className="text-foreground font-bold font-latin">
+                          {selectedOrder.delivered_credentials.email}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center bg-card p-2 rounded-control border border-border/40">
+                        <span className="text-muted-foreground font-sans">
+                          کلمه عبور:
+                        </span>
+                        <span className="text-foreground font-bold font-latin">
+                          {selectedOrder.delivered_credentials.password}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Order Payment & Financial Summary */}
+                <div className="p-3.5 rounded-control bg-muted/20 border border-border/40 space-y-2 text-xs">
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>شیوه تحویل:</span>
+                    <span className="font-bold text-foreground">
+                      {selectedOrder.delivery_mode === 'INSTANT_LINK'
+                        ? 'لینک دعوت اختصاصی'
+                        : selectedOrder.delivery_mode === 'UPGRADE_EXISTING'
+                          ? 'ارتقای اکانت شخصی'
+                          : 'اکانت آماده اختصاصی'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>تاریخ و زمان ثبت:</span>
+                    <span className="font-mono text-foreground font-latin">
+                      {new Date(selectedOrder.created_at).toLocaleString(
+                        'fa-IR',
+                      )}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-muted-foreground border-t border-border/40 pt-2 text-sm">
+                    <span className="font-bold text-foreground">
+                      مبلغ پرداخت‌شده:
+                    </span>
+                    <span className="font-black text-foreground font-latin">
+                      {formatToman(selectedOrder.amount_toman)} تومان
                     </span>
                   </div>
                 </div>
-              </div>
-            )}
 
-            {/* Order Payment & Financial Summary */}
-            <div className="p-3.5 rounded-control bg-muted/20 border border-border/40 space-y-2 text-xs">
-              <div className="flex justify-between text-muted-foreground">
-                <span>شیوه تحویل:</span>
-                <span className="font-bold text-foreground">
-                  {selectedOrder.delivery_mode === 'INSTANT_LINK'
-                    ? 'لینک دعوت اختصاصی'
-                    : selectedOrder.delivery_mode === 'UPGRADE_EXISTING'
-                      ? 'ارتقای اکانت شخصی'
-                      : 'اکانت آماده اختصاصی'}
-                </span>
-              </div>
-              <div className="flex justify-between text-muted-foreground">
-                <span>تاریخ و زمان ثبت:</span>
-                <span className="font-mono text-foreground font-latin">
-                  {new Date(selectedOrder.created_at).toLocaleString('fa-IR')}
-                </span>
-              </div>
-              <div className="flex justify-between text-muted-foreground border-t border-border/40 pt-2 text-sm">
-                <span className="font-bold text-foreground">
-                  مبلغ پرداخت‌شده:
-                </span>
-                <span className="font-black text-foreground font-latin">
-                  {formatToman(selectedOrder.amount_toman)} تومان
-                </span>
-              </div>
-            </div>
-
-            {/* Action Buttons: Invoice moved INSIDE Details modal as requested! */}
-            <div className="pt-2 flex flex-wrap items-center justify-between gap-2.5 border-t border-border/60">
-              <button
-                type="button"
-                onClick={() => {
-                  const ord = selectedOrder
-                  setSelectedOrder(null)
-                  setInvoiceOrder(ord)
-                }}
-                className="h-10 px-4 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs duration-motion ease-motion active:scale-[0.98] shadow-control flex items-center gap-1.5 cursor-pointer"
-              >
-                <FileText className="w-4 h-4" />
-                <span>مشاهده و چاپ فاکتور رسمی</span>
-              </button>
-
-              <div className="flex items-center gap-2">
-                {selectedOrder.status === 'COMPLETED' && (
+                {/* Action Buttons: Invoice moved INSIDE Details modal as requested! */}
+                <div className="pt-2 flex flex-wrap items-center justify-between gap-2.5 border-t border-border/60">
                   <button
                     type="button"
                     onClick={() => {
                       const ord = selectedOrder
                       setSelectedOrder(null)
-                      setReviewOrder(ord)
+                      setInvoiceOrder(ord)
                     }}
-                    className="h-10 px-3.5 rounded-control bg-brand/10 hover:bg-brand/20 text-brand border border-brand/30 text-xs font-bold duration-motion ease-motion active:scale-[0.98] flex items-center gap-1.5 cursor-pointer"
+                    className="h-10 px-4 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs duration-motion ease-motion active:scale-[0.98] shadow-control flex items-center gap-1.5 cursor-pointer"
                   >
-                    <Star className="w-3.5 h-3.5 fill-brand text-brand" />
-                    <span>ثبت نظر</span>
+                    <FileText className="w-4 h-4" />
+                    <span>مشاهده و چاپ فاکتور رسمی</span>
                   </button>
-                )}
 
-                <button
-                  type="button"
-                  onClick={() => setSelectedOrder(null)}
-                  className="h-10 px-4 rounded-control border border-border/60 bg-card hover:bg-muted text-xs font-bold text-muted-foreground hover:text-foreground duration-motion ease-motion active:scale-[0.98] cursor-pointer"
-                >
-                  بستن
-                </button>
+                  <div className="flex items-center gap-2">
+                    {selectedOrder.status === 'COMPLETED' && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const ord = selectedOrder
+                          setSelectedOrder(null)
+                          setReviewOrder(ord)
+                        }}
+                        className="h-10 px-3.5 rounded-control bg-brand/10 hover:bg-brand/20 text-brand border border-brand/30 text-xs font-bold duration-motion ease-motion active:scale-[0.98] flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <Star className="w-3.5 h-3.5 fill-brand text-brand" />
+                        <span>ثبت نظر</span>
+                      </button>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => setSelectedOrder(null)}
+                      className="h-10 px-4 rounded-control border border-border/60 bg-card hover:bg-muted text-xs font-bold text-muted-foreground hover:text-foreground duration-motion ease-motion active:scale-[0.98] cursor-pointer"
+                    >
+                      بستن
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body,
+        )}
 
       {/* Review Submission Modal for Orders */}
       {reviewOrder && (
@@ -617,7 +634,7 @@ export const ProfileOrdersTab: React.FC<ProfileOrdersTabProps> = ({
         <OfficialInvoiceModal
           isOpen={!!invoiceOrder}
           onClose={() => setInvoiceOrder(null)}
-          orderIdOrNo={invoiceOrder.order_no}
+          orderIdOrNo={invoiceOrder.order_no || String(invoiceOrder.id || '')}
           accessToken={invoiceOrder.token}
         />
       )}

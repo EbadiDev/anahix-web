@@ -1,7 +1,6 @@
 import {
   CheckCircle2,
   Loader2,
-  Lock,
   Mail,
   Save,
   Shield,
@@ -12,6 +11,7 @@ import {
 } from 'lucide-react'
 import type React from 'react'
 import { useState } from 'react'
+import { createPortal } from 'react-dom'
 import { apiService } from '../../services/api'
 import type { CustomerProfile } from '../../types'
 import { formatDisplayPhone } from '../../utils/formatters'
@@ -57,8 +57,13 @@ export const ProfilePersonalTab: React.FC<ProfilePersonalTabProps> = ({
   const [emailOtpCode, setEmailOtpCode] = useState(['', '', '', '', ''])
   const [emailSent, setEmailSent] = useState(false)
   const [emailVerifying, setEmailVerifying] = useState(false)
-  const [isEmailVerified, setIsEmailVerified] = useState(() =>
-    Boolean(customer.email?.includes('@')),
+  const isEmailPreVerified = Boolean(
+    customer.email_verified ||
+      customer.auth_provider === 'google' ||
+      customer.auth_provider === 'github',
+  )
+  const [isEmailVerified, setIsEmailVerified] = useState(
+    () => isEmailPreVerified,
   )
 
   // 2. Change Mobile Phone Modal State
@@ -124,7 +129,8 @@ export const ProfilePersonalTab: React.FC<ProfilePersonalTabProps> = ({
     try {
       const updated = await apiService.updateCustomerProfile({
         email: email.trim(),
-      })
+        email_verified: true,
+      } as any)
       onProfileUpdated(updated)
       setIsEmailVerified(true)
       setIsEmailModalOpen(false)
@@ -292,31 +298,43 @@ export const ProfilePersonalTab: React.FC<ProfilePersonalTabProps> = ({
               />
             </div>
 
-            {/* Email Address with Verification Gate */}
+            {/* Email Address with Verification Gate - Symmetrical with Phone */}
             <div className="space-y-1.5 text-right">
               <div className="flex items-center justify-between">
-                <label
-                  htmlFor="personal-email"
-                  className="block text-xs font-bold text-foreground"
-                >
-                  آدرس ایمیل
-                </label>
-                {isEmailVerified ? (
-                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-control">
-                    <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-                    <span>تایید شده</span>
-                  </span>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => setIsEmailModalOpen(true)}
-                    className="text-[10px] font-bold text-brand hover:underline flex items-center gap-1 cursor-pointer"
+                <div className="flex items-center gap-2">
+                  <label
+                    htmlFor="personal-email"
+                    className="block text-xs font-bold text-foreground"
                   >
-                    <ShieldAlert className="w-3 h-3 text-brand" />
-                    <span>صحت‌سنجی و تایید ایمیل</span>
-                  </button>
-                )}
+                    آدرس ایمیل حساب کاربری
+                  </label>
+                  {isEmailVerified ? (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 rounded-control">
+                      <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                      <span>تایید شده</span>
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-rose-500 bg-rose-500/10 border border-rose-500/30 px-2 py-0.5 rounded-control animate-pulse">
+                      <ShieldAlert className="w-3 h-3 text-rose-500" />
+                      <span>تایید نشده</span>
+                    </span>
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setIsEmailModalOpen(true)}
+                  className="text-[10px] font-bold text-brand hover:underline flex items-center gap-1 cursor-pointer"
+                >
+                  <Mail className="w-3 h-3 text-brand" />
+                  <span>
+                    {isEmailVerified
+                      ? 'تغییر یا صحت‌سنجی'
+                      : 'صحت‌سنجی و تایید ایمیل'}
+                  </span>
+                </button>
               </div>
+
               <div className="relative">
                 <input
                   id="personal-email"
@@ -332,20 +350,49 @@ export const ProfilePersonalTab: React.FC<ProfilePersonalTabProps> = ({
                 />
                 <Mail className="w-4 h-4 absolute left-3 top-3 text-muted-foreground pointer-events-none" />
               </div>
-              <p className="text-[11px] text-muted-foreground mt-1">
-                اطلاع‌رسانی فاکتور و لایسنس‌ها به این آدرس ارسال می‌شود
-              </p>
+
+              {isEmailVerified ? (
+                <p className="text-[11px] text-emerald-400 mt-1 flex items-center gap-1 font-medium">
+                  <Shield className="w-3 h-3 shrink-0" />
+                  <span>
+                    هویت آدرس ایمیل با پروتکل امنیتی تایید شده و آماده دریافت
+                    فاکتورهاست
+                  </span>
+                </p>
+              ) : (
+                <p className="text-[11px] text-rose-500 mt-1 flex items-center gap-1 font-medium">
+                  <ShieldAlert className="w-3 h-3 shrink-0" />
+                  <span>
+                    ایمیل دستی ثبت شده و تایید نشده است. جهت تایید بر روی دکمه
+                    بالا کلیک کنید.
+                  </span>
+                </p>
+              )}
             </div>
 
-            {/* Phone Number with Change Action */}
+            {/* Phone Number with Change Action - Symmetrical with Email */}
             <div className="space-y-1.5 text-right">
               <div className="flex items-center justify-between">
-                <label
-                  htmlFor="personal-phone"
-                  className="block text-xs font-bold text-foreground"
-                >
-                  شماره موبایل حساب کاربری
-                </label>
+                <div className="flex items-center gap-2">
+                  <label
+                    htmlFor="personal-phone"
+                    className="block text-xs font-bold text-foreground"
+                  >
+                    شماره موبایل حساب کاربری
+                  </label>
+                  {isRealPhone ? (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 rounded-control">
+                      <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                      <span>تایید شده</span>
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-rose-500 bg-rose-500/10 border border-rose-500/30 px-2 py-0.5 rounded-control animate-pulse">
+                      <ShieldAlert className="w-3 h-3 text-rose-500" />
+                      <span>تایید نشده</span>
+                    </span>
+                  )}
+                </div>
+
                 <button
                   type="button"
                   onClick={() => {
@@ -363,6 +410,7 @@ export const ProfilePersonalTab: React.FC<ProfilePersonalTabProps> = ({
                   </span>
                 </button>
               </div>
+
               <div className="relative">
                 <input
                   id="personal-phone"
@@ -372,12 +420,13 @@ export const ProfilePersonalTab: React.FC<ProfilePersonalTabProps> = ({
                   disabled
                   className="w-full h-10 px-3.5 pl-9 rounded-field bg-muted/20 border border-border/30 text-foreground font-latin text-left text-xs cursor-not-allowed font-bold"
                 />
-                <Lock
+                <Smartphone
                   className={`w-3.5 h-3.5 absolute left-3 top-3.5 ${
                     isRealPhone ? 'text-emerald-500' : 'text-amber-500'
                   } pointer-events-none`}
                 />
               </div>
+
               {isRealPhone ? (
                 <p className="text-[11px] text-emerald-400 mt-1 flex items-center gap-1 font-medium">
                   <Shield className="w-3 h-3 shrink-0" />
@@ -386,7 +435,7 @@ export const ProfilePersonalTab: React.FC<ProfilePersonalTabProps> = ({
                   </span>
                 </p>
               ) : (
-                <p className="text-[11px] text-amber-500 mt-1 flex items-center gap-1 font-medium">
+                <p className="text-[11px] text-rose-500 mt-1 flex items-center gap-1 font-medium">
                   <ShieldAlert className="w-3 h-3 shrink-0" />
                   <span>
                     هنوز شماره موبایلی ثبت نکرده‌اید. با کلیک بر روی دکمه بالا،
@@ -421,185 +470,195 @@ export const ProfilePersonalTab: React.FC<ProfilePersonalTabProps> = ({
       </div>
 
       {/* 1. EMAIL VERIFICATION MODAL */}
-      {isEmailModalOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-in fade-in"
-          dir="rtl"
-        >
-          <div className="w-full max-w-md bg-card text-card-foreground rounded-surface border border-border/80 shadow-overlay p-6 space-y-4 animate-in zoom-in-95">
-            <div className="flex items-center justify-between pb-3 border-b border-border/60">
-              <div className="flex items-center gap-2">
-                <div className="p-2 rounded-control bg-secondary text-brand">
-                  <Mail className="w-4 h-4" />
-                </div>
-                <h3 className="text-sm font-bold text-foreground">
-                  صحت‌سنجی و اعتبارسنجی آدرس ایمیل
-                </h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsEmailModalOpen(false)}
-                className="p-1 rounded-control text-muted-foreground hover:text-foreground"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              جهت اطمینان از صحت آدرس ایمیل، یک کد تایید ۵ رقمی به آدرس زیر
-              ارسال می‌شود:
-            </p>
-
-            <div className="p-3 rounded-control bg-muted/30 border border-border/40 font-mono text-center text-xs text-foreground font-latin">
-              {email || customer.email}
-            </div>
-
-            {!emailSent ? (
-              <button
-                type="button"
-                disabled={emailVerifying}
-                onClick={handleSendEmailVerification}
-                className="w-full h-10 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs duration-motion ease-motion active:scale-[0.98] shadow-control flex items-center justify-center gap-2 cursor-pointer"
-              >
-                {emailVerifying ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <span>ارسال کد تایید به این ایمیل</span>
-                )}
-              </button>
-            ) : (
-              <form onSubmit={handleConfirmEmailOtp} className="space-y-4">
-                <div className="space-y-1.5 text-center">
-                  <label className="text-xs font-bold text-foreground block">
-                    کد تایید ۵ رقمی ارسال شده به ایمیل:
-                  </label>
-                  <div className="py-2">
-                    <OtpField
-                      length={5}
-                      value={emailOtpCode.join('')}
-                      onChange={(val) => {
-                        const arr = ['', '', '', '', '']
-                        for (let i = 0; i < 5; i++) {
-                          arr[i] = val[i] || ''
-                        }
-                        setEmailOtpCode(arr)
-                      }}
-                    />
+      {isEmailModalOpen &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[99999] overflow-y-auto bg-black/75 backdrop-blur-md p-3 sm:p-6 animate-in fade-in"
+            style={{ top: 0, left: 0, right: 0, bottom: 0 }}
+            dir="rtl"
+          >
+            <div className="min-h-full w-full flex items-start sm:items-center justify-center">
+              <div className="w-full max-w-md my-auto bg-card text-card-foreground rounded-surface border border-border/80 shadow-overlay p-6 space-y-4 animate-in zoom-in-95">
+                <div className="flex items-center justify-between pb-3 border-b border-border/60">
+                  <div className="flex items-center gap-2">
+                    <div className="p-2 rounded-control bg-secondary text-brand">
+                      <Mail className="w-4 h-4" />
+                    </div>
+                    <h3 className="text-sm font-black text-foreground">
+                      صحت‌سنجی و اعتبارسنجی آدرس ایمیل
+                    </h3>
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsEmailModalOpen(false)}
+                    className="p-1 rounded-control text-muted-foreground hover:text-foreground cursor-pointer"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
                 </div>
 
-                <button
-                  type="submit"
-                  disabled={emailVerifying}
-                  className="w-full h-10 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs duration-motion ease-motion active:scale-[0.98] shadow-control flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  {emailVerifying ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <span>تایید نهایی و ثبت ایمیل</span>
-                  )}
-                </button>
-              </form>
-            )}
-          </div>
-        </div>
-      )}
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  جهت اطمینان از صحت آدرس ایمیل، یک کد تایید ۵ رقمی به آدرس زیر
+                  ارسال می‌شود:
+                </p>
+
+                <div className="p-3 rounded-control bg-muted/30 border border-border/40 font-mono text-center text-xs text-foreground font-latin">
+                  {email || customer.email}
+                </div>
+
+                {!emailSent ? (
+                  <button
+                    type="button"
+                    disabled={emailVerifying}
+                    onClick={handleSendEmailVerification}
+                    className="w-full h-10 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs duration-motion ease-motion active:scale-[0.98] shadow-control flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    {emailVerifying ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <span>ارسال کد تایید به این ایمیل</span>
+                    )}
+                  </button>
+                ) : (
+                  <form onSubmit={handleConfirmEmailOtp} className="space-y-4">
+                    <div className="space-y-1.5 text-center">
+                      <label className="text-xs font-bold text-foreground block">
+                        کد تایید ۵ رقمی ارسال شده به ایمیل:
+                      </label>
+                      <div className="py-2">
+                        <OtpField
+                          length={5}
+                          value={emailOtpCode.join('')}
+                          onChange={(val) => {
+                            const arr = ['', '', '', '', '']
+                            for (let i = 0; i < 5; i++) {
+                              arr[i] = val[i] || ''
+                            }
+                            setEmailOtpCode(arr)
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={emailVerifying}
+                      className="w-full h-10 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs duration-motion ease-motion active:scale-[0.98] shadow-control flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      {emailVerifying ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <span>تایید نهایی و ثبت ایمیل</span>
+                      )}
+                    </button>
+                  </form>
+                )}
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
 
       {/* 2. CHANGE MOBILE PHONE MODAL */}
-      {isPhoneModalOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-in fade-in"
-          dir="rtl"
-        >
-          <div className="w-full max-w-md bg-card text-card-foreground rounded-surface border border-border/80 shadow-overlay p-6 space-y-4 animate-in zoom-in-95">
-            <div className="flex items-center justify-between pb-3 border-b border-border/60">
-              <div className="flex items-center gap-2">
-                <div className="p-2 rounded-control bg-secondary text-brand">
-                  <Smartphone className="w-4 h-4" />
-                </div>
-                <h3 className="text-sm font-bold text-foreground">
-                  تغییر شماره تلفن همراه با تایید پیامکی
-                </h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsPhoneModalOpen(false)}
-                className="p-1 rounded-control text-muted-foreground hover:text-foreground"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {phoneStep === 'input' ? (
-              <form onSubmit={handleSendPhoneOtp} className="space-y-4">
-                <div className="space-y-1.5 text-right">
-                  <label className="text-xs font-bold text-foreground">
-                    شماره موبایل جدید (۱۱ رقم با ۰۹):
-                  </label>
-                  <input
-                    type="tel"
-                    dir="ltr"
-                    placeholder="09123456789"
-                    value={newPhone}
-                    onChange={(e) => setNewPhone(e.target.value)}
-                    className="w-full h-10 px-3 font-mono text-center text-sm rounded-field bg-muted/20 border border-border/60 text-foreground outline-none focus:border-foreground/40"
-                    required
-                  />
-                  <p className="text-[11px] text-muted-foreground">
-                    یک پیامک حاوی کد تایید یکبارمصرف به این شماره ارسال خواهد
-                    شد.
-                  </p>
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={phoneLoading}
-                  className="w-full h-10 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs duration-motion ease-motion active:scale-[0.98] shadow-control flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  {phoneLoading ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <span>ارسال کد تایید به شماره جدید</span>
-                  )}
-                </button>
-              </form>
-            ) : (
-              <form onSubmit={handleVerifyNewPhone} className="space-y-4">
-                <div className="space-y-1.5 text-center">
-                  <p className="text-xs text-muted-foreground">
-                    کد تایید ۵ رقمی پیامک شده به {newPhone} را وارد کنید:
-                  </p>
-                  <div className="py-2">
-                    <OtpField
-                      length={5}
-                      value={phoneOtpCode.join('')}
-                      onChange={(val) => {
-                        const arr = ['', '', '', '', '']
-                        for (let i = 0; i < 5; i++) {
-                          arr[i] = val[i] || ''
-                        }
-                        setPhoneOtpCode(arr)
-                      }}
-                    />
+      {isPhoneModalOpen &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[99999] overflow-y-auto bg-black/75 backdrop-blur-md p-3 sm:p-6 animate-in fade-in"
+            style={{ top: 0, left: 0, right: 0, bottom: 0 }}
+            dir="rtl"
+          >
+            <div className="min-h-full w-full flex items-start sm:items-center justify-center">
+              <div className="w-full max-w-md my-auto bg-card text-card-foreground rounded-surface border border-border/80 shadow-overlay p-6 space-y-4 animate-in zoom-in-95">
+                <div className="flex items-center justify-between pb-3 border-b border-border/60">
+                  <div className="flex items-center gap-2">
+                    <div className="p-2 rounded-control bg-secondary text-brand">
+                      <Smartphone className="w-4 h-4" />
+                    </div>
+                    <h3 className="text-sm font-black text-foreground">
+                      تغییر شماره تلفن همراه با تایید پیامکی
+                    </h3>
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsPhoneModalOpen(false)}
+                    className="p-1 rounded-control text-muted-foreground hover:text-foreground cursor-pointer"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
                 </div>
 
-                <button
-                  type="submit"
-                  disabled={phoneLoading}
-                  className="w-full h-10 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs duration-motion ease-motion active:scale-[0.98] shadow-control flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  {phoneLoading ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <span>تایید نهایی و تغییر شماره</span>
-                  )}
-                </button>
-              </form>
-            )}
-          </div>
-        </div>
-      )}
+                {phoneStep === 'input' ? (
+                  <form onSubmit={handleSendPhoneOtp} className="space-y-4">
+                    <div className="space-y-1.5 text-right">
+                      <label className="text-xs font-bold text-foreground">
+                        شماره موبایل جدید (۱۱ رقم با ۰۹):
+                      </label>
+                      <input
+                        type="tel"
+                        dir="ltr"
+                        placeholder="09123456789"
+                        value={newPhone}
+                        onChange={(e) => setNewPhone(e.target.value)}
+                        className="w-full h-10 px-3 font-mono text-center text-sm rounded-field bg-muted/20 border border-border/60 text-foreground outline-none focus:border-foreground/40"
+                        required
+                      />
+                      <p className="text-[11px] text-muted-foreground">
+                        یک پیامک حاوی کد تایید یکبارمصرف به این شماره ارسال
+                        خواهد شد.
+                      </p>
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={phoneLoading}
+                      className="w-full h-10 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs duration-motion ease-motion active:scale-[0.98] shadow-control flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      {phoneLoading ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <span>ارسال کد تایید به شماره جدید</span>
+                      )}
+                    </button>
+                  </form>
+                ) : (
+                  <form onSubmit={handleVerifyNewPhone} className="space-y-4">
+                    <div className="space-y-1.5 text-center">
+                      <p className="text-xs text-muted-foreground">
+                        کد تایید ۵ رقمی پیامک شده به {newPhone} را وارد کنید:
+                      </p>
+                      <div className="py-2">
+                        <OtpField
+                          length={5}
+                          value={phoneOtpCode.join('')}
+                          onChange={(val) => {
+                            const arr = ['', '', '', '', '']
+                            for (let i = 0; i < 5; i++) {
+                              arr[i] = val[i] || ''
+                            }
+                            setPhoneOtpCode(arr)
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={phoneLoading}
+                      className="w-full h-10 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs duration-motion ease-motion active:scale-[0.98] shadow-control flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      {phoneLoading ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <span>تایید نهایی و تغییر شماره</span>
+                      )}
+                    </button>
+                  </form>
+                )}
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
     </div>
   )
 }

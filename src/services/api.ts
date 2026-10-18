@@ -1042,6 +1042,24 @@ export const apiService = {
   },
 
   // Coupons & Discounts
+  async getPublicCoupons(): Promise<
+    Array<{
+      code: string
+      label: string
+      discount_type: string
+      discount_value: number
+    }>
+  > {
+    try {
+      const res = await fetch('/api/v1/coupons')
+      const json = await res.json()
+      if (res.ok && json.code === 200 && Array.isArray(json.data)) {
+        return json.data
+      }
+    } catch {}
+    return []
+  },
+
   async validateCoupon(payload: {
     code: string
     subtotal_toman: number

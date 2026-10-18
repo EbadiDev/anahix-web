@@ -421,6 +421,9 @@ export interface CustomerProfile {
   monthly_spent_toman?: number
   is_active: boolean
   is_admin?: boolean
+  email_verified?: boolean
+  phone_verified?: boolean
+  auth_provider?: 'manual' | 'google' | 'github' | 'phone' | string
 
   // Corporate profile fields
   is_corporate?: boolean
@@ -461,6 +464,12 @@ export interface ThemeSettings {
   auth_github_enabled: boolean
   auth_password_enabled: boolean
   auth_otp_required: boolean
+  checkout_channel_section_enabled?: boolean
+  checkout_channel_sms_enabled?: boolean
+  checkout_channel_email_enabled?: boolean
+  checkout_channel_title?: string
+  checkout_channel_sms_label?: string
+  checkout_channel_email_label?: string
 }
 
 export interface BannerItem {
