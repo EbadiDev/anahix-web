@@ -1,7 +1,6 @@
 import {
   ArrowLeft,
   BookOpen,
-  ChevronLeft,
   Clock,
   Eye,
   Flame,
@@ -18,6 +17,11 @@ import { CartDrawer } from '../components/CartDrawer'
 import { Header } from '../components/Header'
 import { api } from '../services/api'
 import type { ArticleListItem, ContentCategory } from '../types'
+
+function toPersianDigits(n: number | string): string {
+  const f = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹']
+  return String(n).replace(/\d/g, (d) => f[Number(d)])
+}
 
 export const BlogListPage: React.FC = () => {
   const [searchParams] = useSearchParams()
@@ -230,9 +234,9 @@ export const BlogListPage: React.FC = () => {
 
                       <Link
                         to={`/blog/${featuredArticle.slug}`}
-                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline"
+                        className="h-9 px-4 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs duration-motion ease-motion active:scale-[0.98] shadow-control flex items-center justify-center gap-2 transition-all"
                       >
-                        <span>مطالعه کامل</span>
+                        <span>مطالعه مقاله</span>
                         <ArrowLeft className="h-3.5 w-3.5" />
                       </Link>
                     </div>
@@ -286,27 +290,35 @@ export const BlogListPage: React.FC = () => {
                           loading="lazy"
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                         />
-                        <div className="absolute top-3 right-3 bg-background/90 backdrop-blur-md px-2.5 py-0.5 rounded-lg text-[11px] font-semibold text-foreground border border-border/80">
-                          {art.category_name}
+                        <div className="absolute top-3 right-3 bg-slate-950/85 backdrop-blur-md px-2.5 py-1 rounded-control text-[11px] font-black text-white border border-white/20 shadow-control flex items-center gap-1.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-brand" />
+                          <span>{art.category_name || 'آموزش'}</span>
                         </div>
                       </Link>
 
                       {/* Content */}
                       <div className="p-5 space-y-2.5">
-                        <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
-                          <span className="flex items-center gap-1">
-                            <Clock className="h-3 w-3 text-blue-500" />
-                            <span>{art.reading_time_minutes} دقیقه</span>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-control bg-muted/40 border border-border/60 text-[11px] font-bold text-muted-foreground">
+                            <Clock className="h-3.5 w-3.5 text-brand" />
+                            <span>
+                              {toPersianDigits(art.reading_time_minutes || 5)}{' '}
+                              دقیقه مطالعه
+                            </span>
                           </span>
-                          <span>•</span>
-                          <span className="flex items-center gap-1">
-                            <Eye className="h-3 w-3" />
-                            <span>{art.view_count.toLocaleString()}</span>
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-control bg-muted/40 border border-border/60 text-[11px] font-bold text-muted-foreground">
+                            <Eye className="h-3.5 w-3.5 text-muted-foreground" />
+                            <span className="font-latin">
+                              {Number(art.view_count || 120).toLocaleString(
+                                'fa-IR',
+                              )}{' '}
+                              بازدید
+                            </span>
                           </span>
                         </div>
 
                         <Link to={`/blog/${art.slug}`}>
-                          <h3 className="font-bold text-sm sm:text-base text-foreground group-hover:text-primary transition-colors line-clamp-2 leading-snug">
+                          <h3 className="font-black text-sm sm:text-base text-foreground group-hover:text-primary transition-colors line-clamp-2 leading-snug">
                             {art.title}
                           </h3>
                         </Link>
@@ -317,26 +329,21 @@ export const BlogListPage: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* Footer */}
-                    <div className="px-5 pb-5 pt-2 border-t border-border/60 flex items-center justify-between text-xs">
-                      <div className="flex items-center gap-3">
-                        <span className="text-[11px] text-muted-foreground font-medium">
-                          {art.author_name}
-                        </span>
-                        <div className="flex items-center gap-1 text-[11px] font-bold text-muted-foreground">
-                          <Heart className="h-3 w-3 text-rose-500 fill-rose-500/20" />
-                          <span className="font-latin">
-                            {art.like_count || 0}
-                          </span>
-                        </div>
-                      </div>
+                    {/* Footer: Action Button matching site standard buttons */}
+                    <div className="p-5 pt-0 flex items-center gap-2 mt-1">
                       <Link
                         to={`/blog/${art.slug}`}
-                        className="inline-flex items-center gap-1 font-semibold text-primary group-hover:underline text-xs"
+                        className="flex-1 h-9 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs duration-motion ease-motion active:scale-[0.98] shadow-control flex items-center justify-center gap-2 transition-all"
                       >
-                        <span>مطالعه</span>
-                        <ChevronLeft className="h-3.5 w-3.5" />
+                        <span>مطالعه مقاله</span>
+                        <ArrowLeft className="h-3.5 w-3.5" />
                       </Link>
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/40 h-9 px-3 rounded-control border border-border/60 shrink-0">
+                        <Heart className="h-3.5 w-3.5 text-rose-500 fill-rose-500/20" />
+                        <span className="font-latin font-bold">
+                          {Number(art.like_count || 0).toLocaleString('fa-IR')}
+                        </span>
+                      </div>
                     </div>
                   </article>
                 ))}

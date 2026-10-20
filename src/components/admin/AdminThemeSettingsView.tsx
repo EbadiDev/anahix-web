@@ -544,6 +544,84 @@ export const AdminThemeSettingsView: React.FC = () => {
           </div>
         </div>
 
+        {/* SECTION: OFFERS & FLASH PROMOTIONS HEADER CUSTOMIZATION */}
+        <div className="rounded-3xl border border-border bg-card p-6 shadow-sm space-y-4">
+          <div className="border-b border-border/60 pb-3">
+            <h3 className="text-sm font-black text-foreground flex items-center gap-2">
+              <Gift className="h-4 w-4 text-rose-500" />
+              <span>شخصی‌سازی هدر صفحه جشنواره آفرها و تخفیف‌ها (/offers)</span>
+            </h3>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              مدیریت و تغییر داینامیک عنوان نشان، تیتر اصلی و توضیحات صفحه
+              تخفیف‌ها
+            </p>
+          </div>
+
+          <div className="space-y-3.5 text-xs">
+            <div className="space-y-1.5 text-right">
+              <label className="font-bold text-foreground block">
+                عنوان نشان بالای هدر (Badge)
+              </label>
+              <input
+                type="text"
+                value={
+                  settings.offers_badge_text ||
+                  'جشنواره سراسری تخفیف‌های زمان‌دار آناهیکس'
+                }
+                onChange={(e) =>
+                  setSettings((prev) => ({
+                    ...prev,
+                    offers_badge_text: e.target.value,
+                  }))
+                }
+                placeholder="جشنواره سراسری تخفیف‌های زمان‌دار آناهیکس"
+                className="w-full h-10 px-3.5 rounded-field border border-border/60 bg-muted/20 text-foreground outline-none focus:border-brand"
+              />
+            </div>
+
+            <div className="space-y-1.5 text-right">
+              <label className="font-bold text-foreground block">
+                تیتر اصلی صفحه آفرها (Title)
+              </label>
+              <input
+                type="text"
+                value={
+                  settings.offers_title || 'آفرها و اشتراک‌های دارای تخفیف ویژه'
+                }
+                onChange={(e) =>
+                  setSettings((prev) => ({
+                    ...prev,
+                    offers_title: e.target.value,
+                  }))
+                }
+                placeholder="آفرها و اشتراک‌های دارای تخفیف ویژه"
+                className="w-full h-10 px-3.5 rounded-field border border-border/60 bg-muted/20 text-foreground outline-none focus:border-brand"
+              />
+            </div>
+
+            <div className="space-y-1.5 text-right">
+              <label className="font-bold text-foreground block">
+                متن توضیحات زیرعنوان (Subtitle)
+              </label>
+              <textarea
+                rows={2}
+                value={
+                  settings.offers_subtitle ||
+                  'کلیه لایسنس‌ها و اشتراک‌های هوش مصنوعی که هم‌اکنون با تخفیف نقدی ویژه ۲۰٪ تا ۵۰٪ از پنل مدیریت عرضه شده‌اند.'
+                }
+                onChange={(e) =>
+                  setSettings((prev) => ({
+                    ...prev,
+                    offers_subtitle: e.target.value,
+                  }))
+                }
+                placeholder="توضیحات معرفی آفرها..."
+                className="w-full p-3 rounded-field border border-border/60 bg-muted/20 text-foreground outline-none focus:border-brand resize-none"
+              />
+            </div>
+          </div>
+        </div>
+
         {/* Submit Bar: Graphite technical minimal - Primary white button with black text */}
         <div className="flex items-center justify-end gap-3 pt-2">
           <button

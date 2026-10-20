@@ -486,7 +486,7 @@ export const ProfileSupportTab: React.FC<ProfileSupportTabProps> = ({
                 setSearchQuery(e.target.value)
                 setVisibleTicketsCount(5)
               }}
-              className="w-full h-10 px-3.5 text-xs rounded-field bg-muted/20 border border-border/60 text-foreground outline-none focus:border-foreground/40 transition-colors"
+              className="w-full h-10 px-3.5 text-xs rounded-field bg-muted/20 border border-border/60 text-foreground outline-none focus:border-brand transition-colors"
             />
           </div>
 
@@ -1004,7 +1004,7 @@ export const ProfileSupportTab: React.FC<ProfileSupportTabProps> = ({
                           setIsUploadingReplyAtt,
                         )
                       }
-                      className="h-10 text-xs sm:text-sm rounded-field flex-1 border border-border/60 bg-muted/20 px-3 text-foreground outline-none focus:border-foreground/40 transition-colors"
+                      className="h-10 text-xs sm:text-sm rounded-field flex-1 border border-border/60 bg-muted/20 px-3 text-foreground outline-none focus:border-brand transition-colors"
                     />
 
                     <button
@@ -1082,7 +1082,7 @@ export const ProfileSupportTab: React.FC<ProfileSupportTabProps> = ({
                       placeholder="مثال: مشکل در تایید شماره تلگرام یا خطای لایسنس"
                       value={newSubject}
                       onChange={(e) => setNewSubject(e.target.value)}
-                      className="w-full h-10 px-3.5 rounded-field bg-muted/20 border border-border/60 text-foreground outline-none focus:border-foreground/40 transition-colors"
+                      className="w-full h-10 px-3.5 rounded-field bg-muted/20 border border-border/60 text-foreground outline-none focus:border-brand transition-colors"
                       required
                     />
                   </div>
@@ -1095,7 +1095,7 @@ export const ProfileSupportTab: React.FC<ProfileSupportTabProps> = ({
                       <select
                         value={newDepartment}
                         onChange={(e) => setNewDepartment(e.target.value)}
-                        className="w-full h-10 px-3 rounded-field border border-border/60 bg-muted/20 text-foreground text-xs outline-none focus:border-foreground/40 transition-colors cursor-pointer"
+                        className="w-full h-10 px-3 rounded-field border border-border/60 bg-muted/20 text-foreground text-xs outline-none focus:border-brand transition-colors cursor-pointer"
                       >
                         {DEPARTMENTS.map((d) => (
                           <option key={d.id} value={d.id}>
@@ -1114,7 +1114,7 @@ export const ProfileSupportTab: React.FC<ProfileSupportTabProps> = ({
                         onChange={(e) =>
                           setNewPriority(e.target.value as TicketPriorityType)
                         }
-                        className="w-full h-10 px-3 rounded-field border border-border/60 bg-muted/20 text-foreground text-xs outline-none focus:border-foreground/40 transition-colors cursor-pointer"
+                        className="w-full h-10 px-3 rounded-field border border-border/60 bg-muted/20 text-foreground text-xs outline-none focus:border-brand transition-colors cursor-pointer"
                       >
                         {PRIORITIES.map((p) => (
                           <option key={p.id} value={p.id}>
@@ -1133,7 +1133,7 @@ export const ProfileSupportTab: React.FC<ProfileSupportTabProps> = ({
                     <select
                       value={newRelatedOrder}
                       onChange={(e) => setNewRelatedOrder(e.target.value)}
-                      className="w-full h-10 px-3 rounded-field border border-border/60 bg-muted/20 text-foreground text-xs font-mono font-latin outline-none focus:border-foreground/40 transition-colors cursor-pointer"
+                      className="w-full h-10 px-3 rounded-field border border-border/60 bg-muted/20 text-foreground text-xs font-mono font-latin outline-none focus:border-brand transition-colors cursor-pointer"
                     >
                       <option value="">بدون اتصال به سفارش مشخص</option>
                       {orders && orders.length > 0 && (
@@ -1181,7 +1181,7 @@ export const ProfileSupportTab: React.FC<ProfileSupportTabProps> = ({
                           setIsUploadingNewAtt,
                         )
                       }
-                      className="w-full p-3.5 rounded-field border border-border/60 bg-muted/20 text-foreground text-xs outline-none focus:border-foreground/40 leading-relaxed transition-colors"
+                      className="w-full p-3.5 rounded-field border border-border/60 bg-muted/20 text-foreground text-xs outline-none focus:border-brand leading-relaxed transition-colors"
                       required
                     />
                   </div>

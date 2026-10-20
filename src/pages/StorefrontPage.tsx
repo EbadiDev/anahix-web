@@ -1,8 +1,11 @@
 import {
+  ArrowLeft,
   BookOpen,
   ChevronLeft,
   ChevronRight,
+  Clock,
   CreditCard,
+  Eye,
   Flame,
   Headphones,
   Heart,
@@ -28,7 +31,6 @@ import {
   BannerCarousel,
   type BannerData,
 } from '../components/vibefarsi/BannerCarousel'
-import { FlashSaleCountdown } from '../components/vibefarsi/FlashSaleCountdown'
 import { GridPattern } from '../components/vibefarsi/GridPattern'
 import { ScrollReveal } from '../components/vibefarsi/ScrollReveal'
 import { TypewriterText } from '../components/vibefarsi/TypewriterText'
@@ -75,6 +77,7 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
   const blogScrollRef = useRef<HTMLDivElement>(null)
   const middleBannersScrollRef = useRef<HTMLDivElement>(null)
   const flashSaleScrollRef = useRef<HTMLDivElement>(null)
+  const bestSellersScrollRef = useRef<HTMLDivElement>(null)
 
   const scrollCatalog = (direction: 'left' | 'right') => {
     if (catalogScrollRef.current) {
@@ -104,6 +107,16 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
     if (flashSaleScrollRef.current) {
       const offset = direction === 'left' ? -350 : 350
       flashSaleScrollRef.current.scrollBy({
+        left: offset,
+        behavior: 'smooth',
+      })
+    }
+  }
+
+  const scrollBestSellers = (direction: 'left' | 'right') => {
+    if (bestSellersScrollRef.current) {
+      const offset = direction === 'left' ? -350 : 350
+      bestSellersScrollRef.current.scrollBy({
         left: offset,
         behavior: 'smooth',
       })
@@ -238,9 +251,6 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
         'پشتیبانی ۲۴ ساعته تلگرام آناهیکس (@AnahixSupport) آماده پاسخگویی سریع است. همچنین می‌توانید با شماره سفارش خود وضعیت را در تب «پیگیری سفارش» لحظه‌ای رصد نمایید.',
     },
   ]
-
-  // End time for Flash Sale countdown (48 hours from now)
-  const flashSaleTargetDate = new Date(Date.now() + 48 * 3600 * 1000)
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col font-sans transition-colors duration-200">
@@ -459,14 +469,9 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
                     </div>
                   )}
 
-                  <ArrowLink to="/category/all?discount=true">
-                    مشاهده همه تخفیف‌ها
-                  </ArrowLink>
+                  <ArrowLink to="/offers">مشاهده تخفیف‌ها</ArrowLink>
                 </div>
               </div>
-
-              {/* Countdown Banner */}
-              <FlashSaleCountdown endTime={flashSaleTargetDate} />
 
               {/* Optional Promotional Flash Banners */}
               {flashSaleBanners.length > 0 && (
@@ -553,15 +558,55 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
                     انتخاب اول متخصصان، برنامه‌نویسان و تولیدکنندگان محتوا
                   </p>
                 </div>
+
+                <div className="flex items-center gap-3">
+                  {/* Desktop Left/Right Scroll Chevrons (Screenshot 1 Request) */}
+                  {bestSellerProducts.length > 2 && (
+                    <div className="hidden sm:flex items-center gap-1.5 bg-muted/40 p-1 rounded-control border border-border/40">
+                      <button
+                        type="button"
+                        onClick={() => scrollBestSellers('right')}
+                        className="w-7 h-7 flex items-center justify-center rounded-control hover:bg-card text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                        title="اسکرول به راست"
+                        aria-label="اسکرول به راست"
+                      >
+                        <ChevronRight className="w-4 h-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => scrollBestSellers('left')}
+                        className="w-7 h-7 flex items-center justify-center rounded-control hover:bg-card text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                        title="اسکرول به چپ"
+                        aria-label="اسکرول به چپ"
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
+
+                  <ArrowLink to="/best-sellers">مشاهده پرفروش‌ترین‌ها</ArrowLink>
+                </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div
+                ref={bestSellersScrollRef}
+                className={
+                  bestSellerProducts.length > 2
+                    ? 'flex items-stretch gap-5 overflow-x-auto pb-4 scrollbar-none snap-x snap-mandatory scroll-smooth -mx-4 px-4 sm:mx-0 sm:px-0'
+                    : 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'
+                }
+              >
                 {bestSellerProducts.map((product) => (
-                  <ProductCard
+                  <div
                     key={`bestseller-${product.id}`}
-                    product={product}
-                    onSelect={() => {}}
-                  />
+                    className={
+                      bestSellerProducts.length > 2
+                        ? 'w-[285px] sm:w-[320px] md:w-[340px] shrink-0 snap-start flex flex-col'
+                        : 'flex flex-col'
+                    }
+                  >
+                    <ProductCard product={product} onSelect={() => {}} />
+                  </div>
                 ))}
               </div>
             </section>
@@ -605,7 +650,7 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
                   </button>
                 </div>
 
-                <ArrowLink to="/category/all">مشاهده همه اشتراک‌ها</ArrowLink>
+                <ArrowLink to="/category/all">مشاهده اشتراک‌ها</ArrowLink>
               </div>
             </div>
 
@@ -688,7 +733,7 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
                     </div>
                   )}
 
-                  <ArrowLink to="/offers">مشاهده همه آفرها</ArrowLink>
+                  <ArrowLink to="/offers">مشاهده آفرها</ArrowLink>
                 </div>
               </div>
 
@@ -721,32 +766,28 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                         />
                         {/* High contrast gradient scrim */}
-                        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/40 to-transparent flex flex-col justify-end p-5 text-right text-white space-y-1.5">
-                          {/* Badges / Timed Tag */}
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="self-start px-2.5 py-1 rounded-control bg-slate-950/85 backdrop-blur-md text-amber-300 border border-amber-400/30 font-black text-xs shadow-control flex items-center gap-1.5">
-                              <Flame className="w-3.5 h-3.5 text-amber-400" />
-                              <span>تخفیف زمان‌دار</span>
-                            </span>
-                            {mb.badge_text && (
-                              <span className="self-start px-2.5 py-1 rounded-control bg-brand text-white font-black text-xs shadow-control flex items-center gap-1.5">
-                                <Sparkles className="w-3.5 h-3.5" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/95 via-slate-950/40 to-transparent flex flex-col justify-end p-5 text-right text-white space-y-2 select-none">
+                          {/* Single Clear Promo Badge (No clutter / no redundant badges - Image 1 fix) */}
+                          {mb.badge_text && (
+                            <div className="flex items-center gap-1.5">
+                              <span className="self-start px-3 py-1 rounded-control bg-slate-950/85 backdrop-blur-md text-amber-300 border border-amber-400/30 font-black text-xs shadow-control flex items-center gap-1.5">
+                                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
                                 <span>{mb.badge_text}</span>
                               </span>
-                            )}
-                          </div>
+                            </div>
+                          )}
 
-                          <h4 className="font-black text-sm sm:text-base text-white drop-shadow-xs">
+                          <h4 className="font-black text-base sm:text-lg text-white drop-shadow-xs">
                             {mb.title}
                           </h4>
                           {mb.subtitle && (
-                            <p className="text-xs text-white/80 line-clamp-2 leading-relaxed">
+                            <p className="text-xs text-white/85 line-clamp-2 leading-relaxed font-normal">
                               {mb.subtitle}
                             </p>
                           )}
-                          <div className="pt-1 flex items-center justify-between text-xs font-bold text-brand">
-                            <span className="underline underline-offset-4 flex items-center gap-1 group-hover:gap-2 transition-all">
-                              <span>{mb.button_text || 'مشاهده پیشنهاد'}</span>
+                          <div className="pt-2 flex items-center justify-start">
+                            <span className="inline-flex items-center gap-2 h-8 px-4 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs shadow-control duration-motion active:scale-[0.98] transition-all">
+                              <span>{mb.button_text || 'مشاهده و خرید'}</span>
                               <span>←</span>
                             </span>
                           </div>
@@ -798,7 +839,7 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
                     </button>
                   </div>
 
-                  <ArrowLink to="/blog">مشاهده وبلاگ</ArrowLink>
+                  <ArrowLink to="/blog">مشاهده وبلاگ‌ها</ArrowLink>
                 </div>
               </div>
 
@@ -823,22 +864,31 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
                             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
                             {art.category_name && (
                               <div className="absolute top-3 right-3">
-                                <span className="px-2.5 py-1 rounded-control bg-card/90 backdrop-blur-md border border-border/80 text-[10px] font-bold text-foreground">
-                                  {art.category_name}
+                                <span className="px-2.5 py-1 rounded-control bg-slate-950/85 backdrop-blur-md text-white border border-white/20 text-[11px] font-black shadow-control flex items-center gap-1.5">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-brand" />
+                                  <span>{art.category_name}</span>
                                 </span>
                               </div>
                             )}
                           </div>
                         )}
                         <div className="p-4 sm:p-5 space-y-2 text-right">
-                          <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-                            <span>
-                              {toPersianDigits(art.reading_time_minutes || 5)}{' '}
-                              دقیقه مطالعه
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-control bg-muted/40 border border-border/60 text-[11px] font-bold text-muted-foreground">
+                              <Clock className="h-3.5 w-3.5 text-brand" />
+                              <span>
+                                {toPersianDigits(art.reading_time_minutes || 5)}{' '}
+                                دقیقه مطالعه
+                              </span>
                             </span>
-                            <span>•</span>
-                            <span>
-                              {toPersianDigits(art.view_count || 120)} بازدید
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-control bg-muted/40 border border-border/60 text-[11px] font-bold text-muted-foreground">
+                              <Eye className="h-3.5 w-3.5 text-muted-foreground" />
+                              <span className="font-latin">
+                                {Number(art.view_count || 120).toLocaleString(
+                                  'fa-IR',
+                                )}{' '}
+                                بازدید
+                              </span>
                             </span>
                           </div>
                           <h4 className="text-sm sm:text-base font-black text-foreground group-hover:text-primary-foreground/90 transition-colors line-clamp-2 leading-snug">
@@ -850,15 +900,21 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
                         </div>
                       </Link>
 
-                      {/* Clean Footer: Arrow Link & Like Count indicator without harsh dividing lines */}
-                      <div className="p-4 sm:p-5 pt-0 flex items-center justify-between text-xs font-bold mt-1">
-                        <ArrowLink to={`/blog/${art.slug}`}>
-                          مطالعه مقاله
-                        </ArrowLink>
-                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/30 px-2 py-1 rounded-control border border-border/30">
+                      {/* Footer: Action Button matching site standard buttons */}
+                      <div className="p-4 sm:p-5 pt-0 flex items-center gap-2 mt-1">
+                        <Link
+                          to={`/blog/${art.slug}`}
+                          className="flex-1 h-9 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs duration-motion ease-motion active:scale-[0.98] shadow-control flex items-center justify-center gap-2 transition-all"
+                        >
+                          <span>مطالعه مقاله</span>
+                          <ArrowLeft className="h-3.5 w-3.5" />
+                        </Link>
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/40 h-9 px-3 rounded-control border border-border/60 shrink-0">
                           <Heart className="h-3.5 w-3.5 text-rose-500 fill-rose-500/20" />
-                          <span className="font-latin">
-                            {toPersianDigits(art.like_count || 0)}
+                          <span className="font-latin font-bold">
+                            {Number(art.like_count || 0).toLocaleString(
+                              'fa-IR',
+                            )}
                           </span>
                         </div>
                       </div>

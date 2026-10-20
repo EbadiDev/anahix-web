@@ -1,19 +1,23 @@
 import {
   ArrowLeft,
+  Boxes,
+  Check,
+  Clock,
   Flame,
   KeyRound,
   ShoppingCart,
   Sparkles,
   Star,
+  Tag,
   UserCheck,
   Zap,
 } from 'lucide-react'
 import type React from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { cartStore, useCart } from '../lib/cartStore'
 import type { Product } from '../types'
 import { ClaudeIcon, CursorIcon, GeminiIcon, OpenAIIcon } from './BrandIcons'
-import { BorderBeam } from './vibefarsi/BorderBeam'
 import { useNotification } from './vibefarsi/NotificationContext'
 import { QuantitySelector } from './vibefarsi/QuantitySelector'
 
@@ -130,15 +134,37 @@ export const ProductCard: React.FC<ProductCardProps> = ({
       ? Math.round(((originalPrice - effectivePrice) / originalPrice) * 100)
       : 0
 
-  // Parse Badges
-  let badges: string[] = []
-  if (product.badges_json) {
-    try {
-      badges = JSON.parse(product.badges_json)
-    } catch {
-      badges = []
+  // Live Timer for Timed Discount
+  const hasTimedDiscount = Boolean(
+    product.is_flash_sale && product.flash_sale_end_at,
+  )
+  const targetExpiry = hasTimedDiscount
+    ? new Date(product.flash_sale_end_at as string).getTime()
+    : 0
+
+  const [liveCountdown, setLiveCountdown] = useState('')
+
+  useEffect(() => {
+    if (!hasTimedDiscount || !targetExpiry) return
+
+    const tick = () => {
+      const diff = targetExpiry - Date.now()
+      if (diff <= 0) {
+        setLiveCountdown('پایان یافت')
+        return
+      }
+      const h = Math.floor(diff / (1000 * 60 * 60))
+      const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
+      const s = Math.floor((diff % (1000 * 60)) / 1000)
+      setLiveCountdown(
+        `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`,
+      )
     }
-  }
+
+    tick()
+    const timer = setInterval(tick, 1000)
+    return () => clearInterval(timer)
+  }, [hasTimedDiscount, targetExpiry])
 
   const handleAddToCart = () => {
     cartStore.addItem({
@@ -161,25 +187,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     }
   }
 
-  const isSpecial = product.is_flash_sale || product.is_featured
-
   return (
     <div
       dir="rtl"
-      className={`group relative flex flex-col justify-between overflow-hidden rounded-surface border border-border/60 bg-card text-card-foreground shadow-surface duration-motion ease-motion transition-all hover:-translate-y-1 ${
-        isSpecial ? 'border-brand/40' : ''
-      }`}
+      className="group relative flex flex-col justify-between overflow-hidden rounded-surface border border-border/80 bg-card text-card-foreground shadow-surface duration-motion ease-motion transition-all hover:-translate-y-1 select-none"
     >
-      {/* Vibe Farsi Animated Border Beam for Special/Flash items */}
-      {isSpecial && (
-        <BorderBeam
-          size={160}
-          duration={12}
-          colorFrom={product.is_flash_sale ? '#f43f5e' : 'oklch(0.975 0 0)'}
-          colorTo={product.is_flash_sale ? '#f59e0b' : 'oklch(0.63 0.004 285)'}
-        />
-      )}
-
       <div>
         {/* Product Cover Artwork Header */}
         <div className="relative h-44 sm:h-48 w-full overflow-hidden bg-zinc-950">
@@ -209,35 +221,57 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             </div>
           )}
 
-          {/* Floating Top Badges */}
+          {/* Floating Top Badges (Never wrap or collide) */}
           <div className="absolute top-3 inset-x-3 flex items-center justify-between pointer-events-none">
+            {/* Delivery Mode Badge */}
             <div className="flex items-center gap-1.5">
               {product.delivery_mode === 'UPGRADE_EXISTING' ? (
-                <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/95 text-zinc-950 text-[10px] font-black px-2.5 py-1 shadow-sm backdrop-blur-md">
+                <span className="inline-flex items-center gap-1 rounded-control bg-amber-500/90 text-zinc-950 text-[10px] font-black px-2.5 py-1 shadow-xs backdrop-blur-md">
                   <UserCheck className="h-3 w-3" />
-                  <span>ارتقای اکانت شخصی</span>
+                  <span>ارتقای اکانت</span>
                 </span>
               ) : product.delivery_mode === 'INSTANT_ACCOUNT' ? (
-                <span className="inline-flex items-center gap-1 rounded-full bg-indigo-600/95 text-white text-[10px] font-black px-2.5 py-1 shadow-sm backdrop-blur-md">
+                <span className="inline-flex items-center gap-1 rounded-control bg-indigo-600/90 text-white text-[10px] font-black px-2.5 py-1 shadow-xs backdrop-blur-md">
                   <KeyRound className="h-3 w-3" />
-                  <span>اکانت آماده اختصاصی</span>
+                  <span>اکانت اختصاصی</span>
                 </span>
               ) : (
-                <span className="inline-flex items-center gap-1 rounded-full bg-primary text-primary-foreground text-[10px] font-black px-2.5 py-1 shadow-sm backdrop-blur-md">
+                <span className="inline-flex items-center gap-1 rounded-control bg-primary text-primary-foreground text-[10px] font-black px-2.5 py-1 shadow-xs backdrop-blur-md">
                   <Zap className="h-3 w-3" />
                   <span>تحویل آنی</span>
                 </span>
               )}
             </div>
 
-            {/* Flash Sale Badge */}
-            {product.is_flash_sale && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-rose-600 text-white text-[10px] font-black px-2.5 py-1 shadow-md shadow-rose-600/30 animate-pulse">
+            {/* Two Distinct Badge Types (Timed vs Regular Discount) */}
+            {hasTimedDiscount ? (
+              <span className="inline-flex items-center gap-1 rounded-control bg-rose-600 text-white text-[10px] sm:text-[11px] font-black px-2.5 py-1 shadow-control border border-rose-400/40 animate-pulse">
                 <Flame className="h-3.5 w-3.5" />
+                <span>{toPersianDigits(discountPercent)}٪ تخفیف زمان‌دار</span>
+              </span>
+            ) : discountPercent > 0 ? (
+              <span className="inline-flex items-center gap-1 rounded-control bg-emerald-600 text-white text-[10px] sm:text-[11px] font-black px-2.5 py-1 shadow-control border border-emerald-400/30">
+                <Tag className="h-3 w-3" />
                 <span>{toPersianDigits(discountPercent)}٪ تخفیف</span>
               </span>
-            )}
+            ) : null}
           </div>
+
+          {/* Timed Countdown Bar at Bottom of Artwork (100% Responsive, Sleek Vibe Farsi Style, No Wrap) */}
+          {hasTimedDiscount && (
+            <div className="absolute bottom-2.5 inset-x-2.5 flex items-center justify-between p-1.5 px-2.5 rounded-control bg-slate-950/85 backdrop-blur-md border border-white/15 text-white shadow-xs">
+              <div className="flex items-center gap-1 text-[11px] font-bold text-amber-300">
+                <Clock className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                <span>مهلت تخفیف:</span>
+              </div>
+              <span
+                className="font-mono font-latin text-xs font-black text-rose-300 tracking-wider"
+                dir="ltr"
+              >
+                {liveCountdown || '۰۰:۰۰:۰۰'}
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Content Section (Clean, without internal border-t dividing lines) */}
@@ -254,11 +288,24 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                 </h3>
               </Link>
 
-              {/* Star Rating & Buyer count - Amber Brand Accent */}
-              <div className="flex items-center gap-1 text-[11px] font-bold text-brand bg-brand/10 border border-brand/20 px-2 py-0.5 rounded-control shrink-0">
-                <Star className="h-3 w-3 fill-brand text-brand" />
-                <span>{toPersianDigits(product.rating_average || 4.9)}</span>
-              </div>
+              {/* Star Rating Badge (Controlled from Admin, hides when <= 0 - Screenshot Request) */}
+              {product.rating_average !== undefined &&
+              Number(product.rating_average) > 0 ? (
+                <div className="flex items-center gap-1 text-[11px] font-bold text-amber-500 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-control shrink-0">
+                  <Star className="h-3 w-3 fill-amber-500 text-amber-500" />
+                  <span className="font-latin">
+                    {(() => {
+                      const r = Number(product.rating_average)
+                      return r % 1 === 0
+                        ? r.toLocaleString('fa-IR')
+                        : r.toLocaleString('fa-IR', {
+                            minimumFractionDigits: 1,
+                            maximumFractionDigits: 2,
+                          })
+                    })()}
+                  </span>
+                </div>
+              ) : null}
             </div>
 
             <p
@@ -273,71 +320,68 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             {product.description_fa}
           </p>
 
-          {/* Dynamic Badges from Database (No fake hardcoded features) */}
-          {badges.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 pt-0.5">
-              {badges.map((b) => (
-                <span
-                  key={`badge-${product.id}-${b}`}
-                  className="rounded-control bg-muted/60 border border-border/40 px-2 py-0.5 text-[10px] font-bold text-muted-foreground"
-                >
-                  {b}
-                </span>
-              ))}
-            </div>
-          )}
-
-          {/* Flash Sale Inventory Progress Bar (Only when active in database) */}
-          {product.is_flash_sale && product.flash_sale_stock ? (
-            <div className="space-y-1 pt-1">
-              <div className="flex justify-between text-[10px] text-muted-foreground">
-                <span className="text-rose-400 font-bold flex items-center gap-1">
-                  <Sparkles className="h-2.5 w-2.5" />
-                  موجودی جشنواره
-                </span>
-                <span>
-                  {toPersianDigits(product.flash_sale_sold || 25)} /{' '}
-                  {toPersianDigits(product.flash_sale_stock || 50)} فروخته شده
-                </span>
+          {/* Equal Height Guaranteed Container: Inventory Progress or SLA text */}
+          <div className="h-7 flex items-center">
+            {product.is_flash_sale && product.flash_sale_stock ? (
+              <div className="w-full space-y-1">
+                <div className="flex justify-between text-[10px] font-bold text-muted-foreground">
+                  <span className="text-brand flex items-center gap-1">
+                    <Boxes className="h-3 w-3" />
+                    <span>موجودی جشنواره:</span>
+                  </span>
+                  <span className="font-latin">
+                    {Number(product.flash_sale_sold || 0).toLocaleString(
+                      'fa-IR',
+                    )}{' '}
+                    از{' '}
+                    {Number(product.flash_sale_stock || 50).toLocaleString(
+                      'fa-IR',
+                    )}{' '}
+                    فروخته شده
+                  </span>
+                </div>
+                <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden border border-border/40">
+                  <div
+                    className="h-full bg-brand rounded-full transition-all duration-500"
+                    style={{
+                      width: `${Math.min(
+                        100,
+                        Math.round(
+                          ((product.flash_sale_sold || 0) /
+                            Math.max(product.flash_sale_stock || 1, 1)) *
+                            100,
+                        ),
+                      )}%`,
+                    }}
+                  />
+                </div>
               </div>
-              <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
-                <div
-                  className="h-full bg-gradient-to-r from-rose-500 to-amber-500 rounded-full transition-all duration-500"
-                  style={{
-                    width: `${Math.min(
-                      100,
-                      Math.round(
-                        ((product.flash_sale_sold || 25) /
-                          (product.flash_sale_stock || 50)) *
-                          100,
-                      ),
-                    )}%`,
-                  }}
-                />
+            ) : (
+              <div className="text-[11px] text-muted-foreground flex items-center gap-1.5">
+                <Check className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                <span>تحویل آنی و اصالت ۱۰۰٪ تضمین‌شده</span>
               </div>
-            </div>
-          ) : null}
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Card Footer: Pricing and Actions (Stacked Vertically for Best UX & Responsiveness) */}
-      <div className="p-4 sm:p-5 pt-2 space-y-3">
-        {/* Pricing Row */}
-        <div className="flex items-baseline justify-between">
-          <span className="text-xs text-muted-foreground">قیمت سرویس:</span>
+      {/* Card Footer: Pricing and Actions (Unified Graphite Standard) */}
+      <div className="p-4 sm:p-5 pt-0 space-y-3">
+        {/* Pricing Row (Unified Graphite Typography & Contrast - Image 2 Fix) */}
+        <div className="flex items-baseline justify-between pt-2.5 border-t border-border/60">
+          <span className="text-xs text-muted-foreground font-bold">
+            قیمت سرویس:
+          </span>
           <div className="flex items-baseline gap-2">
             {discountPercent > 0 && (
-              <span className="text-[11px] text-muted-foreground/70 line-through font-latin">
-                {toPersianDigits(originalPrice.toLocaleString())}
+              <span className="text-xs text-muted-foreground/50 line-through font-latin font-medium">
+                {Number(originalPrice).toLocaleString('fa-IR')}
               </span>
             )}
             <div className="flex items-baseline gap-1">
-              <span
-                className={`text-lg sm:text-xl font-black tracking-tight font-latin ${
-                  product.is_flash_sale ? 'text-rose-400' : 'text-foreground'
-                }`}
-              >
-                {toPersianDigits(effectivePrice.toLocaleString())}
+              <span className="text-lg sm:text-xl font-black font-latin text-foreground tracking-tight">
+                {Number(effectivePrice).toLocaleString('fa-IR')}
               </span>
               <span className="text-xs text-muted-foreground font-sans">
                 تومان

@@ -188,16 +188,12 @@ export const ProductReviewsSection: React.FC<ProductReviewsSectionProps> = ({
   return (
     <section
       id="product-reviews"
-      className="rounded-3xl border border-border bg-card p-6 sm:p-8 space-y-8 scroll-mt-24 text-right"
+      className="rounded-surface border border-border/80 bg-card p-6 sm:p-8 space-y-6 shadow-surface scroll-mt-24 text-right"
       dir="rtl"
     >
       {/* SECTION HEADER */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border pb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/60 pb-5">
         <div className="space-y-1">
-          <div className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-600 dark:text-blue-400 bg-blue-500/10 px-3 py-1 rounded-full border border-blue-500/20">
-            <ShieldCheck className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
-            <span>شفافیت و اثبات اجتماعی (Social Proof)</span>
-          </div>
           <h3 className="text-xl sm:text-2xl font-black text-foreground">
             نظرات، امتیازها و بازخورد خریداران {product.title_fa}
           </h3>
@@ -207,35 +203,36 @@ export const ProductReviewsSection: React.FC<ProductReviewsSectionProps> = ({
           </p>
         </div>
 
-        {/* CTA Button */}
-        <div>
-          <Button
+        {/* CTA Button (100% Responsive, No Wrap) */}
+        <div className="shrink-0">
+          <button
             type="button"
             onClick={handleOpenReviewModal}
-            className="w-full sm:w-auto h-11 px-5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs sm:text-sm shadow-md shadow-blue-500/20 flex items-center gap-2"
+            className="w-full sm:w-auto h-10 px-5 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs sm:text-sm shadow-control flex items-center justify-center gap-2 cursor-pointer duration-motion active:scale-[0.98] whitespace-nowrap"
           >
-            <Plus className="h-4 w-4 stroke-[3]" />
+            <Plus className="h-4 w-4" />
             <span>ثبت نظر و امتیاز شما</span>
-          </Button>
+          </button>
         </div>
       </div>
 
       {/* RATING SUMMARY & STATS CARD */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 bg-muted/20 border border-border/60 rounded-3xl p-6 sm:p-7">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 bg-muted/20 border border-border/60 rounded-surface p-5 sm:p-6">
         {/* Left: Overall Big Score */}
-        <div className="lg:col-span-4 flex flex-col items-center justify-center p-6 bg-card border border-border/80 rounded-2xl text-center space-y-3 shadow-sm">
+        <div className="lg:col-span-4 flex flex-col items-center justify-center p-6 bg-card border border-border/80 rounded-surface text-center space-y-3 shadow-xs">
           <div className="flex items-baseline gap-1">
-            <span className="text-5xl sm:text-6xl font-black text-foreground tracking-tight">
-              {summary.average_rating > 0
-                ? summary.average_rating.toFixed(1)
-                : '۵.۰'}
+            <span className="text-4xl sm:text-5xl font-black text-foreground tracking-tight font-latin">
+              {(() => {
+                const r = summary.average_rating
+                return r % 1 === 0 ? r.toLocaleString('fa-IR') : r.toFixed(1)
+              })()}
             </span>
-            <span className="text-lg font-bold text-muted-foreground">
+            <span className="text-sm font-bold text-muted-foreground">
               از ۵
             </span>
           </div>
 
-          <div className="flex items-center gap-1 text-amber-400">
+          <div className="flex items-center gap-1 text-amber-500">
             {[1, 2, 3, 4, 5].map((star) => {
               const full = star <= Math.round(summary.average_rating)
               return (
@@ -243,7 +240,7 @@ export const ProductReviewsSection: React.FC<ProductReviewsSectionProps> = ({
                   key={star}
                   className={`h-5 w-5 ${
                     full
-                      ? 'fill-amber-400 text-amber-400'
+                      ? 'fill-amber-500 text-amber-500'
                       : 'text-muted-foreground/30'
                   }`}
                 />
@@ -252,22 +249,24 @@ export const ProductReviewsSection: React.FC<ProductReviewsSectionProps> = ({
           </div>
 
           <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
-            <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full">
-              {summary.satisfaction_rate}% رضایت کامل خریداران
+            <span className="text-xs font-bold text-emerald-500 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-control">
+              {Number(summary.satisfaction_rate).toLocaleString('fa-IR')}٪ رضایت
+              کامل خریداران
             </span>
             <span className="text-xs font-medium text-muted-foreground">
-              بر اساس {summary.total_reviews} تجربه خرید واقعی
+              بر اساس {Number(summary.total_reviews).toLocaleString('fa-IR')}{' '}
+              تجربه خرید واقعی
             </span>
           </div>
 
           <div className="pt-2 text-[11px] text-muted-foreground flex items-center gap-1.5 opacity-85">
-            <ShieldCheck className="h-3.5 w-3.5 text-blue-600" />
+            <ShieldCheck className="h-3.5 w-3.5 text-brand" />
             <span>۱۰۰٪ خریداران قطعی (Verified Buyers)</span>
           </div>
         </div>
 
         {/* Middle: Rating Breakdown Bars */}
-        <div className="lg:col-span-4 flex flex-col justify-center space-y-2.5 bg-card border border-border/80 rounded-2xl p-5">
+        <div className="lg:col-span-4 flex flex-col justify-center space-y-2.5 bg-card border border-border/80 rounded-surface p-5">
           <h4 className="text-xs font-bold text-foreground mb-1">
             تفکیک امتیازدهی خریداران
           </h4>
@@ -326,10 +325,10 @@ export const ProductReviewsSection: React.FC<ProductReviewsSectionProps> = ({
         </div>
 
         {/* Right: Top Experience Badges Grid */}
-        <div className="lg:col-span-4 flex flex-col justify-center bg-card border border-border/80 rounded-2xl p-5 space-y-3">
+        <div className="lg:col-span-4 flex flex-col justify-center bg-card border border-border/80 rounded-surface p-5 space-y-3">
           <div className="flex items-center justify-between">
             <h4 className="text-xs font-bold text-foreground flex items-center gap-1.5">
-              <Zap className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+              <Zap className="h-3.5 w-3.5 text-brand" />
               <span>شاخص‌های تجربه خرید خریداران</span>
             </h4>
             <span className="text-[10px] text-muted-foreground">
@@ -342,12 +341,12 @@ export const ProductReviewsSection: React.FC<ProductReviewsSectionProps> = ({
               {summary.top_tags.map((tag) => (
                 <div
                   key={tag.tag}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-50/60 dark:bg-blue-950/40 border border-blue-200/60 dark:border-blue-900/40 text-xs font-bold text-blue-700 dark:text-blue-300 shadow-sm"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-control bg-secondary text-foreground border border-border/60 text-xs font-bold shadow-xs"
                 >
-                  <Check className="h-3 w-3 text-blue-600 dark:text-blue-400 stroke-[3]" />
+                  <Check className="h-3 w-3 text-emerald-500 stroke-[3]" />
                   <span>{tag.tag}</span>
-                  <span className="text-[10px] bg-blue-600/10 dark:bg-blue-400/20 px-1.5 py-0.5 rounded-md text-blue-600 dark:text-blue-300 font-mono">
-                    {tag.percent}%
+                  <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded-control text-muted-foreground font-mono font-latin">
+                    {Number(tag.percent).toLocaleString('fa-IR')}٪
                   </span>
                 </div>
               ))}
@@ -368,7 +367,7 @@ export const ProductReviewsSection: React.FC<ProductReviewsSectionProps> = ({
         </div>
       )}
 
-      <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-2xl bg-muted/30 border border-border/60">
+      <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-surface bg-muted/20 border border-border/60">
         <div className="flex flex-wrap items-center gap-1.5">
           <span className="text-xs font-bold text-muted-foreground ml-2 flex items-center gap-1">
             <Filter className="h-3.5 w-3.5" />
@@ -377,9 +376,9 @@ export const ProductReviewsSection: React.FC<ProductReviewsSectionProps> = ({
           <button
             type="button"
             onClick={() => setSelectedRating(0)}
-            className={`px-3 py-1 rounded-xl text-xs font-bold transition ${
+            className={`px-3.5 py-1.5 rounded-control text-xs font-bold transition cursor-pointer ${
               selectedRating === 0
-                ? 'bg-blue-600 text-white shadow-sm'
+                ? 'bg-primary text-primary-foreground font-black shadow-control'
                 : 'bg-card hover:bg-muted text-muted-foreground border border-border/60'
             }`}
           >
@@ -390,9 +389,9 @@ export const ProductReviewsSection: React.FC<ProductReviewsSectionProps> = ({
               key={s}
               type="button"
               onClick={() => setSelectedRating(s)}
-              className={`px-2.5 py-1 rounded-xl text-xs font-bold transition flex items-center gap-1 ${
+              className={`px-2.5 py-1.5 rounded-control text-xs font-bold transition flex items-center gap-1 cursor-pointer ${
                 selectedRating === s
-                  ? 'bg-blue-600 text-white shadow-sm'
+                  ? 'bg-primary text-primary-foreground font-black shadow-control'
                   : 'bg-card hover:bg-muted text-muted-foreground border border-border/60'
               }`}
             >

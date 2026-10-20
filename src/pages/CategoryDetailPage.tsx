@@ -1,25 +1,14 @@
-import {
-  ArrowLeft,
-  ChevronLeft,
-  Package,
-  RefreshCw,
-  Search,
-  Sparkles,
-} from 'lucide-react'
+import { Package, RefreshCw, Search, Sparkles } from 'lucide-react'
 import type React from 'react'
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useParams, useSearchParams } from 'react-router-dom'
+import { useParams, useSearchParams } from 'react-router-dom'
 import { CartDrawer } from '../components/CartDrawer'
 import { Header } from '../components/Header'
 import { ProductCard } from '../components/ProductCard'
+import { Breadcrumb } from '../components/vibefarsi/Breadcrumb'
 import { RangeSlider } from '../components/vibefarsi/RangeSlider'
 import { api, apiService } from '../services/api'
 import type { BannerItem, ContentCategory, Order, Product } from '../types'
-
-function toPersianDigits(n: number | string): string {
-  const f = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹']
-  return String(n).replace(/\d/g, (d) => f[Number(d)])
-}
 
 export const CategoryDetailPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>()
@@ -209,18 +198,8 @@ export const CategoryDetailPage: React.FC = () => {
       />
 
       <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 py-6 w-full space-y-8">
-        {/* Breadcrumb Navigation */}
-        <div className="border-b border-border/40 pb-3 text-xs text-muted-foreground">
-          <div className="flex items-center gap-2">
-            <Link to="/" className="hover:text-foreground transition-colors">
-              فروشگاه
-            </Link>
-            <ChevronLeft className="h-3.5 w-3.5" />
-            <span className="text-foreground font-bold">
-              {category?.name || 'دسته‌بندی'}
-            </span>
-          </div>
-        </div>
+        {/* Unified Graphite Breadcrumb Navigation */}
+        <Breadcrumb items={[{ label: category?.name || 'دسته‌بندی' }]} />
 
         {/* Category Header Card - Graphite Technical Minimal */}
         <section className="rounded-surface border border-border/60 bg-card p-6 sm:p-8 shadow-surface duration-motion ease-motion">
@@ -238,21 +217,6 @@ export const CategoryDetailPage: React.FC = () => {
                   {category.description}
                 </p>
               )}
-            </div>
-
-            <div className="flex items-center gap-3 shrink-0">
-              <div className="px-3.5 py-2 rounded-control border border-border/60 bg-muted/40 text-xs font-bold text-foreground">
-                <span>
-                  {toPersianDigits(filteredProducts.length)} محصول آماده سفارش
-                </span>
-              </div>
-              <Link
-                to="/"
-                className="h-9 px-4 rounded-control border border-border/60 bg-card hover:bg-muted text-xs font-bold text-foreground duration-motion ease-motion active:scale-[0.98] flex items-center gap-1.5"
-              >
-                <span>کاتالوگ کل</span>
-                <ArrowLeft className="h-3.5 w-3.5" />
-              </Link>
             </div>
           </div>
         </section>
@@ -450,7 +414,18 @@ export const CategoryDetailPage: React.FC = () => {
         </section>
 
         {/* Products Grid for this Category */}
-        <section>
+        <section className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-base sm:text-lg font-black text-foreground flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-brand" />
+              <span>اشتراک‌های آماده سفارش {category?.name || ''}</span>
+            </h2>
+            <span className="text-xs text-muted-foreground font-latin font-bold">
+              {Number(filteredProducts.length).toLocaleString('fa-IR')} محصول
+              آماده سفارش
+            </span>
+          </div>
+
           {loading ? (
             <div className="py-20 text-center space-y-3">
               <RefreshCw className="h-8 w-8 text-foreground animate-spin mx-auto" />

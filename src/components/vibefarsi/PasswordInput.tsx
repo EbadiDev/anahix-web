@@ -47,7 +47,7 @@ export const PasswordInput: React.FC<PasswordInputProps> = ({
       case 2:
         return { label: 'کلمه عبور متوسط', color: 'text-amber-500' }
       case 3:
-        return { label: 'کلمه عبور خوب', color: 'text-blue-400' }
+        return { label: 'کلمه عبور خوب', color: 'text-brand' }
       case 4:
         return { label: 'کلمه عبور بسیار قوی', color: 'text-emerald-400' }
       default:
@@ -69,7 +69,7 @@ export const PasswordInput: React.FC<PasswordInputProps> = ({
           required={required}
           autoComplete={autoComplete}
           onChange={onChange}
-          className={`w-full h-11 pl-10 pr-10 text-xs font-latin rounded-field bg-muted/20 border border-border/60 text-foreground outline-none focus:border-foreground/40 transition-colors ${className}`}
+          className={`w-full h-11 pl-10 pr-10 text-xs font-latin rounded-field bg-muted/20 border border-border/60 text-foreground outline-none focus:border-brand transition-colors ${className}`}
         />
 
         <Lock className="h-4 w-4 text-muted-foreground absolute left-3 top-3.5 pointer-events-none" />

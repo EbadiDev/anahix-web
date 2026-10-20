@@ -136,6 +136,31 @@ function normalizeProduct(raw: any): Product {
     stock_count: raw.available_stock ?? raw.stock_count ?? 12,
     group_tag: raw.group_tag,
     group_title_fa: raw.group_title_fa,
+    image_url: raw.image_url,
+    icon_url: raw.icon_url,
+    banner_url: raw.banner_url,
+    badges_json: raw.badges_json,
+    is_flash_sale: Boolean(raw.is_flash_sale),
+    flash_sale_price_toman: raw.flash_sale_price_toman
+      ? Number(raw.flash_sale_price_toman)
+      : undefined,
+    flash_sale_end_at: raw.flash_sale_end_at,
+    flash_sale_stock: raw.flash_sale_stock
+      ? Number(raw.flash_sale_stock)
+      : undefined,
+    flash_sale_sold: raw.flash_sale_sold
+      ? Number(raw.flash_sale_sold)
+      : undefined,
+    original_price_toman: raw.original_price_toman
+      ? Number(raw.original_price_toman)
+      : undefined,
+    discount_percent: raw.discount_percent
+      ? Number(raw.discount_percent)
+      : undefined,
+    is_best_seller: Boolean(raw.is_best_seller),
+    is_featured: Boolean(raw.is_featured),
+    rating_average: Number(raw.rating_average || 5.0),
+    sales_count: Number(raw.sales_count || 0),
     plans: raw.plans,
     comparison_table: raw.comparison_table,
     activation_guide: raw.activation_guide,

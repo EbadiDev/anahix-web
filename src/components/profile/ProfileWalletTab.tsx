@@ -169,7 +169,7 @@ export const ProfileWalletTab: React.FC<ProfileWalletTabProps> = ({
                   setSearchQuery(e.target.value)
                   setVisibleCount(6)
                 }}
-                className="w-full h-8 pr-8 pl-3 text-xs rounded-field bg-muted/20 border border-border/60 text-foreground outline-none focus:border-foreground/40 transition-colors"
+                className="w-full h-8 pr-8 pl-3 text-xs rounded-field bg-muted/20 border border-border/60 text-foreground outline-none focus:border-brand transition-colors"
               />
               <Search className="w-3.5 h-3.5 absolute right-2.5 top-2.5 text-muted-foreground pointer-events-none" />
             </div>

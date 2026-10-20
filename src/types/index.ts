@@ -80,6 +80,7 @@ export interface Product {
   icon_name?: string
   image_url?: string
   icon_url?: string
+  banner_url?: string
   gallery_json?: string
   is_flash_sale?: boolean
   flash_sale_price_toman?: number
@@ -138,6 +139,8 @@ export interface AdminProduct {
   flash_sale_price_toman?: number
   flash_sale_stock?: number
   flash_sale_sold?: number
+  flash_sale_end_at?: string
+  badges_json?: string
   is_best_seller?: boolean
   is_featured?: boolean
   rating_average?: number
@@ -472,6 +475,9 @@ export interface ThemeSettings {
   checkout_channel_title?: string
   checkout_channel_sms_label?: string
   checkout_channel_email_label?: string
+  offers_badge_text?: string
+  offers_title?: string
+  offers_subtitle?: string
 }
 
 export interface BannerItem {
@@ -484,6 +490,8 @@ export interface BannerItem {
   position?: string
   bg_gradient?: string
   button_text?: string
+  secondary_button_text?: string
+  secondary_link_url?: string
   sort_order?: number
   is_active?: boolean
   created_at?: string

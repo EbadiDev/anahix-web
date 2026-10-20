@@ -14,7 +14,6 @@ import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { apiService } from '../../services/api'
 import type { CustomerProfile, SubmitReviewRequest } from '../../types'
-import { Button } from '../ui/button'
 
 export const AVAILABLE_EXPERIENCE_TAGS = [
   'تحویل زیر ۱ دقیقه',
@@ -135,6 +134,9 @@ export const SubmitReviewModal: React.FC<SubmitReviewModalProps> = ({
       }, 2500)
     } catch (err: any) {
       setError(err.message || 'خطا در ثبت نظر')
+      setTimeout(() => {
+        setError(null)
+      }, 4000)
     } finally {
       setLoading(false)
     }
@@ -148,13 +150,13 @@ export const SubmitReviewModal: React.FC<SubmitReviewModalProps> = ({
       style={{ top: 0, left: 0, right: 0, bottom: 0 }}
     >
       <div
-        className="w-full max-w-xl bg-card border border-border rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] text-right"
+        className="w-full max-w-xl bg-card border border-border/80 rounded-surface shadow-overlay overflow-hidden flex flex-col max-h-[90vh] text-right"
         dir="rtl"
       >
         {/* Modal Header */}
-        <div className="p-5 sm:p-6 border-b border-border bg-muted/30 flex items-center justify-between">
+        <div className="p-5 sm:p-6 border-b border-border/60 bg-muted/20 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-2xl bg-blue-600/10 text-blue-600 dark:text-blue-400 flex items-center justify-center border border-blue-600/20">
+            <div className="h-10 w-10 rounded-control bg-secondary text-brand flex items-center justify-center border border-border/60 shadow-xs">
               <Star className="h-5 w-5 fill-current" />
             </div>
             <div>
@@ -169,34 +171,34 @@ export const SubmitReviewModal: React.FC<SubmitReviewModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="h-8 w-8 rounded-full flex items-center justify-center hover:bg-muted text-muted-foreground hover:text-foreground transition"
+            className="h-8 w-8 rounded-control flex items-center justify-center hover:bg-muted text-muted-foreground hover:text-foreground transition cursor-pointer"
           >
             <X className="h-4 w-4" />
           </button>
         </div>
 
         {/* Modal Body */}
-        <div className="p-5 sm:p-6 overflow-y-auto space-y-6">
+        <div className="p-5 sm:p-6 overflow-y-auto space-y-5">
           {/* Result Alert */}
           {resultMsg && (
             <div
-              className={`p-4 rounded-2xl border flex items-start gap-3 animate-in zoom-in-95 ${
+              className={`p-3.5 rounded-control border flex items-start gap-3 animate-in fade-in duration-200 ${
                 resultMsg.type === 'pending'
-                  ? 'bg-amber-500/10 border-amber-500/30 text-amber-900 dark:text-amber-200'
-                  : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-900 dark:text-emerald-200'
+                  ? 'bg-amber-500/10 border-amber-500/30 text-amber-500'
+                  : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-500'
               }`}
             >
               {resultMsg.type === 'pending' ? (
-                <Clock className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
+                <Clock className="h-4 w-4 shrink-0 mt-0.5" />
               ) : (
-                <CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0 mt-0.5" />
+                <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5" />
               )}
-              <div className="space-y-1">
-                <p className="font-bold text-xs sm:text-sm">{resultMsg.text}</p>
+              <div className="space-y-0.5 text-xs">
+                <p className="font-bold">{resultMsg.text}</p>
                 {resultMsg.type === 'pending' && (
                   <p className="text-[11px] opacity-80 leading-relaxed">
-                    نظر شما در صف تایید مدیریت قرار گرفت و تا دقایقی دیگر پس از
-                    بررسی در صفحه محصول نمایش داده خواهد شد.
+                    نظر شما در صف بررسی قرار گرفت و پس از تایید در صفحه محصول
+                    منتشر می‌شود.
                   </p>
                 )}
               </div>
@@ -204,28 +206,28 @@ export const SubmitReviewModal: React.FC<SubmitReviewModalProps> = ({
           )}
 
           {error && (
-            <div className="p-4 rounded-2xl bg-destructive/10 border border-destructive/20 text-destructive text-xs flex items-center gap-2">
+            <div className="p-3.5 rounded-control bg-rose-500/10 border border-rose-500/30 text-rose-500 text-xs flex items-center gap-2 animate-in fade-in duration-200">
               <AlertCircle className="h-4 w-4 shrink-0" />
               <span>{error}</span>
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-5">
             {/* Verified Buyer Badge notice */}
-            <div className="p-3.5 rounded-2xl bg-blue-50/70 dark:bg-blue-950/40 border border-blue-200/60 dark:border-blue-900/40 flex items-center justify-between text-xs">
-              <div className="flex items-center gap-2 text-blue-700 dark:text-blue-300 font-bold">
-                <ShieldCheck className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+            <div className="p-3 rounded-control bg-muted/20 border border-border/60 flex items-center justify-between text-xs">
+              <div className="flex items-center gap-2 text-brand font-bold">
+                <ShieldCheck className="h-4 w-4 text-brand" />
                 <span>ثبت بازخورد خریدار قطعی (Verified Buyer)</span>
               </div>
               {(orderNoInput || orderNumber) && (
-                <span className="text-[11px] font-mono text-muted-foreground">
+                <span className="text-[11px] font-mono text-muted-foreground font-latin">
                   سفارش #{orderNoInput || orderNumber}
                 </span>
               )}
             </div>
 
             {/* Step 1: Star Rating */}
-            <div className="space-y-2 text-center bg-muted/20 p-4 rounded-2xl border border-border/50">
+            <div className="space-y-2 text-center bg-muted/20 p-4 rounded-control border border-border/50">
               <label className="block text-xs font-bold text-foreground">
                 امتیاز کلی شما به این محصول و خدمات آناهیکس
               </label>
@@ -237,7 +239,7 @@ export const SubmitReviewModal: React.FC<SubmitReviewModalProps> = ({
                     onClick={() => setRating(star)}
                     onMouseEnter={() => setHoverRating(star)}
                     onMouseLeave={() => setHoverRating(null)}
-                    className="p-1 rounded-xl transition-transform hover:scale-125 focus:outline-none"
+                    className="p-1 rounded-control transition-transform hover:scale-125 focus:outline-none cursor-pointer"
                   >
                     <Star
                       className={`h-7 w-7 sm:h-8 sm:w-8 transition-colors ${
@@ -260,7 +262,7 @@ export const SubmitReviewModal: React.FC<SubmitReviewModalProps> = ({
             <div className="space-y-2.5">
               <div className="flex items-center justify-between">
                 <label className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                  <Tag className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+                  <Tag className="h-3.5 w-3.5 text-brand" />
                   <span>
                     برچسب‌های تجربه خرید (یک یا چند مورد را انتخاب کنید)
                   </span>
@@ -277,10 +279,10 @@ export const SubmitReviewModal: React.FC<SubmitReviewModalProps> = ({
                       key={tag}
                       type="button"
                       onClick={() => toggleTag(tag)}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-medium transition flex items-center gap-1.5 border ${
+                      className={`px-3 py-1.5 rounded-control text-xs font-bold transition flex items-center gap-1.5 border cursor-pointer ${
                         isSelected
-                          ? 'bg-blue-600 text-white border-blue-600 shadow-sm shadow-blue-500/20 font-bold'
-                          : 'bg-background hover:bg-muted text-muted-foreground border-border'
+                          ? 'bg-primary text-primary-foreground border-primary shadow-control'
+                          : 'bg-muted/30 hover:bg-muted text-muted-foreground border-border/60'
                       }`}
                     >
                       {isSelected ? (
@@ -305,10 +307,10 @@ export const SubmitReviewModal: React.FC<SubmitReviewModalProps> = ({
                 onChange={(e) => setComment(e.target.value)}
                 placeholder="از کیفیت اکانت، سرعت تحویل، برخورد پشتیبانی یا هر نکته‌ای که به دیگر خریداران کمک می‌کند بنویسید..."
                 rows={3}
-                className="w-full rounded-2xl border border-input bg-background p-3.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-blue-600 transition resize-none leading-relaxed"
+                className="w-full rounded-field border border-border/60 bg-muted/20 p-3.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-brand transition resize-none leading-relaxed"
               />
-              <p className="text-[11px] text-muted-foreground bg-muted/40 p-2.5 rounded-xl border border-border/40 flex items-start gap-2">
-                <Clock className="h-3.5 w-3.5 text-blue-500 shrink-0 mt-0.5" />
+              <p className="text-[11px] text-muted-foreground bg-muted/30 p-2.5 rounded-control border border-border/40 flex items-start gap-2">
+                <Clock className="h-3.5 w-3.5 text-brand shrink-0 mt-0.5" />
                 <span>
                   نکته اعتبارسنجی: نظرات حاوی متن، ابتدا توسط تیم پشتیبانی بررسی
                   و ظرف چند دقیقه در صفحه محصول تایید و منتشر می‌شوند.
@@ -318,7 +320,7 @@ export const SubmitReviewModal: React.FC<SubmitReviewModalProps> = ({
 
             {/* Optional Customer Identification if unauthenticated */}
             {!customer && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 border-t border-border">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 border-t border-border/60">
                 <div className="space-y-1">
                   <label className="block text-[11px] font-bold text-foreground">
                     نام نمایشی
@@ -328,7 +330,7 @@ export const SubmitReviewModal: React.FC<SubmitReviewModalProps> = ({
                     value={customerName}
                     onChange={(e) => setCustomerName(e.target.value)}
                     placeholder="مثال: علیرضا ک."
-                    className="w-full rounded-xl border border-input bg-background px-3 py-2 text-xs"
+                    className="w-full rounded-field border border-border/60 bg-muted/20 px-3 py-2 text-xs text-foreground outline-none focus:border-brand"
                   />
                 </div>
                 <div className="space-y-1">
@@ -341,37 +343,31 @@ export const SubmitReviewModal: React.FC<SubmitReviewModalProps> = ({
                     onChange={(e) => setPhoneInput(e.target.value)}
                     placeholder="0912..."
                     dir="ltr"
-                    className="w-full rounded-xl border border-input bg-background px-3 py-2 text-xs text-left"
+                    className="w-full rounded-field border border-border/60 bg-muted/20 px-3 py-2 text-xs text-foreground outline-none focus:border-brand text-left font-latin font-mono"
                   />
                 </div>
               </div>
             )}
 
-            {/* Modal Actions */}
-            <div className="pt-2 flex items-center justify-end gap-3 border-t border-border">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={onClose}
-                disabled={loading}
-                className="rounded-xl text-xs h-9 px-4"
-              >
-                انصراف
-              </Button>
-              <Button
+            {/* Modal Actions - Full width action button without cancel button per user instruction */}
+            <div className="pt-3 border-t border-border/60">
+              <button
                 type="submit"
                 disabled={loading || !!resultMsg}
-                className="rounded-xl text-xs h-9 px-6 font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-500/20"
+                className="w-full h-11 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs sm:text-sm duration-motion active:scale-[0.98] shadow-control flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
               >
                 {loading ? (
                   <>
-                    <Loader2 className="h-3.5 w-3.5 ml-2 animate-spin" />
-                    در حال ثبت نظر...
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>در حال اعتبارسنجی و ثبت نظر...</span>
                   </>
                 ) : (
-                  'ثبت نهایی نظر و امتیاز'
+                  <>
+                    <CheckCircle2 className="h-4 w-4" />
+                    <span>ثبت نهایی نظر و امتیاز</span>
+                  </>
                 )}
-              </Button>
+              </button>
             </div>
           </form>
         </div>

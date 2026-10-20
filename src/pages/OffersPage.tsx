@@ -1,28 +1,36 @@
 import {
-  ArrowLeft,
+  ChevronLeft,
+  ChevronRight,
   Flame,
-  Gift,
   HelpCircle,
   RefreshCw,
+  Search,
   Sparkles,
 } from 'lucide-react'
 import type React from 'react'
-import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
 import { CartDrawer } from '../components/CartDrawer'
 import { Header } from '../components/Header'
 import { ProductCard } from '../components/ProductCard'
-import { ArrowLink } from '../components/vibefarsi/ArrowLink'
-import { ScrollReveal } from '../components/vibefarsi/ScrollReveal'
+import { Breadcrumb } from '../components/vibefarsi/Breadcrumb'
 import { api, apiService } from '../services/api'
-import type { BannerItem, Order, Product } from '../types'
+import type { Order, Product, ThemeSettings } from '../types'
 
 export const OffersPage: React.FC = () => {
-  const [banners, setBanners] = useState<BannerItem[]>([])
   const [discountedProducts, setDiscountedProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [isCartOpen, setIsCartOpen] = useState(false)
-  const [selectedFilter, setSelectedFilter] = useState<string>('all')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [categoryFilter, setCategoryFilter] = useState<string>('all')
+  const [dynamicCategories, setDynamicCategories] = useState<
+    { id: string; label: string }[]
+  >([])
+  const [page, setPage] = useState<number>(1)
+  const [pageSize, setPageSize] = useState<number>(9)
+  const [sortBy, setSortBy] = useState<
+    'discount' | 'price_asc' | 'price_desc' | 'sales'
+  >('discount')
+  const [themeSettings, setThemeSettings] = useState<ThemeSettings | null>(null)
 
   const [orders] = useState<Order[]>(() => apiService.getCustomerOrders())
 
@@ -30,15 +38,15 @@ export const OffersPage: React.FC = () => {
     async function loadData() {
       setLoading(true)
       try {
-        const [allBanners, allProds] = await Promise.all([
-          api.getAdminBanners().catch(() => []),
+        const [allProds, cats, theme] = await Promise.all([
           apiService.getProducts().catch(() => []),
+          api.getContentCategories('product').catch(() => []),
+          api.getThemeSettings().catch(() => null),
         ])
 
-        const activeBanners = (allBanners || []).filter(
-          (b: BannerItem) => b.is_active,
-        )
-        setBanners(activeBanners)
+        if (theme) {
+          setThemeSettings(theme)
+        }
 
         const offers = (allProds || []).filter(
           (p: Product) =>
@@ -47,6 +55,26 @@ export const OffersPage: React.FC = () => {
             (p.original_price_toman && p.original_price_toman > p.price_toman),
         )
         setDiscountedProducts(offers)
+
+        // Populate dynamic categories from database / products
+        if (cats && Array.isArray(cats) && cats.length > 0) {
+          setDynamicCategories([
+            { id: 'all', label: 'همه تخفیف‌ها' },
+            ...cats.map((c: any) => ({ id: c.slug, label: c.name })),
+          ])
+        } else {
+          const uniqueGroups = Array.from(
+            new Set(
+              offers
+                .map((p) => p.group_title_fa || p.group_tag || p.category)
+                .filter(Boolean),
+            ),
+          )
+          setDynamicCategories([
+            { id: 'all', label: 'همه تخفیف‌ها' },
+            ...uniqueGroups.map((g: any) => ({ id: g, label: g })),
+          ])
+        }
       } finally {
         setLoading(false)
       }
@@ -55,27 +83,62 @@ export const OffersPage: React.FC = () => {
     loadData()
   }, [])
 
-  const filteredBanners = banners.filter((b) => {
-    if (selectedFilter === 'all') return true
-    return b.position === selectedFilter
-  })
+  const filteredOffers = useMemo(() => {
+    const list = discountedProducts.filter((p) => {
+      if (categoryFilter !== 'all') {
+        const matchesCat = p.category === categoryFilter
+        const matchesGroup =
+          p.group_tag === categoryFilter || p.group_title_fa === categoryFilter
+        if (!matchesCat && !matchesGroup) return false
+      }
 
-  const getPositionBadge = (pos?: string) => {
-    switch (pos) {
-      case 'main_slider':
-        return 'اسلایدر هیرو'
-      case 'middle_strip':
-        return 'بنر دوقلو میانی'
-      case 'flash_sale':
-        return 'جشنواره تخفیف'
-      case 'hero_side':
-        return 'کنار هیرو'
-      case 'category_header':
-        return 'هدر دسته‌بندی‌ها'
-      default:
-        return 'پروموشن ویژه'
-    }
-  }
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim()
+        const matchFa = (p.title_fa || '').toLowerCase().includes(q)
+        const matchEn = (p.title_en || '').toLowerCase().includes(q)
+        const matchDesc = (p.description_fa || '').toLowerCase().includes(q)
+        if (!matchFa && !matchEn && !matchDesc) return false
+      }
+
+      return true
+    })
+
+    return list.sort((a, b) => {
+      if (sortBy === 'discount') {
+        const discA =
+          a.discount_percent ||
+          (a.original_price_toman && a.original_price_toman > a.price_toman
+            ? ((a.original_price_toman - a.price_toman) /
+                a.original_price_toman) *
+              100
+            : 0)
+        const discB =
+          b.discount_percent ||
+          (b.original_price_toman && b.original_price_toman > b.price_toman
+            ? ((b.original_price_toman - b.price_toman) /
+                b.original_price_toman) *
+              100
+            : 0)
+        return discB - discA
+      }
+      if (sortBy === 'price_asc') {
+        return a.price_toman - b.price_toman
+      }
+      if (sortBy === 'price_desc') {
+        return b.price_toman - a.price_toman
+      }
+      if (sortBy === 'sales') {
+        return (b.sales_count || 0) - (a.sales_count || 0)
+      }
+      return 0
+    })
+  }, [discountedProducts, categoryFilter, searchQuery, sortBy])
+
+  const totalPages = Math.ceil(filteredOffers.length / pageSize) || 1
+  const paginatedOffers = filteredOffers.slice(
+    (page - 1) * pageSize,
+    page * pageSize,
+  )
 
   return (
     <div
@@ -90,108 +153,119 @@ export const OffersPage: React.FC = () => {
       />
 
       <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 py-6 w-full space-y-8">
-        {/* Breadcrumb Navigation */}
-        <nav className="flex items-center gap-2 text-xs text-muted-foreground select-none">
-          <Link to="/" className="hover:text-foreground transition-colors">
-            صفحه اصلی
-          </Link>
-          <span>/</span>
-          <span className="text-foreground font-bold">
-            جشنواره آفرها و پروموشن‌های ویژه
-          </span>
-        </nav>
+        {/* Unified Graphite Breadcrumb Navigation */}
+        <Breadcrumb items={[{ label: 'جشنواره تخفیف‌ها و آفرها' }]} />
 
-        {/* Hero Header Banner */}
+        {/* Hero Header Banner (Dynamic Texts from Admin, Home button removed per request) */}
         <section className="rounded-surface border border-border/80 bg-card p-6 sm:p-8 shadow-surface duration-motion ease-motion relative overflow-hidden">
           <div className="absolute top-0 left-0 w-80 h-80 bg-radial-[at_top_left] from-brand/10 via-transparent to-transparent pointer-events-none" />
 
-          <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5 text-right">
-            <div className="space-y-2">
-              <div className="inline-flex items-center gap-2 rounded-control border border-brand/30 bg-brand/10 px-3 py-1 text-xs font-bold text-brand">
-                <Gift className="h-3.5 w-3.5" />
-                <span>جشنواره سراسری پروموشن‌ها و تخفیف‌ها</span>
-              </div>
-              <h1 className="text-2xl sm:text-3xl font-black text-foreground">
-                آفرها، بنرهای ویژه و اشتراک‌های تخفیف‌دار آناهیکس
-              </h1>
-              <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed max-w-2xl">
-                کلیه پیشنهادهای شگفت‌انگیز، بنرهای جشنواره‌ای زمان‌دار و اشتراک‌های
-                هوش مصنوعی با بیشترین درصد تخفیف نقدی در این صفحه گردآوری
-                شده‌اند.
-              </p>
+          <div className="relative z-10 text-right space-y-2">
+            <div className="inline-flex items-center gap-2 rounded-control border border-rose-500/30 bg-rose-500/10 px-3 py-1 text-xs font-bold text-rose-500">
+              <Flame className="h-3.5 w-3.5 animate-pulse" />
+              <span>
+                {themeSettings?.offers_badge_text ||
+                  'جشنواره سراسری تخفیف‌های زمان‌دار آناهیکس'}
+              </span>
             </div>
-
-            <div className="flex items-center gap-3 shrink-0">
-              <Link
-                to="/"
-                className="h-9 px-4 rounded-control border border-border/60 bg-secondary hover:bg-muted text-xs font-bold text-foreground duration-motion active:scale-[0.98] flex items-center gap-1.5 shadow-control"
-              >
-                <span>بازگشت به خانه</span>
-                <ArrowLeft className="h-3.5 w-3.5" />
-              </Link>
-            </div>
+            <h1 className="text-2xl sm:text-3xl font-black text-foreground">
+              {themeSettings?.offers_title ||
+                'آفرها و اشتراک‌های دارای تخفیف ویژه'}
+            </h1>
+            <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed max-w-2xl">
+              {themeSettings?.offers_subtitle ||
+                'کلیه لایسنس‌ها و اشتراک‌های هوش مصنوعی که هم‌اکنون با تخفیف نقدی ویژه ۲۰٪ تا ۵۰٪ از پنل مدیریت عرضه شده‌اند.'}
+            </p>
           </div>
         </section>
 
-        {/* Filter Tabs for Offer Types */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none text-xs font-bold">
-          {[
-            { id: 'all', label: 'همه آفرها و بنرها', count: banners.length },
-            {
-              id: 'middle_strip',
-              label: 'بنرهای میانی دوقلو',
-              count: banners.filter((b) => b.position === 'middle_strip')
-                .length,
-            },
-            {
-              id: 'flash_sale',
-              label: 'جشنواره شگفت‌انگیز',
-              count: banners.filter((b) => b.position === 'flash_sale').length,
-            },
-            {
-              id: 'hero_side',
-              label: 'کنار هیرو',
-              count: banners.filter((b) => b.position === 'hero_side').length,
-            },
-            {
-              id: 'main_slider',
-              label: 'اسلایدر اصلی',
-              count: banners.filter((b) => b.position === 'main_slider').length,
-            },
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setSelectedFilter(tab.id)}
-              className={`px-3.5 py-1.5 rounded-control transition-all whitespace-nowrap shrink-0 cursor-pointer duration-motion active:scale-[0.98] flex items-center gap-1.5 ${
-                selectedFilter === tab.id
-                  ? 'bg-primary text-primary-foreground font-black shadow-control'
-                  : 'bg-muted/30 hover:bg-muted text-muted-foreground hover:text-foreground border border-border/60'
-              }`}
-            >
-              <span>{tab.label}</span>
-              <span
-                className={`text-[10px] px-1.5 py-0.2 rounded-control font-latin font-bold ${
-                  selectedFilter === tab.id
-                    ? 'bg-primary-foreground/20 text-primary-foreground'
-                    : 'bg-secondary text-secondary-foreground'
-                }`}
-              >
-                {tab.count}
+        {/* Filter and Search Toolbar (Sleek Dropdowns matching Order Table - Image 4 Request) */}
+        <div className="bg-card rounded-surface border border-border/80 p-3.5 shadow-surface flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+          {/* Dynamic Category & Page Size Dropdowns */}
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px] text-muted-foreground font-bold shrink-0">
+                دسته‌بندی:
               </span>
-            </button>
-          ))}
+              <select
+                value={categoryFilter}
+                onChange={(e) => {
+                  setCategoryFilter(e.target.value)
+                  setPage(1)
+                }}
+                className="h-9 px-3 rounded-control border border-border/60 bg-muted/20 text-xs text-foreground outline-none focus:border-brand font-bold cursor-pointer"
+              >
+                {dynamicCategories.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px] text-muted-foreground font-bold shrink-0">
+                مرتب‌سازی:
+              </span>
+              <select
+                value={sortBy}
+                onChange={(e) => {
+                  setSortBy(e.target.value as any)
+                  setPage(1)
+                }}
+                className="h-9 px-2.5 rounded-control border border-border/60 bg-muted/20 text-xs text-foreground outline-none focus:border-brand font-bold cursor-pointer"
+              >
+                <option value="discount">بیشترین تخفیف</option>
+                <option value="price_asc">ارزان‌ترین</option>
+                <option value="price_desc">گران‌ترین</option>
+                <option value="sales">پرفروش‌ترین</option>
+              </select>
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px] text-muted-foreground font-bold shrink-0">
+                تعداد:
+              </span>
+              <select
+                value={pageSize}
+                onChange={(e) => {
+                  setPageSize(Number(e.target.value))
+                  setPage(1)
+                }}
+                className="h-9 px-2.5 rounded-control border border-border/60 bg-muted/20 text-xs text-foreground outline-none focus:border-brand font-bold cursor-pointer font-latin"
+              >
+                <option value={9}>۹ در صفحه</option>
+                <option value={18}>۱۸ در صفحه</option>
+                <option value={27}>۲۷ در صفحه</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Search box */}
+          <div className="relative">
+            <Search className="w-4 h-4 text-muted-foreground absolute right-3 top-2.5 pointer-events-none" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value)
+                setPage(1)
+              }}
+              placeholder="جستجو در تخفیف‌ها..."
+              className="h-9 pr-9 pl-3 w-full sm:w-60 rounded-control border border-border/60 bg-muted/20 text-xs text-foreground placeholder:text-muted-foreground outline-none focus:border-brand"
+            />
+          </div>
         </div>
 
-        {/* Section 1: Promotional Banners Grid */}
+        {/* Discounted Products Grid ONLY */}
         <section className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-base sm:text-lg font-black text-foreground flex items-center gap-2">
               <Sparkles className="h-5 w-5 text-brand" />
-              <span>بنرهای تبلیغاتی و فرصت‌های فعال</span>
+              <span>محصولات تخفیف‌دار آماده تحویل</span>
             </h2>
-            <span className="text-xs text-muted-foreground font-latin">
-              {filteredBanners.length} بنر فعال
+            <span className="text-xs text-muted-foreground font-latin font-bold">
+              {Number(filteredOffers.length).toLocaleString('fa-IR')} محصول فعال
             </span>
           </div>
 
@@ -199,92 +273,24 @@ export const OffersPage: React.FC = () => {
             <div className="py-20 text-center space-y-3">
               <RefreshCw className="h-8 w-8 text-brand animate-spin mx-auto" />
               <p className="text-xs text-muted-foreground">
-                در حال بارگذاری آفرها و بنرها...
+                در حال دریافت لیست محصولات تخفیف‌دار...
               </p>
             </div>
-          ) : filteredBanners.length === 0 ? (
+          ) : filteredOffers.length === 0 ? (
             <div className="rounded-surface border border-border/80 bg-card p-12 text-center text-muted-foreground space-y-3 shadow-surface">
               <HelpCircle className="h-10 w-10 mx-auto opacity-50" />
               <h3 className="font-bold text-foreground">
-                بنری در این بخش یافت نشد
+                محصولی با این مشخصات یافت نشد
               </h3>
               <p className="text-xs max-w-sm mx-auto">
-                در حال حاضر بنر فعالی با این فیلتر ثبت نشده است.
+                می‌توانید فیلتر دسته‌بندی را تغییر دهید یا عبارت جستجو را پاک
+                کنید.
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredBanners.map((b) => (
-                <div
-                  key={b.id}
-                  className="group relative overflow-hidden rounded-surface border border-border/80 bg-card shadow-surface hover:border-brand/40 duration-motion transition-all flex flex-col justify-between"
-                >
-                  <div className="relative h-48 w-full overflow-hidden bg-muted">
-                    <img
-                      src={b.image_url}
-                      alt={b.title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/40 to-transparent flex flex-col justify-end p-5 text-right text-white space-y-1.5 select-none">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="px-2.5 py-0.5 rounded-control bg-slate-950/85 backdrop-blur-md text-sky-300 border border-sky-400/30 text-[11px] font-black shadow-control">
-                          {getPositionBadge(b.position)}
-                        </span>
-                        {b.badge_text && (
-                          <span className="px-2.5 py-0.5 rounded-control bg-brand text-white font-black text-[11px] shadow-control">
-                            {b.badge_text}
-                          </span>
-                        )}
-                      </div>
-                      <h3 className="font-black text-sm sm:text-base text-white">
-                        {b.title}
-                      </h3>
-                      {b.subtitle && (
-                        <p className="text-xs text-white/80 line-clamp-2 leading-relaxed">
-                          {b.subtitle}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="p-4 flex items-center justify-between text-xs">
-                    <Link
-                      to={b.link_url || '/'}
-                      className="inline-flex items-center gap-1 font-bold text-brand hover:underline"
-                    >
-                      <span>{b.button_text || 'مشاهده و خرید'}</span>
-                      <span>←</span>
-                    </Link>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
-
-        {/* Section 2: Discounted Products Catalog */}
-        {discountedProducts.length > 0 && (
-          <ScrollReveal>
-            <section className="space-y-4 pt-4 border-t border-border/60">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-base sm:text-lg font-black text-foreground flex items-center gap-2">
-                    <Flame className="h-5 w-5 text-rose-500" />
-                    <span>محصولات و اشتراک‌های دارای تخفیف ویژه</span>
-                  </h2>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    کلیه اشتراک‌هایی که هم‌اکنون تخفیف نقدی یا قیمت شگفت‌انگیز
-                    دارند
-                  </p>
-                </div>
-
-                <ArrowLink to="/category/all?discount=true">
-                  مشاهده در کاتالوگ با فیلتر
-                </ArrowLink>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-                {discountedProducts.map((product) => (
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {paginatedOffers.map((product) => (
                   <ProductCard
                     key={`offer-prod-${product.id}`}
                     product={product}
@@ -292,9 +298,55 @@ export const OffersPage: React.FC = () => {
                   />
                 ))}
               </div>
-            </section>
-          </ScrollReveal>
-        )}
+
+              {/* Full Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between p-3.5 bg-card rounded-surface border border-border/80 shadow-surface text-xs">
+                  <span className="text-muted-foreground">
+                    صفحه {page} از {totalPages} (مجموع {filteredOffers.length}{' '}
+                    محصول)
+                  </span>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      disabled={page <= 1}
+                      onClick={() => setPage((p) => p - 1)}
+                      className="p-1.5 rounded-control border border-border/60 hover:bg-muted text-muted-foreground hover:text-foreground disabled:opacity-40 cursor-pointer"
+                      title="صفحه قبلی"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                      (pNum) => (
+                        <button
+                          key={`offer-page-btn-${pNum}`}
+                          type="button"
+                          onClick={() => setPage(pNum)}
+                          className={`w-7 h-7 rounded-control font-bold font-latin cursor-pointer transition-colors ${
+                            page === pNum
+                              ? 'bg-primary text-primary-foreground font-black'
+                              : 'hover:bg-muted text-muted-foreground'
+                          }`}
+                        >
+                          {pNum}
+                        </button>
+                      ),
+                    )}
+                    <button
+                      type="button"
+                      disabled={page >= totalPages}
+                      onClick={() => setPage((p) => p + 1)}
+                      className="p-1.5 rounded-control border border-border/60 hover:bg-muted text-muted-foreground hover:text-foreground disabled:opacity-40 cursor-pointer"
+                      title="صفحه بعدی"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </section>
       </main>
 
       <CartDrawer isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />

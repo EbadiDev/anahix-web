@@ -91,6 +91,11 @@ export const AdminInventoryView: React.FC = () => {
   const [pIsFlashSale, setPIsFlashSale] = useState(false)
   const [pFlashSalePriceToman, setPFlashSalePriceToman] = useState<number>(0)
   const [pFlashSaleStock, setPFlashSaleStock] = useState<number>(50)
+  const [pFlashSaleSold, setPFlashSaleSold] = useState<number>(0)
+  const [pFlashSaleEndAt, setPFlashSaleEndAt] = useState<string>('')
+  const [pBadgesText, setPBadgesText] = useState<string>('')
+  const [pRatingAverage, setPRatingAverage] = useState<number>(5.0)
+  const [pShowRating, setPShowRating] = useState<boolean>(true)
   const [pIsBestSeller, setPIsBestSeller] = useState(false)
   const [pIsFeatured, setPIsFeatured] = useState(false)
   const [uploadingProductImage, setUploadingProductImage] = useState(false)
@@ -220,6 +225,11 @@ export const AdminInventoryView: React.FC = () => {
     setPIsFlashSale(false)
     setPFlashSalePriceToman(0)
     setPFlashSaleStock(50)
+    setPFlashSaleSold(0)
+    setPFlashSaleEndAt('')
+    setPBadgesText('')
+    setPRatingAverage(5.0)
+    setPShowRating(true)
     setPIsBestSeller(false)
     setPIsFeatured(false)
     setProductFormError('')
@@ -251,6 +261,24 @@ export const AdminInventoryView: React.FC = () => {
     setPIsFlashSale(p.is_flash_sale || false)
     setPFlashSalePriceToman(p.flash_sale_price_toman || 0)
     setPFlashSaleStock(p.flash_sale_stock || 50)
+    setPFlashSaleSold(p.flash_sale_sold || 0)
+    setPFlashSaleEndAt(
+      p.flash_sale_end_at ? p.flash_sale_end_at.substring(0, 16) : '',
+    )
+    if (p.badges_json) {
+      try {
+        const arr = JSON.parse(p.badges_json)
+        if (Array.isArray(arr)) setPBadgesText(arr.join('\n'))
+        else setPBadgesText('')
+      } catch {
+        setPBadgesText('')
+      }
+    } else {
+      setPBadgesText('')
+    }
+    const r = p.rating_average !== undefined ? Number(p.rating_average) : 5.0
+    setPRatingAverage(r > 0 ? r : 5.0)
+    setPShowRating(r > 0)
     setPIsBestSeller(p.is_best_seller || false)
     setPIsFeatured(p.is_featured || false)
     setPMetaTitle(p.meta_title || '')
@@ -411,6 +439,19 @@ export const AdminInventoryView: React.FC = () => {
       is_flash_sale: pIsFlashSale,
       flash_sale_price_toman: Number(pFlashSalePriceToman) || 0,
       flash_sale_stock: Number(pFlashSaleStock) || 0,
+      flash_sale_sold: Number(pFlashSaleSold) || 0,
+      flash_sale_end_at: pFlashSaleEndAt
+        ? new Date(pFlashSaleEndAt).toISOString()
+        : undefined,
+      badges_json: pBadgesText.trim()
+        ? JSON.stringify(
+            pBadgesText
+              .split('\n')
+              .map((b) => b.trim())
+              .filter(Boolean),
+          )
+        : undefined,
+      rating_average: pShowRating ? Number(pRatingAverage) || 5.0 : 0,
       is_best_seller: pIsBestSeller,
       is_featured: pIsFeatured,
       plans_json: finalPlansJSON || undefined,
@@ -2278,51 +2319,135 @@ export const AdminInventoryView: React.FC = () => {
                         </div>
 
                         {pIsFlashSale && (
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-rose-500/20">
-                            <div>
-                              <label className="text-xs font-bold text-foreground block mb-1">
-                                قیمت جشنواره (تومان)
-                              </label>
-                              <input
-                                type="number"
-                                min={1000}
-                                step={1000}
-                                value={pFlashSalePriceToman || ''}
-                                onChange={(e) =>
-                                  setPFlashSalePriceToman(
-                                    Number(e.target.value),
-                                  )
-                                }
-                                placeholder="مثال: ۱۲۰۰۰۰۰"
-                                className="w-full h-8 px-3 rounded-xl border border-rose-500/40 bg-background text-xs font-mono"
-                              />
+                          <div className="space-y-3 pt-3 border-t border-rose-500/20">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                              <div>
+                                <label className="text-xs font-bold text-foreground block mb-1">
+                                  قیمت جشنواره (تومان) *
+                                </label>
+                                <input
+                                  type="number"
+                                  min={1000}
+                                  step={1000}
+                                  value={pFlashSalePriceToman || ''}
+                                  onChange={(e) =>
+                                    setPFlashSalePriceToman(
+                                      Number(e.target.value),
+                                    )
+                                  }
+                                  placeholder="مثال: ۱۲۰۰۰۰۰"
+                                  className="w-full h-9 px-3 rounded-control border border-border/60 bg-muted/20 text-xs font-mono font-latin outline-none focus:border-brand"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-xs font-bold text-foreground block mb-1">
+                                  تاریخ و زمان پایان مهلت تخفیف (تایمر معکوس)
+                                </label>
+                                <input
+                                  type="datetime-local"
+                                  value={pFlashSaleEndAt}
+                                  onChange={(e) =>
+                                    setPFlashSaleEndAt(e.target.value)
+                                  }
+                                  className="w-full h-9 px-3 rounded-control border border-border/60 bg-muted/20 text-xs font-mono font-latin outline-none focus:border-brand"
+                                />
+                              </div>
                             </div>
-                            <div>
-                              <label className="text-xs font-bold text-foreground block mb-1">
-                                سقف موجودی جشنواره
-                              </label>
-                              <input
-                                type="number"
-                                min={1}
-                                value={pFlashSaleStock || 50}
-                                onChange={(e) =>
-                                  setPFlashSaleStock(Number(e.target.value))
-                                }
-                                className="w-full h-8 px-3 rounded-xl border border-rose-500/40 bg-background text-xs font-mono"
-                              />
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                              <div>
+                                <label className="text-xs font-bold text-foreground block mb-1">
+                                  سقف کل موجودی جشنواره
+                                </label>
+                                <input
+                                  type="number"
+                                  min={1}
+                                  value={pFlashSaleStock || 50}
+                                  onChange={(e) =>
+                                    setPFlashSaleStock(Number(e.target.value))
+                                  }
+                                  className="w-full h-9 px-3 rounded-control border border-border/60 bg-muted/20 text-xs font-mono font-latin outline-none focus:border-brand"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-xs font-bold text-foreground block mb-1">
+                                  تعداد فروخته شده (نمایش در نوار پیشرفت)
+                                </label>
+                                <input
+                                  type="number"
+                                  min={0}
+                                  value={pFlashSaleSold || 0}
+                                  onChange={(e) =>
+                                    setPFlashSaleSold(Number(e.target.value))
+                                  }
+                                  className="w-full h-9 px-3 rounded-control border border-border/60 bg-muted/20 text-xs font-mono font-latin outline-none focus:border-brand"
+                                />
+                              </div>
                             </div>
                           </div>
                         )}
                       </div>
 
+                      {/* Custom Badges & Tags Input Area */}
+                      <div className="p-3.5 rounded-surface bg-muted/20 border border-border/60 space-y-2 text-right">
+                        <label className="text-xs font-bold text-foreground block">
+                          نشان‌ها و بج‌های دلخواه محصول (در هر سطر یک برچسب
+                          بنویسید)
+                        </label>
+                        <textarea
+                          rows={2}
+                          value={pBadgesText}
+                          onChange={(e) => setPBadgesText(e.target.value)}
+                          placeholder="مثال:&#10;تحویل ۱ ثانیه‌ای&#10;گارانتی عدم قطعی"
+                          className="w-full p-2.5 rounded-control border border-border/60 bg-card text-xs text-foreground outline-none focus:border-brand resize-none leading-relaxed"
+                        />
+                      </div>
+
+                      {/* Star Rating Badge Configuration (Screenshot 4 Request) */}
+                      <div className="flex items-center justify-between p-3.5 rounded-surface border border-border/60 bg-muted/20">
+                        <div className="space-y-0.5 text-right">
+                          <span className="text-xs font-bold text-foreground block">
+                            نمایش امتیاز ستاره‌ای در کارت محصول
+                          </span>
+                          <span className="text-[11px] text-muted-foreground">
+                            در صورت خاموش بودن یا مقدار ۰، نشان ستاره در کارت
+                            محصول مخفی می‌شود.
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <input
+                            type="number"
+                            min={0}
+                            max={5}
+                            step={0.1}
+                            disabled={!pShowRating}
+                            value={pRatingAverage || ''}
+                            onChange={(e) =>
+                              setPRatingAverage(Number(e.target.value))
+                            }
+                            className="w-20 h-8 px-2 rounded-control border border-border/60 bg-card text-xs font-mono font-latin text-center outline-none focus:border-brand disabled:opacity-40"
+                            placeholder="5.0"
+                          />
+                          <label className="relative inline-flex items-center cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={pShowRating}
+                              onChange={(e) => setPShowRating(e.target.checked)}
+                              className="sr-only peer"
+                            />
+                            <div className="w-9 h-5 bg-muted peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-border after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-brand" />
+                          </label>
+                        </div>
+                      </div>
+
                       {/* Badges & Merchandising Options */}
-                      <div className="grid grid-cols-2 gap-3 p-3 rounded-2xl bg-muted/30 border border-border">
+                      <div className="grid grid-cols-2 gap-3 p-3 rounded-surface bg-muted/20 border border-border/60">
                         <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-foreground">
                           <input
                             type="checkbox"
                             checked={pIsBestSeller}
                             onChange={(e) => setPIsBestSeller(e.target.checked)}
-                            className="h-4 w-4 rounded accent-blue-600"
+                            className="h-4 w-4 rounded accent-brand cursor-pointer"
                           />
                           <span>محصول پرفروش‌ترین (Best Seller)</span>
                         </label>
@@ -2332,7 +2457,7 @@ export const AdminInventoryView: React.FC = () => {
                             type="checkbox"
                             checked={pIsFeatured}
                             onChange={(e) => setPIsFeatured(e.target.checked)}
-                            className="h-4 w-4 rounded accent-blue-600"
+                            className="h-4 w-4 rounded accent-brand cursor-pointer"
                           />
                           <span>محصول ویژه ویترین (Featured)</span>
                         </label>

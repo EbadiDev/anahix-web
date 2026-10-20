@@ -11,11 +11,6 @@ interface RangeSliderProps {
   className?: string
 }
 
-function toPersianDigits(n: number | string): string {
-  const f = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹']
-  return String(n).replace(/\d/g, (d) => f[Number(d)])
-}
-
 export const RangeSlider: React.FC<RangeSliderProps> = ({
   min,
   max,
@@ -33,13 +28,13 @@ export const RangeSlider: React.FC<RangeSliderProps> = ({
 
   const displayVal = formatValue
     ? formatValue(value)
-    : `${toPersianDigits(value.toLocaleString())} تومان`
+    : `${Number(value).toLocaleString('fa-IR')} تومان`
 
   return (
     <div dir="rtl" className={`space-y-2 text-right ${className}`}>
       <div className="flex items-center justify-between text-xs">
         <span className="font-bold text-foreground">{label}</span>
-        <span className="font-black text-blue-500 font-latin text-xs">
+        <span className="font-black text-brand font-latin text-xs">
           {displayVal}
         </span>
       </div>
@@ -52,7 +47,7 @@ export const RangeSlider: React.FC<RangeSliderProps> = ({
           step={step}
           value={value}
           onChange={(e) => onChange(Number(e.target.value))}
-          className="w-full h-2 rounded-full appearance-none cursor-pointer bg-muted accent-blue-600 focus:outline-none"
+          className="w-full h-2 rounded-full appearance-none cursor-pointer bg-muted accent-brand focus:outline-none"
           style={{
             background: `linear-gradient(to left, #2563eb ${percentage}%, var(--border) ${percentage}%)`,
           }}
@@ -60,8 +55,8 @@ export const RangeSlider: React.FC<RangeSliderProps> = ({
       </div>
 
       <div className="flex justify-between text-[10px] text-muted-foreground font-latin">
-        <span>{toPersianDigits(min.toLocaleString())}</span>
-        <span>{toPersianDigits(max.toLocaleString())} تومان</span>
+        <span>{Number(min).toLocaleString('fa-IR')} تومان</span>
+        <span>{Number(max).toLocaleString('fa-IR')} تومان</span>
       </div>
     </div>
   )

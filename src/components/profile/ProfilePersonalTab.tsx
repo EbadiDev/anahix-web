@@ -287,7 +287,7 @@ export const ProfilePersonalTab: React.FC<ProfilePersonalTabProps> = ({
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
                 placeholder="مثال: علی"
-                className="w-full h-10 px-3.5 rounded-field bg-muted/40 border border-border/40 text-foreground text-xs outline-none focus:border-foreground/40 transition-colors"
+                className="w-full h-10 px-3.5 rounded-field bg-muted/20 border border-border/60 text-foreground text-xs outline-none focus:border-brand transition-colors"
                 required
               />
             </div>
@@ -306,7 +306,7 @@ export const ProfilePersonalTab: React.FC<ProfilePersonalTabProps> = ({
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
                 placeholder="مثال: محمدی"
-                className="w-full h-10 px-3.5 rounded-field bg-muted/40 border border-border/40 text-foreground text-xs outline-none focus:border-foreground/40 transition-colors"
+                className="w-full h-10 px-3.5 rounded-field bg-muted/20 border border-border/60 text-foreground text-xs outline-none focus:border-brand transition-colors"
                 required
               />
             </div>
@@ -358,7 +358,7 @@ export const ProfilePersonalTab: React.FC<ProfilePersonalTabProps> = ({
                   dir="ltr"
                   value={email || 'ایمیلی ثبت نشده است'}
                   disabled
-                  className="w-full h-10 px-3.5 pl-9 rounded-field bg-muted/20 border border-border/30 text-foreground font-latin text-left text-xs cursor-not-allowed font-bold"
+                  className="w-full h-10 px-3.5 pl-9 rounded-field bg-muted/20 border border-border/60 text-foreground font-latin text-left text-xs cursor-not-allowed font-bold"
                 />
                 <Mail
                   className={`w-3.5 h-3.5 absolute left-3 top-3.5 ${
@@ -434,7 +434,7 @@ export const ProfilePersonalTab: React.FC<ProfilePersonalTabProps> = ({
                   dir="ltr"
                   value={fullDisplayPhone}
                   disabled
-                  className="w-full h-10 px-3.5 pl-9 rounded-field bg-muted/20 border border-border/30 text-foreground font-latin text-left text-xs cursor-not-allowed font-bold"
+                  className="w-full h-10 px-3.5 pl-9 rounded-field bg-muted/20 border border-border/60 text-foreground font-latin text-left text-xs cursor-not-allowed font-bold"
                 />
                 <Smartphone
                   className={`w-3.5 h-3.5 absolute left-3 top-3.5 ${
@@ -531,7 +531,7 @@ export const ProfilePersonalTab: React.FC<ProfilePersonalTabProps> = ({
                         value={newEmail}
                         onChange={(e) => setNewEmail(e.target.value)}
                         placeholder="name@example.com"
-                        className="w-full h-10 px-3.5 rounded-field bg-muted/30 border border-border/60 text-foreground font-latin text-xs outline-none focus:border-brand"
+                        className="w-full h-10 px-3.5 rounded-field bg-muted/20 border border-border/60 text-foreground font-latin text-xs outline-none focus:border-brand"
                       />
                       <p className="text-[11px] text-muted-foreground mt-1">
                         یک کد تایید ۵ رقمی جهت اطمینان از صحت دسترسی به این
@@ -645,7 +645,7 @@ export const ProfilePersonalTab: React.FC<ProfilePersonalTabProps> = ({
                         placeholder="09123456789"
                         value={newPhone}
                         onChange={(e) => setNewPhone(e.target.value)}
-                        className="w-full h-10 px-3 font-mono text-center text-sm rounded-field bg-muted/20 border border-border/60 text-foreground outline-none focus:border-foreground/40"
+                        className="w-full h-10 px-3 font-mono text-center text-sm rounded-field bg-muted/20 border border-border/60 text-foreground outline-none focus:border-brand"
                         required
                       />
                       <p className="text-[11px] text-muted-foreground">

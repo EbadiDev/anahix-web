@@ -38,6 +38,7 @@ import { Header } from '../components/Header'
 import { ProductReviewsSection } from '../components/reviews/ProductReviewsSection'
 import { TelegramIcon } from '../components/SocialIcons'
 import { Badge } from '../components/ui/badge'
+import { Breadcrumb } from '../components/vibefarsi/Breadcrumb'
 import { useNotification } from '../components/vibefarsi/NotificationContext'
 import { QuantitySelector } from '../components/vibefarsi/QuantitySelector'
 import { ScrollReveal } from '../components/vibefarsi/ScrollReveal'
@@ -374,30 +375,23 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
       />
 
       <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 py-6 w-full space-y-12">
-        {/* Breadcrumb Navigation */}
-        <nav
-          aria-label="Breadcrumb"
-          className="flex items-center gap-2 text-xs text-muted-foreground"
-        >
-          <Link
-            to="/"
-            className="hover:text-blue-600 transition flex items-center gap-1"
-          >
-            <span>صفحه اصلی</span>
-          </Link>
-          <span>/</span>
-          <Link to="/#catalog" className="hover:text-blue-600 transition">
-            {product.category === 'ai_chat'
-              ? 'هوش مصنوعی و چت‌بات'
-              : product.category === 'coding_ai'
-                ? 'دستیار کدنویسی'
-                : 'کاتالوگ سرویس‌ها'}
-          </Link>
-          <span>/</span>
-          <span className="text-foreground font-semibold truncate max-w-[200px] sm:max-w-none">
-            {product.title_fa}
-          </span>
-        </nav>
+        {/* Unified Breadcrumb Navigation */}
+        <Breadcrumb
+          items={[
+            {
+              label:
+                product.category === 'ai_chat'
+                  ? 'هوش مصنوعی و چت‌بات'
+                  : product.category === 'coding_ai'
+                    ? 'دستیار کدنویسی'
+                    : 'کاتالوگ سرویس‌ها',
+              to: `/category/${product.category || 'all'}`,
+            },
+            {
+              label: product.title_fa,
+            },
+          ]}
+        />
 
         {/* TOP SECTION: PRODUCT HERO & PLAN SWITCHER */}
         <ScrollReveal>
@@ -441,10 +435,10 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
 
                 <a
                   href="#product-reviews"
-                  className="inline-flex items-center gap-1.5 text-xs text-amber-700 dark:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 px-3 py-1 rounded-full border border-amber-500/20 font-bold transition mr-auto"
+                  className="inline-flex items-center gap-1.5 text-xs text-foreground bg-muted/40 hover:bg-muted px-3 py-1.5 rounded-control border border-border/60 font-bold transition mr-auto shadow-xs"
                 >
-                  <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
-                  <span>نظرات خریداران قطعی</span>
+                  <Star className="h-3.5 w-3.5 fill-amber-500 text-amber-500" />
+                  <span>نظرات خریداران</span>
                 </a>
               </div>
 
@@ -519,11 +513,11 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
 
             {/* Left Column: Interactive Plan Switcher & Checkout Card (5 cols) */}
             <div className="lg:col-span-5">
-              <div className="rounded-surface border border-border/60 bg-card p-5 sm:p-6 shadow-surface space-y-6 sticky top-24 relative overflow-hidden">
+              <div className="rounded-surface border border-border/80 bg-card p-5 sm:p-6 shadow-surface space-y-6 sticky top-24 relative overflow-hidden">
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-xs font-black text-foreground flex items-center gap-1.5">
-                      <Calendar className="h-4 w-4 text-blue-600" />
+                      <Calendar className="h-4 w-4 text-brand" />
                       <span>انتخاب پلن و دوره زمانی:</span>
                     </span>
                     <span className="text-[11px] text-muted-foreground">
@@ -542,16 +536,16 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                           onClick={() => setSelectedPlan(plan)}
                           className={`w-full p-3.5 rounded-control border text-right duration-motion ease-motion transition-all flex items-center justify-between gap-3 cursor-pointer ${
                             isSelected
-                              ? 'border-foreground/40 bg-muted/70 ring-1 ring-foreground/20'
-                              : 'border-border/30 bg-muted/20 hover:bg-muted/50 hover:border-border/60'
+                              ? 'border-brand bg-brand/5 shadow-control'
+                              : 'border-border/60 bg-card hover:bg-muted/40 hover:border-border/80'
                           }`}
                         >
                           <div className="flex items-center gap-3">
                             <div
                               className={`h-4.5 w-4.5 rounded-full border flex items-center justify-center transition-colors ${
                                 isSelected
-                                  ? 'border-primary bg-primary text-primary-foreground'
-                                  : 'border-muted-foreground/40'
+                                  ? 'border-brand bg-brand text-white shadow-xs'
+                                  : 'border-muted-foreground/40 bg-muted/20'
                               }`}
                             >
                               {isSelected && <Check className="h-2.5 w-2.5" />}
@@ -562,7 +556,13 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                                   {plan.title}
                                 </span>
                                 {plan.badge && (
-                                  <span className="px-2 py-0.5 rounded-control text-[10px] font-black bg-brand/15 text-brand border border-brand/20">
+                                  <span
+                                    className={`px-2 py-0.5 rounded-control text-[10px] font-black transition-colors ${
+                                      isSelected
+                                        ? 'bg-brand text-white shadow-xs'
+                                        : 'bg-muted text-muted-foreground border border-border/40'
+                                    }`}
+                                  >
                                     {plan.badge}
                                   </span>
                                 )}
@@ -576,14 +576,14 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                           <div className="text-left shrink-0">
                             {plan.original_price_toman &&
                               plan.original_price_toman > plan.price_toman && (
-                                <div className="text-[10px] text-muted-foreground line-through font-latin">
-                                  {plan.original_price_toman.toLocaleString(
-                                    'fa-IR',
-                                  )}
+                                <div className="text-[11px] text-muted-foreground/50 line-through font-latin font-medium">
+                                  {Number(
+                                    plan.original_price_toman,
+                                  ).toLocaleString('fa-IR')}
                                 </div>
                               )}
-                            <div className="font-black text-sm text-foreground font-latin">
-                              {plan.price_toman.toLocaleString('fa-IR')}{' '}
+                            <div className="font-black text-sm text-foreground font-latin tracking-tight">
+                              {Number(plan.price_toman).toLocaleString('fa-IR')}{' '}
                               <span className="text-[10px] font-normal text-muted-foreground font-sans">
                                 تومان
                               </span>
@@ -596,7 +596,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                 </div>
 
                 {/* Selected Plan Details & Pricing Banner */}
-                <div className="p-4 rounded-surface bg-muted/30 border border-border/60 space-y-3">
+                <div className="p-4 rounded-surface bg-muted/20 border border-border/60 space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-foreground">
                       پلن انتخابی شما:
@@ -612,15 +612,16 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                         مبلغ قابل پرداخت:
                       </span>
                       {savingsToman > 0 && (
-                        <span className="text-[11px] text-emerald-400 font-bold font-latin">
-                          تخفیف ویژه ({toPersianDigits(savingsPercent)}٪):{' '}
-                          {savingsToman.toLocaleString('fa-IR')} تومان
+                        <span className="text-[11px] text-emerald-500 font-bold font-latin">
+                          تخفیف ویژه (
+                          {Number(savingsPercent).toLocaleString('fa-IR')}٪):{' '}
+                          {Number(savingsToman).toLocaleString('fa-IR')} تومان
                         </span>
                       )}
                     </div>
                     <div className="text-left font-latin">
-                      <span className="text-2xl font-black text-foreground tracking-tight font-mono">
-                        {effectivePrice.toLocaleString('fa-IR')}
+                      <span className="text-2xl font-black text-foreground tracking-tight">
+                        {Number(effectivePrice).toLocaleString('fa-IR')}
                       </span>
                       <span className="text-xs text-muted-foreground font-sans mr-1">
                         تومان
@@ -686,7 +687,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                         <button
                           type="button"
                           onClick={handleAddToCart}
-                          className="w-full h-10 rounded-control border border-border/40 bg-card hover:bg-muted text-foreground font-bold text-xs duration-motion ease-motion active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer"
+                          className="w-full h-10 rounded-control border border-border/60 bg-card hover:bg-muted text-foreground font-bold text-xs duration-motion ease-motion active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer shadow-xs transition-colors"
                         >
                           <ShoppingCart className="h-3.5 w-3.5 text-muted-foreground" />
                           <span>افزودن به سبد خرید</span>
@@ -704,7 +705,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                 </div>
 
                 {/* Guarantee Mini Footer */}
-                <div className="pt-3 flex items-center justify-around text-[11px] text-muted-foreground text-center border-t border-border/40">
+                <div className="pt-3.5 flex items-center justify-around text-[11px] text-muted-foreground text-center border-t border-border/60">
                   <div className="flex flex-col items-center gap-1">
                     <ShieldCheck className="h-4 w-4 text-brand" />
                     <span>ضمانت بازگشت وجه</span>
@@ -732,9 +733,9 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
         {product.comparison_table?.columns &&
           product.comparison_table.columns.length > 0 && (
             <ScrollReveal>
-              <section className="rounded-3xl border border-border bg-card p-6 sm:p-8 space-y-6">
+              <section className="rounded-surface border border-border/80 bg-card p-6 sm:p-8 space-y-6 shadow-surface">
                 <div className="text-right space-y-1">
-                  <div className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-600 dark:text-blue-400 bg-blue-500/10 px-3 py-1 rounded-full border border-blue-500/20">
+                  <div className="inline-flex items-center gap-1.5 text-xs font-bold text-brand bg-brand/10 px-3 py-1 rounded-control border border-brand/20">
                     <Table className="h-3.5 w-3.5" />
                     <span>بررسی فنی و تفاوت پلن‌ها</span>
                   </div>
@@ -756,15 +757,15 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                         {product.comparison_table.columns.map((col) => (
                           <th
                             key={col.key}
-                            className={`p-4 text-center rounded-2xl transition ${
+                            className={`p-4 text-center rounded-control transition ${
                               col.highlight
-                                ? 'bg-blue-600/10 border-2 border-blue-500/30 text-blue-600 dark:text-blue-400'
+                                ? 'bg-secondary/90 text-foreground font-black'
                                 : 'text-foreground'
                             }`}
                           >
                             <div className="space-y-1">
                               {col.badge && (
-                                <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-black bg-blue-600 text-white">
+                                <span className="inline-block px-2.5 py-0.5 rounded-control text-[10px] font-black bg-primary text-primary-foreground shadow-xs">
                                   {col.badge}
                                 </span>
                               )}
@@ -797,7 +798,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                                 key={`${feat.name}-${col.key}`}
                                 className={`p-4 text-center ${
                                   col.highlight
-                                    ? 'bg-blue-500/5 font-bold text-foreground'
+                                    ? 'bg-muted/30 font-bold text-foreground'
                                     : 'text-muted-foreground'
                                 }`}
                               >
@@ -828,9 +829,9 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
         {/* SECTION 3: STEP-BY-STEP ACTIVATION & ANTI-SANCTION / DNS GUIDE */}
         {product.activation_guide && product.activation_guide.length > 0 && (
           <ScrollReveal>
-            <section className="rounded-3xl border border-border bg-card p-6 sm:p-8 space-y-8">
+            <section className="rounded-surface border border-border/80 bg-card p-6 sm:p-8 space-y-6 shadow-surface">
               <div className="text-right space-y-1">
-                <div className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-600 dark:text-blue-400 bg-blue-500/10 px-3 py-1 rounded-full border border-blue-500/20">
+                <div className="inline-flex items-center gap-1.5 text-xs font-bold text-brand bg-brand/10 px-3 py-1 rounded-control border border-brand/20">
                   <Sparkles className="h-3.5 w-3.5" />
                   <span>راهنمای گام‌به‌گام تحویل</span>
                 </div>
@@ -847,10 +848,10 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                 {product.activation_guide.map((step) => (
                   <div
                     key={step.step_number}
-                    className="p-5 rounded-2xl border border-border bg-background space-y-3 relative overflow-hidden group hover:border-blue-500/40 transition-all"
+                    className="p-5 rounded-surface border border-border/60 bg-muted/20 space-y-3 relative overflow-hidden group hover:border-brand/40 transition-all"
                   >
                     <div className="flex items-center justify-between">
-                      <span className="h-8 w-8 rounded-xl bg-blue-600 text-white font-black text-xs flex items-center justify-center shadow-sm">
+                      <span className="h-8 w-8 rounded-control bg-secondary text-brand border border-border/60 font-black text-xs flex items-center justify-center shadow-control">
                         {step.step_number}
                       </span>
                       <span className="text-[11px] font-bold text-muted-foreground font-mono">
@@ -867,8 +868,8 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                     </p>
 
                     {step.tip && (
-                      <div className="p-2.5 rounded-xl bg-muted/50 border border-border/60 text-[11px] text-muted-foreground flex items-start gap-1.5 leading-relaxed">
-                        <HelpCircle className="h-3.5 w-3.5 text-blue-600 shrink-0 mt-0.5" />
+                      <div className="p-2.5 rounded-control bg-card border border-border/60 text-[11px] text-muted-foreground flex items-start gap-1.5 leading-relaxed">
+                        <HelpCircle className="h-3.5 w-3.5 text-brand shrink-0 mt-0.5" />
                         <span>{step.tip}</span>
                       </div>
                     )}
@@ -877,10 +878,10 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
               </div>
 
               {/* Anti-Sanction & Recommended DNS Helper Card */}
-              <div className="rounded-2xl border border-blue-500/30 bg-blue-500/5 p-5 sm:p-6 space-y-4">
+              <div className="rounded-surface border border-brand/30 bg-brand/5 p-5 sm:p-6 space-y-4">
                 <div className="flex items-center justify-between flex-wrap gap-2">
                   <div className="flex items-center gap-2">
-                    <Globe className="h-5 w-5 text-blue-600" />
+                    <Globe className="h-5 w-5 text-brand" />
                     <h4 className="font-bold text-sm text-foreground">
                       راهنمای رفع تحریم و دی‌ان‌اس‌های پیشنهادی (Anti-Sanction DNS)
                     </h4>
@@ -961,12 +962,8 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
         {/* SECTION 4: FREQUENTLY ASKED QUESTIONS (FAQ) */}
         {product.faqs && product.faqs.length > 0 && (
           <ScrollReveal>
-            <section className="rounded-3xl border border-border bg-card p-6 sm:p-8 space-y-6">
+            <section className="rounded-surface border border-border/80 bg-card p-6 sm:p-8 space-y-6 shadow-surface">
               <div className="text-right space-y-1">
-                <div className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-600 dark:text-blue-400 bg-blue-500/10 px-3 py-1 rounded-full border border-blue-500/20">
-                  <HelpCircle className="h-3.5 w-3.5" />
-                  <span>پاسخ به سوالات پرتکرار</span>
-                </div>
                 <h3 className="text-xl sm:text-2xl font-black text-foreground">
                   سوالات متداول خریداران {product.title_fa}
                 </h3>
@@ -981,7 +978,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                   return (
                     <div
                       key={faq.question}
-                      className="rounded-2xl border border-border bg-background overflow-hidden transition-all"
+                      className="rounded-surface border border-border/60 bg-muted/20 overflow-hidden transition-all"
                     >
                       <button
                         type="button"

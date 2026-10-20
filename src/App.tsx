@@ -1,15 +1,18 @@
 import { useState } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { AdminProtectedRoute } from './components/auth/AdminProtectedRoute'
 import { ProtectedRoute } from './components/auth/ProtectedRoute'
 import { NotificationProvider } from './components/vibefarsi/NotificationContext'
 import { VibeThemeProvider } from './components/vibefarsi/ThemeContext'
 import { AdminDashboardPage } from './pages/admin/AdminDashboardPage'
 import { AdminLoginPage } from './pages/admin/AdminLoginPage'
+import { BestSellersPage } from './pages/BestSellersPage'
 import { BlogDetailPage } from './pages/BlogDetailPage'
 import { BlogListPage } from './pages/BlogListPage'
 import { CategoryDetailPage } from './pages/CategoryDetailPage'
 import { HelpDetailPage } from './pages/HelpDetailPage'
 import { HelpListPage } from './pages/HelpListPage'
+import { NotFoundPage } from './pages/NotFoundPage'
 import { OffersPage } from './pages/OffersPage'
 import { OrderTrackingPage } from './pages/OrderTrackingPage'
 import { ProductDetailPage } from './pages/ProductDetailPage'
@@ -69,6 +72,9 @@ export function App() {
             {/* Promotional Offers & Banners Showcase */}
             <Route path="/offers" element={<OffersPage />} />
 
+            {/* Best Sellers Page */}
+            <Route path="/best-sellers" element={<BestSellersPage />} />
+
             {/* Customer Profile (Protected by Auth Gate) */}
             <Route
               path="/profile"
@@ -102,15 +108,22 @@ export function App() {
             {/* Admin Authentication */}
             <Route path="/admin/login" element={<AdminLoginPage />} />
 
-            {/* Admin Dashboard */}
-            <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
+            {/* Admin Dashboard (Protected by Admin Auth Gate) */}
+            <Route
+              path="/admin/dashboard"
+              element={
+                <AdminProtectedRoute>
+                  <AdminDashboardPage />
+                </AdminProtectedRoute>
+              }
+            />
             <Route
               path="/admin"
               element={<Navigate to="/admin/dashboard" replace />}
             />
 
-            {/* Fallback */}
-            <Route path="*" element={<Navigate to="/" replace />} />
+            {/* 404 Not Found Page for unmatched URLs */}
+            <Route path="*" element={<NotFoundPage />} />
           </Routes>
         </BrowserRouter>
       </NotificationProvider>

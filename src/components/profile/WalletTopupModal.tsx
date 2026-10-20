@@ -137,7 +137,7 @@ export const WalletTopupModal: React.FC<WalletTopupModalProps> = ({
                   }
                   onChange={handleCustomChange}
                   placeholder="۱۰۰,۰۰۰"
-                  className="w-full h-11 px-3 text-center text-lg font-black font-latin rounded-field bg-background border border-border/60 text-foreground outline-none focus:border-brand/50 transition-colors"
+                  className="w-full h-11 px-3 text-center text-lg font-black font-latin rounded-field bg-muted/20 border border-border/60 text-foreground outline-none focus:border-brand transition-colors"
                   required
                 />
               </div>

@@ -101,12 +101,18 @@ export const BannerPositionSelect: React.FC<BannerPositionSelectProps> = ({
         onClick={() => setIsOpen(!isOpen)}
         className="w-full h-11 px-3.5 rounded-field border border-border/60 bg-muted/20 hover:bg-muted/30 text-foreground text-xs font-bold flex items-center justify-between transition-colors cursor-pointer outline-none focus:border-brand"
       >
-        <div className="flex items-center gap-2 min-w-0 flex-1">
-          <div className="w-6 h-6 rounded-control bg-secondary text-brand border border-border/60 flex items-center justify-center shrink-0">
-            <ActiveIcon className="w-3.5 h-3.5" />
+        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+          <div className="w-7 h-7 rounded-control bg-secondary text-brand border border-border/60 flex items-center justify-center shrink-0 shadow-xs">
+            <ActiveIcon className="w-4 h-4" />
           </div>
-          <span className="font-bold text-xs text-foreground truncate whitespace-nowrap">
+          <span className="font-black text-xs text-foreground whitespace-nowrap">
             {activeOption.label}
+          </span>
+          <span className="text-[10px] px-2 py-0.5 rounded-control bg-brand/10 text-brand border border-brand/20 font-bold whitespace-nowrap">
+            {activeOption.tag}
+          </span>
+          <span className="text-[11px] text-muted-foreground truncate hidden md:inline mr-2">
+            ({activeOption.desc})
           </span>
         </div>
         <ChevronDown
@@ -135,33 +141,33 @@ export const BannerPositionSelect: React.FC<BannerPositionSelectProps> = ({
                     : 'hover:bg-muted text-foreground'
                 }`}
               >
-                <div className="flex items-center gap-2.5 min-w-0">
+                <div className="flex items-center gap-3 min-w-0 flex-1">
                   <div
-                    className={`w-8 h-8 rounded-control flex items-center justify-center shrink-0 ${
+                    className={`w-9 h-9 rounded-control flex items-center justify-center shrink-0 ${
                       isSelected
                         ? 'bg-primary-foreground/15 text-primary-foreground'
-                        : 'bg-secondary text-brand border border-border/60'
+                        : 'bg-secondary text-brand border border-border/60 shadow-xs'
                     }`}
                   >
                     <Icon className="w-4 h-4" />
                   </div>
-                  <div className="min-w-0 text-right">
-                    <div className="text-xs font-bold truncate flex items-center gap-1.5">
-                      <span>{pos.label}</span>
+                  <div className="min-w-0 text-right flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xs font-black">{pos.label}</span>
                       <span
-                        className={`text-[10px] px-1.5 py-0.2 rounded-control font-normal ${
+                        className={`text-[10px] px-2 py-0.5 rounded-control font-bold ${
                           isSelected
-                            ? 'bg-primary-foreground/20 text-primary-foreground'
-                            : 'bg-muted text-muted-foreground'
+                            ? 'bg-primary-foreground/20 text-primary-foreground border border-primary-foreground/30'
+                            : 'bg-secondary text-brand border border-border/60'
                         }`}
                       >
                         {pos.tag}
                       </span>
                     </div>
                     <div
-                      className={`text-[11px] truncate mt-0.5 ${
+                      className={`text-[11px] mt-0.5 ${
                         isSelected
-                          ? 'text-primary-foreground/80'
+                          ? 'text-primary-foreground/90'
                           : 'text-muted-foreground'
                       }`}
                     >

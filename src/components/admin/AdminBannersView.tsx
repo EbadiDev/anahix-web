@@ -62,6 +62,8 @@ export const AdminBannersView: React.FC = () => {
       position: 'main_slider',
       bg_gradient: 'from-blue-600 via-indigo-700 to-slate-900',
       button_text: 'مشاهده و خرید',
+      secondary_button_text: '',
+      secondary_link_url: '',
       sort_order: (banners.length + 1) * 10,
       is_active: true,
     })
@@ -203,70 +205,49 @@ export const AdminBannersView: React.FC = () => {
         }
       />
 
-      {/* Position Filters Bar & Search Toolbar */}
-      <div className="bg-card rounded-surface border border-border/80 p-3.5 shadow-surface flex flex-col lg:flex-row lg:items-center justify-between gap-3 text-xs">
-        <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none font-bold pb-1 lg:pb-0">
-          {[
-            { id: 'all', label: 'همه بنرها', count: banners.length },
-            {
-              id: 'main_slider',
-              label: 'اسلایدر اصلی هیرو',
-              count: banners.filter((b) => b.position === 'main_slider').length,
-            },
-            {
-              id: 'middle_strip',
-              label: 'بنرهای میانی دوقلو',
-              count: banners.filter((b) => b.position === 'middle_strip')
-                .length,
-            },
-            {
-              id: 'hero_side',
-              label: 'کنار هیرو',
-              count: banners.filter((b) => b.position === 'hero_side').length,
-            },
-            {
-              id: 'flash_sale',
-              label: 'جشنواره تخفیف',
-              count: banners.filter((b) => b.position === 'flash_sale').length,
-            },
-            {
-              id: 'category_header',
-              label: 'هدر دسته‌بندی‌ها',
-              count: banners.filter((b) => b.position === 'category_header')
-                .length,
-            },
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => {
-                setPositionFilter(tab.id)
-                setPage(1)
-              }}
-              className={`px-3 py-1.5 rounded-control transition-all whitespace-nowrap shrink-0 cursor-pointer duration-motion active:scale-[0.98] flex items-center gap-1.5 ${
-                positionFilter === tab.id
-                  ? 'bg-primary text-primary-foreground font-black shadow-control'
-                  : 'bg-muted/30 hover:bg-muted text-muted-foreground hover:text-foreground border border-border/60'
-              }`}
-            >
-              <span>{tab.label}</span>
-              <span
-                className={`text-[10px] px-1.5 py-0.2 rounded-control font-latin font-bold ${
-                  positionFilter === tab.id
-                    ? 'bg-primary-foreground/20 text-primary-foreground'
-                    : 'bg-secondary text-secondary-foreground'
-                }`}
-              >
-                {tab.count}
-              </span>
-            </button>
-          ))}
+      {/* Position Dropdown, Page Size & Search Toolbar (Matching Orders Table - Image 4 Request) */}
+      <div className="bg-card rounded-surface border border-border/80 p-3.5 shadow-surface flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+        {/* Position Dropdown */}
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] text-muted-foreground font-bold shrink-0">
+            موقعیت نمایش:
+          </span>
+          <select
+            value={positionFilter}
+            onChange={(e) => {
+              setPositionFilter(e.target.value)
+              setPage(1)
+            }}
+            className="h-9 px-3 rounded-control border border-border/60 bg-muted/20 text-xs text-foreground outline-none focus:border-brand font-bold cursor-pointer"
+          >
+            <option value="all">همه موقعیت‌ها ({banners.length})</option>
+            <option value="main_slider">
+              اسلایدر اصلی هیرو (
+              {banners.filter((b) => b.position === 'main_slider').length})
+            </option>
+            <option value="middle_strip">
+              بنرهای میانی دوقلو (
+              {banners.filter((b) => b.position === 'middle_strip').length})
+            </option>
+            <option value="hero_side">
+              کنار هیرو (
+              {banners.filter((b) => b.position === 'hero_side').length})
+            </option>
+            <option value="flash_sale">
+              جشنواره تخفیف (
+              {banners.filter((b) => b.position === 'flash_sale').length})
+            </option>
+            <option value="category_header">
+              هدر دسته‌بندی‌ها (
+              {banners.filter((b) => b.position === 'category_header').length})
+            </option>
+          </select>
         </div>
 
         <div className="flex items-center gap-3 shrink-0">
           {/* Page Size Selector: 9, 18, 27 only */}
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <span className="hidden sm:inline font-bold">تعداد:</span>
+            <span className="hidden sm:inline font-bold">تعداد در صفحه:</span>
             {([9, 18, 27] as const).map((size) => (
               <button
                 key={size}
@@ -575,8 +556,20 @@ export const AdminBannersView: React.FC = () => {
                     />
                   </div>
 
+                  {/* Standalone full-width position selector row for zero text wrapping/truncation (Image 1 fix) */}
+                  <BannerPositionSelect
+                    className="w-full text-right"
+                    value={editingBanner.position || 'main_slider'}
+                    onChange={(pos) =>
+                      setEditingBanner((prev) => ({
+                        ...prev,
+                        position: pos,
+                      }))
+                    }
+                  />
+
+                  {/* Badge text & CTA Button text */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 text-right">
-                    {/* Badge text */}
                     <div className="space-y-1.5">
                       <label className="text-xs font-bold text-foreground block">
                         متن برچسب (Badge)
@@ -595,16 +588,23 @@ export const AdminBannersView: React.FC = () => {
                       />
                     </div>
 
-                    {/* Reusable Vibe Farsi Position Selector Component (Image 2 & 3 fix) */}
-                    <BannerPositionSelect
-                      value={editingBanner.position || 'main_slider'}
-                      onChange={(pos) =>
-                        setEditingBanner((prev) => ({
-                          ...prev,
-                          position: pos,
-                        }))
-                      }
-                    />
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-foreground block">
+                        متن دکمه CTA
+                      </label>
+                      <input
+                        type="text"
+                        value={editingBanner.button_text || 'مشاهده و خرید'}
+                        onChange={(e) =>
+                          setEditingBanner((prev) => ({
+                            ...prev,
+                            button_text: e.target.value,
+                          }))
+                        }
+                        placeholder="مشاهده و خرید"
+                        className="w-full h-10 px-3.5 rounded-field border border-border/60 bg-muted/20 text-foreground text-xs outline-none focus:border-brand"
+                      />
+                    </div>
                   </div>
 
                   {/* Image URL & Upload button with live compact thumbnail preview */}
@@ -668,10 +668,11 @@ export const AdminBannersView: React.FC = () => {
                     )}
                   </div>
 
+                  {/* Link URL and Sort Order Row */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 text-right">
                     <div className="space-y-1.5">
                       <label className="text-xs font-bold text-foreground block">
-                        لینک مقصد کلیک
+                        لینک مقصد دکمه اول *
                       </label>
                       <input
                         type="text"
@@ -690,25 +691,6 @@ export const AdminBannersView: React.FC = () => {
 
                     <div className="space-y-1.5">
                       <label className="text-xs font-bold text-foreground block">
-                        متن دکمه CTA
-                      </label>
-                      <input
-                        type="text"
-                        value={editingBanner.button_text || 'مشاهده و خرید'}
-                        onChange={(e) =>
-                          setEditingBanner((prev) => ({
-                            ...prev,
-                            button_text: e.target.value,
-                          }))
-                        }
-                        className="w-full h-10 px-3.5 rounded-field border border-border/60 bg-muted/20 text-foreground text-xs outline-none focus:border-brand"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 text-right items-center">
-                    <div className="space-y-1.5 sm:col-span-2">
-                      <label className="text-xs font-bold text-foreground block">
                         ترتیب نمایش (عددی)
                       </label>
                       <input
@@ -723,43 +705,82 @@ export const AdminBannersView: React.FC = () => {
                         className="w-full h-10 px-3.5 rounded-field border border-border/60 bg-muted/20 text-foreground text-xs font-mono font-latin outline-none focus:border-brand"
                       />
                     </div>
+                  </div>
 
-                    {/* Vibe Farsi Switch / Toggle Component (Image 4 fix) */}
-                    <div className="flex items-center justify-between p-3.5 rounded-field border border-border/60 bg-muted/20 sm:col-span-2">
-                      <div className="space-y-0.5 text-right">
-                        <span className="text-xs font-bold text-foreground block">
-                          وضعیت انتشار و نمایش در فروشگاه
-                        </span>
-                        <span className="text-[11px] text-muted-foreground">
-                          {(editingBanner.is_active ?? true)
-                            ? 'بنر فعال است و در موقعیت تعیین‌شده به خریداران نمایش داده می‌شود'
-                            : 'بنر غیرفعال است و از ویترین فروشگاه مخفی شده است'}
-                        </span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() =>
+                  {/* Dual Action CTA Buttons (Optional Secondary Button) */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 text-right">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-foreground block">
+                        متن دکمه دوم (اختیاری)
+                      </label>
+                      <input
+                        type="text"
+                        value={editingBanner.secondary_button_text || ''}
+                        onChange={(e) =>
                           setEditingBanner((prev) => ({
                             ...prev,
-                            is_active: !(prev?.is_active ?? true),
+                            secondary_button_text: e.target.value,
                           }))
                         }
-                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                          (editingBanner.is_active ?? true)
-                            ? 'bg-emerald-600'
-                            : 'bg-muted border-border/60'
-                        }`}
-                        title="تغییر وضعیت فعال/غیرفعال"
-                      >
-                        <span
-                          className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                            (editingBanner.is_active ?? true)
-                              ? '-translate-x-5'
-                              : 'translate-x-0'
-                          }`}
-                        />
-                      </button>
+                        placeholder="مثال: اطلاعات بیشتر یا پلن‌ها"
+                        className="w-full h-10 px-3.5 rounded-field border border-border/60 bg-muted/20 text-foreground text-xs outline-none focus:border-brand"
+                      />
                     </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-foreground block">
+                        لینک دکمه دوم (اختیاری)
+                      </label>
+                      <input
+                        type="text"
+                        dir="ltr"
+                        value={editingBanner.secondary_link_url || ''}
+                        onChange={(e) =>
+                          setEditingBanner((prev) => ({
+                            ...prev,
+                            secondary_link_url: e.target.value,
+                          }))
+                        }
+                        className="w-full h-10 px-3.5 rounded-field border border-border/60 bg-muted/20 text-foreground text-xs font-mono font-latin outline-none focus:border-brand"
+                        placeholder="/products/..."
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between p-3.5 rounded-field border border-border/60 bg-muted/20">
+                    <div className="space-y-0.5 text-right">
+                      <span className="text-xs font-bold text-foreground block">
+                        وضعیت انتشار و نمایش در فروشگاه
+                      </span>
+                      <span className="text-[11px] text-muted-foreground">
+                        {(editingBanner.is_active ?? true)
+                          ? 'بنر فعال است و در موقعیت تعیین‌شده به خریداران نمایش داده می‌شود'
+                          : 'بنر غیرفعال است و از ویترین فروشگاه مخفی شده است'}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setEditingBanner((prev) => ({
+                          ...prev,
+                          is_active: !(prev?.is_active ?? true),
+                        }))
+                      }
+                      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                        (editingBanner.is_active ?? true)
+                          ? 'bg-emerald-600'
+                          : 'bg-muted border-border/60'
+                      }`}
+                      title="تغییر وضعیت فعال/غیرفعال"
+                    >
+                      <span
+                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                          (editingBanner.is_active ?? true)
+                            ? '-translate-x-5'
+                            : 'translate-x-0'
+                        }`}
+                      />
+                    </button>
                   </div>
 
                   {/* Modal Action: Full Width Save Button (No Cancel Button as requested) */}

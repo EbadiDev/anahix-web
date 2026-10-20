@@ -172,21 +172,22 @@ export const BlogDetailPage: React.FC = () => {
 
           <div className="space-y-4">
             <div className="flex flex-wrap items-center gap-2 text-xs">
-              <span className="px-3 py-1 rounded-control bg-brand/10 text-brand font-bold">
-                {article.category_name}
+              <span className="px-2.5 py-1 rounded-control bg-slate-950/85 backdrop-blur-md text-white border border-white/20 text-xs font-black shadow-control flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-brand" />
+                <span>{article.category_name}</span>
               </span>
-              <span className="flex items-center gap-1 text-muted-foreground font-latin">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-control bg-muted/40 border border-border/60 text-[11px] font-bold text-muted-foreground">
                 <Clock className="h-3.5 w-3.5 text-brand" />
                 <span>
                   زمان مطالعه: {toPersianDigits(article.reading_time_minutes)}{' '}
                   دقیقه
                 </span>
               </span>
-              <span className="text-muted-foreground">•</span>
-              <span className="flex items-center gap-1 text-muted-foreground font-latin">
-                <Eye className="h-3.5 w-3.5" />
-                <span>
-                  {toPersianDigits(article.view_count.toLocaleString())} بازدید
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-control bg-muted/40 border border-border/60 text-[11px] font-bold text-muted-foreground">
+                <Eye className="h-3.5 w-3.5 text-muted-foreground" />
+                <span className="font-latin">
+                  {Number(article.view_count || 120).toLocaleString('fa-IR')}{' '}
+                  بازدید
                 </span>
               </span>
             </div>

@@ -178,7 +178,7 @@ export const ProfileOrdersTab: React.FC<ProfileOrdersTabProps> = ({
               placeholder="جستجو با شماره سفارش یا عنوان..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full h-10 pr-9 pl-3 text-xs rounded-field bg-muted/20 border border-border/60 text-foreground outline-none focus:border-foreground/40 transition-colors"
+              className="w-full h-10 pr-9 pl-3 text-xs rounded-field bg-muted/20 border border-border/60 text-foreground outline-none focus:border-brand transition-colors"
             />
             <Search className="w-4 h-4 absolute right-3 top-3 text-muted-foreground pointer-events-none" />
           </div>

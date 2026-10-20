@@ -13,6 +13,9 @@ export interface BannerData {
   position?: string
   bg_gradient?: string
   button_text?: string
+  secondary_button_text?: string
+  secondary_link_url?: string
+  sort_order?: number
 }
 
 interface BannerCarouselProps {
@@ -28,6 +31,8 @@ export const BannerCarousel: React.FC<BannerCarouselProps> = ({
 }) => {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [isPaused, setIsPaused] = useState(false)
+  const [touchStartX, setTouchStartX] = useState<number | null>(null)
+  const [touchEndX, setTouchEndX] = useState<number | null>(null)
 
   useEffect(() => {
     if (!banners || banners.length <= 1 || isPaused) return
@@ -41,16 +46,44 @@ export const BannerCarousel: React.FC<BannerCarouselProps> = ({
 
   const current = banners[currentIndex]
 
-  const handlePrev = (e: React.MouseEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
+  const handlePrev = (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault()
+      e.stopPropagation()
+    }
     setCurrentIndex((prev) => (prev - 1 + banners.length) % banners.length)
   }
 
-  const handleNext = (e: React.MouseEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
+  const handleNext = (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault()
+      e.stopPropagation()
+    }
     setCurrentIndex((prev) => (prev + 1) % banners.length)
+  }
+
+  // SwiperJS Touch Gestures Support
+  const onTouchStart = (e: React.TouchEvent) => {
+    setIsPaused(true)
+    setTouchStartX(e.targetTouches[0].clientX)
+  }
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    setTouchEndX(e.targetTouches[0].clientX)
+  }
+
+  const onTouchEnd = () => {
+    setIsPaused(false)
+    if (!touchStartX || !touchEndX) return
+    const diff = touchStartX - touchEndX
+    // In RTL, swipe left (diff > 45) advances to NEXT slide, swipe right (diff < -45) goes to PREV slide
+    if (diff > 45) {
+      handleNext()
+    } else if (diff < -45) {
+      handlePrev()
+    }
+    setTouchStartX(null)
+    setTouchEndX(null)
   }
 
   return (
@@ -59,8 +92,11 @@ export const BannerCarousel: React.FC<BannerCarouselProps> = ({
       className={`group relative overflow-hidden rounded-surface border border-border/80 bg-card shadow-surface transition-all duration-200 select-none ${className}`}
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
     >
-      <div className="relative w-full h-[260px] sm:h-[300px] md:h-[320px] overflow-hidden">
+      <div className="relative w-full h-[270px] sm:h-[310px] md:h-[330px] overflow-hidden">
         {/* Full-bleed Background Image with smooth scale on hover */}
         {current.image_url ? (
           <img
@@ -86,7 +122,7 @@ export const BannerCarousel: React.FC<BannerCarouselProps> = ({
         {/* Text & Action Content */}
         <div className="relative z-10 h-full p-5 sm:p-7 flex flex-col justify-end text-right text-white space-y-2 max-w-lg">
           {current.badge_text && (
-            <div className="inline-flex self-start items-center gap-1.5 rounded-control bg-white/20 px-2.5 py-0.5 text-xs font-black backdrop-blur-md border border-white/30 text-white shadow-xs">
+            <div className="inline-flex self-start items-center gap-1.5 rounded-control bg-slate-950/75 px-2.5 py-0.5 text-xs font-black backdrop-blur-md border border-white/20 text-white shadow-xs">
               <Sparkles className="h-3.5 w-3.5 text-amber-300" />
               <span>{current.badge_text}</span>
             </div>
@@ -102,8 +138,9 @@ export const BannerCarousel: React.FC<BannerCarouselProps> = ({
             </p>
           )}
 
-          {current.link_url && (
-            <div className="pt-1.5">
+          {/* Dual Action CTA Buttons (matching Swiper prompt) */}
+          <div className="pt-2 flex items-center gap-2.5 flex-wrap">
+            {current.link_url && (
               <Link
                 to={current.link_url}
                 className="inline-flex items-center gap-2 h-9 px-4 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs duration-motion ease-motion active:scale-[0.98] shadow-control transition-all"
@@ -111,11 +148,20 @@ export const BannerCarousel: React.FC<BannerCarouselProps> = ({
                 <span>{current.button_text || 'مشاهده و خرید'}</span>
                 <span>←</span>
               </Link>
-            </div>
-          )}
+            )}
+
+            {current.secondary_link_url && (
+              <Link
+                to={current.secondary_link_url}
+                className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-control border border-white/30 bg-white/10 hover:bg-white/20 text-white font-bold text-xs backdrop-blur-md duration-motion ease-motion active:scale-[0.98] transition-all"
+              >
+                <span>{current.secondary_button_text || 'اطلاعات بیشتر'}</span>
+              </Link>
+            )}
+          </div>
         </div>
 
-        {/* Left/Right Navigation arrows */}
+        {/* Left/Right Navigation arrows (Always accessible on hover or mobile) */}
         {banners.length > 1 && (
           <>
             <button
@@ -139,7 +185,7 @@ export const BannerCarousel: React.FC<BannerCarouselProps> = ({
           </>
         )}
 
-        {/* Carousel Pagination Dots */}
+        {/* Carousel Pagination Indicators (Active pill + dots) */}
         {banners.length > 1 && (
           <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5">
             {banners.map((b, idx) => (

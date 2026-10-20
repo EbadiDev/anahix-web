@@ -603,18 +603,18 @@ export const Header: React.FC<HeaderProps> = ({
                       <Link
                         to="/profile"
                         onClick={() => setUserDropdownOpen(false)}
-                        className="flex items-center gap-2 px-2.5 py-1.5 rounded-control text-xs font-medium text-foreground hover:bg-muted/80 transition-colors text-right"
+                        className="flex items-center gap-2 px-2.5 py-2 rounded-control text-xs font-bold text-foreground hover:text-brand hover:bg-brand/10 transition-colors text-right group"
                       >
-                        <User className="h-3.5 w-3.5 text-brand" />
+                        <User className="h-3.5 w-3.5 text-brand transition-transform group-hover:scale-110" />
                         <span>حساب کاربری و پروفایل</span>
                       </Link>
 
                       <Link
                         to="/track"
                         onClick={() => setUserDropdownOpen(false)}
-                        className="flex items-center gap-2 px-2.5 py-1.5 rounded-control text-xs text-foreground hover:bg-muted/80 transition-colors text-right"
+                        className="flex items-center gap-2 px-2.5 py-2 rounded-control text-xs font-bold text-foreground hover:text-brand hover:bg-brand/10 transition-colors text-right group"
                       >
-                        <ShieldCheck className="h-3.5 w-3.5 text-brand" />
+                        <ShieldCheck className="h-3.5 w-3.5 text-brand transition-transform group-hover:scale-110" />
                         <span>پیگیری سفارش‌های من</span>
                       </Link>
 

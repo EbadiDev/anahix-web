@@ -390,9 +390,11 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
         setTimeout(() => setQuickCouponApplied(null), 2500)
       } else {
         setCouponError(res.message || 'کد تخفیف معتبر نیست یا منقضی شده است')
+        setTimeout(() => setCouponError(null), 4000)
       }
     } catch (err: any) {
       setCouponError(err.message || 'خطا در اعتبارسنجی کد تخفیف')
+      setTimeout(() => setCouponError(null), 4000)
     } finally {
       setCouponLoading(false)
     }
@@ -694,11 +696,9 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 type="button"
                 onClick={clearCart}
                 title="خالی کردن کل سبد"
-                className={`${
-                  mobileStep === 'checkout' ? 'hidden sm:flex' : 'flex'
-                } items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-control text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors border border-transparent hover:border-destructive/20 duration-motion ease-motion active:scale-[0.98] cursor-pointer`}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-control text-xs font-bold text-rose-500 hover:text-rose-600 dark:text-rose-400 border border-rose-500/30 bg-rose-500/5 hover:bg-rose-500/15 hover:border-rose-500/50 shadow-xs duration-motion ease-motion active:scale-[0.98] transition-all cursor-pointer"
               >
-                <Trash2 className="w-3.5 h-3.5" />
+                <Trash2 className="w-3.5 h-3.5 text-rose-500 shrink-0" />
                 <span className="hidden sm:inline">خالی کردن سبد</span>
               </button>
             )}
@@ -920,7 +920,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                               <label className="text-[11px] text-muted-foreground block mb-1">
                                 ایمیل اکانت {brand.badge}:
                               </label>
-                              <Input
+                              <input
                                 type="email"
                                 dir="ltr"
                                 value={cred.email}
@@ -932,7 +932,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                                   )
                                 }
                                 placeholder="name@example.com"
-                                className="h-8 text-xs font-latin rounded-control bg-muted/30 border-border/60 text-foreground"
+                                className="w-full h-8.5 px-3 text-xs font-latin rounded-field bg-muted/20 border border-border/60 text-foreground placeholder:text-muted-foreground outline-none focus:border-brand transition-colors"
                               />
                             </div>
                             <div>
@@ -960,7 +960,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                                   )}
                                 </button>
                               </div>
-                              <Input
+                              <input
                                 type={cred.showPassword ? 'text' : 'password'}
                                 dir="ltr"
                                 value={cred.password}
@@ -972,7 +972,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                                   )
                                 }
                                 placeholder="••••••••"
-                                className="h-8 text-xs font-latin rounded-control bg-muted/30 border-border/60 text-foreground"
+                                className="w-full h-8.5 px-3 text-xs font-latin rounded-field bg-muted/20 border border-border/60 text-foreground placeholder:text-muted-foreground outline-none focus:border-brand transition-colors"
                               />
                             </div>
                           </div>
@@ -982,13 +982,13 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                       {/* Quantity Stepper & Subtotal Row */}
                       <div className="flex items-center justify-between pt-2 border-t border-border/50">
                         {/* Stepper with tactile touch */}
-                        <div className="flex items-center border border-border bg-muted/40 rounded-xl p-0.5 sm:p-1 shadow-xs">
+                        <div className="flex items-center border border-border/60 bg-muted/20 rounded-control p-0.5 shadow-xs">
                           <button
                             type="button"
                             onClick={() =>
                               updateQuantity(product.id, quantity - 1, plan?.id)
                             }
-                            className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-card hover:text-foreground transition active:scale-90"
+                            className="w-7 h-7 sm:w-8 sm:h-8 rounded-control flex items-center justify-center text-muted-foreground hover:bg-card hover:text-foreground transition active:scale-90"
                             aria-label="کاهش تعداد"
                           >
                             {quantity === 1 ? (
@@ -998,7 +998,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                             )}
                           </button>
 
-                          <span className="w-8 sm:w-9 text-center font-black text-xs sm:text-sm text-foreground font-mono">
+                          <span className="w-8 sm:w-9 text-center font-black text-xs sm:text-sm text-foreground font-mono font-latin">
                             {quantity}
                           </span>
 
@@ -1007,7 +1007,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                             onClick={() =>
                               updateQuantity(product.id, quantity + 1, plan?.id)
                             }
-                            className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-card hover:text-foreground transition active:scale-90"
+                            className="w-7 h-7 sm:w-8 sm:h-8 rounded-control flex items-center justify-center text-muted-foreground hover:bg-card hover:text-foreground transition active:scale-90"
                             aria-label="افزایش تعداد"
                           >
                             <Plus className="w-4 h-4" />
@@ -1339,9 +1339,12 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                       >
                         <input
                           value={couponCodeInput}
-                          onChange={(e) => setCouponCodeInput(e.target.value)}
+                          onChange={(e) => {
+                            setCouponCodeInput(e.target.value)
+                            if (couponError) setCouponError(null)
+                          }}
                           placeholder="کد تخفیف (مثال: WELCOME10)"
-                          className="h-10 text-xs uppercase font-latin rounded-field bg-muted/20 border border-border/60 px-3 text-foreground outline-none focus:border-foreground/40 transition-colors flex-1"
+                          className="h-10 text-xs uppercase font-latin rounded-field bg-muted/20 border border-border/60 px-3 text-foreground outline-none focus:border-brand transition-colors flex-1"
                         />
                         <button
                           type="submit"
@@ -1353,9 +1356,19 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                       </form>
 
                       {couponError && (
-                        <div className="flex items-center gap-1.5 text-xs text-destructive font-medium">
-                          <AlertCircle className="w-4 h-4 shrink-0" />
-                          <span>{couponError}</span>
+                        <div className="p-2.5 rounded-control bg-rose-500/10 border border-rose-500/25 flex items-center justify-between text-xs text-rose-500 font-bold animate-in fade-in duration-200">
+                          <div className="flex items-center gap-2">
+                            <AlertCircle className="w-4 h-4 shrink-0" />
+                            <span>{couponError}</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setCouponError(null)}
+                            className="p-1 rounded-control hover:bg-rose-500/20 text-rose-500 cursor-pointer"
+                            title="بستن پیام خطا"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
                         </div>
                       )}
 

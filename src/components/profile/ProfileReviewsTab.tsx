@@ -79,7 +79,7 @@ export const ProfileReviewsTab: React.FC = () => {
                 setSearchQuery(e.target.value)
                 setVisibleCount(4)
               }}
-              className="w-full h-9 pr-8 pl-3 text-xs rounded-field bg-muted/20 border border-border/60 text-foreground outline-none focus:border-foreground/40 transition-colors"
+              className="w-full h-9 pr-8 pl-3 text-xs rounded-field bg-muted/20 border border-border/60 text-foreground outline-none focus:border-brand transition-colors"
             />
             <Search className="w-3.5 h-3.5 absolute right-2.5 top-2.5 text-muted-foreground pointer-events-none" />
           </div>
@@ -88,7 +88,7 @@ export const ProfileReviewsTab: React.FC = () => {
             type="button"
             onClick={loadReviews}
             disabled={loading}
-            className="h-9 px-3.5 rounded-control border border-border/60 bg-card hover:bg-muted text-foreground text-xs font-bold flex items-center gap-1.5 duration-motion ease-motion active:scale-[0.98] cursor-pointer disabled:opacity-50 shrink-0"
+            className="h-9 px-3.5 rounded-control border border-border/60 bg-secondary/80 hover:bg-muted text-foreground text-xs font-bold flex items-center gap-1.5 duration-motion ease-motion active:scale-[0.98] cursor-pointer shadow-control disabled:opacity-50 shrink-0"
           >
             <RefreshCw
               className={`h-3.5 w-3.5 ${loading ? 'animate-spin text-brand' : 'text-muted-foreground'}`}
@@ -273,7 +273,7 @@ export const ProfileReviewsTab: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setVisibleCount((prev) => prev + 4)}
-                  className="h-10 px-5 rounded-control border border-border/60 bg-card hover:bg-muted text-foreground font-black text-xs duration-motion ease-motion active:scale-[0.98] shadow-control cursor-pointer inline-flex items-center gap-2"
+                  className="h-9 px-5 rounded-control border border-border/60 bg-secondary/80 hover:bg-muted text-foreground font-bold text-xs duration-motion ease-motion active:scale-[0.98] shadow-control cursor-pointer inline-flex items-center gap-2"
                 >
                   <span>بارگذاری نظرات بیشتر</span>
                   <span className="text-[11px] text-muted-foreground font-latin">
@@ -288,7 +288,7 @@ export const ProfileReviewsTab: React.FC = () => {
             )}
           </div>
         ) : (
-          <div className="py-16 text-center bg-card border border-border/60 rounded-surface p-8 space-y-3 shadow-surface">
+          <div className="py-16 text-center bg-card border border-border/60 rounded-surface p-8 space-y-3.5 shadow-surface">
             <MessageSquare className="h-10 w-10 text-muted-foreground/60 mx-auto" />
             <h4 className="font-bold text-sm text-foreground">
               شما هنوز نظری برای سفارش‌های خود ثبت نکرده‌اید
@@ -297,6 +297,15 @@ export const ProfileReviewsTab: React.FC = () => {
               با مراجعه به تب «سفارش‌های من»، می‌توانید روی سفارش‌های تکمیل‌شده کلیک
               کرده و نظر و برچسب‌های تجربه خرید خود را ثبت نمایید.
             </p>
+            <div className="pt-2">
+              <Link
+                to="/profile?tab=orders"
+                className="inline-flex items-center gap-2 h-9 px-4 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs duration-motion ease-motion active:scale-[0.98] shadow-control transition-all"
+              >
+                <span>مشاهده سفارش‌های من و ثبت نظر</span>
+                <span>←</span>
+              </Link>
+            </div>
           </div>
         )}
       </div>
