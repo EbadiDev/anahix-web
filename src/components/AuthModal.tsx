@@ -5,7 +5,6 @@ import {
   Mail,
   RefreshCw,
   Smartphone,
-  X,
 } from 'lucide-react'
 import type React from 'react'
 import { useEffect, useState } from 'react'
@@ -14,6 +13,7 @@ import { api } from '../services/api'
 import type { CustomerProfile, ThemeSettings } from '../types'
 import { GithubIcon, GoogleIcon } from './SocialIcons'
 import { Alert } from './vibefarsi/Alert'
+import { ModalCloseButton } from './vibefarsi/ModalCloseButton'
 import { useNotification } from './vibefarsi/NotificationContext'
 import { OtpField } from './vibefarsi/OtpField'
 import { PasswordInput } from './vibefarsi/PasswordInput'
@@ -436,14 +436,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         <div className="pointer-events-none absolute -bottom-20 -left-20 h-44 w-44 rounded-full bg-foreground/5 blur-3xl" />
 
         {/* Modal Close Button */}
-        <button
-          type="button"
-          onClick={onClose}
-          className="absolute top-5 left-5 p-2 rounded-control text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
-          title="بستن پنجره"
-        >
-          <X className="h-5 w-5" />
-        </button>
+        <ModalCloseButton onClick={onClose} className="absolute top-5 left-5" />
 
         {/* Header Branding */}
         <div className="text-center space-y-2 mb-6">

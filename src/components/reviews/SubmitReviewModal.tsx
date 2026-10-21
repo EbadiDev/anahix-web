@@ -7,13 +7,13 @@ import {
   ShieldCheck,
   Star,
   Tag,
-  X,
 } from 'lucide-react'
 import type React from 'react'
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { apiService } from '../../services/api'
 import type { CustomerProfile, SubmitReviewRequest } from '../../types'
+import { ModalCloseButton } from '../vibefarsi/ModalCloseButton'
 
 export const AVAILABLE_EXPERIENCE_TAGS = [
   'تحویل زیر ۱ دقیقه',
@@ -168,13 +168,7 @@ export const SubmitReviewModal: React.FC<SubmitReviewModalProps> = ({
               </p>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="h-8 w-8 rounded-control flex items-center justify-center hover:bg-muted text-muted-foreground hover:text-foreground transition cursor-pointer"
-          >
-            <X className="h-4 w-4" />
-          </button>
+          <ModalCloseButton onClick={onClose} size="sm" />
         </div>
 
         {/* Modal Body */}

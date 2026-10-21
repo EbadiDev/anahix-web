@@ -34,6 +34,7 @@ import type {
 import { toPersianDigits } from '../../utils/formatters'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
+import { ModalCloseButton } from '../vibefarsi/ModalCloseButton'
 
 interface ProfileSupportTabProps {
   orders: Order[]
@@ -1060,13 +1061,7 @@ export const ProfileSupportTab: React.FC<ProfileSupportTabProps> = ({
                     </div>
                     <span>ثبت تیکت پشتیبانی جدید</span>
                   </h3>
-                  <button
-                    type="button"
-                    onClick={() => setIsCreateOpen(false)}
-                    className="w-8 h-8 rounded-control bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center cursor-pointer transition-colors"
-                  >
-                    ✕
-                  </button>
+                  <ModalCloseButton onClick={() => setIsCreateOpen(false)} />
                 </div>
 
                 <form

@@ -20,6 +20,7 @@ import { useEffect, useState } from 'react'
 import { apiService } from '../../services/api'
 import type { AdminReviewStats, ReviewItem } from '../../types'
 import { Button } from '../ui/button'
+import { useNotification } from '../vibefarsi/NotificationContext'
 
 interface AdminReviewsViewProps {
   onStatsUpdated?: (stats: AdminReviewStats) => void
@@ -28,6 +29,7 @@ interface AdminReviewsViewProps {
 export const AdminReviewsView: React.FC<AdminReviewsViewProps> = ({
   onStatsUpdated,
 }) => {
+  const { success: notifySuccess, error: notifyError } = useNotification()
   const [reviews, setReviews] = useState<ReviewItem[]>([])
   const [stats, setStats] = useState<AdminReviewStats>({
     total_reviews: 0,
@@ -92,9 +94,10 @@ export const AdminReviewsView: React.FC<AdminReviewsViewProps> = ({
     setActionLoading((prev) => ({ ...prev, [id]: true }))
     try {
       await apiService.updateAdminReviewStatus(id, 'approved')
+      notifySuccess('تایید نظر', 'نظر با موفقیت تایید و در سایت منتشر شد.')
       await fetchReviews()
     } catch (err: any) {
-      alert(err.message || 'خطا در تایید نظر')
+      notifyError('خطا در تایید نظر', err.message)
     } finally {
       setActionLoading((prev) => ({ ...prev, [id]: false }))
     }
@@ -104,11 +107,12 @@ export const AdminReviewsView: React.FC<AdminReviewsViewProps> = ({
     setActionLoading((prev) => ({ ...prev, [id]: true }))
     try {
       await apiService.updateAdminReviewStatus(id, 'rejected', rejectReason)
+      notifySuccess('رد نظر', 'نظر خریدار رد شد.')
       setRejectingReviewId(null)
       setRejectReason('')
       await fetchReviews()
     } catch (err: any) {
-      alert(err.message || 'خطا در رد نظر')
+      notifyError('خطا در رد نظر', err.message)
     } finally {
       setActionLoading((prev) => ({ ...prev, [id]: false }))
     }
@@ -119,11 +123,12 @@ export const AdminReviewsView: React.FC<AdminReviewsViewProps> = ({
     setActionLoading((prev) => ({ ...prev, [id]: true }))
     try {
       await apiService.replyAdminReview(id, replyText, replyAuthor)
+      notifySuccess('ثبت پاسخ رسمی', 'پاسخ شما با موفقیت ثبت شد.')
       setReplyingReviewId(null)
       setReplyText('')
       await fetchReviews()
     } catch (err: any) {
-      alert(err.message || 'خطا در ثبت پاسخ')
+      notifyError('خطا در ثبت پاسخ', err.message)
     } finally {
       setActionLoading((prev) => ({ ...prev, [id]: false }))
     }
@@ -133,9 +138,13 @@ export const AdminReviewsView: React.FC<AdminReviewsViewProps> = ({
     setActionLoading((prev) => ({ ...prev, [id]: true }))
     try {
       await apiService.featureAdminReview(id, !current)
+      notifySuccess(
+        'وضعیت برگزیده',
+        `نظر به عنوان ${!current ? 'برگزیده' : 'عادی'} تنظیم شد.`,
+      )
       await fetchReviews()
     } catch (err: any) {
-      alert(err.message || 'خطا در تغییر وضعیت برگزیده')
+      notifyError('خطا در تغییر وضعیت برگزیده', err.message)
     } finally {
       setActionLoading((prev) => ({ ...prev, [id]: false }))
     }
@@ -146,9 +155,10 @@ export const AdminReviewsView: React.FC<AdminReviewsViewProps> = ({
     setActionLoading((prev) => ({ ...prev, [id]: true }))
     try {
       await apiService.deleteAdminReview(id)
+      notifySuccess('حذف نظر', 'نظر خریدار با موفقیت حذف شد.')
       await fetchReviews()
     } catch (err: any) {
-      alert(err.message || 'خطا در حذف نظر')
+      notifyError('خطا در حذف نظر', err.message)
     } finally {
       setActionLoading((prev) => ({ ...prev, [id]: false }))
     }

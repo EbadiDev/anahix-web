@@ -23,6 +23,7 @@ import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { apiService } from '../../services/api'
 import type { CreateOrUpdateLoyaltyTierRequest, LoyaltyTier } from '../../types'
+import { ToggleSwitch } from '../vibefarsi/ToggleSwitch'
 import { AdminHeaderBanner } from './AdminHeaderBanner'
 
 export const AdminLoyaltyTiersView: React.FC = () => {
@@ -414,20 +415,17 @@ export const AdminLoyaltyTiersView: React.FC = () => {
               <span className="text-xs font-bold text-foreground">
                 ارتقای خودکار سطح (Auto-Upgrade)
               </span>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={settings.loyalty_auto_upgrade === 'true'}
-                  onChange={(e) =>
-                    setSettings({
-                      ...settings,
-                      loyalty_auto_upgrade: e.target.checked ? 'true' : 'false',
-                    })
-                  }
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-muted peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500" />
-              </label>
+              <ToggleSwitch
+                checked={settings.loyalty_auto_upgrade === 'true'}
+                onChange={(checked) =>
+                  setSettings({
+                    ...settings,
+                    loyalty_auto_upgrade: checked ? 'true' : 'false',
+                  })
+                }
+                variant="primary"
+                size="sm"
+              />
             </div>
             <p className="text-[11px] text-muted-foreground leading-relaxed">
               ارتقای خودکار سطح بلافاصله پس از پرداخت یا تکمیل سفارش بدون نیاز

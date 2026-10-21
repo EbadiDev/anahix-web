@@ -121,6 +121,20 @@ export const Header: React.FC<HeaderProps> = ({
         })
         .catch(() => {})
     }
+
+    const handleThemeSync = (e: any) => {
+      if (e.detail) {
+        setThemeSettings((prev) => ({ ...prev, ...e.detail }))
+      } else {
+        api
+          .getThemeSettings()
+          .then(setThemeSettings)
+          .catch(() => {})
+      }
+    }
+    window.addEventListener('anahix:theme:updated', handleThemeSync)
+    return () =>
+      window.removeEventListener('anahix:theme:updated', handleThemeSync)
   }, [])
 
   // Close dropdowns on click outside

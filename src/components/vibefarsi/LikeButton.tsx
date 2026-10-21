@@ -3,7 +3,6 @@ import type React from 'react'
 import { useEffect, useState } from 'react'
 import { LIKED_ARTICLES_KEY } from '../../constants/theme'
 import { api } from '../../services/api'
-import { toPersianDigits } from '../../utils/formatters'
 import { AuthModal } from '../AuthModal'
 import { useNotification } from './NotificationContext'
 
@@ -155,7 +154,7 @@ export const LikeButton: React.FC<LikeButtonProps> = ({
           />
         )}
         <span className="font-latin text-xs font-bold">
-          {toPersianDigits(likes)}
+          {Number(likes).toLocaleString('fa-IR')}
         </span>
       </button>
 

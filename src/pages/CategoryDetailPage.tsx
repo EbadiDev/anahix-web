@@ -1,4 +1,11 @@
-import { Package, RefreshCw, Search, Sparkles } from 'lucide-react'
+import {
+  ChevronLeft,
+  ChevronRight,
+  Package,
+  RefreshCw,
+  Search,
+  Sparkles,
+} from 'lucide-react'
 import type React from 'react'
 import { useEffect, useMemo, useState } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
@@ -33,6 +40,11 @@ export const CategoryDetailPage: React.FC = () => {
   const [durationFilter, setDurationFilter] = useState<
     'all' | '1m' | '3m' | '12m' | 'long'
   >('all')
+  const [sortBy, setSortBy] = useState<
+    'default' | 'price_asc' | 'price_desc' | 'sales'
+  >('default')
+  const [page, setPage] = useState<number>(1)
+  const [pageSize, setPageSize] = useState<number>(9)
 
   const [orders, setOrders] = useState<Order[]>(() =>
     apiService.getCustomerOrders(),
@@ -117,7 +129,7 @@ export const CategoryDetailPage: React.FC = () => {
 
   // Filtered products within category based on price, delivery, and subcategory
   const filteredProducts = useMemo(() => {
-    return products.filter((p) => {
+    const list = products.filter((p) => {
       // Subcategory / Brand filter
       if (selectedSubcategory !== 'all') {
         const matchesGroup = p.group_tag === selectedSubcategory
@@ -179,6 +191,13 @@ export const CategoryDetailPage: React.FC = () => {
 
       return true
     })
+
+    return list.sort((a, b) => {
+      if (sortBy === 'price_asc') return a.price_toman - b.price_toman
+      if (sortBy === 'price_desc') return b.price_toman - a.price_toman
+      if (sortBy === 'sales') return (b.sales_count || 0) - (a.sales_count || 0)
+      return 0
+    })
   }, [
     products,
     selectedSubcategory,
@@ -186,7 +205,14 @@ export const CategoryDetailPage: React.FC = () => {
     maxPrice,
     deliveryFilter,
     durationFilter,
+    sortBy,
   ])
+
+  const totalPages = Math.ceil(filteredProducts.length / pageSize) || 1
+  const paginatedProducts = filteredProducts.slice(
+    (page - 1) * pageSize,
+    page * pageSize,
+  )
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col font-sans transition-colors duration-200">
@@ -254,164 +280,145 @@ export const CategoryDetailPage: React.FC = () => {
           </section>
         )}
 
-        {/* Subcategories Filter Chips if available */}
-        {subcategories.length > 0 && (
-          <section className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-            <button
-              type="button"
-              onClick={() => setSelectedSubcategory('all')}
-              className={`px-3.5 py-1.5 rounded-control text-xs font-bold whitespace-nowrap transition-all duration-motion ease-motion cursor-pointer ${
-                selectedSubcategory === 'all'
-                  ? 'bg-primary text-primary-foreground font-black shadow-control'
-                  : 'border border-border/60 bg-card text-muted-foreground hover:text-foreground hover:bg-muted'
-              }`}
-            >
-              همه سرویس‌ها
-            </button>
-            {subcategories.map((sub) => (
-              <button
-                key={sub.id}
-                type="button"
-                onClick={() => setSelectedSubcategory(sub.slug)}
-                className={`px-3.5 py-1.5 rounded-control text-xs font-bold whitespace-nowrap transition-all duration-motion ease-motion cursor-pointer ${
-                  selectedSubcategory === sub.slug
-                    ? 'bg-primary text-primary-foreground font-black shadow-control'
-                    : 'border border-border/60 bg-card text-muted-foreground hover:text-foreground hover:bg-muted'
-                }`}
-              >
-                {sub.name}
-              </button>
-            ))}
-          </section>
-        )}
+        {/* Category Filters Bar: Search, Dropdowns, and Range Slider (matching /offers and /best-sellers) */}
+        <div className="bg-card rounded-surface border border-border/80 p-3.5 shadow-surface flex flex-col lg:flex-row lg:items-center justify-between gap-3 text-xs">
+          {/* Dynamic Dropdowns */}
+          <div className="flex items-center gap-2.5 flex-wrap">
+            {subcategories.length > 0 && (
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] text-muted-foreground font-bold shrink-0">
+                  زیردسته:
+                </span>
+                <select
+                  value={selectedSubcategory}
+                  onChange={(e) => {
+                    setSelectedSubcategory(e.target.value)
+                    setPage(1)
+                  }}
+                  className="h-9 px-3 rounded-control border border-border/60 bg-muted/20 text-xs text-foreground outline-none focus:border-brand font-bold cursor-pointer"
+                >
+                  <option value="all">همه سرویس‌ها</option>
+                  {subcategories.map((sub) => (
+                    <option key={sub.id} value={sub.slug}>
+                      {sub.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
-        {/* Category Filters Bar: Search, Price Range & Delivery Type (Vibe Farsi Graphite) */}
-        <section className="rounded-surface border border-border/60 bg-card p-5 space-y-4 shadow-surface duration-motion ease-motion">
-          <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
-            {/* Search within Category */}
-            <div className="relative flex-1 max-w-md">
-              <input
-                type="text"
-                placeholder={`جستجو در ${category?.name || 'این دسته‌بندی'}...`}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full h-10 pr-9 pl-4 text-xs rounded-field bg-muted/30 border border-border/60 text-foreground outline-none focus:border-foreground/40 transition-colors"
-              />
-              <Search className="h-4 w-4 text-muted-foreground absolute right-3 top-3 pointer-events-none" />
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px] text-muted-foreground font-bold shrink-0">
+                شیوه تحویل:
+              </span>
+              <select
+                value={deliveryFilter}
+                onChange={(e) => {
+                  setDeliveryFilter(e.target.value as any)
+                  setPage(1)
+                }}
+                className="h-9 px-2.5 rounded-control border border-border/60 bg-muted/20 text-xs text-foreground outline-none focus:border-brand font-bold cursor-pointer"
+              >
+                <option value="all">همه شیوه‌ها</option>
+                <option value="instant">تحویل آنی</option>
+                <option value="manual_timed">ارتقای شخصی</option>
+              </select>
             </div>
 
-            {/* Delivery Mode & Duration Pills */}
-            <div className="flex flex-wrap items-center gap-2">
-              {/* Delivery Filter */}
-              <div className="flex items-center gap-1.5 self-start md:self-auto bg-muted/40 p-1 rounded-control border border-border/40">
-                <button
-                  type="button"
-                  onClick={() => setDeliveryFilter('all')}
-                  className={`px-3 py-1.5 rounded-control text-xs duration-motion ease-motion transition-all cursor-pointer ${
-                    deliveryFilter === 'all'
-                      ? 'bg-primary text-primary-foreground font-black shadow-control'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  همه شیوه‌ها
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setDeliveryFilter('instant')}
-                  className={`px-3 py-1.5 rounded-control text-xs duration-motion ease-motion transition-all cursor-pointer ${
-                    deliveryFilter === 'instant'
-                      ? 'bg-primary text-primary-foreground font-black shadow-control'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  تحویل آنی
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setDeliveryFilter('manual_timed')}
-                  className={`px-3 py-1.5 rounded-control text-xs duration-motion ease-motion transition-all cursor-pointer ${
-                    deliveryFilter === 'manual_timed'
-                      ? 'bg-primary text-primary-foreground font-black shadow-control'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  ارتقای شخصی
-                </button>
-              </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px] text-muted-foreground font-bold shrink-0">
+                مدت دوره:
+              </span>
+              <select
+                value={durationFilter}
+                onChange={(e) => {
+                  setDurationFilter(e.target.value as any)
+                  setPage(1)
+                }}
+                className="h-9 px-2.5 rounded-control border border-border/60 bg-muted/20 text-xs text-foreground outline-none focus:border-brand font-bold cursor-pointer"
+              >
+                <option value="all">همه دوره‌ها</option>
+                <option value="1m">۱ ماهه</option>
+                <option value="3m">۳ ماهه</option>
+                <option value="12m">۱۲ ماهه</option>
+                <option value="long">۱۸ ماهه+</option>
+              </select>
+            </div>
 
-              {/* Duration Filter */}
-              <div className="flex items-center gap-1 bg-muted/40 p-1 rounded-control border border-border/40">
-                <button
-                  type="button"
-                  onClick={() => setDurationFilter('all')}
-                  className={`px-2.5 py-1.5 rounded-control text-xs duration-motion ease-motion transition-all cursor-pointer ${
-                    durationFilter === 'all'
-                      ? 'bg-primary text-primary-foreground font-black shadow-control'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  همه دوره‌ها
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setDurationFilter('1m')}
-                  className={`px-2.5 py-1.5 rounded-control text-xs duration-motion ease-motion transition-all cursor-pointer ${
-                    durationFilter === '1m'
-                      ? 'bg-primary text-primary-foreground font-black shadow-control'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  ۱ ماهه
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setDurationFilter('3m')}
-                  className={`px-2.5 py-1.5 rounded-control text-xs duration-motion ease-motion transition-all cursor-pointer ${
-                    durationFilter === '3m'
-                      ? 'bg-primary text-primary-foreground font-black shadow-control'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  ۳ ماهه
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setDurationFilter('12m')}
-                  className={`px-2.5 py-1.5 rounded-control text-xs duration-motion ease-motion transition-all cursor-pointer ${
-                    durationFilter === '12m'
-                      ? 'bg-primary text-primary-foreground font-black shadow-control'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  ۱۲ ماهه
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setDurationFilter('long')}
-                  className={`px-2.5 py-1.5 rounded-control text-xs duration-motion ease-motion transition-all cursor-pointer ${
-                    durationFilter === 'long'
-                      ? 'bg-primary text-primary-foreground font-black shadow-control'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  ۱۸ ماهه+
-                </button>
-              </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px] text-muted-foreground font-bold shrink-0">
+                مرتب‌سازی:
+              </span>
+              <select
+                value={sortBy}
+                onChange={(e) => {
+                  setSortBy(e.target.value as any)
+                  setPage(1)
+                }}
+                className="h-9 px-2.5 rounded-control border border-border/60 bg-muted/20 text-xs text-foreground outline-none focus:border-brand font-bold cursor-pointer"
+              >
+                <option value="default">پیش‌فرض</option>
+                <option value="price_asc">ارزان‌ترین</option>
+                <option value="price_desc">گران‌ترین</option>
+                <option value="sales">پرفروش‌ترین</option>
+              </select>
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px] text-muted-foreground font-bold shrink-0">
+                تعداد:
+              </span>
+              <select
+                value={pageSize}
+                onChange={(e) => {
+                  setPageSize(Number(e.target.value))
+                  setPage(1)
+                }}
+                className="h-9 px-2.5 rounded-control border border-border/60 bg-muted/20 text-xs text-foreground outline-none focus:border-brand font-bold cursor-pointer font-latin"
+              >
+                <option value={9}>۹ در صفحه</option>
+                <option value={18}>۱۸ در صفحه</option>
+                <option value={27}>۲۷ در صفحه</option>
+              </select>
             </div>
           </div>
 
-          {/* Vibe Farsi Range Slider for Category Price Filtering */}
-          <div className="pt-2 max-w-sm">
-            <RangeSlider
-              min={200000}
-              max={10000000}
-              step={100000}
-              value={maxPrice}
-              onChange={(val) => setMaxPrice(val)}
-              label="فیلتر بر اساس سقف قیمت:"
+          {/* Search box */}
+          <div className="relative">
+            <Search className="w-4 h-4 text-muted-foreground absolute right-3 top-2.5 pointer-events-none" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value)
+                setPage(1)
+              }}
+              placeholder={`جستجو در ${category?.name || 'این دسته‌بندی'}...`}
+              className="h-9 pr-9 pl-3 w-full sm:w-60 rounded-control border border-border/60 bg-muted/20 text-xs text-foreground placeholder:text-muted-foreground outline-none focus:border-brand"
             />
           </div>
-        </section>
+        </div>
+
+        {/* RangeSlider Card - Graphite Minimal Technical */}
+        <div className="rounded-surface border border-border/80 bg-card p-4 sm:p-5 shadow-surface">
+          <RangeSlider
+            min={200000}
+            max={10000000}
+            step={100000}
+            value={maxPrice}
+            onChange={(val) => {
+              setMaxPrice(val)
+              setPage(1)
+            }}
+            label="فیلتر بر اساس سقف قیمت:"
+            presets={[
+              { label: 'تا ۲ میلیون', value: 2000000 },
+              { label: 'تا ۴ میلیون', value: 4000000 },
+              { label: 'تا ۷ میلیون', value: 7000000 },
+              { label: 'همه مبالغ (نامحدود)', value: 10000000 },
+            ]}
+          />
+        </div>
 
         {/* Products Grid for this Category */}
         <section className="space-y-4">
@@ -448,7 +455,9 @@ export const CategoryDetailPage: React.FC = () => {
                   setSearchQuery('')
                   setMaxPrice(10000000)
                   setDeliveryFilter('all')
+                  setDurationFilter('all')
                   setSelectedSubcategory('all')
+                  setPage(1)
                 }}
                 className="mt-2 h-9 px-5 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs duration-motion ease-motion active:scale-[0.98] shadow-control cursor-pointer"
               >
@@ -456,14 +465,63 @@ export const CategoryDetailPage: React.FC = () => {
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredProducts.map((product) => (
-                <ProductCard
-                  key={product.id}
-                  product={product}
-                  onSelect={() => {}}
-                />
-              ))}
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {paginatedProducts.map((product) => (
+                  <ProductCard
+                    key={product.id}
+                    product={product}
+                    onSelect={() => {}}
+                  />
+                ))}
+              </div>
+
+              {/* Full Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between p-3.5 bg-card rounded-surface border border-border/80 shadow-surface text-xs">
+                  <span className="text-muted-foreground">
+                    صفحه {page} از {totalPages} (مجموع{' '}
+                    {Number(filteredProducts.length).toLocaleString('fa-IR')}{' '}
+                    محصول)
+                  </span>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      disabled={page <= 1}
+                      onClick={() => setPage((p) => p - 1)}
+                      className="p-1.5 rounded-control border border-border/60 hover:bg-muted text-muted-foreground hover:text-foreground disabled:opacity-40 cursor-pointer"
+                      title="صفحه قبلی"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                      (pNum) => (
+                        <button
+                          key={`cat-page-btn-${pNum}`}
+                          type="button"
+                          onClick={() => setPage(pNum)}
+                          className={`w-7 h-7 rounded-control font-bold font-latin cursor-pointer transition-colors ${
+                            page === pNum
+                              ? 'bg-primary text-primary-foreground font-black'
+                              : 'hover:bg-muted text-muted-foreground'
+                          }`}
+                        >
+                          {pNum}
+                        </button>
+                      ),
+                    )}
+                    <button
+                      type="button"
+                      disabled={page >= totalPages}
+                      onClick={() => setPage((p) => p + 1)}
+                      className="p-1.5 rounded-control border border-border/60 hover:bg-muted text-muted-foreground hover:text-foreground disabled:opacity-40 cursor-pointer"
+                      title="صفحه بعدی"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </section>

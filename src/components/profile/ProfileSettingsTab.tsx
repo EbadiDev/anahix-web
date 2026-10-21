@@ -4,13 +4,13 @@ import {
   Layers,
   Mail,
   Send,
-  ShieldAlert,
   Smartphone,
   Trash2,
 } from 'lucide-react'
 import type React from 'react'
 import { useState } from 'react'
-import { createPortal } from 'react-dom'
+import { ConfirmModal } from '../vibefarsi/ConfirmModal'
+import { ToggleSwitch } from '../vibefarsi/ToggleSwitch'
 
 interface ProfileSettingsTabProps {
   onLogout: () => void
@@ -83,37 +83,34 @@ export const ProfileSettingsTab: React.FC<ProfileSettingsTabProps> = ({
               </h5>
             </div>
             <div className="space-y-2.5 text-xs">
-              <label className="flex items-center justify-between cursor-pointer">
+              <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">تکمیل سفارش‌ها</span>
-                <input
-                  type="checkbox"
+                <ToggleSwitch
+                  size="sm"
                   checked={prefs.smsOrders}
                   onChange={() => togglePref('smsOrders')}
-                  className="rounded-control cursor-pointer accent-brand"
                 />
-              </label>
-              <label className="flex items-center justify-between cursor-pointer">
+              </div>
+              <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">
                   دریافت پیامک شماره مجازی
                 </span>
-                <input
-                  type="checkbox"
+                <ToggleSwitch
+                  size="sm"
                   checked={prefs.smsVirtualNumbers}
                   onChange={() => togglePref('smsVirtualNumbers')}
-                  className="rounded-control cursor-pointer accent-brand"
                 />
-              </label>
-              <label className="flex items-center justify-between cursor-pointer">
+              </div>
+              <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">
                   هشدارهای امنیتی ورود
                 </span>
-                <input
-                  type="checkbox"
+                <ToggleSwitch
+                  size="sm"
                   checked={prefs.smsSecurity}
                   onChange={() => togglePref('smsSecurity')}
-                  className="rounded-control cursor-pointer accent-brand"
                 />
-              </label>
+              </div>
             </div>
           </div>
 
@@ -126,37 +123,34 @@ export const ProfileSettingsTab: React.FC<ProfileSettingsTabProps> = ({
               </h5>
             </div>
             <div className="space-y-2.5 text-xs">
-              <label className="flex items-center justify-between cursor-pointer">
+              <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">تحویل لایسنس‌ها</span>
-                <input
-                  type="checkbox"
+                <ToggleSwitch
+                  size="sm"
                   checked={prefs.tgOrders}
                   onChange={() => togglePref('tgOrders')}
-                  className="rounded-control cursor-pointer accent-brand"
                 />
-              </label>
-              <label className="flex items-center justify-between cursor-pointer">
+              </div>
+              <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">
                   کدهای OTP شماره موقت
                 </span>
-                <input
-                  type="checkbox"
+                <ToggleSwitch
+                  size="sm"
                   checked={prefs.tgVirtualNumbers}
                   onChange={() => togglePref('tgVirtualNumbers')}
-                  className="rounded-control cursor-pointer accent-brand"
                 />
-              </label>
-              <label className="flex items-center justify-between cursor-pointer">
+              </div>
+              <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">
                   یادآوری تمدید اشتراک
                 </span>
-                <input
-                  type="checkbox"
+                <ToggleSwitch
+                  size="sm"
                   checked={prefs.tgExpiration}
                   onChange={() => togglePref('tgExpiration')}
-                  className="rounded-control cursor-pointer accent-brand"
                 />
-              </label>
+              </div>
             </div>
           </div>
 
@@ -169,37 +163,34 @@ export const ProfileSettingsTab: React.FC<ProfileSettingsTabProps> = ({
               </h5>
             </div>
             <div className="space-y-2.5 text-xs">
-              <label className="flex items-center justify-between cursor-pointer">
+              <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">ارسال فاکتور رسمی</span>
-                <input
-                  type="checkbox"
+                <ToggleSwitch
+                  size="sm"
                   checked={prefs.emailInvoices}
                   onChange={() => togglePref('emailInvoices')}
-                  className="rounded-control cursor-pointer accent-brand"
                 />
-              </label>
-              <label className="flex items-center justify-between cursor-pointer">
+              </div>
+              <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">
                   اطلاعات اکانت شخصی
                 </span>
-                <input
-                  type="checkbox"
+                <ToggleSwitch
+                  size="sm"
                   checked={prefs.emailCredentials}
                   onChange={() => togglePref('emailCredentials')}
-                  className="rounded-control cursor-pointer accent-brand"
                 />
-              </label>
-              <label className="flex items-center justify-between cursor-pointer">
+              </div>
+              <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">
                   هشدارهای تغییر رمز
                 </span>
-                <input
-                  type="checkbox"
+                <ToggleSwitch
+                  size="sm"
                   checked={prefs.emailSecurity}
                   onChange={() => togglePref('emailSecurity')}
-                  className="rounded-control cursor-pointer accent-brand"
                 />
-              </label>
+              </div>
             </div>
           </div>
         </div>
@@ -235,51 +226,17 @@ export const ProfileSettingsTab: React.FC<ProfileSettingsTabProps> = ({
       </div>
 
       {/* Delete Confirmation Modal */}
-      {isDeleteModalOpen &&
-        createPortal(
-          <div
-            className="fixed inset-0 z-[99999] overflow-y-auto bg-black/75 backdrop-blur-md p-3 sm:p-6 animate-in fade-in"
-            style={{ top: 0, left: 0, right: 0, bottom: 0 }}
-            dir="rtl"
-          >
-            <div className="min-h-full w-full flex items-start sm:items-center justify-center">
-              <div className="w-full max-w-md my-auto bg-card text-card-foreground rounded-surface border border-destructive/60 shadow-overlay p-6 space-y-4 animate-in zoom-in-95">
-                <div className="flex items-center gap-3 text-destructive">
-                  <ShieldAlert className="w-6 h-6 shrink-0" />
-                  <h3 className="text-sm font-black">
-                    آیا از حذف حساب مطمئن هستید؟
-                  </h3>
-                </div>
-
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  این عملیات برگشت‌ناپذیر است. موجودی کیف پول و لایسنس‌های فعال
-                  شما غیرقابل استرداد خواهند بود.
-                </p>
-
-                <div className="pt-2 flex items-center justify-end gap-2.5">
-                  <button
-                    type="button"
-                    onClick={() => setIsDeleteModalOpen(false)}
-                    className="h-9 px-4 rounded-control border border-border/60 bg-card hover:bg-muted text-foreground text-xs font-bold duration-motion active:scale-[0.98] cursor-pointer"
-                  >
-                    انصراف
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsDeleteModalOpen(false)
-                      onLogout()
-                    }}
-                    className="h-9 px-4 rounded-control bg-destructive hover:bg-destructive/90 text-destructive-foreground text-xs font-black shadow-control duration-motion active:scale-[0.98] cursor-pointer"
-                  >
-                    بله، حساب حذف شود
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>,
-          document.body,
-        )}
+      <ConfirmModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={() => {
+          setIsDeleteModalOpen(false)
+          onLogout()
+        }}
+        title="آیا از حذف حساب مطمئن هستید؟"
+        description="این عملیات برگشت‌ناپذیر است. موجودی کیف پول و لایسنس‌های فعال شما غیرقابل استرداد خواهند بود."
+        confirmText="بله، حساب حذف شود"
+      />
     </div>
   )
 }

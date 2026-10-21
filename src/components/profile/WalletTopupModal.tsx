@@ -4,11 +4,11 @@ import {
   Loader2,
   ShieldCheck,
   Wallet,
-  X,
 } from 'lucide-react'
 import type React from 'react'
 import { useState } from 'react'
 import { createPortal } from 'react-dom'
+import { ModalCloseButton } from '../vibefarsi/ModalCloseButton'
 
 interface WalletTopupModalProps {
   isOpen: boolean
@@ -97,13 +97,7 @@ export const WalletTopupModal: React.FC<WalletTopupModalProps> = ({
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-1 rounded-control text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <ModalCloseButton onClick={onClose} size="sm" />
         </div>
 
         {success ? (

@@ -10,14 +10,15 @@ import {
   Search,
   Trash2,
   Upload,
-  X,
 } from 'lucide-react'
 import type React from 'react'
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { api } from '../../services/api'
 import type { BannerItem } from '../../types'
+import { ModalCloseButton } from '../vibefarsi/ModalCloseButton'
 import { useNotification } from '../vibefarsi/NotificationContext'
+import { ToggleSwitch } from '../vibefarsi/ToggleSwitch'
 import { AdminHeaderBanner } from './AdminHeaderBanner'
 import { BannerPositionSelect } from './BannerPositionSelect'
 
@@ -83,6 +84,26 @@ export const AdminBannersView: React.FC = () => {
       loadBanners()
     } catch (err: any) {
       error('خطا در حذف بنر', err.message)
+    }
+  }
+
+  const handleToggleActive = async (banner: BannerItem) => {
+    try {
+      await api.updateBanner(banner.id, {
+        ...banner,
+        is_active: !banner.is_active,
+      })
+      setBanners((prev) =>
+        prev.map((b) =>
+          b.id === banner.id ? { ...b, is_active: !b.is_active } : b,
+        ),
+      )
+      success(
+        'وضعیت بنر تغییر یافت',
+        `بنر «${banner.title}» اکنون ${!banner.is_active ? 'فعال' : 'غیرفعال'} شد.`,
+      )
+    } catch (err: any) {
+      error('خطا در تغییر وضعیت بنر', err.message)
     }
   }
 
@@ -164,11 +185,29 @@ export const AdminBannersView: React.FC = () => {
     }
   }
 
+  const isBannerEdited = (created?: string, updated?: string) => {
+    if (!created || !updated) return false
+    const tCreate = new Date(created).getTime()
+    const tUpdate = new Date(updated).getTime()
+    if (Number.isNaN(tCreate) || Number.isNaN(tUpdate)) return false
+    // Difference greater than 10 seconds means it was genuinely edited after creation
+    return Math.abs(tUpdate - tCreate) > 10000
+  }
+
   const formatDateTime = (dateStr?: string) => {
     if (!dateStr) return '-'
     const d = new Date(dateStr)
     if (Number.isNaN(d.getTime())) return '-'
-    return `${d.toLocaleDateString('fa-IR')} ${d.toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' })}`
+    const date = d.toLocaleDateString('fa-IR', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    })
+    const time = d.toLocaleTimeString('fa-IR', {
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+    return `${date} ساعت ${time}`
   }
 
   return (
@@ -205,83 +244,81 @@ export const AdminBannersView: React.FC = () => {
         }
       />
 
-      {/* Position Dropdown, Page Size & Search Toolbar (Matching Orders Table - Image 4 Request) */}
+      {/* Position Dropdown, Page Size & Search Toolbar */}
       <div className="bg-card rounded-surface border border-border/80 p-3.5 shadow-surface flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-        {/* Position Dropdown */}
-        <div className="flex items-center gap-2">
-          <span className="text-[11px] text-muted-foreground font-bold shrink-0">
-            موقعیت نمایش:
-          </span>
-          <select
-            value={positionFilter}
-            onChange={(e) => {
-              setPositionFilter(e.target.value)
-              setPage(1)
-            }}
-            className="h-9 px-3 rounded-control border border-border/60 bg-muted/20 text-xs text-foreground outline-none focus:border-brand font-bold cursor-pointer"
-          >
-            <option value="all">همه موقعیت‌ها ({banners.length})</option>
-            <option value="main_slider">
-              اسلایدر اصلی هیرو (
-              {banners.filter((b) => b.position === 'main_slider').length})
-            </option>
-            <option value="middle_strip">
-              بنرهای میانی دوقلو (
-              {banners.filter((b) => b.position === 'middle_strip').length})
-            </option>
-            <option value="hero_side">
-              کنار هیرو (
-              {banners.filter((b) => b.position === 'hero_side').length})
-            </option>
-            <option value="flash_sale">
-              جشنواره تخفیف (
-              {banners.filter((b) => b.position === 'flash_sale').length})
-            </option>
-            <option value="category_header">
-              هدر دسته‌بندی‌ها (
-              {banners.filter((b) => b.position === 'category_header').length})
-            </option>
-          </select>
-        </div>
-
-        <div className="flex items-center gap-3 shrink-0">
-          {/* Page Size Selector: 9, 18, 27 only */}
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <span className="hidden sm:inline font-bold">تعداد در صفحه:</span>
-            {([9, 18, 27] as const).map((size) => (
-              <button
-                key={size}
-                type="button"
-                onClick={() => {
-                  setPageSize(size)
-                  setPage(1)
-                }}
-                className={`w-7 h-7 rounded-control font-bold font-latin cursor-pointer transition-colors ${
-                  pageSize === size
-                    ? 'bg-primary text-primary-foreground font-black shadow-control'
-                    : 'bg-muted/30 hover:bg-muted text-muted-foreground border border-border/60'
-                }`}
-                title={`نمایش ${size} بنر در هر صفحه`}
-              >
-                {size}
-              </button>
-            ))}
-          </div>
-
-          {/* Search Input */}
-          <div className="relative">
-            <Search className="w-4 h-4 text-muted-foreground absolute right-3 top-2.5 pointer-events-none" />
-            <input
-              type="text"
-              value={searchQuery}
+        {/* Right side: Position Dropdown + Page Size Dropdown together */}
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* Position Dropdown */}
+          <div className="flex items-center gap-1.5">
+            <span className="text-[11px] text-muted-foreground font-bold shrink-0">
+              موقعیت نمایش:
+            </span>
+            <select
+              value={positionFilter}
               onChange={(e) => {
-                setSearchQuery(e.target.value)
+                setPositionFilter(e.target.value)
                 setPage(1)
               }}
-              placeholder="جستجوی عنوان یا برچسب..."
-              className="h-9 pr-9 pl-3 w-40 sm:w-52 rounded-control border border-border/60 bg-muted/20 text-xs text-foreground placeholder:text-muted-foreground outline-none focus:border-brand"
-            />
+              className="h-9 px-3 rounded-control border border-border/60 bg-muted/20 text-xs text-foreground outline-none focus:border-brand font-bold cursor-pointer"
+            >
+              <option value="all">همه موقعیت‌ها ({banners.length})</option>
+              <option value="main_slider">
+                اسلایدر اصلی هیرو (
+                {banners.filter((b) => b.position === 'main_slider').length})
+              </option>
+              <option value="middle_strip">
+                بنرهای میانی دوقلو (
+                {banners.filter((b) => b.position === 'middle_strip').length})
+              </option>
+              <option value="hero_side">
+                کنار هیرو (
+                {banners.filter((b) => b.position === 'hero_side').length})
+              </option>
+              <option value="flash_sale">
+                جشنواره تخفیف (
+                {banners.filter((b) => b.position === 'flash_sale').length})
+              </option>
+              <option value="category_header">
+                هدر دسته‌بندی‌ها (
+                {banners.filter((b) => b.position === 'category_header').length}
+                )
+              </option>
+            </select>
           </div>
+
+          {/* Page Size Dropdown */}
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <span className="text-[11px] font-bold text-muted-foreground shrink-0">
+              تعداد در صفحه:
+            </span>
+            <select
+              value={pageSize}
+              onChange={(e) => {
+                setPageSize(Number(e.target.value) as any)
+                setPage(1)
+              }}
+              className="h-9 px-2.5 rounded-control border border-border/60 bg-muted/20 text-xs text-foreground outline-none focus:border-brand font-bold cursor-pointer font-latin"
+            >
+              <option value={9}>۹ در صفحه</option>
+              <option value={18}>۱۸ در صفحه</option>
+              <option value={27}>۲۷ در صفحه</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Search Input */}
+        <div className="relative">
+          <Search className="w-4 h-4 text-muted-foreground absolute right-3 top-2.5 pointer-events-none" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => {
+              setSearchQuery(e.target.value)
+              setPage(1)
+            }}
+            placeholder="جستجوی عنوان یا برچسب..."
+            className="h-9 pr-9 pl-3 w-full sm:w-60 rounded-control border border-border/60 bg-muted/20 text-xs text-foreground placeholder:text-muted-foreground outline-none focus:border-brand"
+          />
         </div>
       </div>
 
@@ -335,12 +372,18 @@ export const AdminBannersView: React.FC = () => {
                       <span className="px-2 py-0.5 rounded-control bg-slate-950/80 backdrop-blur-md text-white text-[10px] font-mono font-latin border border-white/20 shadow-xs">
                         #{b.sort_order}
                       </span>
-                      <span
-                        className={`px-2.5 py-0.5 rounded-control text-[11px] font-black shadow-control flex items-center gap-1.5 ${
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleToggleActive(b)
+                        }}
+                        className={`px-2.5 py-0.5 rounded-control text-[11px] font-black shadow-control flex items-center gap-1.5 cursor-pointer transition-transform active:scale-95 ${
                           b.is_active
-                            ? 'bg-emerald-600 text-white border border-emerald-400/40'
-                            : 'bg-rose-600 text-white border border-rose-400/40'
+                            ? 'bg-emerald-600 text-white border border-emerald-400/40 hover:bg-emerald-500'
+                            : 'bg-rose-600 text-white border border-rose-400/40 hover:bg-rose-500'
                         }`}
+                        title="برای تغییر وضعیت کلیک کنید"
                       >
                         <span
                           className={`w-1.5 h-1.5 rounded-full ${
@@ -350,7 +393,7 @@ export const AdminBannersView: React.FC = () => {
                           }`}
                         />
                         <span>{b.is_active ? 'فعال' : 'غیرفعال'}</span>
-                      </span>
+                      </button>
                     </div>
 
                     {/* Bottom Badges: Position on Right, Promo Badge on Left */}
@@ -384,26 +427,39 @@ export const AdminBannersView: React.FC = () => {
                       </div>
                     )}
 
-                    {/* Creation & Update Timestamps */}
-                    <div className="pt-2 border-t border-border/40 grid grid-cols-2 gap-2 text-[10px] text-muted-foreground select-none">
+                    {/* Creation & Update Timestamps - Redesigned Graphite UI/UX */}
+                    <div className="pt-2.5 border-t border-border/60 space-y-1.5 text-[11px] select-none">
                       <div
-                        className="flex items-center gap-1 truncate"
-                        title={`تاریخ ثبت: ${formatDateTime(b.created_at)}`}
+                        className="flex items-center justify-between p-1.5 px-2.5 rounded-control bg-muted/20 border border-border/40"
+                        title={`تاریخ و ساعت ثبت: ${formatDateTime(b.created_at)}`}
                       >
-                        <Clock className="w-3 h-3 text-muted-foreground/60 shrink-0" />
-                        <span className="truncate">
-                          ایجاد: {formatDateTime(b.created_at)}
+                        <div className="flex items-center gap-1.5 text-muted-foreground">
+                          <Clock className="w-3.5 h-3.5 text-muted-foreground/70 shrink-0" />
+                          <span className="text-[10px] font-bold">
+                            زمان ایجاد:
+                          </span>
+                        </div>
+                        <span className="font-mono font-latin text-[10px] font-bold text-foreground/80">
+                          {formatDateTime(b.created_at)}
                         </span>
                       </div>
-                      <div
-                        className="flex items-center gap-1 truncate text-left dir-ltr"
-                        title={`آخرین ویرایش: ${formatDateTime(b.updated_at)}`}
-                      >
-                        <span className="truncate">
-                          {formatDateTime(b.updated_at)}
-                        </span>
-                        <span className="dir-rtl shrink-0">:ویرایش</span>
-                      </div>
+
+                      {isBannerEdited(b.created_at, b.updated_at) && (
+                        <div
+                          className="flex items-center justify-between p-1.5 px-2.5 rounded-control bg-brand/5 border border-brand/20 animate-in fade-in"
+                          title={`تاریخ و ساعت آخرین ویرایش: ${formatDateTime(b.updated_at)}`}
+                        >
+                          <div className="flex items-center gap-1.5 text-brand">
+                            <Pencil className="w-3.5 h-3.5 text-brand shrink-0" />
+                            <span className="text-[10px] font-black">
+                              آخرین ویرایش:
+                            </span>
+                          </div>
+                          <span className="font-mono font-latin text-[10px] font-bold text-brand">
+                            {formatDateTime(b.updated_at)}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -507,15 +563,61 @@ export const AdminBannersView: React.FC = () => {
                         : 'ایجاد بنر جدید'}
                     </span>
                   </h3>
-                  <button
-                    type="button"
+                  <ModalCloseButton
                     onClick={() => {
                       setIsModalOpen(false)
                     }}
-                    className="p-1 rounded-control text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
-                  >
-                    <X className="h-5 w-5" />
-                  </button>
+                    size="sm"
+                  />
+                </div>
+
+                {/* Live Visual Card Preview Box */}
+                <div className="p-3.5 rounded-surface bg-muted/20 border border-border/60 space-y-2">
+                  <div className="flex items-center justify-between text-xs font-bold text-muted-foreground">
+                    <span>پیش‌نمایش زنده بنر</span>
+                    <span className="text-[10px] text-brand font-mono font-latin">
+                      {editingBanner.position || 'main_slider'}
+                    </span>
+                  </div>
+                  <div className="relative h-36 sm:h-40 w-full rounded-control overflow-hidden bg-muted border border-border/40 select-none">
+                    {editingBanner.image_url ? (
+                      <img
+                        src={editingBanner.image_url}
+                        alt="پیش‌نمایش"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-l from-blue-600 via-indigo-700 to-slate-900" />
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/40 to-transparent flex flex-col justify-end p-4 text-right text-white space-y-1">
+                      {editingBanner.badge_text && (
+                        <span className="self-start px-2 py-0.5 rounded-control bg-brand text-white font-black text-[10px] shadow-xs">
+                          {editingBanner.badge_text}
+                        </span>
+                      )}
+                      <h4 className="text-sm sm:text-base font-black text-white drop-shadow-xs line-clamp-1">
+                        {editingBanner.title || 'عنوان بنر شما'}
+                      </h4>
+                      {editingBanner.subtitle && (
+                        <p className="text-[11px] text-white/80 line-clamp-1 font-normal">
+                          {editingBanner.subtitle}
+                        </p>
+                      )}
+                      <div className="pt-1 flex items-center gap-2">
+                        <span className="inline-flex items-center gap-1.5 h-7 px-3 rounded-control bg-primary text-primary-foreground font-black text-[10px] shadow-xs">
+                          <span>
+                            {editingBanner.button_text || 'مشاهده و خرید'}
+                          </span>
+                          <span>←</span>
+                        </span>
+                        {editingBanner.secondary_button_text && (
+                          <span className="inline-flex items-center h-7 px-2.5 rounded-control border border-white/30 bg-white/10 text-white font-bold text-[10px] backdrop-blur-md">
+                            {editingBanner.secondary_button_text}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 <form onSubmit={handleSave} className="space-y-4">
@@ -758,29 +860,15 @@ export const AdminBannersView: React.FC = () => {
                           : 'بنر غیرفعال است و از ویترین فروشگاه مخفی شده است'}
                       </span>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() =>
+                    <ToggleSwitch
+                      checked={editingBanner.is_active ?? true}
+                      onChange={(checked) =>
                         setEditingBanner((prev) => ({
                           ...prev,
-                          is_active: !(prev?.is_active ?? true),
+                          is_active: checked,
                         }))
                       }
-                      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                        (editingBanner.is_active ?? true)
-                          ? 'bg-emerald-600'
-                          : 'bg-muted border-border/60'
-                      }`}
-                      title="تغییر وضعیت فعال/غیرفعال"
-                    >
-                      <span
-                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                          (editingBanner.is_active ?? true)
-                            ? '-translate-x-5'
-                            : 'translate-x-0'
-                        }`}
-                      />
-                    </button>
+                    />
                   </div>
 
                   {/* Modal Action: Full Width Save Button (No Cancel Button as requested) */}

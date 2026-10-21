@@ -552,6 +552,7 @@ export interface CouponItem {
   max_usage: number
   current_usage: number
   category: string
+  label?: string
   expires_at?: string
   is_active: boolean
   created_at: string

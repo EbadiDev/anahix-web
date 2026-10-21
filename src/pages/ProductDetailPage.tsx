@@ -5,8 +5,6 @@ import {
   Calendar,
   Check,
   CheckCircle2,
-  ChevronDown,
-  ChevronUp,
   Clock,
   Copy,
   CreditCard,
@@ -38,6 +36,7 @@ import { Header } from '../components/Header'
 import { ProductReviewsSection } from '../components/reviews/ProductReviewsSection'
 import { TelegramIcon } from '../components/SocialIcons'
 import { Badge } from '../components/ui/badge'
+import { Accordion } from '../components/vibefarsi/Accordion'
 import { Breadcrumb } from '../components/vibefarsi/Breadcrumb'
 import { useNotification } from '../components/vibefarsi/NotificationContext'
 import { QuantitySelector } from '../components/vibefarsi/QuantitySelector'
@@ -84,11 +83,6 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
   const [addedToast, setAddedToast] = useState(false)
   const [isAuthOpen, setIsAuthOpen] = useState(false)
   const { warning } = useNotification()
-
-  // FAQ accordion state
-  const [openFaqs, setOpenFaqs] = useState<Record<number, boolean>>({
-    0: true,
-  })
 
   // DNS copy feedback
   const [copiedDns, setCopiedDns] = useState<string | null>(null)
@@ -972,40 +966,14 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                 </p>
               </div>
 
-              <div className="space-y-3">
-                {product.faqs.map((faq, idx) => {
-                  const isOpen = openFaqs[idx]
-                  return (
-                    <div
-                      key={faq.question}
-                      className="rounded-surface border border-border/60 bg-muted/20 overflow-hidden transition-all"
-                    >
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setOpenFaqs((prev) => ({
-                            ...prev,
-                            [idx]: !prev[idx],
-                          }))
-                        }
-                        className="w-full p-4 sm:p-5 text-right font-bold text-xs sm:text-sm text-foreground flex items-center justify-between gap-3 hover:bg-muted/40 transition"
-                      >
-                        <span>{faq.question}</span>
-                        {isOpen ? (
-                          <ChevronUp className="h-4 w-4 text-blue-600 shrink-0" />
-                        ) : (
-                          <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
-                        )}
-                      </button>
-                      {isOpen && (
-                        <div className="px-5 pb-5 pt-1 text-xs text-muted-foreground leading-relaxed border-t border-border/50 animate-in fade-in">
-                          {faq.answer}
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
+              <Accordion
+                items={product.faqs.map((faq, idx) => ({
+                  id: `pdp-faq-${idx}`,
+                  title: faq.question,
+                  content: faq.answer,
+                }))}
+                defaultOpenId="pdp-faq-0"
+              />
             </section>
           </ScrollReveal>
         )}

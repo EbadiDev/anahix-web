@@ -4,17 +4,16 @@ import {
   Clock,
   Eye,
   Flame,
-  Heart,
   Search,
   Sparkles,
   Tag,
-  Zap,
 } from 'lucide-react'
 import type React from 'react'
 import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { CartDrawer } from '../components/CartDrawer'
 import { Header } from '../components/Header'
+import { LikeButton } from '../components/vibefarsi/LikeButton'
 import { api } from '../services/api'
 import type { ArticleListItem, ContentCategory } from '../types'
 
@@ -170,36 +169,42 @@ export const BlogListPage: React.FC = () => {
             !selectedCategory &&
             !searchQuery &&
             page === 1 && (
-              <div className="relative group rounded-3xl border border-border bg-card overflow-hidden shadow-sm hover:shadow-md transition-all">
+              <div className="relative group rounded-surface border border-border/80 bg-card overflow-hidden shadow-surface duration-motion ease-motion transition-all">
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-0">
-                  <div className="lg:col-span-7 relative h-64 sm:h-80 lg:h-auto overflow-hidden">
+                  <div className="lg:col-span-7 relative h-64 sm:h-80 lg:h-auto overflow-hidden bg-muted">
                     <img
                       src={featuredArticle.cover_image}
                       alt={featuredArticle.title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      className="w-full h-full object-cover group-hover:scale-105 duration-motion ease-motion transition-transform"
                     />
-                    <div className="absolute top-4 right-4 bg-primary text-primary-foreground text-xs font-bold px-3 py-1 rounded-full shadow-md flex items-center gap-1.5">
-                      <Flame className="h-3.5 w-3.5" />
+                    <div className="absolute top-4 right-4 bg-slate-950/85 backdrop-blur-md text-amber-300 border border-amber-400/30 text-xs font-black px-3 py-1 rounded-control shadow-control flex items-center gap-1.5">
+                      <Flame className="h-3.5 w-3.5 text-amber-400" />
                       <span>مقاله ویژه سردبیر</span>
                     </div>
                   </div>
 
-                  <div className="lg:col-span-5 p-6 sm:p-8 flex flex-col justify-between space-y-4">
+                  <div className="lg:col-span-5 p-6 sm:p-8 flex flex-col justify-between space-y-4 text-right">
                     <div className="space-y-3">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-semibold px-2.5 py-0.5 rounded-md bg-blue-500/10 text-primary">
-                          {featuredArticle.category_name}
-                        </span>
-                        <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                          <Clock className="h-3.5 w-3.5 text-blue-500" />
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {featuredArticle.category_name && (
+                          <span className="px-2.5 py-1 rounded-control bg-slate-950/85 backdrop-blur-md text-white border border-white/20 text-[11px] font-black shadow-control flex items-center gap-1.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-brand" />
+                            <span>{featuredArticle.category_name}</span>
+                          </span>
+                        )}
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-control bg-muted/40 border border-border/60 text-[11px] font-bold text-muted-foreground">
+                          <Clock className="h-3.5 w-3.5 text-brand" />
                           <span>
-                            {featuredArticle.reading_time_minutes} دقیقه مطالعه
+                            {Number(
+                              featuredArticle.reading_time_minutes || 5,
+                            ).toLocaleString('fa-IR')}{' '}
+                            دقیقه مطالعه
                           </span>
                         </span>
                       </div>
 
                       <Link to={`/blog/${featuredArticle.slug}`}>
-                        <h2 className="text-xl sm:text-2xl font-bold text-foreground group-hover:text-primary transition-colors leading-snug">
+                        <h2 className="text-xl sm:text-2xl font-black text-foreground group-hover:text-primary transition-colors leading-snug">
                           {featuredArticle.title}
                         </h2>
                       </Link>
@@ -209,16 +214,16 @@ export const BlogListPage: React.FC = () => {
                       </p>
                     </div>
 
-                    <div className="pt-4 border-t border-border flex items-center justify-between">
+                    <div className="pt-4 border-t border-border/60 flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2.5">
                         {featuredArticle.author_avatar ? (
                           <img
                             src={featuredArticle.author_avatar}
                             alt={featuredArticle.author_name}
-                            className="w-8 h-8 rounded-full object-cover border border-border"
+                            className="w-8 h-8 rounded-control object-cover border border-border/60"
                           />
                         ) : (
-                          <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs">
+                          <div className="w-8 h-8 rounded-control bg-secondary text-brand border border-border/60 flex items-center justify-center font-black text-xs">
                             {featuredArticle.author_name[0]}
                           </div>
                         )}
@@ -232,13 +237,20 @@ export const BlogListPage: React.FC = () => {
                         </div>
                       </div>
 
-                      <Link
-                        to={`/blog/${featuredArticle.slug}`}
-                        className="h-9 px-4 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs duration-motion ease-motion active:scale-[0.98] shadow-control flex items-center justify-center gap-2 transition-all"
-                      >
-                        <span>مطالعه مقاله</span>
-                        <ArrowLeft className="h-3.5 w-3.5" />
-                      </Link>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <Link
+                          to={`/blog/${featuredArticle.slug}`}
+                          className="h-9 px-4 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs duration-motion ease-motion active:scale-[0.98] shadow-control flex items-center justify-center gap-2 transition-all"
+                        >
+                          <span>مطالعه مقاله</span>
+                          <ArrowLeft className="h-3.5 w-3.5" />
+                        </Link>
+                        <LikeButton
+                          slug={featuredArticle.slug}
+                          initialCount={featuredArticle.like_count || 0}
+                          className="h-9 shrink-0"
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -329,7 +341,7 @@ export const BlogListPage: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* Footer: Action Button matching site standard buttons */}
+                    {/* Footer: Action Button & Interactive Like Button */}
                     <div className="p-5 pt-0 flex items-center gap-2 mt-1">
                       <Link
                         to={`/blog/${art.slug}`}
@@ -338,12 +350,11 @@ export const BlogListPage: React.FC = () => {
                         <span>مطالعه مقاله</span>
                         <ArrowLeft className="h-3.5 w-3.5" />
                       </Link>
-                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/40 h-9 px-3 rounded-control border border-border/60 shrink-0">
-                        <Heart className="h-3.5 w-3.5 text-rose-500 fill-rose-500/20" />
-                        <span className="font-latin font-bold">
-                          {Number(art.like_count || 0).toLocaleString('fa-IR')}
-                        </span>
-                      </div>
+                      <LikeButton
+                        slug={art.slug}
+                        initialCount={art.like_count || 0}
+                        className="h-9 shrink-0"
+                      />
                     </div>
                   </article>
                 ))}
@@ -384,29 +395,6 @@ export const BlogListPage: React.FC = () => {
               })}
             </div>
           )}
-
-          {/* CTA Banner to Storefront */}
-          <div className="relative rounded-3xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 text-white p-8 shadow-xl overflow-hidden mt-12 flex flex-col md:flex-row items-center justify-between gap-6">
-            <div className="space-y-2 text-right z-10">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/20 backdrop-blur-md text-xs font-semibold">
-                <Zap className="h-3.5 w-3.5" />
-                <span>تحویل آنی اکانت‌های هوش مصنوعی</span>
-              </span>
-              <h2 className="text-xl sm:text-2xl font-bold">
-                نیاز به اشتراک اختصاصی Gemini، ChatGPT یا Claude دارید؟
-              </h2>
-              <p className="text-xs sm:text-sm text-blue-100 max-w-xl leading-relaxed">
-                تمامی اکانت‌ها با تحویل آنی صفر ثانیه، گارانتی تعویض تا آخرین روز
-                اشتراک و پرداخت امن از طریق کارت‌های شتاب عرضه می‌شوند.
-              </p>
-            </div>
-            <Link
-              to="/"
-              className="px-6 py-3 rounded-2xl bg-white text-blue-700 font-bold text-xs hover:bg-blue-50 transition-colors shadow-lg shrink-0 z-10"
-            >
-              مشاهده فروشگاه و خرید آنی
-            </Link>
-          </div>
         </div>
       </main>
     </div>

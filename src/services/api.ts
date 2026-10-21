@@ -1140,7 +1140,7 @@ export const apiService = {
     }>
   > {
     try {
-      const res = await fetch('/api/v1/coupons')
+      const res = await fetch('/api/v1/coupons', { cache: 'no-store' })
       const json = await res.json()
       if (res.ok && json.code === 200 && Array.isArray(json.data)) {
         return json.data
@@ -1390,6 +1390,7 @@ export const apiService = {
     per_user_limit?: number
     max_usage?: number
     category?: string
+    label?: string
     is_active?: boolean
   }): Promise<CouponItem> {
     const token = this.getAdminToken()
@@ -1406,6 +1407,35 @@ export const apiService = {
       return json.data
     }
     throw new Error(json.msg || 'خطا در ایجاد کوپن تخفیف')
+  },
+
+  async adminToggleCoupon(id: string): Promise<CouponItem> {
+    const token = this.getAdminToken()
+    const res = await fetch(`/api/v1/admin/coupons/${id}/toggle`, {
+      method: 'PUT',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+    const json = await res.json()
+    if (res.ok && json.code === 200 && json.data) {
+      return json.data
+    }
+    throw new Error(json.msg || 'خطا در تغییر وضعیت کوپن')
+  },
+
+  async adminDeleteCoupon(id: string): Promise<void> {
+    const token = this.getAdminToken()
+    const res = await fetch(`/api/v1/admin/coupons/${id}`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'خطا در حذف کوپن')
+    }
   },
 
   // Admin Product Catalog Management
@@ -3174,6 +3204,10 @@ export const apiService = {
   },
 
   async updateAdminThemeSettings(data: Partial<ThemeSettings>): Promise<void> {
+    const current = await this.getThemeSettings().catch(
+      () => ({}) as ThemeSettings,
+    )
+    const merged = { ...current, ...data }
     const token = this.getAdminToken()
     const res = await fetch('/api/v1/admin/settings/theme', {
       method: 'POST',
@@ -3181,7 +3215,7 @@ export const apiService = {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(data),
+      body: JSON.stringify(merged),
     })
     const json = await safeJsonParse(res)
     if (!res.ok || json.code !== 200) {

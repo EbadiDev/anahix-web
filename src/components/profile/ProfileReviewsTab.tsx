@@ -58,43 +58,48 @@ export const ProfileReviewsTab: React.FC = () => {
 
   return (
     <div className="space-y-6 text-right" dir="rtl">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-lg font-black text-foreground">
-            نظرات، امتیازها و بازخوردهای من
-          </h2>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            مشاهده وضعیت بررسی نظرات ارسالی، برچسب‌های تجربه خرید و پاسخ‌های تیم
-            پشتیبانی
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="relative w-48 sm:w-60">
-            <input
-              type="text"
-              placeholder="جستجو در نظرات من..."
-              value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value)
-                setVisibleCount(4)
-              }}
-              className="w-full h-9 pr-8 pl-3 text-xs rounded-field bg-muted/20 border border-border/60 text-foreground outline-none focus:border-brand transition-colors"
-            />
-            <Search className="w-3.5 h-3.5 absolute right-2.5 top-2.5 text-muted-foreground pointer-events-none" />
+      {/* 1. Header and Filters - Graphite Card */}
+      <div className="rounded-surface border border-border/60 bg-card p-5 shadow-surface space-y-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div>
+            <h3 className="text-base font-bold text-foreground flex items-center gap-2">
+              <MessageSquare className="w-4 h-4 text-brand" />
+              <span>نظرات، امتیازها و بازخوردهای من</span>
+            </h3>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              مشاهده وضعیت بررسی نظرات ارسالی، برچسب‌های تجربه خرید و پاسخ‌های تیم
+              پشتیبانی
+            </p>
           </div>
 
-          <button
-            type="button"
-            onClick={loadReviews}
-            disabled={loading}
-            className="h-9 px-3.5 rounded-control border border-border/60 bg-secondary/80 hover:bg-muted text-foreground text-xs font-bold flex items-center gap-1.5 duration-motion ease-motion active:scale-[0.98] cursor-pointer shadow-control disabled:opacity-50 shrink-0"
-          >
-            <RefreshCw
-              className={`h-3.5 w-3.5 ${loading ? 'animate-spin text-brand' : 'text-muted-foreground'}`}
-            />
-            <span className="hidden sm:inline">بروزرسانی</span>
-          </button>
+          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+            <div className="w-full sm:w-64 relative">
+              <input
+                type="text"
+                placeholder="جستجو در نظرات من..."
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value)
+                  setVisibleCount(4)
+                }}
+                className="w-full h-10 pr-9 pl-3 text-xs rounded-field bg-muted/20 border border-border/60 text-foreground outline-none focus:border-brand transition-colors"
+              />
+              <Search className="w-4 h-4 absolute right-3 top-3 text-muted-foreground pointer-events-none" />
+            </div>
+
+            <button
+              type="button"
+              onClick={loadReviews}
+              disabled={loading}
+              className="h-10 px-4 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs duration-motion ease-motion active:scale-[0.98] shadow-control flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 shrink-0 transition-all"
+              title="بروزرسانی نظرات"
+            >
+              <RefreshCw
+                className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`}
+              />
+              <span>بروزرسانی</span>
+            </button>
+          </div>
         </div>
       </div>
 

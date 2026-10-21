@@ -7,7 +7,6 @@ import {
   ShieldAlert,
   Smartphone,
   User,
-  X,
 } from 'lucide-react'
 import type React from 'react'
 import { useState } from 'react'
@@ -16,6 +15,7 @@ import { apiService } from '../../services/api'
 import type { CustomerProfile } from '../../types'
 import { formatDisplayPhone } from '../../utils/formatters'
 import { Alert } from '../vibefarsi/Alert'
+import { ModalCloseButton } from '../vibefarsi/ModalCloseButton'
 import { useNotification } from '../vibefarsi/NotificationContext'
 import { OtpField } from '../vibefarsi/OtpField'
 
@@ -506,13 +506,10 @@ export const ProfilePersonalTab: React.FC<ProfilePersonalTabProps> = ({
                         : 'ثبت و تایید آدرس ایمیل'}
                     </h3>
                   </div>
-                  <button
-                    type="button"
+                  <ModalCloseButton
                     onClick={() => setIsEmailModalOpen(false)}
-                    className="p-1 rounded-control text-muted-foreground hover:text-foreground cursor-pointer"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
+                    size="sm"
+                  />
                 </div>
 
                 {emailStep === 'input' ? (
@@ -624,13 +621,10 @@ export const ProfilePersonalTab: React.FC<ProfilePersonalTabProps> = ({
                       تغییر شماره تلفن همراه با تایید پیامکی
                     </h3>
                   </div>
-                  <button
-                    type="button"
+                  <ModalCloseButton
                     onClick={() => setIsPhoneModalOpen(false)}
-                    className="p-1 rounded-control text-muted-foreground hover:text-foreground cursor-pointer"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
+                    size="sm"
+                  />
                 </div>
 
                 {phoneStep === 'input' ? (

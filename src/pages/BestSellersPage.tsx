@@ -160,7 +160,7 @@ export const BestSellersPage: React.FC = () => {
 
         {/* Filter and Search Toolbar (Sleek Dropdown matching Order Table & Offers) */}
         <div className="bg-card rounded-surface border border-border/80 p-3.5 shadow-surface flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-          {/* Dynamic Category & Page Size Dropdowns */}
+          {/* Dynamic Category, Sorting & Page Size Dropdowns */}
           <div className="flex items-center gap-2.5 flex-wrap">
             <div className="flex items-center gap-1.5">
               <span className="text-[11px] text-muted-foreground font-bold shrink-0">
@@ -184,6 +184,25 @@ export const BestSellersPage: React.FC = () => {
 
             <div className="flex items-center gap-1.5">
               <span className="text-[11px] text-muted-foreground font-bold shrink-0">
+                مرتب‌سازی:
+              </span>
+              <select
+                value={sortBy}
+                onChange={(e) => {
+                  setSortBy(e.target.value as any)
+                  setPage(1)
+                }}
+                className="h-9 px-2.5 rounded-control border border-border/60 bg-muted/20 text-xs text-foreground outline-none focus:border-brand font-bold cursor-pointer"
+              >
+                <option value="sales">بیشترین فروش</option>
+                <option value="rating">بالاترین امتیاز</option>
+                <option value="price_asc">ارزان‌ترین</option>
+                <option value="price_desc">گران‌ترین</option>
+              </select>
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px] text-muted-foreground font-bold shrink-0">
                 تعداد:
               </span>
               <select
@@ -201,36 +220,19 @@ export const BestSellersPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5 shrink-0">
-            {/* Sorting */}
-            <div className="flex items-center gap-1.5">
-              <span className="text-muted-foreground font-bold">مرتب‌سازی:</span>
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as any)}
-                className="h-9 px-2.5 rounded-control border border-border/60 bg-muted/20 text-xs text-foreground outline-none focus:border-brand font-bold cursor-pointer"
-              >
-                <option value="sales">بیشترین فروش</option>
-                <option value="rating">بالاترین امتیاز</option>
-                <option value="price_asc">ارزان‌ترین</option>
-                <option value="price_desc">گران‌ترین</option>
-              </select>
-            </div>
-
-            {/* Search */}
-            <div className="relative">
-              <Search className="w-4 h-4 text-muted-foreground absolute right-3 top-2.5 pointer-events-none" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value)
-                  setPage(1)
-                }}
-                placeholder="جستجو در پرفروش‌ها..."
-                className="h-9 pr-9 pl-3 w-40 sm:w-48 rounded-control border border-border/60 bg-muted/20 text-xs text-foreground placeholder:text-muted-foreground outline-none focus:border-brand"
-              />
-            </div>
+          {/* Search box */}
+          <div className="relative">
+            <Search className="w-4 h-4 text-muted-foreground absolute right-3 top-2.5 pointer-events-none" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value)
+                setPage(1)
+              }}
+              placeholder="جستجو در پرفروش‌ها..."
+              className="h-9 pr-9 pl-3 w-full sm:w-60 rounded-control border border-border/60 bg-muted/20 text-xs text-foreground placeholder:text-muted-foreground outline-none focus:border-brand"
+            />
           </div>
         </div>
 

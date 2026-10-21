@@ -43,16 +43,16 @@ export const Accordion: React.FC<AccordionProps> = ({
         return (
           <div
             key={`accordion-item-${item.id}`}
-            className={`rounded-control border duration-motion ease-motion transition-all overflow-hidden shadow-surface ${
+            className={`rounded-surface border duration-motion ease-motion transition-all overflow-hidden shadow-surface ${
               isOpen
-                ? 'border-border bg-card shadow-control'
-                : 'border-border/60 bg-card/80 hover:bg-card hover:border-border'
+                ? 'border-border/80 bg-card shadow-control'
+                : 'border-border/60 bg-muted/20 hover:bg-muted/40 hover:border-border/80'
             }`}
           >
             <button
               type="button"
               onClick={() => toggleItem(item.id)}
-              className="w-full flex items-center justify-between p-4 text-right font-bold text-xs sm:text-sm text-foreground transition-colors cursor-pointer select-none"
+              className="w-full flex items-center justify-between p-4 sm:p-5 text-right font-bold text-xs sm:text-sm text-foreground transition-colors cursor-pointer select-none"
               aria-expanded={isOpen}
             >
               <div className="flex items-center gap-2.5">
@@ -69,7 +69,7 @@ export const Accordion: React.FC<AccordionProps> = ({
             </button>
 
             {isOpen && (
-              <div className="px-4 pb-4 pt-2 text-xs text-muted-foreground leading-relaxed border-t border-border/40 bg-card/50 animate-in fade-in slide-in-from-top-1 duration-motion ease-motion">
+              <div className="px-5 pb-5 pt-2 text-xs text-muted-foreground leading-relaxed border-t border-border/40 bg-card/50 animate-in fade-in slide-in-from-top-1 duration-motion ease-motion">
                 {item.content}
               </div>
             )}

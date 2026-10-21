@@ -37,6 +37,7 @@ import type {
 import { Badge } from '../ui/badge'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
+import { useNotification } from '../vibefarsi/NotificationContext'
 
 interface AdminTicketsViewProps {
   adminUser?: any
@@ -75,6 +76,7 @@ export const AdminTicketsView: React.FC<AdminTicketsViewProps> = ({
   adminUser: _adminUser,
   onUpdatePendingCount,
 }) => {
+  const { success: notifySuccess, error: notifyError } = useNotification()
   const [tickets, setTickets] = useState<TicketItem[]>([])
   const [stats, setStats] = useState<AdminTicketStats>({
     total: 0,
@@ -225,8 +227,9 @@ export const AdminTicketsView: React.FC<AdminTicketsViewProps> = ({
     try {
       const att = await apiService.uploadAdminTicketAttachment(file)
       setReplyAttachments((prev) => [...prev, att])
+      notifySuccess('آپلود موفق', 'فایل پیوست با موفقیت بارگذاری شد.')
     } catch (err: any) {
-      alert(err.message || 'خطا در آپلود فایل')
+      notifyError('خطا در آپلود فایل', err.message)
     } finally {
       setIsUploadingAtt(false)
     }
@@ -267,10 +270,11 @@ export const AdminTicketsView: React.FC<AdminTicketsViewProps> = ({
 
       setReplyText('')
       setReplyAttachments([])
+      notifySuccess('ارسال پاسخ', 'پاسخ شما با موفقیت ارسال شد.')
       await fetchTicketDetail(activeTicketId, true)
       await fetchTickets(true)
     } catch (err: any) {
-      alert(err.message || 'خطا در ارسال پاسخ ادمین')
+      notifyError('خطا در ارسال پاسخ', err.message)
     } finally {
       setSendingReply(false)
     }
@@ -287,12 +291,13 @@ export const AdminTicketsView: React.FC<AdminTicketsViewProps> = ({
         status: newStatus,
         notify_sms: notifySMS,
       })
+      notifySuccess('تغییر وضعیت تیکت', 'وضعیت تیکت با موفقیت به‌روزرسانی شد.')
       if (activeTicketId === ticketId) {
         await fetchTicketDetail(ticketId, true)
       }
       await fetchTickets(true)
     } catch (err: any) {
-      alert(err.message || 'خطا در تغییر وضعیت تیکت')
+      notifyError('خطا در تغییر وضعیت تیکت', err.message)
     } finally {
       setActionLoading((prev) => ({ ...prev, [ticketId]: false }))
     }
@@ -308,12 +313,13 @@ export const AdminTicketsView: React.FC<AdminTicketsViewProps> = ({
       await apiService.adminUpdateTicket(ticketId, {
         priority: newPriority,
       })
+      notifySuccess('تغییر اولویت تیکت', 'اولویت تیکت با موفقیت به‌روزرسانی شد.')
       if (activeTicketId === ticketId) {
         await fetchTicketDetail(ticketId, true)
       }
       await fetchTickets(true)
     } catch (err: any) {
-      alert(err.message || 'خطا در تغییر اولویت')
+      notifyError('خطا در تغییر اولویت', err.message)
     } finally {
       setActionLoading((prev) => ({ ...prev, [ticketId]: false }))
     }
@@ -325,12 +331,13 @@ export const AdminTicketsView: React.FC<AdminTicketsViewProps> = ({
 
     try {
       await apiService.adminDeleteTicket(ticketId)
+      notifySuccess('حذف تیکت', `تیکت #${tNum} با موفقیت حذف شد.`)
       if (activeTicketId === ticketId) {
         setActiveTicketId(null)
       }
       await fetchTickets(true)
     } catch (err: any) {
-      alert(err.message || 'خطا در حذف تیکت')
+      notifyError('خطا در حذف تیکت', err.message)
     }
   }
 

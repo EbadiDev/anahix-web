@@ -19,7 +19,7 @@ interface HolidayThemeBannerProps {
 function cleanDisplayText(text?: string, fallback = ''): string {
   if (!text) return fallback
   // If string contains multiple question marks or replacement characters, use clean fallback
-  if (text.includes('??') || text.includes('\ufffd') || text.includes('')) {
+  if (text.includes('??') || text.includes('\ufffd')) {
     return fallback
   }
   return text.trim() || fallback

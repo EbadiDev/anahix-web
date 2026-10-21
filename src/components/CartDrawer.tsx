@@ -35,6 +35,7 @@ import { AuthModal } from './AuthModal'
 import { ClaudeIcon, CursorIcon, GeminiIcon, OpenAIIcon } from './BrandIcons'
 import { WalletTopupModal } from './profile/WalletTopupModal'
 import { Input } from './ui/input'
+import { ModalCloseButton } from './vibefarsi/ModalCloseButton'
 
 function getProductBrandConfig(category: string, title: string) {
   const t = `${title} ${category}`.toLowerCase()
@@ -250,35 +251,29 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
           setDbPayments(list)
         }
       })
-      // 2. Fetch live promotional coupons from DB / Admin & active calendar campaigns
+      // 2. Fetch live promotional coupons strictly from verified DB/API
       apiService.getPublicCoupons().then((list) => {
-        const allCoupons = Array.isArray(list) ? [...list] : []
-        try {
-          const rawEvents = localStorage.getItem('anahix_calendar_events')
-          if (rawEvents) {
-            const evts = JSON.parse(rawEvents)
-            if (Array.isArray(evts)) {
-              for (const e of evts) {
-                if (
-                  e.couponCode &&
-                  !allCoupons.some((c) => c.code === e.couponCode)
-                ) {
-                  allCoupons.push({
-                    id: e.id || `c-${e.couponCode}`,
-                    code: e.couponCode,
-                    discount_type: 'percentage',
-                    discount_value: e.discountPercent || 20,
-                    description: `تخفیف جشنواره: ${e.title}`,
-                    valid: true,
-                    is_active: true,
-                  } as any)
-                }
+        const validList = Array.isArray(list) ? list : []
+        setPromotionalCoupons(validList)
+
+        // Real-time verification of currently applied coupon
+        if (coupon?.code) {
+          apiService
+            .validateCoupon({
+              code: coupon.code,
+              subtotal_toman: subtotal,
+              customer_phone: customer?.phone || phone || undefined,
+            })
+            .then((res) => {
+              if (!res.valid) {
+                removeCoupon()
+              } else {
+                applyCoupon(res)
               }
-            }
-          }
-        } catch {}
-        if (allCoupons.length > 0) {
-          setPromotionalCoupons(allCoupons)
+            })
+            .catch(() => {
+              removeCoupon()
+            })
         }
       })
       // 3. Fetch checkout channel settings from DB / Admin
@@ -303,6 +298,46 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
       })
     }
   }, [customer, isOpen])
+
+  // Listen to live coupon changes (deletion, toggle) from Admin Panel or Calendar
+  useEffect(() => {
+    const handleCouponChanged = (e: any) => {
+      apiService.getPublicCoupons().then((list) => {
+        setPromotionalCoupons(Array.isArray(list) ? list : [])
+      })
+      const changedCode = e?.detail?.code
+      if (coupon?.code) {
+        if (
+          changedCode &&
+          coupon.code.toUpperCase() === changedCode.toUpperCase() &&
+          e?.detail?.action === 'deleted'
+        ) {
+          removeCoupon()
+          setCouponError('کد تخفیف اعمال‌شده حذف شد')
+          setTimeout(() => setCouponError(null), 4000)
+        } else {
+          apiService
+            .validateCoupon({
+              code: coupon.code,
+              subtotal_toman: subtotal,
+              customer_phone: customer?.phone || phone || undefined,
+            })
+            .then((res) => {
+              if (!res.valid) {
+                removeCoupon()
+              }
+            })
+            .catch(() => {
+              removeCoupon()
+            })
+        }
+      }
+    }
+
+    window.addEventListener('anahix:coupon:changed', handleCouponChanged)
+    return () =>
+      window.removeEventListener('anahix:coupon:changed', handleCouponChanged)
+  }, [coupon, customer, phone, removeCoupon, subtotal])
 
   const activeCustomer = customer || internalCustomer
   const isUserLoggedIn =
@@ -702,14 +737,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 <span className="hidden sm:inline">خالی کردن سبد</span>
               </button>
             )}
-            <button
-              type="button"
-              onClick={onClose}
-              aria-label="بستن پنجره"
-              className="p-1.5 sm:p-2 rounded-control text-muted-foreground hover:text-foreground hover:bg-muted transition-colors border border-border/60 cursor-pointer"
-            >
-              <X className="w-4 h-4 sm:w-5 sm:h-5" />
-            </button>
+            <ModalCloseButton onClick={onClose} />
           </div>
         </div>
 
@@ -932,7 +960,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                                   )
                                 }
                                 placeholder="name@example.com"
-                                className="w-full h-8.5 px-3 text-xs font-latin rounded-field bg-muted/20 border border-border/60 text-foreground placeholder:text-muted-foreground outline-none focus:border-brand transition-colors"
+                                className="w-full h-10 px-3.5 text-xs font-latin rounded-field bg-muted/20 border border-border/60 text-foreground placeholder:text-muted-foreground outline-none focus:border-brand transition-colors"
                               />
                             </div>
                             <div>
@@ -972,7 +1000,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                                   )
                                 }
                                 placeholder="••••••••"
-                                className="w-full h-8.5 px-3 text-xs font-latin rounded-field bg-muted/20 border border-border/60 text-foreground placeholder:text-muted-foreground outline-none focus:border-brand transition-colors"
+                                className="w-full h-10 px-3.5 text-xs font-latin rounded-field bg-muted/20 border border-border/60 text-foreground placeholder:text-muted-foreground outline-none focus:border-brand transition-colors"
                               />
                             </div>
                           </div>

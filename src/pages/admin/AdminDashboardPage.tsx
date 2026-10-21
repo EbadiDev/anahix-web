@@ -51,6 +51,7 @@ import { SMSGatewayView } from '../../components/admin/SMSGatewayView'
 import { TransactionsLogView } from '../../components/admin/TransactionsLogView'
 import { Header } from '../../components/Header'
 import { OfficialInvoiceModal } from '../../components/invoice/OfficialInvoiceModal'
+import { ToggleSwitch } from '../../components/vibefarsi/ToggleSwitch'
 import { apiService } from '../../services/api'
 import type {
   InstantDeliverySettings,
@@ -611,24 +612,14 @@ export const AdminDashboardPage: React.FC = () => {
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-xs text-slate-600 dark:text-slate-400">
+                      <span className="text-xs text-slate-600 dark:text-slate-400 font-bold">
                         وضعیت فروش:
                       </span>
-                      <button
-                        type="button"
-                        onClick={() => setEnabledToggle(!enabledToggle)}
-                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                          enabledToggle
-                            ? 'bg-blue-600'
-                            : 'bg-slate-300 dark:bg-slate-700'
-                        }`}
-                      >
-                        <span
-                          className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                            enabledToggle ? '-translate-x-5' : 'translate-x-0'
-                          }`}
-                        />
-                      </button>
+                      <ToggleSwitch
+                        checked={enabledToggle}
+                        onChange={setEnabledToggle}
+                        variant="primary"
+                      />
                     </div>
                   </div>
 

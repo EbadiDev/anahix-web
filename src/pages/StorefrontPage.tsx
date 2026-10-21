@@ -8,7 +8,6 @@ import {
   Eye,
   Flame,
   Headphones,
-  Heart,
   HelpCircle,
   Lock,
   RefreshCw,
@@ -32,6 +31,7 @@ import {
   type BannerData,
 } from '../components/vibefarsi/BannerCarousel'
 import { GridPattern } from '../components/vibefarsi/GridPattern'
+import { LikeButton } from '../components/vibefarsi/LikeButton'
 import { ScrollReveal } from '../components/vibefarsi/ScrollReveal'
 import { TypewriterText } from '../components/vibefarsi/TypewriterText'
 import { useCart } from '../lib/cartStore'
@@ -900,7 +900,7 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
                         </div>
                       </Link>
 
-                      {/* Footer: Action Button matching site standard buttons */}
+                      {/* Footer: Action Button & Interactive Like Button */}
                       <div className="p-4 sm:p-5 pt-0 flex items-center gap-2 mt-1">
                         <Link
                           to={`/blog/${art.slug}`}
@@ -909,14 +909,11 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
                           <span>مطالعه مقاله</span>
                           <ArrowLeft className="h-3.5 w-3.5" />
                         </Link>
-                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/40 h-9 px-3 rounded-control border border-border/60 shrink-0">
-                          <Heart className="h-3.5 w-3.5 text-rose-500 fill-rose-500/20" />
-                          <span className="font-latin font-bold">
-                            {Number(art.like_count || 0).toLocaleString(
-                              'fa-IR',
-                            )}
-                          </span>
-                        </div>
+                        <LikeButton
+                          slug={art.slug}
+                          initialCount={art.like_count || 0}
+                          className="h-9 shrink-0"
+                        />
                       </div>
                     </div>
                   </div>

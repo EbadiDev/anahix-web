@@ -1,9 +1,7 @@
 import {
-  AlertTriangle,
   ArrowRight,
   BookOpen,
   Check,
-  CheckCircle2,
   Clock,
   Edit2,
   ExternalLink,
@@ -38,6 +36,7 @@ import type {
   ServiceTarget,
 } from '../../types'
 import { RichContentEditor } from '../content/RichContentEditor'
+import { useNotification } from '../vibefarsi/NotificationContext'
 
 type ContentSubTab =
   | 'articles'
@@ -47,16 +46,13 @@ type ContentSubTab =
   | 'comments'
 
 export const AdminContentView: React.FC = () => {
+  const { success: notifySuccess, error: notifyError } = useNotification()
   const [activeSubTab, setActiveSubTab] = useState<ContentSubTab>('articles')
   const [categories, setCategories] = useState<ContentCategory[]>([])
   const [services, setServices] = useState<ServiceTarget[]>([])
   const [templates, setTemplates] = useState<ContentTemplate[]>([])
   const [products, setProducts] = useState<Product[]>([])
   const [isLoading, setIsLoading] = useState(false)
-  const [actionMessage, setActionMessage] = useState<{
-    text: string
-    type: 'success' | 'error'
-  } | null>(null)
 
   // Articles state
   const [articles, setArticles] = useState<ArticleListItem[]>([])
@@ -152,8 +148,11 @@ export const AdminContentView: React.FC = () => {
   })
 
   const showToast = (text: string, type: 'success' | 'error' = 'success') => {
-    setActionMessage({ text, type })
-    setTimeout(() => setActionMessage(null), 4000)
+    if (type === 'success') {
+      notifySuccess('عملیات موفق', text)
+    } else {
+      notifyError('خطا در عملیات', text)
+    }
   }
 
   // Load Categories & Products on mount
@@ -553,33 +552,6 @@ export const AdminContentView: React.FC = () => {
 
   return (
     <div className="space-y-6 text-right dir-rtl">
-      {/* Toast alert */}
-      {actionMessage && (
-        <div
-          className={`p-4 rounded-xl border flex items-center justify-between transition-all ${
-            actionMessage.type === 'success'
-              ? 'bg-emerald-50/80 border-emerald-500/40 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200'
-              : 'bg-rose-50/80 border-rose-500/40 text-rose-800 dark:bg-rose-950/40 dark:text-rose-200'
-          }`}
-        >
-          <div className="flex items-center gap-2">
-            {actionMessage.type === 'success' ? (
-              <CheckCircle2 className="h-5 w-5 text-emerald-600" />
-            ) : (
-              <AlertTriangle className="h-5 w-5 text-rose-600" />
-            )}
-            <span className="text-sm font-semibold">{actionMessage.text}</span>
-          </div>
-          <button
-            type="button"
-            onClick={() => setActionMessage(null)}
-            className="text-xs opacity-70 hover:opacity-100"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-      )}
-
       {/* Top Header Card */}
       <div className="bg-card border border-border rounded-2xl p-6 shadow-sm relative overflow-hidden">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">

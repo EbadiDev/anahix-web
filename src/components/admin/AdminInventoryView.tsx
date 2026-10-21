@@ -33,8 +33,13 @@ import type {
   InventoryStats,
   ProductPlan,
 } from '../../types'
+import { ConfirmModal } from '../vibefarsi/ConfirmModal'
+import { ModalCloseButton } from '../vibefarsi/ModalCloseButton'
+import { useNotification } from '../vibefarsi/NotificationContext'
+import { ToggleSwitch } from '../vibefarsi/ToggleSwitch'
 
 export const AdminInventoryView: React.FC = () => {
+  const { success: notifySuccess, error: notifyError } = useNotification()
   const [activeSubtab, setActiveSubtab] = useState<
     'catalog' | 'inventory' | 'coupons'
   >('catalog')
@@ -145,6 +150,8 @@ export const AdminInventoryView: React.FC = () => {
   const [maxDiscount, setMaxDiscount] = useState(0)
   const [perUserLimit, setPerUserLimit] = useState(1)
   const [maxUsage, setMaxUsage] = useState(100)
+  const [couponLabel, setCouponLabel] = useState('')
+  const [couponToDelete, setCouponToDelete] = useState<CouponItem | null>(null)
   const [createCouponLoading, setCreateCouponLoading] = useState(false)
   const [createCouponError, setCreateCouponError] = useState('')
 
@@ -985,16 +992,63 @@ export const AdminInventoryView: React.FC = () => {
         max_discount_toman: Number(maxDiscount) || 0,
         per_user_limit: Number(perUserLimit) || 1,
         max_usage: Number(maxUsage) || 100,
+        label: couponLabel.trim() || undefined,
         is_active: true,
       })
       setCoupons((prev) => [created, ...prev])
       setIsCreateCouponOpen(false)
       setCouponCode('')
+      setCouponLabel('')
       setCouponValue(10)
     } catch (err: any) {
       setCreateCouponError(err.message || 'خطا در ساخت کوپن')
     } finally {
       setCreateCouponLoading(false)
+    }
+  }
+
+  const handleToggleCoupon = async (c: CouponItem) => {
+    try {
+      const updated = await apiService.adminToggleCoupon(c.id)
+      setCoupons((prev) =>
+        prev.map((item) => (item.id === c.id ? updated : item)),
+      )
+      window.dispatchEvent(
+        new CustomEvent('anahix:coupon:changed', {
+          detail: { code: c.code, action: 'toggled' },
+        }),
+      )
+      notifySuccess(
+        'تغییر وضعیت کوپن',
+        `کد تخفیف «${c.code}» اکنون ${updated.is_active ? 'فعال' : 'غیرفعال'} شد.`,
+      )
+    } catch (err: any) {
+      notifyError('خطا در تغییر وضعیت کوپن', err.message)
+    }
+  }
+
+  const handleDeleteCouponClick = (c: CouponItem) => {
+    setCouponToDelete(c)
+  }
+
+  const handleConfirmDeleteCoupon = async () => {
+    if (!couponToDelete) return
+    try {
+      await apiService.adminDeleteCoupon(couponToDelete.id)
+      const deletedCode = couponToDelete.code
+      setCoupons((prev) => prev.filter((item) => item.id !== couponToDelete.id))
+      setCouponToDelete(null)
+      window.dispatchEvent(
+        new CustomEvent('anahix:coupon:changed', {
+          detail: { code: deletedCode, action: 'deleted' },
+        }),
+      )
+      notifySuccess(
+        'حذف کد تخفیف',
+        `کد تخفیف «${deletedCode}» با موفقیت حذف شد.`,
+      )
+    } catch (err: any) {
+      notifyError('خطا در حذف کوپن', err.message)
     }
   }
 
@@ -1599,26 +1653,27 @@ export const AdminInventoryView: React.FC = () => {
       {/* SUBTAB 2: COUPONS */}
       {activeSubtab === 'coupons' && (
         <div className="space-y-4">
-          <div className="rounded-2xl border border-border bg-card p-4 flex items-center justify-between gap-3">
+          <div className="rounded-surface border border-border/80 bg-card p-4 flex items-center justify-between gap-3 shadow-surface">
             <div>
-              <h3 className="text-sm font-bold text-foreground">
+              <h3 className="text-sm font-black text-foreground">
                 کدهای تخفیف فعال و زمان‌دار
               </h3>
               <p className="text-xs text-muted-foreground mt-0.5">
-                تخفیف‌های درصدی یا مبلغ ثابت با محدودیت سقف و تعداد دفعات استفاده
+                تخفیف‌های درصدی یا مبلغ ثابت با محدودیت سقف، برچسب سبد خرید و
+                قابلیت حذف و غیرفعال‌سازی
               </p>
             </div>
             <button
               type="button"
               onClick={() => setIsCreateCouponOpen(true)}
-              className="h-9 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-sm hover:shadow-blue-500/20"
+              className="h-9 px-4 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground text-xs font-black transition flex items-center gap-1.5 shadow-control cursor-pointer duration-motion active:scale-[0.98]"
             >
               <Plus className="h-4 w-4" />
               <span>ایجاد کوپن جدید</span>
             </button>
           </div>
 
-          <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-sm">
+          <div className="rounded-surface border border-border/80 bg-card overflow-hidden shadow-surface">
             {coupons.length === 0 ? (
               <div className="py-16 text-center text-muted-foreground space-y-2">
                 <Ticket className="h-10 w-10 mx-auto text-muted-foreground/50 stroke-1" />
@@ -1629,23 +1684,36 @@ export const AdminInventoryView: React.FC = () => {
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-right text-xs">
-                  <thead className="bg-muted/40 text-muted-foreground border-b border-border text-[11px] font-semibold">
+                  <thead className="bg-muted/40 text-muted-foreground border-b border-border/60 text-[11px] font-semibold">
                     <tr>
                       <th className="p-3.5">کد تخفیف</th>
+                      <th className="p-3.5">برچسب سبد خرید</th>
                       <th className="p-3.5">نوع و مقدار</th>
                       <th className="p-3.5">حداقل خرید</th>
                       <th className="p-3.5">سقف تخفیف</th>
-                      <th className="p-3.5">تعداد استفاده</th>
+                      <th className="p-3.5">مصرف / سقف</th>
                       <th className="p-3.5">وضعیت</th>
+                      <th className="p-3.5 text-center">عملیات</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-border">
+                  <tbody className="divide-y divide-border/60">
                     {coupons.map((c) => (
                       <tr key={c.id} className="hover:bg-muted/30 transition">
                         <td className="p-3.5">
-                          <span className="font-mono font-black text-blue-600 dark:text-blue-400 bg-blue-500/10 px-2.5 py-1 rounded-lg">
+                          <span className="font-mono font-black text-brand bg-brand/10 border border-brand/20 px-2.5 py-1 rounded-control">
                             {c.code}
                           </span>
+                        </td>
+                        <td className="p-3.5">
+                          {c.label ? (
+                            <span className="px-2 py-0.5 rounded-control bg-muted text-foreground border border-border/60 text-[11px] font-bold">
+                              {c.label}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground text-[11px]">
+                              -
+                            </span>
+                          )}
                         </td>
                         <td className="p-3.5 font-bold text-foreground">
                           {c.discount_type === 'percentage'
@@ -1662,20 +1730,33 @@ export const AdminInventoryView: React.FC = () => {
                             ? `${c.max_discount_toman.toLocaleString('fa-IR')} تومان`
                             : 'بدون سقف'}
                         </td>
-                        <td className="p-3.5 font-mono text-muted-foreground">
+                        <td className="p-3.5 font-mono text-muted-foreground font-latin">
                           {(c.current_usage ?? 0).toLocaleString('fa-IR')} /{' '}
                           {c.max_usage.toLocaleString('fa-IR')}
                         </td>
                         <td className="p-3.5">
-                          <span
-                            className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                          <button
+                            type="button"
+                            onClick={() => handleToggleCoupon(c)}
+                            className={`px-2.5 py-0.5 rounded-control text-[10px] font-black cursor-pointer transition-transform active:scale-95 border ${
                               c.is_active
-                                ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
-                                : 'bg-rose-500/15 text-rose-600 dark:text-rose-400'
+                                ? 'bg-emerald-500/15 text-emerald-500 border-emerald-500/30'
+                                : 'bg-rose-500/15 text-rose-500 border-rose-500/30'
                             }`}
+                            title="برای تغییر وضعیت کلیک کنید"
                           >
                             {c.is_active ? 'فعال' : 'غیرفعال'}
-                          </span>
+                          </button>
+                        </td>
+                        <td className="p-3.5 text-center">
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteCouponClick(c)}
+                            className="p-1.5 rounded-control border border-destructive/20 text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
+                            title="حذف کوپن تخفیف"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
                         </td>
                       </tr>
                     ))}
@@ -2305,17 +2386,12 @@ export const AdminInventoryView: React.FC = () => {
                               </p>
                             </div>
                           </div>
-                          <label className="relative inline-flex items-center cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={pIsFlashSale}
-                              onChange={(e) =>
-                                setPIsFlashSale(e.target.checked)
-                              }
-                              className="sr-only peer"
-                            />
-                            <div className="w-9 h-5 bg-muted peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-border after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-rose-600" />
-                          </label>
+                          <ToggleSwitch
+                            checked={pIsFlashSale}
+                            onChange={setPIsFlashSale}
+                            variant="primary"
+                            size="sm"
+                          />
                         </div>
 
                         {pIsFlashSale && (
@@ -2428,15 +2504,12 @@ export const AdminInventoryView: React.FC = () => {
                             className="w-20 h-8 px-2 rounded-control border border-border/60 bg-card text-xs font-mono font-latin text-center outline-none focus:border-brand disabled:opacity-40"
                             placeholder="5.0"
                           />
-                          <label className="relative inline-flex items-center cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={pShowRating}
-                              onChange={(e) => setPShowRating(e.target.checked)}
-                              className="sr-only peer"
-                            />
-                            <div className="w-9 h-5 bg-muted peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-border after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-brand" />
-                          </label>
+                          <ToggleSwitch
+                            checked={pShowRating}
+                            onChange={setPShowRating}
+                            variant="primary"
+                            size="sm"
+                          />
                         </div>
                       </div>
 
@@ -2474,15 +2547,11 @@ export const AdminInventoryView: React.FC = () => {
                             کاتالوگ اصلی نخواهند دید.
                           </span>
                         </div>
-                        <label className="relative inline-flex items-center cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={pIsActive}
-                            onChange={(e) => setPIsActive(e.target.checked)}
-                            className="sr-only peer"
-                          />
-                          <div className="w-11 h-6 bg-muted peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600" />
-                        </label>
+                        <ToggleSwitch
+                          checked={pIsActive}
+                          onChange={setPIsActive}
+                          variant="primary"
+                        />
                       </div>
                     </div>
                   )}
@@ -3327,24 +3396,23 @@ export const AdminInventoryView: React.FC = () => {
                 onSubmit={handleCreateCouponSubmit}
                 className="max-w-md w-full my-auto bg-card rounded-surface border border-border/80 shadow-overlay p-6 space-y-4 animate-in zoom-in-95 text-foreground"
               >
-                <div className="flex items-center justify-between border-b border-border pb-3">
+                <div className="flex items-center justify-between border-b border-border/60 pb-3">
                   <div className="flex items-center gap-2">
-                    <Ticket className="h-4 w-4 text-blue-600" />
-                    <h3 className="text-sm font-bold text-foreground">
+                    <div className="w-8 h-8 rounded-control bg-secondary text-brand flex items-center justify-center border border-border/60 shadow-xs">
+                      <Ticket className="h-4 w-4" />
+                    </div>
+                    <h3 className="text-sm font-black text-foreground">
                       ایجاد کوپن تخفیف جدید
                     </h3>
                   </div>
-                  <button
-                    type="button"
+                  <ModalCloseButton
                     onClick={() => setIsCreateCouponOpen(false)}
-                    className="text-muted-foreground hover:text-foreground"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
+                    size="sm"
+                  />
                 </div>
 
                 {createCouponError && (
-                  <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-xs flex items-center gap-2">
+                  <div className="p-3 rounded-control bg-rose-500/10 border border-rose-500/20 text-rose-500 text-xs flex items-center gap-2">
                     <AlertCircle className="h-4 w-4 shrink-0" />
                     <span>{createCouponError}</span>
                   </div>
@@ -3356,20 +3424,41 @@ export const AdminInventoryView: React.FC = () => {
                       htmlFor="create-coupon-code"
                       className="font-bold text-foreground block mb-1"
                     >
-                      کد تخفیف (لاتین)
+                      کد تخفیف (لاتین) *
                     </label>
                     <input
                       id="create-coupon-code"
                       type="text"
                       required
-                      placeholder="مثال: NOROOZ1404"
+                      placeholder="مثال: NOROOZ1405"
                       value={couponCode}
                       onChange={(e) => setCouponCode(e.target.value)}
-                      className="w-full h-9 px-3 rounded-xl border border-border bg-background font-mono uppercase focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      className="w-full h-10 px-3.5 rounded-field border border-border/60 bg-muted/20 font-mono uppercase focus:outline-none focus:border-brand text-foreground"
                     />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label
+                      htmlFor="create-coupon-label"
+                      className="font-bold text-foreground block mb-1"
+                    >
+                      برچسب نمایشی در سبد خرید (اختیاری)
+                    </label>
+                    <input
+                      id="create-coupon-label"
+                      type="text"
+                      placeholder="مثال: ۲۰٪ تخفیف یا ۵۰ هزار تومان تخفیف"
+                      value={couponLabel}
+                      onChange={(e) => setCouponLabel(e.target.value)}
+                      className="w-full h-10 px-3.5 rounded-field border border-border/60 bg-muted/20 focus:outline-none focus:border-brand text-foreground"
+                    />
+                    <p className="text-[10px] text-muted-foreground mt-0.5">
+                      در صورت خالی ماندن، برچسب درصد یا مبلغ به طور خودکار
+                      محاسبه و درج خواهد شد.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2.5">
                     <div>
                       <label
                         htmlFor="create-coupon-type"
@@ -3381,7 +3470,7 @@ export const AdminInventoryView: React.FC = () => {
                         id="create-coupon-type"
                         value={couponType}
                         onChange={(e) => setCouponType(e.target.value as any)}
-                        className="w-full h-9 px-3 rounded-xl border border-border bg-background focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        className="w-full h-10 px-3 rounded-field border border-border/60 bg-muted/20 focus:outline-none focus:border-brand text-foreground cursor-pointer font-bold"
                       >
                         <option value="percentage">درصدی (%)</option>
                         <option value="fixed">مبلغ ثابت (تومان)</option>
@@ -3402,12 +3491,12 @@ export const AdminInventoryView: React.FC = () => {
                         min={1}
                         value={couponValue}
                         onChange={(e) => setCouponValue(Number(e.target.value))}
-                        className="w-full h-9 px-3 rounded-xl border border-border bg-background font-mono focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        className="w-full h-10 px-3 rounded-field border border-border/60 bg-muted/20 font-mono focus:outline-none focus:border-brand text-foreground"
                       />
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-2 gap-2.5">
                     <div>
                       <label
                         htmlFor="create-min-spend"
@@ -3421,7 +3510,7 @@ export const AdminInventoryView: React.FC = () => {
                         min={0}
                         value={minSpend}
                         onChange={(e) => setMinSpend(Number(e.target.value))}
-                        className="w-full h-9 px-3 rounded-xl border border-border bg-background font-mono focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        className="w-full h-10 px-3 rounded-field border border-border/60 bg-muted/20 font-mono focus:outline-none focus:border-brand text-foreground"
                       />
                     </div>
                     <div>
@@ -3437,12 +3526,12 @@ export const AdminInventoryView: React.FC = () => {
                         min={0}
                         value={maxDiscount}
                         onChange={(e) => setMaxDiscount(Number(e.target.value))}
-                        className="w-full h-9 px-3 rounded-xl border border-border bg-background font-mono focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        className="w-full h-10 px-3 rounded-field border border-border/60 bg-muted/20 font-mono focus:outline-none focus:border-brand text-foreground"
                       />
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-2 gap-2.5">
                     <div>
                       <label
                         htmlFor="create-per-user"
@@ -3458,7 +3547,7 @@ export const AdminInventoryView: React.FC = () => {
                         onChange={(e) =>
                           setPerUserLimit(Number(e.target.value))
                         }
-                        className="w-full h-9 px-3 rounded-xl border border-border bg-background font-mono focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        className="w-full h-10 px-3 rounded-field border border-border/60 bg-muted/20 font-mono focus:outline-none focus:border-brand text-foreground"
                       />
                     </div>
                     <div>
@@ -3466,7 +3555,7 @@ export const AdminInventoryView: React.FC = () => {
                         htmlFor="create-max-usage"
                         className="font-bold text-foreground block mb-1"
                       >
-                        حداکثر سقف مصرف کل
+                        سقف کل مصرف کوپن
                       </label>
                       <input
                         id="create-max-usage"
@@ -3474,29 +3563,23 @@ export const AdminInventoryView: React.FC = () => {
                         min={1}
                         value={maxUsage}
                         onChange={(e) => setMaxUsage(Number(e.target.value))}
-                        className="w-full h-9 px-3 rounded-xl border border-border bg-background font-mono focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        className="w-full h-10 px-3 rounded-field border border-border/60 bg-muted/20 font-mono focus:outline-none focus:border-brand text-foreground"
                       />
                     </div>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 pt-2">
+                {/* Full-width submit button without cancel button per user instruction */}
+                <div className="pt-3">
                   <button
                     type="submit"
                     disabled={createCouponLoading}
-                    className="flex-1 h-10 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition flex items-center justify-center gap-2 disabled:opacity-50"
+                    className="w-full h-11 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground text-xs font-black transition flex items-center justify-center gap-2 disabled:opacity-50 shadow-control cursor-pointer duration-motion active:scale-[0.98]"
                   >
                     {createCouponLoading && (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     )}
-                    <span>ثبت و فعال‌سازی کوپن</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setIsCreateCouponOpen(false)}
-                    className="h-10 px-4 rounded-xl border border-border text-xs font-semibold hover:bg-muted"
-                  >
-                    انصراف
+                    <span>ثبت و فعال‌سازی کوپن تخفیف</span>
                   </button>
                 </div>
               </form>
@@ -3504,6 +3587,18 @@ export const AdminInventoryView: React.FC = () => {
           </div>,
           document.body,
         )}
+
+      {/* Unified Confirm Modal for Coupon Deletion */}
+      <ConfirmModal
+        isOpen={Boolean(couponToDelete)}
+        onClose={() => setCouponToDelete(null)}
+        onConfirm={handleConfirmDeleteCoupon}
+        title="حذف کد تخفیف"
+        description={`آیا از حذف کامل کد تخفیف «${couponToDelete?.code || ''}» از پایگاه‌داده اطمینان دارید؟ این کد دیگر در سبد خرید معتبر نخواهد بود.`}
+        confirmText="بله، حذف شود"
+        cancelText="انصراف"
+        variant="danger"
+      />
     </div>
   )
 }

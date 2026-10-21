@@ -1,12 +1,4 @@
-import {
-  AlertCircle,
-  Building2,
-  CheckCircle2,
-  FileText,
-  Receipt,
-  RefreshCw,
-  Save,
-} from 'lucide-react'
+import { Building2, FileText, Receipt, RefreshCw, Save } from 'lucide-react'
 import type React from 'react'
 import { useEffect, useState } from 'react'
 import { apiService } from '../../services/api'
@@ -16,8 +8,10 @@ import { Badge } from '../ui/badge'
 import { Button } from '../ui/button'
 import { Card } from '../ui/card'
 import { Input } from '../ui/input'
+import { useNotification } from '../vibefarsi/NotificationContext'
 
 export const AdminBillingSettingsView: React.FC = () => {
+  const { success: notifySuccess, error: notifyError } = useNotification()
   const [settings, setSettings] = useState<BillingSettings>({
     seller_company_name: 'فروشگاه هوش مصنوعی آناهیکس',
     seller_brand_fa: 'آناهیکس (Anahix)',
@@ -41,18 +35,15 @@ export const AdminBillingSettingsView: React.FC = () => {
 
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [successMsg, setSuccessMsg] = useState('')
-  const [errorMsg, setErrorMsg] = useState('')
   const [isPreviewOpen, setIsPreviewOpen] = useState(false)
 
   const loadSettings = async () => {
     setLoading(true)
-    setErrorMsg('')
     try {
       const data = await apiService.getBillingSettings()
       setSettings(data)
     } catch (err: any) {
-      setErrorMsg(err.message || 'خطا در بارگذاری تنظیمات فاکتور')
+      notifyError('خطا در بارگذاری تنظیمات فاکتور', err.message)
     } finally {
       setLoading(false)
     }
@@ -65,14 +56,14 @@ export const AdminBillingSettingsView: React.FC = () => {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
     setSaving(true)
-    setErrorMsg('')
-    setSuccessMsg('')
     try {
       await apiService.updateBillingSettings(settings)
-      setSuccessMsg('تنظیمات فاکتور و نام فروشگاه با موفقیت ذخیره شد.')
-      setTimeout(() => setSuccessMsg(''), 4000)
+      notifySuccess(
+        'تنظیمات فاکتور',
+        'تنظیمات فاکتور و نام فروشگاه با موفقیت ذخیره شد.',
+      )
     } catch (err: any) {
-      setErrorMsg(err.message || 'خطا در ذخیره تنظیمات فاکتور')
+      notifyError('خطا در ذخیره تنظیمات فاکتور', err.message)
     } finally {
       setSaving(false)
     }
@@ -130,21 +121,6 @@ export const AdminBillingSettingsView: React.FC = () => {
           </div>
         </div>
       </Card>
-
-      {/* Notifications */}
-      {successMsg && (
-        <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 text-xs flex items-center gap-2.5 animate-in fade-in">
-          <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
-          <span>{successMsg}</span>
-        </div>
-      )}
-
-      {errorMsg && (
-        <div className="p-4 rounded-2xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/60 text-red-600 dark:text-red-400 text-xs flex items-center gap-2.5 animate-in fade-in">
-          <AlertCircle className="w-4 h-4 shrink-0 text-red-500" />
-          <span>{errorMsg}</span>
-        </div>
-      )}
 
       {/* Settings Form */}
       <form onSubmit={handleSave} className="space-y-5">
