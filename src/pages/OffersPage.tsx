@@ -4,7 +4,6 @@ import {
   Flame,
   HelpCircle,
   RefreshCw,
-  Search,
   Sparkles,
 } from 'lucide-react'
 import type React from 'react'
@@ -13,6 +12,7 @@ import { CartDrawer } from '../components/CartDrawer'
 import { Header } from '../components/Header'
 import { ProductCard } from '../components/ProductCard'
 import { Breadcrumb } from '../components/vibefarsi/Breadcrumb'
+import { SearchInput } from '../components/vibefarsi/SearchInput'
 import { api, apiService } from '../services/api'
 import type { Order, Product, ThemeSettings } from '../types'
 
@@ -241,18 +241,16 @@ export const OffersPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Search box */}
-          <div className="relative">
-            <Search className="w-4 h-4 text-muted-foreground absolute right-3 top-2.5 pointer-events-none" />
-            <input
-              type="text"
+          {/* Search box with Debounce & Clear */}
+          <div className="w-full sm:w-60">
+            <SearchInput
               value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value)
+              onChange={(val) => {
+                setSearchQuery(val)
                 setPage(1)
               }}
               placeholder="جستجو در تخفیف‌ها..."
-              className="h-9 pr-9 pl-3 w-full sm:w-60 rounded-control border border-border/60 bg-muted/20 text-xs text-foreground placeholder:text-muted-foreground outline-none focus:border-brand"
+              debounceMs={250}
             />
           </div>
         </div>

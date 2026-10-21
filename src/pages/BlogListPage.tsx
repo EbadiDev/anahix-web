@@ -4,7 +4,6 @@ import {
   Clock,
   Eye,
   Flame,
-  Search,
   Sparkles,
   Tag,
 } from 'lucide-react'
@@ -14,6 +13,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { CartDrawer } from '../components/CartDrawer'
 import { Header } from '../components/Header'
 import { LikeButton } from '../components/vibefarsi/LikeButton'
+import { SearchInput } from '../components/vibefarsi/SearchInput'
 import { api } from '../services/api'
 import type { ArticleListItem, ContentCategory } from '../types'
 
@@ -100,15 +100,13 @@ export const BlogListPage: React.FC = () => {
               مقایسه تخصصی هوش‌های مصنوعی و ترفندهای رفع محدودیت‌ها و تحریم‌ها.
             </p>
 
-            {/* Search Bar */}
-            <div className="max-w-xl mx-auto mt-6 relative">
-              <Search className="h-5 w-5 absolute right-4 top-3.5 text-muted-foreground" />
-              <input
-                type="text"
+            {/* Search Bar with Debounce & Action Buttons */}
+            <div className="max-w-xl mx-auto mt-6">
+              <SearchInput
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={setSearchQuery}
                 placeholder="جستجو در بین مقالات، آموزش‌ها، ارورها و مدل‌ها..."
-                className="w-full rounded-2xl border border-border bg-card/90 backdrop-blur-md pl-4 pr-12 py-3 text-sm shadow-sm focus:outline-hidden focus:ring-2 focus:ring-primary/40 text-foreground placeholder:text-muted-foreground/60 transition-all"
+                debounceMs={300}
               />
             </div>
           </div>

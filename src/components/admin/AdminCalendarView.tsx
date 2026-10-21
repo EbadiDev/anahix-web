@@ -4,7 +4,6 @@ import {
   Gift,
   Pencil,
   Plus,
-  Search,
   Sparkles,
   Tag,
   Ticket,
@@ -25,6 +24,7 @@ import {
   PersianJalaliCalendar,
   toPersianDigits,
 } from '../vibefarsi/PersianJalaliCalendar'
+import { SearchInput } from '../vibefarsi/SearchInput'
 import { ToggleSwitch } from '../vibefarsi/ToggleSwitch'
 import { AdminHeaderBanner } from './AdminHeaderBanner'
 
@@ -775,15 +775,13 @@ export const AdminCalendarView: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-3">
-            {/* Real-time search box */}
-            <div className="relative">
-              <Search className="w-4 h-4 text-muted-foreground absolute right-3 top-2.5 pointer-events-none" />
-              <input
-                type="text"
+            {/* Real-time search box with debounce & action buttons */}
+            <div className="w-44 sm:w-60">
+              <SearchInput
                 value={tableSearch}
-                onChange={(e) => setTableSearch(e.target.value)}
+                onChange={setTableSearch}
                 placeholder="جستجو در عنوان یا کوپن..."
-                className="h-9 pr-9 pl-3 w-40 sm:w-56 rounded-control border border-border/60 bg-muted/20 text-xs text-foreground placeholder:text-muted-foreground outline-none focus:border-brand"
+                debounceMs={300}
               />
             </div>
 

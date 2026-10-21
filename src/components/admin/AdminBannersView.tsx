@@ -7,7 +7,6 @@ import {
   Pencil,
   Plus,
   RefreshCw,
-  Search,
   Trash2,
   Upload,
 } from 'lucide-react'
@@ -18,6 +17,7 @@ import { api } from '../../services/api'
 import type { BannerItem } from '../../types'
 import { ModalCloseButton } from '../vibefarsi/ModalCloseButton'
 import { useNotification } from '../vibefarsi/NotificationContext'
+import { SearchInput } from '../vibefarsi/SearchInput'
 import { ToggleSwitch } from '../vibefarsi/ToggleSwitch'
 import { AdminHeaderBanner } from './AdminHeaderBanner'
 import { BannerPositionSelect } from './BannerPositionSelect'
@@ -306,18 +306,16 @@ export const AdminBannersView: React.FC = () => {
           </div>
         </div>
 
-        {/* Search Input */}
-        <div className="relative">
-          <Search className="w-4 h-4 text-muted-foreground absolute right-3 top-2.5 pointer-events-none" />
-          <input
-            type="text"
+        {/* Search Input with Debounce & Action Buttons */}
+        <div className="w-full sm:w-60">
+          <SearchInput
             value={searchQuery}
-            onChange={(e) => {
-              setSearchQuery(e.target.value)
+            onChange={(val) => {
+              setSearchQuery(val)
               setPage(1)
             }}
             placeholder="جستجوی عنوان یا برچسب..."
-            className="h-9 pr-9 pl-3 w-full sm:w-60 rounded-control border border-border/60 bg-muted/20 text-xs text-foreground placeholder:text-muted-foreground outline-none focus:border-brand"
+            debounceMs={300}
           />
         </div>
       </div>

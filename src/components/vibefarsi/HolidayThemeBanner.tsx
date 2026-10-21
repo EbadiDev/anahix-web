@@ -1,6 +1,7 @@
 import { Gift, X } from 'lucide-react'
 import type React from 'react'
 import { useEffect, useState } from 'react'
+import { ScrollingAnnouncement } from './ScrollingAnnouncement'
 
 export interface EventThemeConfig {
   event_name: string
@@ -66,20 +67,24 @@ export const HolidayThemeBanner: React.FC<HolidayThemeBannerProps> = ({
       {theme.event_effect === 'stars' && <StarsEffect />}
 
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-3">
-        <div className="flex items-center gap-2 truncate">
-          <span className="flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-lg bg-white/20 backdrop-blur-md shrink-0">
-            <Gift className="h-3 w-3 sm:h-3.5 sm:w-3.5 animate-bounce" />
-          </span>
-          <span className="font-bold shrink-0">{eventName}:</span>
-          <span className="opacity-95 truncate text-[11px] sm:text-xs">
-            {announcement}
-          </span>
-        </div>
+        <ScrollingAnnouncement
+          text={announcement}
+          icon={
+            <span className="flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-lg bg-white/20 backdrop-blur-md shrink-0">
+              <Gift className="h-3 w-3 sm:h-3.5 sm:w-3.5 animate-bounce text-white" />
+            </span>
+          }
+          prefix={
+            <span className="font-bold text-white shrink-0">{eventName}:</span>
+          }
+          className="flex-1"
+          textClassName="opacity-95 text-white text-[11px] sm:text-xs font-medium"
+        />
 
         <button
           type="button"
           onClick={() => setDismissed(true)}
-          className="p-1 rounded-md hover:bg-white/10 transition-colors text-white/80 hover:text-white shrink-0"
+          className="p-1 rounded-md hover:bg-white/10 transition-colors text-white/80 hover:text-white shrink-0 cursor-pointer"
           title="بستن اعلان مناسبت"
         >
           <X className="h-3.5 w-3.5" />

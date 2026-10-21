@@ -5,7 +5,6 @@ import {
   FileText,
   Package,
   Radio,
-  Search,
   Sparkles,
   Star,
   X,
@@ -19,6 +18,7 @@ import { formatToman, toPersianDigits } from '../../utils/formatters'
 import { OfficialInvoiceModal } from '../invoice/OfficialInvoiceModal'
 import { SubmitReviewModal } from '../reviews/SubmitReviewModal'
 import { useNotification } from '../vibefarsi/NotificationContext'
+import { SearchInput } from '../vibefarsi/SearchInput'
 
 interface ProfileOrdersTabProps {
   orders: Order[]
@@ -172,15 +172,13 @@ export const ProfileOrdersTab: React.FC<ProfileOrdersTabProps> = ({
             </p>
           </div>
 
-          <div className="w-full sm:w-64 relative">
-            <input
-              type="text"
-              placeholder="جستجو با شماره سفارش یا عنوان..."
+          <div className="w-full sm:w-64">
+            <SearchInput
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full h-10 pr-9 pl-3 text-xs rounded-field bg-muted/20 border border-border/60 text-foreground outline-none focus:border-brand transition-colors"
+              onChange={setSearchQuery}
+              placeholder="جستجو با شماره سفارش یا عنوان..."
+              debounceMs={250}
             />
-            <Search className="w-4 h-4 absolute right-3 top-3 text-muted-foreground pointer-events-none" />
           </div>
         </div>
 

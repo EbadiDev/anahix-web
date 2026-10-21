@@ -5,7 +5,6 @@ import {
   Package,
   ReceiptText,
   RefreshCw,
-  Search,
   Send,
   Smartphone,
   Tag,
@@ -20,6 +19,7 @@ import type {
   AdminUpdateOrderStatusRequest,
 } from '../../types'
 import { OfficialInvoiceModal } from '../invoice/OfficialInvoiceModal'
+import { SearchInput } from '../vibefarsi/SearchInput'
 import { AdminHeaderBanner } from './AdminHeaderBanner'
 
 export const AdminOrdersTableView: React.FC = () => {
@@ -83,11 +83,11 @@ export const AdminOrdersTableView: React.FC = () => {
 
   useEffect(() => {
     loadOrders()
-  }, [page, statusFilter, deliveryTypeFilter, paymentMethodFilter])
+  }, [page, statusFilter, deliveryTypeFilter, paymentMethodFilter, search])
 
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleSearchSubmit = (val?: string) => {
     setPage(1)
+    if (val !== undefined) setSearch(val)
     loadOrders()
   }
 
@@ -251,20 +251,19 @@ export const AdminOrdersTableView: React.FC = () => {
       {/* Search Bar & 3 Responsive Dropdowns (Status, Delivery, Gateway) */}
       <div className="bg-card rounded-surface border border-border/80 p-4 sm:p-5 shadow-surface">
         <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3">
-          {/* Compact Search Bar */}
-          <form
-            onSubmit={handleSearchSubmit}
-            className="flex-1 min-w-[200px] sm:min-w-[280px] relative"
-          >
-            <Search className="w-4 h-4 text-muted-foreground absolute right-3.5 top-2.5 pointer-events-none" />
-            <input
-              type="text"
+          {/* Compact Debounced Search Bar with Clickable Search & Clear Buttons */}
+          <div className="flex-1 min-w-[200px] sm:min-w-[280px]">
+            <SearchInput
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(val) => {
+                setSearch(val)
+                setPage(1)
+              }}
+              onSearch={handleSearchSubmit}
               placeholder="جستجو: شماره سفارش، موبایل یا ایمیل..."
-              className="w-full pl-4 pr-10 h-9 rounded-control border border-border/60 bg-muted/20 text-xs text-foreground placeholder:text-muted-foreground outline-none focus:border-brand font-sans"
+              debounceMs={350}
             />
-          </form>
+          </div>
 
           {/* 1. Status Filter Dropdown (Converted from bulky tabs to sleek dropdown per user request) */}
           <div className="flex items-center gap-1.5 shrink-0">

@@ -5,7 +5,6 @@ import {
   Headphones,
   MessageSquare,
   RefreshCw,
-  Search,
   Send,
   ShieldCheck,
   Sparkles,
@@ -21,6 +20,7 @@ import { apiService } from '../../services/api'
 import type { AdminReviewStats, ReviewItem } from '../../types'
 import { Button } from '../ui/button'
 import { useNotification } from '../vibefarsi/NotificationContext'
+import { SearchInput } from '../vibefarsi/SearchInput'
 
 interface AdminReviewsViewProps {
   onStatsUpdated?: (stats: AdminReviewStats) => void
@@ -82,10 +82,10 @@ export const AdminReviewsView: React.FC<AdminReviewsViewProps> = ({
 
   useEffect(() => {
     fetchReviews()
-  }, [statusFilter])
+  }, [statusFilter, searchQuery])
 
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleSearchSubmit = (val?: string) => {
+    if (val !== undefined) setSearchQuery(val)
     fetchReviews()
   }
 
@@ -307,28 +307,15 @@ export const AdminReviewsView: React.FC<AdminReviewsViewProps> = ({
         </div>
 
         {/* Search */}
-        <form
-          onSubmit={handleSearchSubmit}
-          className="flex items-center gap-2 w-full md:w-72"
-        >
-          <div className="relative flex-1">
-            <Search className="h-3.5 w-3.5 absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="جستجو در نام، موبایل، نظر..."
-              className="w-full bg-background border border-input rounded-xl pr-9 pl-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-blue-600"
-            />
-          </div>
-          <Button
-            type="submit"
-            size="sm"
-            className="rounded-xl text-xs h-8 px-3 bg-blue-600 hover:bg-blue-700 text-white"
-          >
-            جستجو
-          </Button>
-        </form>
+        <div className="w-full md:w-72">
+          <SearchInput
+            value={searchQuery}
+            onChange={(val) => setSearchQuery(val)}
+            onSearch={handleSearchSubmit}
+            placeholder="جستجو در نام، موبایل، نظر..."
+            debounceMs={350}
+          />
+        </div>
       </div>
 
       {/* REVIEWS LIST */}

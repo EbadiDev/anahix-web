@@ -102,6 +102,10 @@ export default {
           '0%': { opacity: '0', transform: 'translateY(12px)' },
           '100%': { opacity: '1', transform: 'translateY(0)' },
         },
+        'marquee-rtl': {
+          '0%': { transform: 'translateX(0%)' },
+          '100%': { transform: 'translateX(-100%)' },
+        },
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
@@ -111,6 +115,7 @@ export default {
         shimmer: 'shimmer 3s ease-in-out infinite',
         float: 'float 4s ease-in-out infinite',
         'fade-in-up': 'fade-in-up 0.4s ease-out forwards',
+        'marquee-rtl': 'marquee-rtl 20s linear infinite',
       },
     },
   },

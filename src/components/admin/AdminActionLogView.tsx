@@ -10,7 +10,6 @@ import {
   Package,
   Radio,
   RefreshCw,
-  Search,
   Shield,
   ShieldAlert,
   ShieldCheck,
@@ -23,6 +22,7 @@ import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { apiService } from '../../services/api'
 import type { AdminActionLogRecord } from '../../types'
+import { SearchInput } from '../vibefarsi/SearchInput'
 
 export const AdminActionLogView: React.FC = () => {
   const [logs, setLogs] = useState<AdminActionLogRecord[]>([])
@@ -56,11 +56,11 @@ export const AdminActionLogView: React.FC = () => {
 
   useEffect(() => {
     fetchLogs()
-  }, [page, resourceFilter])
+  }, [page, resourceFilter, searchQuery])
 
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleSearchSubmit = (val?: string) => {
     setPage(1)
+    if (val !== undefined) setSearchQuery(val)
     fetchLogs()
   }
 
@@ -224,20 +224,19 @@ export const AdminActionLogView: React.FC = () => {
       {/* Filters Toolbar */}
       <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
         <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
-          {/* Search Form */}
-          <form
-            onSubmit={handleSearchSubmit}
-            className="relative flex-1 max-w-md"
-          >
-            <Search className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-            <input
-              type="text"
+          {/* Search Form with Debounce & Clickable Search Button */}
+          <div className="flex-1 max-w-md">
+            <SearchInput
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(val) => {
+                setSearchQuery(val)
+                setPage(1)
+              }}
+              onSearch={handleSearchSubmit}
               placeholder="جستجو در نام مدیر، شرح عملیات، IP..."
-              className="w-full pr-9 pl-4 py-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+              debounceMs={350}
             />
-          </form>
+          </div>
 
           {/* Resource Filter Pills */}
           <div className="flex flex-wrap items-center gap-1 p-1 rounded-xl bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs">

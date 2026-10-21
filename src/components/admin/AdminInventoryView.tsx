@@ -36,6 +36,7 @@ import type {
 import { ConfirmModal } from '../vibefarsi/ConfirmModal'
 import { ModalCloseButton } from '../vibefarsi/ModalCloseButton'
 import { useNotification } from '../vibefarsi/NotificationContext'
+import { SearchInput } from '../vibefarsi/SearchInput'
 import { ToggleSwitch } from '../vibefarsi/ToggleSwitch'
 
 export const AdminInventoryView: React.FC = () => {
@@ -1261,15 +1262,13 @@ export const AdminInventoryView: React.FC = () => {
                 <option value="general">عمومی (General)</option>
               </select>
 
-              {/* Search Box */}
-              <div className="relative">
-                <Search className="h-3.5 w-3.5 absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                <input
-                  type="text"
-                  placeholder="جستجو در عنوان، اسلاگ..."
+              {/* Search Box with Debounce & Clear */}
+              <div className="w-56">
+                <SearchInput
                   value={catalogSearch}
-                  onChange={(e) => setCatalogSearch(e.target.value)}
-                  className="h-9 pr-9 pl-3 rounded-xl border border-border bg-background text-xs placeholder:text-muted-foreground/70 focus:outline-none focus:ring-1 focus:ring-blue-500 w-56"
+                  onChange={setCatalogSearch}
+                  placeholder="جستجو در عنوان، اسلاگ..."
+                  debounceMs={250}
                 />
               </div>
 
@@ -1515,15 +1514,13 @@ export const AdminInventoryView: React.FC = () => {
                 <option value="void">سوخته/باطل (Void)</option>
               </select>
 
-              {/* Search Box */}
-              <div className="relative">
-                <Search className="h-3.5 w-3.5 absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                <input
-                  type="text"
-                  placeholder="جستجو در کلیدها، عنوان، برچسب..."
+              {/* Search Box with Debounce & Clear */}
+              <div className="w-56">
+                <SearchInput
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="h-9 pr-9 pl-3 rounded-xl border border-border bg-background text-xs placeholder:text-muted-foreground/70 focus:outline-none focus:ring-1 focus:ring-blue-500 w-56"
+                  onChange={setSearchQuery}
+                  placeholder="جستجو در کلیدها، عنوان، برچسب..."
+                  debounceMs={250}
                 />
               </div>
 

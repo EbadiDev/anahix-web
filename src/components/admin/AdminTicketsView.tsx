@@ -13,7 +13,6 @@ import {
   Paperclip,
   Phone,
   RefreshCw,
-  Search,
   Send,
   ShieldCheck,
   Sparkles,
@@ -38,6 +37,7 @@ import { Badge } from '../ui/badge'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import { useNotification } from '../vibefarsi/NotificationContext'
+import { SearchInput } from '../vibefarsi/SearchInput'
 
 interface AdminTicketsViewProps {
   adminUser?: any
@@ -569,14 +569,12 @@ export const AdminTicketsView: React.FC<AdminTicketsViewProps> = ({
 
       {/* 3. Filters & Search Bar */}
       <div className="p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col md:flex-row items-center justify-between gap-3 shadow-xs">
-        <div className="flex-1 w-full md:w-auto relative">
-          <Search className="w-4 h-4 text-slate-400 absolute right-3 top-3" />
-          <Input
-            type="text"
-            placeholder="جستجو در شماره تیکت، شماره موبایل خریدار، موضوع، سفارش..."
+        <div className="flex-1 w-full md:w-auto">
+          <SearchInput
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="h-10 pr-9 text-xs rounded-xl border-slate-200 dark:border-slate-800"
+            onChange={setSearchQuery}
+            placeholder="جستجو در شماره تیکت، شماره موبایل خریدار، موضوع، سفارش..."
+            debounceMs={350}
           />
         </div>
 

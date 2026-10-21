@@ -38,6 +38,7 @@ import { formatDisplayPhone } from '../utils/formatters'
 import { AuthModal } from './AuthModal'
 import { ThemeToggle } from './ThemeToggle'
 import { HolidayThemeBanner } from './vibefarsi/HolidayThemeBanner'
+import { ScrollingAnnouncement } from './vibefarsi/ScrollingAnnouncement'
 
 interface HeaderProps {
   balance?: number
@@ -285,29 +286,36 @@ export const Header: React.FC<HeaderProps> = ({
           <HolidayThemeBanner theme={themeSettings} />
         ) : !hideAnnouncementBar ? (
           <div className="border-b border-border/40 bg-popover/80 py-1.5 text-[11px] text-muted-foreground select-none">
-            <div className="mx-auto flex max-w-7xl items-center justify-between px-4 sm:px-6">
-              <div className="flex items-center gap-3 min-w-0">
-                <span className="flex items-center gap-1.5 text-foreground font-medium min-w-0">
-                  <span className="inline-block h-2 w-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-                  <span className="truncate max-w-[200px] sm:max-w-md lg:max-w-none">
-                    {themeSettings?.header_announcement ||
-                      'تمامی سرویس‌ها و شماره‌های مجازی فعال و تحویل آنی برقرار است'}
-                  </span>
-                </span>
+            <div className="mx-auto flex max-w-7xl items-center justify-between px-4 sm:px-6 gap-3">
+              <div className="flex items-center gap-3 min-w-0 flex-1">
+                <ScrollingAnnouncement
+                  text={
+                    themeSettings?.header_announcement ||
+                    'تمامی سرویس‌ها و شماره‌های مجازی فعال و تحویل آنی برقرار است'
+                  }
+                  icon={
+                    <span className="inline-block h-2 w-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                  }
+                  className="flex-1"
+                  textClassName="text-foreground font-medium"
+                />
                 <span className="hidden md:inline text-muted-foreground/70 shrink-0">
                   ارائه شماره‌های اختصاصی ۱۸۰ کشور با بازگشت وجه خودکار
                 </span>
               </div>
 
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 shrink-0">
                 <a
                   href="https://t.me/AnahixSupport"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-1 hover:text-foreground transition-colors font-medium"
+                  className="flex items-center gap-1 hover:text-foreground transition-colors font-medium whitespace-nowrap text-[11px]"
                 >
-                  <PhoneCall className="h-3 w-3 text-muted-foreground" />
-                  <span>پشتیبانی تلگرام: @AnahixSupport</span>
+                  <PhoneCall className="h-3 w-3 text-muted-foreground shrink-0" />
+                  <span className="hidden sm:inline">
+                    پشتیبانی تلگرام: @AnahixSupport
+                  </span>
+                  <span className="sm:hidden font-latin">@AnahixSupport</span>
                 </a>
               </div>
             </div>

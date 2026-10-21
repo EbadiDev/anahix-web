@@ -1,12 +1,4 @@
-import {
-  Check,
-  CheckCircle2,
-  Clock,
-  Copy,
-  Loader2,
-  Radio,
-  Search,
-} from 'lucide-react'
+import { Check, CheckCircle2, Clock, Copy, Loader2, Radio } from 'lucide-react'
 import type React from 'react'
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
@@ -14,6 +6,7 @@ import { apiService } from '../../services/api'
 import type { VirtualNumberOrder } from '../../types'
 import { formatDisplayPhone, toPersianDigits } from '../../utils/formatters'
 import { useNotification } from '../vibefarsi/NotificationContext'
+import { SearchInput } from '../vibefarsi/SearchInput'
 
 interface ProfileNumberSessionsTabProps {
   virtualOrders: VirtualNumberOrder[]
@@ -352,18 +345,17 @@ export const ProfileNumberSessionsTab: React.FC<
               تاریخچه نشست‌های قبلی ({toPersianDigits(historySessions.length)})
             </h4>
 
-            <div className="relative w-full sm:w-56">
-              <input
-                type="text"
-                placeholder="جستجو در تاریخچه..."
+            <div className="w-full sm:w-56">
+              <SearchInput
                 value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value)
+                onChange={(val) => {
+                  setSearchQuery(val)
                   setVisibleHistoryCount(4)
                 }}
-                className="w-full h-8 pr-8 pl-3 text-xs rounded-field bg-muted/20 border border-border/60 text-foreground outline-none focus:border-brand transition-colors"
+                placeholder="جستجو در تاریخچه..."
+                size="sm"
+                debounceMs={250}
               />
-              <Search className="w-3.5 h-3.5 absolute right-2.5 top-2.5 text-muted-foreground pointer-events-none" />
             </div>
           </div>
 

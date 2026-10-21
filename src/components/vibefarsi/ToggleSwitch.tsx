@@ -5,6 +5,7 @@ interface ToggleSwitchProps {
   onChange: (checked: boolean) => void
   disabled?: boolean
   className?: string
+  style?: React.CSSProperties
   ariaLabel?: string
   size?: 'sm' | 'md'
   variant?: 'primary' | 'emerald'
@@ -15,19 +16,27 @@ export const ToggleSwitch: React.FC<ToggleSwitchProps> = ({
   onChange,
   disabled = false,
   className = '',
+  style,
   ariaLabel,
   size = 'md',
-  variant = 'emerald',
+  variant = 'primary',
 }) => {
   const isSm = size === 'sm'
   const trackWidth = isSm ? 'w-9 h-5' : 'w-11 h-6'
   const circleSize = isSm ? 'w-3.5 h-3.5' : 'w-4.5 h-4.5'
   const translateVal = isSm ? 'translate-x-4' : 'translate-x-5'
 
-  const activeColor =
-    variant === 'primary'
-      ? 'bg-primary border-primary'
-      : 'bg-emerald-600 border-emerald-600'
+  const activeStyle: React.CSSProperties | undefined = checked
+    ? variant === 'emerald'
+      ? { backgroundColor: '#10b981', borderColor: '#10b981', ...style }
+      : {
+          backgroundColor:
+            'var(--event-primary, var(--primary-color, var(--brand, #2563eb)))',
+          borderColor:
+            'var(--event-primary, var(--primary-color, var(--brand, #2563eb)))',
+          ...style,
+        }
+    : style
 
   return (
     <button
@@ -38,12 +47,15 @@ export const ToggleSwitch: React.FC<ToggleSwitchProps> = ({
       aria-label={ariaLabel}
       disabled={disabled}
       onClick={() => !disabled && onChange(!checked)}
-      className={`relative inline-flex ${trackWidth} shrink-0 cursor-pointer rounded-full border transition-colors duration-200 ease-in-out focus:outline-none p-0.5 items-center select-none ${
-        checked ? activeColor : 'bg-muted border-border/70 hover:border-border'
+      className={`relative inline-flex ${trackWidth} shrink-0 cursor-pointer rounded-full border transition-all duration-200 ease-in-out focus:outline-none p-0.5 items-center select-none shadow-xs ${
+        checked
+          ? 'text-white'
+          : 'bg-muted/80 border-border/70 hover:border-border'
       } ${disabled ? 'opacity-40 cursor-not-allowed' : ''} ${className}`}
+      style={activeStyle}
     >
       <span
-        className={`pointer-events-none inline-block ${circleSize} transform rounded-full bg-white shadow-sm ring-0 transition-transform duration-200 ease-in-out ${
+        className={`pointer-events-none inline-block ${circleSize} transform rounded-full bg-white shadow-md ring-0 transition-transform duration-200 ease-in-out ${
           checked ? translateVal : 'translate-x-0'
         }`}
       />
