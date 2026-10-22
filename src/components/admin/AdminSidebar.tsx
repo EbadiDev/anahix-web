@@ -8,13 +8,13 @@ import {
   LifeBuoy,
   LogOut,
   MessageSquare,
-  Palette,
   Radio,
   ReceiptText,
   Settings,
   ShieldCheck,
   Sliders,
   Smartphone,
+  Ticket,
   TrendingUp,
   UserCheck,
   Users,
@@ -28,7 +28,7 @@ export type AdminTabType =
   | 'bi-analytics'
   | 'calendar'
   | 'banners'
-  | 'theme-settings'
+  | 'coupons'
   | 'loyalty-tiers'
   | 'users'
   | 'all-orders'
@@ -114,15 +114,15 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
           icon: ImageIcon,
         },
         {
-          id: 'theme-settings',
-          title: 'سیستم تم و جشنواره‌های مناسبتی',
-          subtitle: 'افکت‌های نوری، تم دلخواه و ورود گوگل',
-          icon: Palette,
+          id: 'coupons',
+          title: 'مدیریت کد تخفیف و کوپن‌ها',
+          subtitle: 'میزان مصرف، سقف، انقضا و کدهای فعال',
+          icon: Ticket,
         },
         {
           id: 'loyalty-tiers',
-          title: 'باشگاه مشتریان و سطوح VIP',
-          subtitle: 'سطوح طلایی، نقره‌ای، الماسی و اولویت صف',
+          title: 'باشگاه مشتریان و همکاری در فروش',
+          subtitle: 'سطوح VIP، پورسانت معرف و اولویت صف',
           icon: Crown,
         },
       ],
@@ -132,8 +132,8 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
       items: [
         {
           id: 'all-orders',
-          title: 'جدول جامع سفارش‌ها',
-          subtitle: 'تایید، در صف، لغو و پیگیری مرجوعی',
+          title: 'سفارش‌ها و تراکنش‌های مالی',
+          subtitle: 'تایید سفارشات، پیگیری مرجوعی و لاگ پرداخت‌ها',
           icon: ReceiptText,
         },
         {

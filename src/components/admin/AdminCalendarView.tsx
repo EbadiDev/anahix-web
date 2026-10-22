@@ -1,9 +1,12 @@
 import {
   AlertCircle,
   Calendar as CalendarIcon,
+  Flame,
   Gift,
+  Loader2,
   Pencil,
   Plus,
+  Save,
   Sparkles,
   Tag,
   Ticket,
@@ -14,7 +17,7 @@ import type React from 'react'
 import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { api, apiService } from '../../services/api'
-import type { CouponItem } from '../../types'
+import type { CouponItem, ThemeSettings } from '../../types'
 import { ConfirmModal } from '../vibefarsi/ConfirmModal'
 import { ModalCloseButton } from '../vibefarsi/ModalCloseButton'
 import { useNotification } from '../vibefarsi/NotificationContext'
@@ -36,6 +39,7 @@ interface CampaignCalendarEvent extends CalendarEvent {
   discountPercent?: number
   syncWithBanner?: boolean
   isActive?: boolean
+  showInCart?: boolean
 }
 
 const PRESET_COLORS = [
@@ -154,6 +158,28 @@ export const AdminCalendarView: React.FC = () => {
   const [dbCoupons, setDbCoupons] = useState<CouponItem[]>([])
   const [, setLoadingCoupons] = useState(false)
   const [themeSettings, setThemeSettings] = useState<any>(null)
+  const [calendarSubTab, setCalendarSubTab] = useState<
+    'calendar' | 'festivals-offers'
+  >('calendar')
+  const [savingFestivals, setSavingFestivals] = useState(false)
+  const [festivalSettings, setFestivalSettings] = useState<ThemeSettings>({
+    event_name: 'عادی',
+    event_active: false,
+    primary_color: '#2563eb',
+    accent_color: '#3b82f6',
+    header_announcement:
+      'تمامی سرویس‌ها و شماره‌های مجازی فعال و تحویل آنی برقرار است',
+    event_effect: 'none',
+    event_icon: 'sparkles',
+    offers_badge_text: 'جشنواره سراسری تخفیف‌های زمان‌دار آناهیکس',
+    offers_title: 'آفرها و اشتراک‌های دارای تخفیف ویژه',
+    offers_subtitle:
+      'کلیه لایسنس‌ها و اشتراک‌های هوش مصنوعی که هم‌اکنون با تخفیف نقدی ویژه ۲۰٪ تا ۵۰٪ از پنل مدیریت عرضه شده‌اند.',
+    auth_google_enabled: true,
+    auth_github_enabled: true,
+    auth_password_enabled: true,
+    auth_otp_required: false,
+  })
   const [newTitle, setNewTitle] = useState('')
   const [newType, setNewType] = useState<
     'sale' | 'event' | 'holiday' | 'maintenance'
@@ -162,6 +188,7 @@ export const AdminCalendarView: React.FC = () => {
   const [newColor, setNewColor] = useState('#f43f5e')
   const [newCouponCode, setNewCouponCode] = useState('')
   const [newCouponLabel, setNewCouponLabel] = useState('')
+  const [newCouponShowInCart, setNewCouponShowInCart] = useState<boolean>(true)
   const [newDiscountPercent, setNewDiscountPercent] = useState<number>(20)
   const [newIsActive, setNewIsActive] = useState<boolean>(true)
   const [syncWithBanner, setSyncWithBanner] = useState(false)
@@ -234,16 +261,38 @@ export const AdminCalendarView: React.FC = () => {
     loadCoupons()
     api
       .getThemeSettings()
-      .then(setThemeSettings)
+      .then((theme) => {
+        if (theme) {
+          setThemeSettings(theme)
+          setFestivalSettings((prev) => ({
+            ...prev,
+            ...theme,
+            offers_badge_text:
+              theme.offers_badge_text ||
+              'جشنواره سراسری تخفیف‌های زمان‌دار آناهیکس',
+            offers_title:
+              theme.offers_title || 'آفرها و اشتراک‌های دارای تخفیف ویژه',
+            offers_subtitle:
+              theme.offers_subtitle ||
+              'کلیه لایسنس‌ها و اشتراک‌های هوش مصنوعی که هم‌اکنون با تخفیف نقدی ویژه ۲۰٪ تا ۵۰٪ از پنل مدیریت عرضه شده‌اند.',
+          }))
+        }
+      })
       .catch(() => {})
 
     const handleThemeSync = (e: any) => {
       if (e.detail) {
         setThemeSettings((prev: any) => ({ ...prev, ...e.detail }))
+        setFestivalSettings((prev) => ({ ...prev, ...e.detail }))
       } else {
         api
           .getThemeSettings()
-          .then(setThemeSettings)
+          .then((theme) => {
+            if (theme) {
+              setThemeSettings(theme)
+              setFestivalSettings((prev) => ({ ...prev, ...theme }))
+            }
+          })
           .catch(() => {})
       }
     }
@@ -261,6 +310,14 @@ export const AdminCalendarView: React.FC = () => {
     setNewColor(evt.color || '#f43f5e')
     setNewCouponCode(evt.couponCode || '')
     setNewCouponLabel(evt.couponLabel || '')
+    const matchedCoupon = dbCoupons.find(
+      (c) => c.code.toUpperCase() === (evt.couponCode || '').toUpperCase(),
+    )
+    setNewCouponShowInCart(
+      matchedCoupon
+        ? matchedCoupon.show_in_cart !== false
+        : evt.showInCart !== false,
+    )
     setNewDiscountPercent(evt.discountPercent || 20)
     setNewIsActive(evt.isActive !== false)
     setSyncWithBanner(false)
@@ -278,18 +335,31 @@ export const AdminCalendarView: React.FC = () => {
     const cCode = newCouponCode.trim().toUpperCase()
     const cLabel = newCouponLabel.trim()
 
-    // If new coupon entered and doesn't exist in DB, create it automatically!
-    if (cCode && !dbCoupons.some((c) => c.code.toUpperCase() === cCode)) {
-      try {
-        await apiService.createCoupon({
-          code: cCode,
-          discount_type: 'percentage',
-          discount_value: newDiscountPercent || 20,
-          label: cLabel || undefined,
-          is_active: true,
-        })
-        await loadCoupons()
-      } catch {}
+    // If coupon code entered, create or update it in database with show_in_cart status
+    if (cCode) {
+      const existing = dbCoupons.find((c) => c.code.toUpperCase() === cCode)
+      if (!existing) {
+        try {
+          await apiService.createCoupon({
+            code: cCode,
+            discount_type: 'percentage',
+            discount_value: newDiscountPercent || 20,
+            label: cLabel || undefined,
+            show_in_cart: newCouponShowInCart,
+            is_active: true,
+          })
+          await loadCoupons()
+        } catch {}
+      } else {
+        try {
+          await apiService.adminUpdateCoupon(existing.id, {
+            show_in_cart: newCouponShowInCart,
+            label: cLabel || undefined,
+            discount_value: newDiscountPercent || 20,
+          })
+          await loadCoupons()
+        } catch {}
+      }
     }
 
     if (editingEventId) {
@@ -308,6 +378,7 @@ export const AdminCalendarView: React.FC = () => {
                 discountPercent:
                   newDiscountPercent > 0 ? newDiscountPercent : undefined,
                 isActive: newIsActive,
+                showInCart: newCouponShowInCart,
               }
             : e,
         ),
@@ -326,6 +397,7 @@ export const AdminCalendarView: React.FC = () => {
         discountPercent:
           newDiscountPercent > 0 ? newDiscountPercent : undefined,
         isActive: newIsActive,
+        showInCart: newCouponShowInCart,
       }
       setEvents((prev) => [newEvt, ...prev])
     }
@@ -357,6 +429,56 @@ export const AdminCalendarView: React.FC = () => {
     setSyncWithBanner(false)
     setShowAddModal(false)
   }
+
+  const handleSaveFestivalsAndOffers = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault()
+    setSavingFestivals(true)
+    try {
+      await api.updateAdminThemeSettings(festivalSettings)
+      notifySuccess(
+        'تنظیمات جشنواره و آفرها ذخیره شد',
+        'پیام نوار اعلان هدر و متون صفحه آفرها در سراسر سایت به‌روزرسانی شد.',
+      )
+      window.dispatchEvent(
+        new CustomEvent('anahix:theme:updated', { detail: festivalSettings }),
+      )
+      setThemeSettings((prev: any) => ({ ...prev, ...festivalSettings }))
+    } catch (err: any) {
+      notifyError('خطا در ذخیره تنظیمات جشنواره', err.message)
+    } finally {
+      setSavingFestivals(false)
+    }
+  }
+
+  const presetEvents = [
+    {
+      name: 'جشنواره نوروز ۱۴۰۵',
+      color: '#059669',
+      effect: 'confetti',
+      announcement:
+        '🌱 سال نو مبارک! تخفیف ویژه بهاره روی تمامی اکانت‌های هوش مصنوعی فعال شد',
+    },
+    {
+      name: 'جشنواره شب یلدا',
+      color: '#dc2626',
+      effect: 'stars',
+      announcement:
+        '🍉 بلندترین تخفیف‌های سال در جشنواره یلدای شگفت‌انگیز آناهیکس',
+    },
+    {
+      name: 'جمعه سیاه (Black Friday)',
+      color: '#d97706',
+      effect: 'stars',
+      announcement: '⚡ حراج بزرگ بلک فرایدی: تا ۵۰٪ تخفیف لایسنس‌های بین‌المللی',
+    },
+    {
+      name: 'حالت عادی و پایدار',
+      color: '#2563eb',
+      effect: 'none',
+      announcement:
+        'تمامی سرویس‌ها و شماره‌های مجازی فعال و تحویل آنی برقرار است',
+    },
+  ]
 
   const handleDeleteEvent = (id?: string, title?: string) => {
     setDeleteConfirm({
@@ -529,377 +651,111 @@ export const AdminCalendarView: React.FC = () => {
         badgeText="کمپین‌های تقویمی"
       />
 
-      {/* Top Section: Interactive Calendar & Side Campaign Panel */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
-        {/* Interactive Jalali Calendar */}
-        <div className="lg:col-span-7 flex flex-col">
-          <PersianJalaliCalendar
-            events={events}
-            selectedDate={selectedDate}
-            onSelectDate={(date) => setSelectedDate(date)}
-            className="h-full min-h-[500px]"
-          />
-        </div>
+      {/* Sub-Tabs Navigation for Calendar & Festivals / Offers */}
+      <div className="bg-card rounded-surface border border-border/80 p-2 shadow-surface flex items-center gap-1.5 overflow-x-auto scrollbar-none">
+        <button
+          type="button"
+          onClick={() => setCalendarSubTab('calendar')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-control text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+            calendarSubTab === 'calendar'
+              ? 'bg-primary text-primary-foreground font-black shadow-control'
+              : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
+          }`}
+        >
+          <CalendarIcon className="w-4 h-4 shrink-0" />
+          <span>تقویم و کمپین‌های رویداد</span>
+        </button>
 
-        {/* Selected Date Information & Action Card (Non-redundant, Focused on Date) */}
-        <div className="lg:col-span-5 flex flex-col">
-          <div className="rounded-surface border border-border/80 bg-card p-5 shadow-surface flex flex-col h-full min-h-[500px] space-y-4">
-            <div className="flex items-center justify-between border-b border-border/60 pb-3">
-              <div className="space-y-0.5">
-                <h3 className="text-sm font-black text-foreground flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-brand" />
-                  <span>رویدادهای روز {toPersianDigits(selectedDate)}</span>
-                </h3>
-                <p className="text-[11px] text-muted-foreground">
-                  {selectedDateEvents.length > 0
-                    ? `${toPersianDigits(selectedDateEvents.length)} رویداد برای این روز تعریف شده است`
-                    : 'هیچ مناسبت یا جشنواره‌ای برای این تاریخ ثبت نشده است'}
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setEditingEventId(null)
-                  setNewTitle('')
-                  setNewBadge('')
-                  setNewCouponCode('')
-                  setNewCouponLabel('')
-                  setNewIsActive(true)
-                  setShowAddModal(true)
-                }}
-                className="h-8 px-3 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-[11px] flex items-center gap-1 shadow-control cursor-pointer duration-motion active:scale-[0.98] shrink-0"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>ثبت برای این روز</span>
-              </button>
-            </div>
-
-            <div className="space-y-3 flex-1 overflow-y-auto max-h-[350px] pl-1 scrollbar-thin">
-              {selectedDateEvents.length === 0 ? (
-                <div className="py-14 text-center text-muted-foreground space-y-3">
-                  <div className="w-12 h-12 rounded-control bg-secondary text-brand border border-border/60 flex items-center justify-center mx-auto shadow-xs">
-                    <CalendarIcon className="w-6 h-6" />
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-xs font-bold text-foreground">
-                      مناسبتی در این روز نیست
-                    </p>
-                    <p className="text-[11px] text-muted-foreground max-w-xs mx-auto leading-relaxed">
-                      برای ثبت کمپین تخفیف، یادآوری یا مناسبت در تاریخ{' '}
-                      {toPersianDigits(selectedDate)} بر روی دکمه بالا کلیک
-                      کنید.
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                selectedDateEvents.map((evt) => (
-                  <div
-                    key={`selected-evt-${evt.id || evt.title}-${evt.date}`}
-                    className="p-4 rounded-surface border border-border/60 bg-muted/20 hover:bg-muted/40 transition-colors space-y-2.5 text-right relative group shadow-xs"
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="font-mono text-xs font-bold text-brand font-latin">
-                        {toPersianDigits(evt.date)}
-                      </span>
-                      <div className="flex items-center gap-1.5">
-                        {evt.badge && (
-                          <span
-                            className="px-2 py-0.5 rounded-control text-[10px] font-bold border"
-                            style={{
-                              backgroundColor: evt.color
-                                ? `${evt.color}15`
-                                : undefined,
-                              color: evt.color || undefined,
-                              borderColor: evt.color
-                                ? `${evt.color}35`
-                                : undefined,
-                            }}
-                          >
-                            {evt.badge}
-                          </span>
-                        )}
-                        {evt.discountPercent && (
-                          <span className="px-2 py-0.5 rounded-control bg-rose-500/10 text-rose-500 border border-rose-500/20 text-[10px] font-black font-latin">
-                            {evt.discountPercent}٪ تخفیف
-                          </span>
-                        )}
-                        {(() => {
-                          const sched = getEventSchedulingStatus(evt)
-                          return (
-                            <button
-                              type="button"
-                              onClick={() => handleToggleEventActive(evt.id)}
-                              className={`px-2 py-0.5 rounded-control text-[10px] font-bold border transition-colors cursor-pointer ${sched.badgeClass}`}
-                              title="تغییر وضعیت فعال/غیرفعال"
-                            >
-                              {sched.label}
-                            </button>
-                          )
-                        })()}
-                      </div>
-                    </div>
-
-                    <h4 className="text-xs font-black text-foreground leading-relaxed">
-                      {evt.title}
-                    </h4>
-
-                    {evt.couponCode && (
-                      <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground flex-wrap">
-                        <Tag className="w-3.5 h-3.5 text-brand" />
-                        <span>کد تخفیف:</span>
-                        <span className="font-mono font-bold text-foreground bg-card border border-border/60 px-1.5 py-0.2 rounded-control font-latin">
-                          {evt.couponCode}
-                        </span>
-                        {evt.couponLabel && (
-                          <span className="text-[10px] text-emerald-500 bg-emerald-500/10 px-1.5 py-0.2 rounded-control font-bold">
-                            {evt.couponLabel}
-                          </span>
-                        )}
-                      </div>
-                    )}
-
-                    <div className="pt-2 border-t border-border/40 flex items-center justify-between gap-2 text-xs">
-                      {(() => {
-                        const isCurrentlyInHeader = Boolean(
-                          themeSettings?.event_active &&
-                            (themeSettings?.event_name === evt.title ||
-                              (evt.couponCode &&
-                                themeSettings?.header_announcement?.includes(
-                                  evt.couponCode,
-                                ))),
-                        )
-                        return (
-                          <button
-                            type="button"
-                            onClick={() => handleToggleHeaderAnnouncement(evt)}
-                            className={`text-[11px] font-bold flex items-center gap-1.5 px-2.5 py-1 rounded-control border cursor-pointer transition-all ${
-                              isCurrentlyInHeader
-                                ? 'bg-amber-500/15 text-amber-500 border-amber-500/30 font-black shadow-xs'
-                                : 'text-muted-foreground hover:text-foreground border-border/40 hover:bg-muted/40'
-                            }`}
-                            title={
-                              isCurrentlyInHeader
-                                ? 'در حال نمایش در نوار بالای سایت (کلیک جهت غیرفعال‌سازی)'
-                                : 'فعال‌سازی این رویداد در بنر مناسبتی بالای سایت'
-                            }
-                          >
-                            <Zap
-                              className={`w-3.5 h-3.5 ${
-                                isCurrentlyInHeader
-                                  ? 'fill-amber-500 text-amber-500 animate-pulse'
-                                  : 'text-brand'
-                              }`}
-                            />
-                            <span>
-                              {isCurrentlyInHeader
-                                ? 'در حال نمایش در هدر ✓'
-                                : 'فعال‌سازی در بنر هدر'}
-                            </span>
-                          </button>
-                        )
-                      })()}
-
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => handleOpenEdit(evt)}
-                          className="p-1.5 rounded-control text-muted-foreground hover:text-brand hover:bg-brand/10 transition-colors cursor-pointer"
-                          title="ویرایش رویداد"
-                        >
-                          <Pencil className="w-3.5 h-3.5" />
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteEvent(evt.id, evt.title)}
-                          className="p-1.5 rounded-control text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
-                          title="حذف رویداد"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-
-            {/* Quick KPI Overview Card at bottom of side panel */}
-            <div className="pt-3 border-t border-border/60 grid grid-cols-3 gap-2 text-center text-xs">
-              <div className="p-2.5 rounded-control bg-muted/20 border border-border/40 space-y-0.5">
-                <span className="text-[10px] text-muted-foreground block">
-                  کل رویدادها
-                </span>
-                <span className="font-black text-foreground text-sm font-latin">
-                  {toPersianDigits(events.length)}
-                </span>
-              </div>
-              <div className="p-2.5 rounded-control bg-emerald-500/10 border border-emerald-500/20 space-y-0.5">
-                <span className="text-[10px] text-emerald-500 block">
-                  فعال‌ها
-                </span>
-                <span className="font-black text-emerald-500 text-sm font-latin">
-                  {toPersianDigits(
-                    events.filter((e) => e.isActive !== false).length,
-                  )}
-                </span>
-              </div>
-              <div className="p-2.5 rounded-control bg-muted/20 border border-border/40 space-y-0.5">
-                <span className="text-[10px] text-muted-foreground block">
-                  کوپن‌های متصل
-                </span>
-                <span className="font-black text-foreground text-sm font-latin">
-                  {toPersianDigits(
-                    events.filter((e) => Boolean(e.couponCode)).length,
-                  )}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
+        <button
+          type="button"
+          onClick={() => setCalendarSubTab('festivals-offers')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-control text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+            calendarSubTab === 'festivals-offers'
+              ? 'bg-primary text-primary-foreground font-black shadow-control'
+              : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
+          }`}
+        >
+          <Sparkles className="w-4 h-4 shrink-0" />
+          <span>تنظیمات نوار اعلان جشنواره و هدر آفرها</span>
+        </button>
       </div>
 
-      {/* FULL-WIDTH SECTION: COMPREHENSIVE ACTIVE CAMPAIGNS & COUPONS TABLE (Graphite Tokens) */}
-      <section className="space-y-4">
-        <div className="rounded-surface border border-border/80 bg-card p-4 sm:p-5 shadow-surface flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-          <div>
-            <h3 className="text-sm sm:text-base font-black text-foreground flex items-center gap-2">
-              <Ticket className="w-4 h-4 text-brand" />
-              <span>میز مدیریت کمپین‌ها و کدهای تخفیف فعال</span>
-            </h3>
-            <p className="text-[11px] text-muted-foreground mt-0.5">
-              مدیریت و نظارت یکپارچه بر رویدادهای تقویم، کدهای تخفیف متصل به سبد
-              خرید و حذف یا غیرفعال‌سازی سریع
-            </p>
-          </div>
-
-          <div className="flex items-center gap-3">
-            {/* Real-time search box with debounce & action buttons */}
-            <div className="w-44 sm:w-60">
-              <SearchInput
-                value={tableSearch}
-                onChange={setTableSearch}
-                placeholder="جستجو در عنوان یا کوپن..."
-                debounceMs={300}
+      {calendarSubTab === 'calendar' ? (
+        <>
+          {/* Top Section: Interactive Calendar & Side Campaign Panel */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+            {/* Interactive Jalali Calendar */}
+            <div className="lg:col-span-7 flex flex-col">
+              <PersianJalaliCalendar
+                events={events}
+                selectedDate={selectedDate}
+                onSelectDate={(date) => setSelectedDate(date)}
+                className="h-full min-h-[500px]"
               />
             </div>
 
-            {/* Filter Pills */}
-            <div className="flex items-center gap-1.5 bg-muted/30 p-1 rounded-control border border-border/60">
-              <button
-                type="button"
-                onClick={() => setTableFilter('all')}
-                className={`px-3 py-1 rounded-control font-bold text-xs transition-colors cursor-pointer ${
-                  tableFilter === 'all'
-                    ? 'bg-primary text-primary-foreground font-black shadow-control'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                همه ({events.length})
-              </button>
-              <button
-                type="button"
-                onClick={() => setTableFilter('active')}
-                className={`px-3 py-1 rounded-control font-bold text-xs transition-colors cursor-pointer ${
-                  tableFilter === 'active'
-                    ? 'bg-primary text-primary-foreground font-black shadow-control'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                فعال‌ها (
-                {
-                  events.filter(
-                    (e) => getEventSchedulingStatus(e).status === 'active',
-                  ).length
-                }
-                )
-              </button>
-              <button
-                type="button"
-                onClick={() => setTableFilter('reserved')}
-                className={`px-3 py-1 rounded-control font-bold text-xs transition-colors cursor-pointer ${
-                  tableFilter === 'reserved'
-                    ? 'bg-primary text-primary-foreground font-black shadow-control'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                رزرو شده‌ها (
-                {
-                  events.filter(
-                    (e) => getEventSchedulingStatus(e).status === 'reserved',
-                  ).length
-                }
-                )
-              </button>
-              <button
-                type="button"
-                onClick={() => setTableFilter('with_coupon')}
-                className={`px-3 py-1 rounded-control font-bold text-xs transition-colors cursor-pointer ${
-                  tableFilter === 'with_coupon'
-                    ? 'bg-primary text-primary-foreground font-black shadow-control'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                دارای کوپن ({events.filter((e) => Boolean(e.couponCode)).length}
-                )
-              </button>
-            </div>
-          </div>
-        </div>
+            {/* Selected Date Information & Action Card (Non-redundant, Focused on Date) */}
+            <div className="lg:col-span-5 flex flex-col">
+              <div className="rounded-surface border border-border/80 bg-card p-5 shadow-surface flex flex-col h-full min-h-[500px] space-y-4">
+                <div className="flex items-center justify-between border-b border-border/60 pb-3">
+                  <div className="space-y-0.5">
+                    <h3 className="text-sm font-black text-foreground flex items-center gap-2">
+                      <Sparkles className="h-4 w-4 text-brand" />
+                      <span>رویدادهای روز {toPersianDigits(selectedDate)}</span>
+                    </h3>
+                    <p className="text-[11px] text-muted-foreground">
+                      {selectedDateEvents.length > 0
+                        ? `${toPersianDigits(selectedDateEvents.length)} رویداد برای این روز تعریف شده است`
+                        : 'هیچ مناسبت یا جشنواره‌ای برای این تاریخ ثبت نشده است'}
+                    </p>
+                  </div>
 
-        {/* Table Container */}
-        <div className="rounded-surface border border-border/80 bg-card overflow-hidden shadow-surface">
-          <div className="overflow-x-auto">
-            <table className="w-full text-center text-xs">
-              <thead className="bg-muted/40 text-muted-foreground border-b border-border/60 text-[11px] font-semibold">
-                <tr>
-                  <th className="p-3.5 text-center">عنوان رویداد / جشنواره</th>
-                  <th className="p-3.5 text-center">تاریخ برگزاری</th>
-                  <th className="p-3.5 text-center">برچسب و نوع</th>
-                  <th className="p-3.5 text-center">کد تخفیف و برچسب سبد</th>
-                  <th className="p-3.5 text-center">وضعیت کمپین</th>
-                  <th className="p-3.5 text-center">عملیات</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/60">
-                {filteredEventsForTable.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={6}
-                      className="p-8 text-center text-muted-foreground text-xs"
-                    >
-                      رویدادی با فیلتر انتخابی یافت نشد.
-                    </td>
-                  </tr>
-                ) : (
-                  filteredEventsForTable.map((evt) => {
-                    const matchedDbCoupon = dbCoupons.find(
-                      (c) =>
-                        c.code.toUpperCase() ===
-                        (evt.couponCode || '').toUpperCase(),
-                    )
-                    const isCurrentlyInHeader = Boolean(
-                      themeSettings?.event_active &&
-                        (themeSettings?.event_name === evt.title ||
-                          (evt.couponCode &&
-                            themeSettings?.header_announcement?.includes(
-                              evt.couponCode,
-                            ))),
-                    )
-                    return (
-                      <tr
-                        key={`tbl-evt-${evt.id || evt.title}`}
-                        className="hover:bg-muted/20 transition-colors"
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingEventId(null)
+                      setNewTitle('')
+                      setNewBadge('')
+                      setNewCouponCode('')
+                      setNewCouponLabel('')
+                      setNewIsActive(true)
+                      setShowAddModal(true)
+                    }}
+                    className="h-8 px-3 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-[11px] flex items-center gap-1 shadow-control cursor-pointer duration-motion active:scale-[0.98] shrink-0"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>ثبت برای این روز</span>
+                  </button>
+                </div>
+
+                <div className="space-y-3 flex-1 overflow-y-auto max-h-[350px] pl-1 scrollbar-thin">
+                  {selectedDateEvents.length === 0 ? (
+                    <div className="py-14 text-center text-muted-foreground space-y-3">
+                      <div className="w-12 h-12 rounded-control bg-secondary text-brand border border-border/60 flex items-center justify-center mx-auto shadow-xs">
+                        <CalendarIcon className="w-6 h-6" />
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-xs font-bold text-foreground">
+                          مناسبتی در این روز نیست
+                        </p>
+                        <p className="text-[11px] text-muted-foreground max-w-xs mx-auto leading-relaxed">
+                          برای ثبت کمپین تخفیف، یادآوری یا مناسبت در تاریخ{' '}
+                          {toPersianDigits(selectedDate)} بر روی دکمه بالا کلیک
+                          کنید.
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    selectedDateEvents.map((evt) => (
+                      <div
+                        key={`selected-evt-${evt.id || evt.title}-${evt.date}`}
+                        className="p-4 rounded-surface border border-border/60 bg-muted/20 hover:bg-muted/40 transition-colors space-y-2.5 text-right relative group shadow-xs"
                       >
-                        <td className="p-3.5 font-bold text-foreground text-center">
-                          {evt.title}
-                        </td>
-                        <td className="p-3.5 font-mono text-brand font-bold font-latin text-center">
-                          {toPersianDigits(evt.date)}
-                        </td>
-                        <td className="p-3.5 text-center">
-                          <div className="flex items-center justify-center">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="  text-xs font-bold text-brand font-latin">
+                            {toPersianDigits(evt.date)}
+                          </span>
+                          <div className="flex items-center gap-1.5">
                             {evt.badge && (
                               <span
                                 className="px-2 py-0.5 rounded-control text-[10px] font-bold border"
@@ -916,52 +772,11 @@ export const AdminCalendarView: React.FC = () => {
                                 {evt.badge}
                               </span>
                             )}
-                          </div>
-                        </td>
-                        <td className="p-3.5 text-center">
-                          <div className="flex items-center justify-center gap-1.5 flex-wrap">
-                            {evt.couponCode ? (
-                              <>
-                                <span className="font-mono font-bold text-foreground bg-muted/40 border border-border/60 px-2 py-0.5 rounded-control font-latin">
-                                  {evt.couponCode}
-                                </span>
-                                {(evt.couponLabel ||
-                                  matchedDbCoupon?.label) && (
-                                  <span className="text-[10px] text-emerald-500 font-bold">
-                                    ({evt.couponLabel || matchedDbCoupon?.label}
-                                    )
-                                  </span>
-                                )}
-                                {matchedDbCoupon && (
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      handleToggleCouponActive(
-                                        matchedDbCoupon.code,
-                                      )
-                                    }
-                                    className={`px-1.5 py-0.2 rounded-control text-[9px] font-bold border cursor-pointer ${
-                                      matchedDbCoupon.is_active
-                                        ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
-                                        : 'bg-rose-500/10 text-rose-500 border-rose-500/20'
-                                    }`}
-                                    title="تغییر وضعیت فعال‌بودن کوپن در دیتابیس"
-                                  >
-                                    {matchedDbCoupon.is_active
-                                      ? 'کوپن فعال'
-                                      : 'کوپن غیرفعال'}
-                                  </button>
-                                )}
-                              </>
-                            ) : (
-                              <span className="text-muted-foreground text-[11px]">
-                                بدون کوپن
+                            {evt.discountPercent && (
+                              <span className="px-2 py-0.5 rounded-control bg-rose-500/10 text-rose-500 border border-rose-500/20 text-[10px] font-black font-latin">
+                                {evt.discountPercent}٪ تخفیف
                               </span>
                             )}
-                          </div>
-                        </td>
-                        <td className="p-3.5 text-center">
-                          <div className="flex items-center justify-center">
                             {(() => {
                               const sched = getEventSchedulingStatus(evt)
                               return (
@@ -970,82 +785,710 @@ export const AdminCalendarView: React.FC = () => {
                                   onClick={() =>
                                     handleToggleEventActive(evt.id)
                                   }
-                                  className={`px-2.5 py-0.5 rounded-control text-[10px] font-black cursor-pointer transition-transform active:scale-95 border ${sched.badgeClass}`}
-                                  title="برای تغییر وضعیت رویداد کلیک کنید"
+                                  className={`px-2 py-0.5 rounded-control text-[10px] font-bold border transition-colors cursor-pointer ${sched.badgeClass}`}
+                                  title="تغییر وضعیت فعال/غیرفعال"
                                 >
                                   {sched.label}
                                 </button>
                               )
                             })()}
                           </div>
-                        </td>
-                        <td className="p-3.5 text-center">
-                          <div className="flex items-center justify-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() =>
-                                handleToggleHeaderAnnouncement(evt)
-                              }
-                              className={`p-1.5 rounded-control border transition-all cursor-pointer shadow-xs ${
-                                isCurrentlyInHeader
-                                  ? 'bg-amber-500 text-white border-amber-600 shadow-control ring-1 ring-amber-400/50'
-                                  : 'border-border/60 bg-secondary hover:bg-muted text-muted-foreground hover:text-foreground'
-                              }`}
-                              title={
-                                isCurrentlyInHeader
-                                  ? 'در حال نمایش در نوار بالای سایت (کلیک برای غیرفعال‌سازی)'
-                                  : 'فعال‌سازی این رویداد در نوار اعلان هدر سایت'
-                              }
-                            >
-                              <Zap
-                                className={`w-3.5 h-3.5 ${
+                        </div>
+
+                        <h4 className="text-xs font-black text-foreground leading-relaxed">
+                          {evt.title}
+                        </h4>
+
+                        {evt.couponCode && (
+                          <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground flex-wrap">
+                            <Tag className="w-3.5 h-3.5 text-brand" />
+                            <span>کد تخفیف:</span>
+                            <span className="  font-bold text-foreground bg-card border border-border/60 px-1.5 py-0.2 rounded-control font-latin">
+                              {evt.couponCode}
+                            </span>
+                            {evt.couponLabel && (
+                              <span className="text-[10px] text-emerald-500 bg-emerald-500/10 px-1.5 py-0.2 rounded-control font-bold">
+                                {evt.couponLabel}
+                              </span>
+                            )}
+                          </div>
+                        )}
+
+                        <div className="pt-2 border-t border-border/40 flex items-center justify-between gap-2 text-xs">
+                          {(() => {
+                            const isCurrentlyInHeader = Boolean(
+                              themeSettings?.event_active &&
+                                (themeSettings?.event_name === evt.title ||
+                                  (evt.couponCode &&
+                                    themeSettings?.header_announcement?.includes(
+                                      evt.couponCode,
+                                    ))),
+                            )
+                            return (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleToggleHeaderAnnouncement(evt)
+                                }
+                                className={`text-[11px] font-bold flex items-center gap-1.5 px-2.5 py-1 rounded-control border cursor-pointer transition-all ${
                                   isCurrentlyInHeader
-                                    ? 'fill-current animate-pulse'
-                                    : ''
+                                    ? 'bg-amber-500/15 text-amber-500 border-amber-500/30 font-black shadow-xs'
+                                    : 'text-muted-foreground hover:text-foreground border-border/40 hover:bg-muted/40'
                                 }`}
-                              />
-                            </button>
+                                title={
+                                  isCurrentlyInHeader
+                                    ? 'در حال نمایش در نوار بالای سایت (کلیک جهت غیرفعال‌سازی)'
+                                    : 'فعال‌سازی این رویداد در بنر مناسبتی بالای سایت'
+                                }
+                              >
+                                <Zap
+                                  className={`w-3.5 h-3.5 ${
+                                    isCurrentlyInHeader
+                                      ? 'fill-amber-500 text-amber-500 animate-pulse'
+                                      : 'text-brand'
+                                  }`}
+                                />
+                                <span>
+                                  {isCurrentlyInHeader
+                                    ? 'در حال نمایش در هدر ✓'
+                                    : 'فعال‌سازی در بنر هدر'}
+                                </span>
+                              </button>
+                            )
+                          })()}
+
+                          <div className="flex items-center gap-1.5">
                             <button
                               type="button"
                               onClick={() => handleOpenEdit(evt)}
-                              className="p-1.5 rounded-control border border-border/60 bg-secondary hover:bg-muted text-foreground transition-colors cursor-pointer shadow-xs"
+                              className="p-1.5 rounded-control text-muted-foreground hover:text-brand hover:bg-brand/10 transition-colors cursor-pointer"
                               title="ویرایش رویداد"
                             >
-                              <Pencil className="w-3.5 h-3.5 text-brand" />
+                              <Pencil className="w-3.5 h-3.5" />
                             </button>
+
                             <button
                               type="button"
                               onClick={() =>
                                 handleDeleteEvent(evt.id, evt.title)
                               }
-                              className="p-1.5 rounded-control border border-destructive/20 text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
-                              title="حذف کامل این رویداد از تقویم"
+                              className="p-1.5 rounded-control text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
+                              title="حذف رویداد"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
-                            {matchedDbCoupon && (
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  handleDeleteCouponByCode(matchedDbCoupon.code)
-                                }
-                                className="px-2 py-1 rounded-control border border-rose-500/30 bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 text-[10px] font-bold cursor-pointer transition-colors"
-                                title="حذف کامل کوپن متصل از پایگاه‌داده"
-                              >
-                                حذف کوپن
-                              </button>
-                            )}
                           </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                {/* Quick KPI Overview Card at bottom of side panel */}
+                <div className="pt-3 border-t border-border/60 grid grid-cols-3 gap-2 text-center text-xs">
+                  <div className="p-2.5 rounded-control bg-muted/20 border border-border/40 space-y-0.5">
+                    <span className="text-[10px] text-muted-foreground block">
+                      کل رویدادها
+                    </span>
+                    <span className="font-black text-foreground text-sm font-latin">
+                      {toPersianDigits(events.length)}
+                    </span>
+                  </div>
+                  <div className="p-2.5 rounded-control bg-emerald-500/10 border border-emerald-500/20 space-y-0.5">
+                    <span className="text-[10px] text-emerald-500 block">
+                      فعال‌ها
+                    </span>
+                    <span className="font-black text-emerald-500 text-sm font-latin">
+                      {toPersianDigits(
+                        events.filter((e) => e.isActive !== false).length,
+                      )}
+                    </span>
+                  </div>
+                  <div className="p-2.5 rounded-control bg-muted/20 border border-border/40 space-y-0.5">
+                    <span className="text-[10px] text-muted-foreground block">
+                      کوپن‌های متصل
+                    </span>
+                    <span className="font-black text-foreground text-sm font-latin">
+                      {toPersianDigits(
+                        events.filter((e) => Boolean(e.couponCode)).length,
+                      )}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* FULL-WIDTH SECTION: COMPREHENSIVE ACTIVE CAMPAIGNS & COUPONS TABLE (Graphite Tokens) */}
+          <section className="space-y-4">
+            <div className="rounded-surface border border-border/80 bg-card p-4 sm:p-5 shadow-surface flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+              <div>
+                <h3 className="text-sm sm:text-base font-black text-foreground flex items-center gap-2">
+                  <Ticket className="w-4 h-4 text-brand" />
+                  <span>میز مدیریت کمپین‌ها و کدهای تخفیف فعال</span>
+                </h3>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  مدیریت و نظارت یکپارچه بر رویدادهای تقویم، کدهای تخفیف متصل به
+                  سبد خرید و حذف یا غیرفعال‌سازی سریع
+                </p>
+              </div>
+
+              <div className="flex items-center gap-3">
+                {/* Real-time search box with debounce & action buttons */}
+                <div className="w-44 sm:w-60">
+                  <SearchInput
+                    value={tableSearch}
+                    onChange={setTableSearch}
+                    placeholder="جستجو در عنوان یا کوپن..."
+                    debounceMs={300}
+                  />
+                </div>
+
+                {/* Filter Pills */}
+                <div className="flex items-center gap-1.5 bg-muted/30 p-1 rounded-control border border-border/60">
+                  <button
+                    type="button"
+                    onClick={() => setTableFilter('all')}
+                    className={`px-3 py-1 rounded-control font-bold text-xs transition-colors cursor-pointer ${
+                      tableFilter === 'all'
+                        ? 'bg-primary text-primary-foreground font-black shadow-control'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    همه ({events.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTableFilter('active')}
+                    className={`px-3 py-1 rounded-control font-bold text-xs transition-colors cursor-pointer ${
+                      tableFilter === 'active'
+                        ? 'bg-primary text-primary-foreground font-black shadow-control'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    فعال‌ها (
+                    {
+                      events.filter(
+                        (e) => getEventSchedulingStatus(e).status === 'active',
+                      ).length
+                    }
+                    )
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTableFilter('reserved')}
+                    className={`px-3 py-1 rounded-control font-bold text-xs transition-colors cursor-pointer ${
+                      tableFilter === 'reserved'
+                        ? 'bg-primary text-primary-foreground font-black shadow-control'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    رزرو شده‌ها (
+                    {
+                      events.filter(
+                        (e) =>
+                          getEventSchedulingStatus(e).status === 'reserved',
+                      ).length
+                    }
+                    )
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTableFilter('with_coupon')}
+                    className={`px-3 py-1 rounded-control font-bold text-xs transition-colors cursor-pointer ${
+                      tableFilter === 'with_coupon'
+                        ? 'bg-primary text-primary-foreground font-black shadow-control'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    دارای کوپن (
+                    {events.filter((e) => Boolean(e.couponCode)).length})
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Table Container */}
+            <div className="rounded-surface border border-border/80 bg-card overflow-hidden shadow-surface">
+              <div className="overflow-x-auto">
+                <table className="w-full text-center text-xs">
+                  <thead className="bg-muted/40 text-muted-foreground border-b border-border/60 text-[11px] font-semibold">
+                    <tr>
+                      <th className="p-3.5 text-center">
+                        عنوان رویداد / جشنواره
+                      </th>
+                      <th className="p-3.5 text-center">تاریخ برگزاری</th>
+                      <th className="p-3.5 text-center">برچسب و نوع</th>
+                      <th className="p-3.5 text-center">
+                        کد تخفیف و برچسب سبد
+                      </th>
+                      <th className="p-3.5 text-center">وضعیت کمپین</th>
+                      <th className="p-3.5 text-center">عملیات</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/60">
+                    {filteredEventsForTable.length === 0 ? (
+                      <tr>
+                        <td
+                          colSpan={6}
+                          className="p-8 text-center text-muted-foreground text-xs"
+                        >
+                          رویدادی با فیلتر انتخابی یافت نشد.
                         </td>
                       </tr>
-                    )
-                  })
+                    ) : (
+                      filteredEventsForTable.map((evt) => {
+                        const matchedDbCoupon = dbCoupons.find(
+                          (c) =>
+                            c.code.toUpperCase() ===
+                            (evt.couponCode || '').toUpperCase(),
+                        )
+                        const isCurrentlyInHeader = Boolean(
+                          themeSettings?.event_active &&
+                            (themeSettings?.event_name === evt.title ||
+                              (evt.couponCode &&
+                                themeSettings?.header_announcement?.includes(
+                                  evt.couponCode,
+                                ))),
+                        )
+                        return (
+                          <tr
+                            key={`tbl-evt-${evt.id || evt.title}`}
+                            className="hover:bg-muted/20 transition-colors"
+                          >
+                            <td className="p-3.5 font-bold text-foreground text-center">
+                              {evt.title}
+                            </td>
+                            <td className="p-3.5   text-brand font-bold font-latin text-center">
+                              {toPersianDigits(evt.date)}
+                            </td>
+                            <td className="p-3.5 text-center">
+                              <div className="flex items-center justify-center">
+                                {evt.badge && (
+                                  <span
+                                    className="px-2 py-0.5 rounded-control text-[10px] font-bold border"
+                                    style={{
+                                      backgroundColor: evt.color
+                                        ? `${evt.color}15`
+                                        : undefined,
+                                      color: evt.color || undefined,
+                                      borderColor: evt.color
+                                        ? `${evt.color}35`
+                                        : undefined,
+                                    }}
+                                  >
+                                    {evt.badge}
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="p-3.5 text-center">
+                              <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                                {evt.couponCode ? (
+                                  <>
+                                    <span className="  font-bold text-foreground bg-muted/40 border border-border/60 px-2 py-0.5 rounded-control font-latin">
+                                      {evt.couponCode}
+                                    </span>
+                                    {(evt.couponLabel ||
+                                      matchedDbCoupon?.label) && (
+                                      <span className="text-[10px] text-emerald-500 font-bold">
+                                        (
+                                        {evt.couponLabel ||
+                                          matchedDbCoupon?.label}
+                                        )
+                                      </span>
+                                    )}
+                                    {matchedDbCoupon && (
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          handleToggleCouponActive(
+                                            matchedDbCoupon.code,
+                                          )
+                                        }
+                                        className={`px-1.5 py-0.2 rounded-control text-[9px] font-bold border cursor-pointer ${
+                                          matchedDbCoupon.is_active
+                                            ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
+                                            : 'bg-rose-500/10 text-rose-500 border-rose-500/20'
+                                        }`}
+                                        title="تغییر وضعیت فعال‌بودن کوپن در دیتابیس"
+                                      >
+                                        {matchedDbCoupon.is_active
+                                          ? 'کوپن فعال'
+                                          : 'کوپن غیرفعال'}
+                                      </button>
+                                    )}
+                                  </>
+                                ) : (
+                                  <span className="text-muted-foreground text-[11px]">
+                                    بدون کوپن
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="p-3.5 text-center">
+                              <div className="flex items-center justify-center">
+                                {(() => {
+                                  const sched = getEventSchedulingStatus(evt)
+                                  return (
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        handleToggleEventActive(evt.id)
+                                      }
+                                      className={`px-2.5 py-0.5 rounded-control text-[10px] font-black cursor-pointer transition-transform active:scale-95 border ${sched.badgeClass}`}
+                                      title="برای تغییر وضعیت رویداد کلیک کنید"
+                                    >
+                                      {sched.label}
+                                    </button>
+                                  )
+                                })()}
+                              </div>
+                            </td>
+                            <td className="p-3.5 text-center">
+                              <div className="flex items-center justify-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    handleToggleHeaderAnnouncement(evt)
+                                  }
+                                  className={`p-1.5 rounded-control border transition-all cursor-pointer shadow-xs ${
+                                    isCurrentlyInHeader
+                                      ? 'bg-amber-500 text-white border-amber-600 shadow-control ring-1 ring-amber-400/50'
+                                      : 'border-border/60 bg-secondary hover:bg-muted text-muted-foreground hover:text-foreground'
+                                  }`}
+                                  title={
+                                    isCurrentlyInHeader
+                                      ? 'در حال نمایش در نوار بالای سایت (کلیک برای غیرفعال‌سازی)'
+                                      : 'فعال‌سازی این رویداد در نوار اعلان هدر سایت'
+                                  }
+                                >
+                                  <Zap
+                                    className={`w-3.5 h-3.5 ${
+                                      isCurrentlyInHeader
+                                        ? 'fill-current animate-pulse'
+                                        : ''
+                                    }`}
+                                  />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenEdit(evt)}
+                                  className="p-1.5 rounded-control border border-border/60 bg-secondary hover:bg-muted text-foreground transition-colors cursor-pointer shadow-xs"
+                                  title="ویرایش رویداد"
+                                >
+                                  <Pencil className="w-3.5 h-3.5 text-brand" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    handleDeleteEvent(evt.id, evt.title)
+                                  }
+                                  className="p-1.5 rounded-control border border-destructive/20 text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
+                                  title="حذف کامل این رویداد از تقویم"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                                {matchedDbCoupon && (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      handleDeleteCouponByCode(
+                                        matchedDbCoupon.code,
+                                      )
+                                    }
+                                    className="px-2 py-1 rounded-control border border-rose-500/30 bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 text-[10px] font-bold cursor-pointer transition-colors"
+                                    title="حذف کامل کوپن متصل از پایگاه‌داده"
+                                  >
+                                    حذف کوپن
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        )
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+        </>
+      ) : (
+        /* FESTIVALS & OFFERS HEADER SETTINGS PANEL */
+        <div className="space-y-6 animate-in fade-in duration-200">
+          {/* Section 1: Holiday & Festive Announcement Bar */}
+          <div className="rounded-surface border border-border/80 bg-card p-6 shadow-surface space-y-5">
+            <div className="border-b border-border/60 pb-3 flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-black text-foreground flex items-center gap-2">
+                  <Gift className="h-4 w-4 text-brand" />
+                  <span>رویدادهای مناسبتی و نوار اعلان هدر سایت</span>
+                </h3>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  اعمال بنر و افکت‌های ویژه مناسبتی (نوروز، یلدا، بلک فرایدی) روی
+                  هدر و سراسر فروشگاه
+                </p>
+              </div>
+            </div>
+
+            {/* Quick preset events */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-muted-foreground block">
+                انتخاب سریع از میان جشنواره‌های آماده:
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                {presetEvents.map((evt) => (
+                  <button
+                    key={evt.name}
+                    type="button"
+                    onClick={() =>
+                      setFestivalSettings((prev) => ({
+                        ...prev,
+                        event_name: evt.name,
+                        event_active: evt.name !== 'حالت عادی و پایدار',
+                        primary_color: evt.color,
+                        event_effect: evt.effect as any,
+                        header_announcement: evt.announcement,
+                      }))
+                    }
+                    className="flex flex-col justify-between p-3.5 rounded-surface border border-border/60 bg-muted/20 hover:bg-muted/40 text-right transition-all hover:scale-[1.01] cursor-pointer"
+                  >
+                    <div>
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <span
+                          className="h-2.5 w-2.5 rounded-full shrink-0"
+                          style={{ backgroundColor: evt.color }}
+                        />
+                        <h4 className="text-xs font-bold text-foreground">
+                          {evt.name}
+                        </h4>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground line-clamp-2">
+                        {evt.announcement}
+                      </p>
+                    </div>
+                    <span className="text-[10px] font-bold text-brand pt-2">
+                      اعمال سریع رویداد ←
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Active Event Toggle */}
+            <div className="flex items-center justify-between p-4 rounded-surface border border-border/60 bg-muted/20">
+              <div className="space-y-0.5">
+                <h4 className="text-xs font-bold text-foreground">
+                  وضعیت انتشار نوار و افکت مناسبتی در هدر سایت
+                </h4>
+                <p className="text-[11px] text-muted-foreground">
+                  در صورت فعال‌بودن، نوار بالای سایت پیام جشنواره و افکت انتخابی
+                  را به خریداران نمایش می‌دهد.
+                </p>
+              </div>
+              <ToggleSwitch
+                checked={festivalSettings.event_active}
+                onChange={(val) =>
+                  setFestivalSettings((prev) => ({
+                    ...prev,
+                    event_active: val,
+                  }))
+                }
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5 text-right">
+                <label className="text-xs font-bold text-foreground block">
+                  عنوان مناسبت / رویداد
+                </label>
+                <input
+                  type="text"
+                  value={festivalSettings.event_name}
+                  onChange={(e) =>
+                    setFestivalSettings((prev) => ({
+                      ...prev,
+                      event_name: e.target.value,
+                    }))
+                  }
+                  className="w-full h-10 px-3.5 rounded-field border border-border/60 bg-muted/20 text-xs text-foreground outline-none focus:border-brand"
+                  placeholder="مثلاً نوروز ۱۴۰۵ یا بلک فرایدی"
+                />
+              </div>
+
+              <div className="space-y-1.5 text-right">
+                <label className="text-xs font-bold text-foreground block">
+                  افکت انیمیشنی وایب‌فارسی
+                </label>
+                <select
+                  value={festivalSettings.event_effect}
+                  onChange={(e) =>
+                    setFestivalSettings((prev) => ({
+                      ...prev,
+                      event_effect: e.target.value as any,
+                    }))
+                  }
+                  className="w-full h-10 px-3 rounded-field border border-border/60 bg-muted/20 text-xs text-foreground outline-none focus:border-brand font-bold cursor-pointer"
+                >
+                  <option value="none">بدون افکت اضافه (عادی)</option>
+                  <option value="snow">بارش برف زمستانی (Snow Effect)</option>
+                  <option value="confetti">
+                    کاغذ رنگی و جشن شاد (Confetti Effect)
+                  </option>
+                  <option value="stars">
+                    ستاره‌ها و درخشش نئونی (Stars Glow)
+                  </option>
+                </select>
+              </div>
+            </div>
+
+            {/* Header Announcement message & Linked Coupon Chips */}
+            <div className="space-y-1.5 text-right">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-foreground block">
+                  متن پیام نوار اعلان هدر
+                </label>
+                {dbCoupons.length > 0 && (
+                  <span className="text-[10px] text-muted-foreground font-bold">
+                    کلیک روی کوپن جهت درج در پیام:
+                  </span>
                 )}
-              </tbody>
-            </table>
+              </div>
+              <input
+                type="text"
+                value={festivalSettings.header_announcement}
+                onChange={(e) =>
+                  setFestivalSettings((prev) => ({
+                    ...prev,
+                    header_announcement: e.target.value,
+                  }))
+                }
+                className="w-full h-10 px-3.5 rounded-field border border-border/60 bg-muted/20 text-xs text-foreground outline-none focus:border-brand"
+                placeholder="متن پیام نوار اعلان بالای سایت..."
+              />
+              {dbCoupons.length > 0 && (
+                <div className="flex items-center gap-1.5 flex-wrap pt-1">
+                  {dbCoupons.slice(0, 6).map((cc) => (
+                    <button
+                      key={`btn-ann-${cc.code}`}
+                      type="button"
+                      onClick={() => {
+                        setFestivalSettings((prev) => ({
+                          ...prev,
+                          header_announcement: `${prev.event_name} با کد تخفیف ${cc.code} در فروشگاه آناهیکس برقرار است`,
+                        }))
+                      }}
+                      className="text-[10px] font-mono px-2 py-0.5 rounded-control bg-secondary text-brand hover:bg-brand/10 border border-brand/20 cursor-pointer"
+                    >
+                      {cc.code} {cc.label ? `(${cc.label})` : ''}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Section 2: Offers Page Header Customization */}
+          <div className="rounded-surface border border-border/80 bg-card p-6 shadow-surface space-y-4">
+            <div className="border-b border-border/60 pb-3">
+              <h3 className="text-sm font-black text-foreground flex items-center gap-2">
+                <Flame className="h-4 w-4 text-rose-500" />
+                <span>شخصی‌سازی هدر صفحه جشنواره آفرها و تخفیف‌ها (/offers)</span>
+              </h3>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                مدیریت و تغییر داینامیک عنوان نشان، تیتر اصلی و توضیحات صفحه
+                تخفیف‌ها
+              </p>
+            </div>
+
+            <div className="space-y-3.5 text-xs">
+              <div className="space-y-1.5 text-right">
+                <label className="font-bold text-foreground block">
+                  عنوان نشان بالای هدر (Badge)
+                </label>
+                <input
+                  type="text"
+                  value={
+                    festivalSettings.offers_badge_text ||
+                    'جشنواره سراسری تخفیف‌های زمان‌دار آناهیکس'
+                  }
+                  onChange={(e) =>
+                    setFestivalSettings((prev) => ({
+                      ...prev,
+                      offers_badge_text: e.target.value,
+                    }))
+                  }
+                  placeholder="جشنواره سراسری تخفیف‌های زمان‌دار آناهیکس"
+                  className="w-full h-10 px-3.5 rounded-field border border-border/60 bg-muted/20 text-foreground outline-none focus:border-brand"
+                />
+              </div>
+
+              <div className="space-y-1.5 text-right">
+                <label className="font-bold text-foreground block">
+                  تیتر اصلی صفحه آفرها (Title)
+                </label>
+                <input
+                  type="text"
+                  value={
+                    festivalSettings.offers_title ||
+                    'آفرها و اشتراک‌های دارای تخفیف ویژه'
+                  }
+                  onChange={(e) =>
+                    setFestivalSettings((prev) => ({
+                      ...prev,
+                      offers_title: e.target.value,
+                    }))
+                  }
+                  placeholder="آفرها و اشتراک‌های دارای تخفیف ویژه"
+                  className="w-full h-10 px-3.5 rounded-field border border-border/60 bg-muted/20 text-foreground outline-none focus:border-brand"
+                />
+              </div>
+
+              <div className="space-y-1.5 text-right">
+                <label className="font-bold text-foreground block">
+                  متن توضیحات زیرعنوان (Subtitle)
+                </label>
+                <textarea
+                  rows={2}
+                  value={
+                    festivalSettings.offers_subtitle ||
+                    'کلیه لایسنس‌ها و اشتراک‌های هوش مصنوعی که هم‌اکنون با تخفیف نقدی ویژه ۲۰٪ تا ۵۰٪ از پنل مدیریت عرضه شده‌اند.'
+                  }
+                  onChange={(e) =>
+                    setFestivalSettings((prev) => ({
+                      ...prev,
+                      offers_subtitle: e.target.value,
+                    }))
+                  }
+                  placeholder="توضیحات معرفی آفرها..."
+                  className="w-full p-3 rounded-field border border-border/60 bg-muted/20 text-foreground outline-none focus:border-brand resize-none text-xs"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Unified Save Button */}
+          <div className="pt-2 flex items-center justify-end">
+            <button
+              type="button"
+              disabled={savingFestivals}
+              onClick={handleSaveFestivalsAndOffers}
+              className="w-full sm:w-auto min-w-[220px] h-11 px-8 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs sm:text-sm duration-motion ease-motion active:scale-[0.98] shadow-control flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+            >
+              {savingFestivals ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <div className="flex items-center gap-2">
+                  <Save className="h-4 w-4" />
+                  <span>ذخیره تنظیمات جشنواره و اعلان‌ها</span>
+                </div>
+              )}
+            </button>
           </div>
         </div>
-      </section>
+      )}
 
       {/* ADD / EDIT EVENT MODAL */}
       {showAddModal &&
@@ -1190,7 +1633,7 @@ export const AdminCalendarView: React.FC = () => {
                           setNewCouponCode(e.target.value.toUpperCase())
                         }
                         placeholder="مثال: NOROOZ1405"
-                        className="w-full h-10 px-3 rounded-field border border-border/60 bg-muted/20 text-foreground font-mono font-latin uppercase outline-none focus:border-brand"
+                        className="w-full h-10 px-3 rounded-field border border-border/60 bg-muted/20 text-foreground   font-latin uppercase outline-none focus:border-brand"
                       />
                     </div>
                   </div>
@@ -1220,7 +1663,7 @@ export const AdminCalendarView: React.FC = () => {
                               setNewCouponCode(cc.code)
                               if (cc.label) setNewCouponLabel(cc.label)
                             }}
-                            className="text-[10px] font-mono px-2 py-0.5 rounded-control bg-secondary text-brand hover:bg-brand/10 border border-brand/20 cursor-pointer"
+                            className="text-[10px]   px-2 py-0.5 rounded-control bg-secondary text-brand hover:bg-brand/10 border border-brand/20 cursor-pointer"
                           >
                             {cc.code} {cc.label ? `(${cc.label})` : ''}
                           </button>
@@ -1228,6 +1671,25 @@ export const AdminCalendarView: React.FC = () => {
                       </div>
                     )}
                   </div>
+
+                  {/* Show in Cart Drawer Toggle for Event Coupon */}
+                  {newCouponCode.trim() && (
+                    <div className="p-3.5 rounded-surface bg-muted/20 border border-border/60 flex items-center justify-between gap-3">
+                      <div className="space-y-0.5 text-right">
+                        <span className="font-bold text-foreground block">
+                          نمایش کوپن در پیشنهادات سریع سبد خرید
+                        </span>
+                        <p className="text-[11px] text-muted-foreground">
+                          در صورت فعال‌بودن، کد تخفیف این رویداد در چیپ‌های آماده
+                          سبد خرید خریداران نشان داده می‌شود.
+                        </p>
+                      </div>
+                      <ToggleSwitch
+                        checked={newCouponShowInCart}
+                        onChange={setNewCouponShowInCart}
+                      />
+                    </div>
+                  )}
 
                   {/* Active Toggle Switch */}
                   <div className="p-3.5 rounded-surface bg-muted/20 border border-border/60 flex items-center justify-between gap-3">

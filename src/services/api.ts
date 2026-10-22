@@ -920,6 +920,22 @@ export const apiService = {
     return { total: 0, items: [] }
   },
 
+  async updateTransactionStatus(id: string, status: string): Promise<void> {
+    const token = this.getAdminToken()
+    const res = await fetch(`/api/v1/admin/logs/transactions/${id}/status`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ status }),
+    })
+    const json = await safeJsonParse(res)
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'خطا در تغییر وضعیت تراکنش')
+    }
+  },
+
   async getAdminActionLogs(params?: {
     page?: number
     page_size?: number
@@ -1391,6 +1407,9 @@ export const apiService = {
     max_usage?: number
     category?: string
     label?: string
+    starts_at?: string
+    expires_at?: string
+    show_in_cart?: boolean
     is_active?: boolean
   }): Promise<CouponItem> {
     const token = this.getAdminToken()
@@ -1407,6 +1426,26 @@ export const apiService = {
       return json.data
     }
     throw new Error(json.msg || 'خطا در ایجاد کوپن تخفیف')
+  },
+
+  async adminUpdateCoupon(
+    id: string,
+    data: Partial<CouponItem>,
+  ): Promise<CouponItem> {
+    const token = this.getAdminToken()
+    const res = await fetch(`/api/v1/admin/coupons/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(data),
+    })
+    const json = await res.json()
+    if (res.ok && json.code === 200 && json.data) {
+      return json.data
+    }
+    throw new Error(json.msg || 'خطا در ویرایش کوپن تخفیف')
   },
 
   async adminToggleCoupon(id: string): Promise<CouponItem> {

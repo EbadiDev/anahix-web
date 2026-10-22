@@ -5,9 +5,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock,
-  Coins,
   Cpu,
-  DollarSign,
   Eye,
   EyeOff,
   Key,
@@ -16,14 +14,11 @@ import {
   PackageCheck,
   Percent,
   Printer,
-  Radio,
   RefreshCw,
   Search,
   Send,
-  Sliders,
   Sparkles,
   Tag,
-  TrendingUp,
   Zap,
 } from 'lucide-react'
 import type React from 'react'
@@ -35,6 +30,7 @@ import { AdminBIAnalyticsView } from '../../components/admin/AdminBIAnalyticsVie
 import { AdminBillingSettingsView } from '../../components/admin/AdminBillingSettingsView'
 import { AdminCalendarView } from '../../components/admin/AdminCalendarView'
 import { AdminContentView } from '../../components/admin/AdminContentView'
+import { AdminCouponsView } from '../../components/admin/AdminCouponsView'
 import { AdminHeaderBanner } from '../../components/admin/AdminHeaderBanner'
 import { AdminInventoryView } from '../../components/admin/AdminInventoryView'
 import { AdminLoyaltyTiersView } from '../../components/admin/AdminLoyaltyTiersView'
@@ -44,14 +40,13 @@ import {
   AdminSidebar,
   type AdminTabType,
 } from '../../components/admin/AdminSidebar'
-import { AdminThemeSettingsView } from '../../components/admin/AdminThemeSettingsView'
 import { AdminTicketsView } from '../../components/admin/AdminTicketsView'
 import { AdminUsersView } from '../../components/admin/AdminUsersView'
+import { AdminVirtualNumbersView } from '../../components/admin/AdminVirtualNumbersView'
 import { SMSGatewayView } from '../../components/admin/SMSGatewayView'
 import { TransactionsLogView } from '../../components/admin/TransactionsLogView'
 import { Header } from '../../components/Header'
 import { OfficialInvoiceModal } from '../../components/invoice/OfficialInvoiceModal'
-import { ToggleSwitch } from '../../components/vibefarsi/ToggleSwitch'
 import { apiService } from '../../services/api'
 import type {
   InstantDeliverySettings,
@@ -72,25 +67,13 @@ export const AdminDashboardPage: React.FC = () => {
   const [vnSettings, setVnSettings] = useState<VirtualNumberSettings | null>(
     null,
   )
-  const [vnLoading, setVnLoading] = useState(false)
-  const [vnSaveLoading, setVnSaveLoading] = useState(false)
-  const [apiKeyInput, setApiKeyInput] = useState('')
-  const [showApiKey, setShowApiKey] = useState(false)
-  const [marginInput, setMarginInput] = useState(25)
-  const [usdRateInput, setUsdRateInput] = useState(95000)
-  const [rubRateInput, setRubRateInput] = useState(1050)
-  const [enabledToggle, setEnabledToggle] = useState(true)
-  const [defaultOpInput, setDefaultOpInput] = useState('any')
-  const [ratePriorityInput, setRatePriorityInput] = useState<
-    'manual' | 'swapwallet'
-  >('manual')
   const [vnStatus, setVnStatus] = useState<'active' | 'error' | 'disabled'>(
     'active',
   )
   const [deliveryStatus, setDeliveryStatus] = useState<
     'active' | 'error' | 'disabled'
   >('active')
-  const [settingsMsg, setSettingsMsg] = useState<{
+  const [_settingsMsg, setSettingsMsg] = useState<{
     type: 'success' | 'error'
     text: string
   } | null>(null)
@@ -121,12 +104,6 @@ export const AdminDashboardPage: React.FC = () => {
   // Delivery Engine search & pagination
   const [groupSearch, setGroupSearch] = useState('')
   const [groupsPage, setGroupsPage] = useState(1)
-
-  // Virtual orders log & pagination
-  const [virtualOrders, setVirtualOrders] = useState<any[]>([])
-  const [vnOrderSearch, setVnOrderSearch] = useState('')
-  const [vnOrdersPage, setVnOrdersPage] = useState(1)
-  const [loadingOrders, setLoadingOrders] = useState(false)
 
   // Operator Queue state
   const [queueOrders, setQueueOrders] = useState<any[]>([])
@@ -204,38 +181,12 @@ export const AdminDashboardPage: React.FC = () => {
 
   // Load Virtual Number Provider Settings
   const loadVirtualNumberSettings = async () => {
-    setVnLoading(true)
     try {
       const data = await apiService.getVirtualNumberSettings()
       setVnSettings(data)
-      setEnabledToggle(data.enabled)
-      setMarginInput(data.margin_percent)
-      setUsdRateInput(data.usd_rate)
-      setRubRateInput(data.rub_rate)
-      setDefaultOpInput(data.default_operator || 'any')
-      setRatePriorityInput(data.rate_priority || 'manual')
       setVnStatus(data.enabled ? 'active' : 'disabled')
-    } catch (err: any) {
-      setVnStatus('error')
-      setSettingsMsg({
-        type: 'error',
-        text: err.message || 'خطا در دریافت تنظیمات سامانه شماره‌های مجازی',
-      })
-    } finally {
-      setVnLoading(false)
-    }
-  }
-
-  // Load Virtual Orders
-  const loadVirtualOrders = async () => {
-    setLoadingOrders(true)
-    try {
-      const orders = await apiService.getAdminVirtualOrders()
-      setVirtualOrders(orders)
     } catch {
-      // fallback
-    } finally {
-      setLoadingOrders(false)
+      setVnStatus('error')
     }
   }
 
@@ -376,49 +327,12 @@ export const AdminDashboardPage: React.FC = () => {
   useEffect(() => {
     if (activeTab === 'virtual-numbers') {
       loadVirtualNumberSettings()
-      loadVirtualOrders()
     } else if (activeTab === 'delivery') {
       loadDeliveryEngineData()
     } else if (activeTab === 'queue') {
       loadQueueOrders()
     }
   }, [activeTab])
-
-  // Save Virtual Number Settings
-  const handleSaveVirtualNumberSettings = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setVnSaveLoading(true)
-    setSettingsMsg(null)
-
-    try {
-      const payload: any = {
-        enabled: enabledToggle,
-        margin_percent: Number(marginInput),
-        usd_rate: Number(usdRateInput),
-        rub_rate: Number(rubRateInput),
-        default_operator: defaultOpInput,
-        rate_priority: ratePriorityInput,
-      }
-      if (apiKeyInput.trim()) {
-        payload.api_key = apiKeyInput.trim()
-      }
-
-      const updated = await apiService.updateVirtualNumberSettings(payload)
-      setVnSettings(updated)
-      setApiKeyInput('')
-      setSettingsMsg({
-        type: 'success',
-        text: 'تنظیمات سامانه شماره‌های مجازی با موفقیت ذخیره گردید',
-      })
-    } catch (err: any) {
-      setSettingsMsg({
-        type: 'error',
-        text: err.message || 'خطا در ذخیره تنظیمات',
-      })
-    } finally {
-      setVnSaveLoading(false)
-    }
-  }
 
   // Send 2FA Prompt from Operator Desk
   const handleSend2FAPrompt = async (orderId: string) => {
@@ -466,27 +380,6 @@ export const AdminDashboardPage: React.FC = () => {
     groupsPage * GROUPS_PER_PAGE,
   )
 
-  // Virtual orders filtered & paginated
-  const filteredVirtualOrders = virtualOrders.filter((ord) => {
-    if (!vnOrderSearch.trim()) return true
-    const q = vnOrderSearch.toLowerCase().trim()
-    return (
-      (ord.order_no || '').toLowerCase().includes(q) ||
-      (ord.phone || '').includes(q) ||
-      (ord.service || '').toLowerCase().includes(q) ||
-      (ord.service_name_fa || '').toLowerCase().includes(q) ||
-      (ord.country || '').toLowerCase().includes(q) ||
-      (ord.sms_code || '').includes(q)
-    )
-  })
-  const VN_ORDERS_PER_PAGE = 8
-  const totalVnOrderPages =
-    Math.ceil(filteredVirtualOrders.length / VN_ORDERS_PER_PAGE) || 1
-  const paginatedVnOrders = filteredVirtualOrders.slice(
-    (vnOrdersPage - 1) * VN_ORDERS_PER_PAGE,
-    vnOrdersPage * VN_ORDERS_PER_PAGE,
-  )
-
   return (
     <div
       dir="rtl"
@@ -529,8 +422,8 @@ export const AdminDashboardPage: React.FC = () => {
           {/* TAB: BANNERS & PROMOTIONS MANAGEMENT */}
           {activeTab === 'banners' && <AdminBannersView />}
 
-          {/* TAB: VIBE FARSI THEME & MULTI-AUTH SETTINGS */}
-          {activeTab === 'theme-settings' && <AdminThemeSettingsView />}
+          {/* TAB: COUPONS & DISCOUNT ENGINE */}
+          {activeTab === 'coupons' && <AdminCouponsView />}
 
           {/* TAB -0.5: VIP CLUB & LOYALTY TIERS */}
           {activeTab === 'loyalty-tiers' && <AdminLoyaltyTiersView />}
@@ -545,616 +438,7 @@ export const AdminDashboardPage: React.FC = () => {
           {activeTab === 'content' && <AdminContentView />}
 
           {/* TAB 1: VIRTUAL NUMBERS SETTINGS & MANAGEMENT */}
-          {activeTab === 'virtual-numbers' && (
-            <div className="space-y-6">
-              {/* Unified Header Banner */}
-              <AdminHeaderBanner
-                icon={Radio}
-                title="مدیریت فروش شماره‌های دریافت پیامک (SMS OTP)"
-                subtitle="بیش از ۵۰۰٬۰۰۰ شماره آماده تحویل از ۱۸۰ کشور دنیا با نرخ ارز زنده و سود داینامیک"
-                badgeText="سرویس شماره مجازی"
-                actions={
-                  <div className="bg-muted/40 border border-border/60 rounded-control p-3 shrink-0 min-w-[200px]">
-                    <div className="text-xs text-muted-foreground mb-1 flex items-center justify-between">
-                      <span>موجودی اعتبار سامانه:</span>
-                      <button
-                        type="button"
-                        onClick={loadVirtualNumberSettings}
-                        disabled={vnLoading}
-                        className="p-1 hover:bg-card rounded-control transition-colors text-foreground cursor-pointer"
-                        title="بروزرسانی موجودی"
-                      >
-                        <RefreshCw
-                          className={`w-3.5 h-3.5 ${vnLoading ? 'animate-spin text-brand' : ''}`}
-                        />
-                      </button>
-                    </div>
-                    <div className="text-xl font-black text-foreground font-mono font-latin tracking-tight">
-                      $
-                      {vnSettings?.balance
-                        ? vnSettings.balance.toFixed(2)
-                        : '0.00'}
-                    </div>
-                  </div>
-                }
-              />
-
-              {/* Notification alert */}
-              {settingsMsg && (
-                <div
-                  className={`p-4 rounded-surface border text-xs font-bold flex items-center gap-3 ${
-                    settingsMsg.type === 'success'
-                      ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
-                      : 'bg-rose-500/10 border-rose-500/30 text-rose-500'
-                  }`}
-                >
-                  {settingsMsg.type === 'success' ? (
-                    <CheckCircle2 className="w-5 h-5 shrink-0" />
-                  ) : (
-                    <AlertCircle className="w-5 h-5 shrink-0" />
-                  )}
-                  <span>{settingsMsg.text}</span>
-                </div>
-              )}
-
-              {/* Config Form Grid */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Left Column: API & Core Controls */}
-                <div className="lg:col-span-2 bg-card rounded-surface border border-border/80 p-6 shadow-surface space-y-6 text-foreground">
-                  <div className="border-b border-border/60 pb-4 flex items-center justify-between">
-                    <div>
-                      <h3 className="font-black text-foreground text-base">
-                        تنظیمات زیرساخت شماره‌های مجازی آناهیکس
-                      </h3>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        کلید فعال‌سازی، مارجین سود و ضرایب تبدیل تومان را به صورت
-                        کاملاً داینامیک تنظیم نمایید
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-slate-600 dark:text-slate-400 font-bold">
-                        وضعیت فروش:
-                      </span>
-                      <ToggleSwitch
-                        checked={enabledToggle}
-                        onChange={setEnabledToggle}
-                        variant="primary"
-                      />
-                    </div>
-                  </div>
-
-                  <form
-                    onSubmit={handleSaveVirtualNumberSettings}
-                    className="space-y-6"
-                  >
-                    {/* API Key */}
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-2">
-                        کلید فعال‌سازی زیرساخت شماره‌های مجازی (Bearer Token)
-                      </label>
-                      <div className="relative">
-                        <input
-                          type={showApiKey ? 'text' : 'password'}
-                          value={apiKeyInput}
-                          onChange={(e) => setApiKeyInput(e.target.value)}
-                          placeholder={
-                            vnSettings?.has_api_key
-                              ? `کلید فعال در سرور: ${vnSettings.api_key_masked} (برای تغییر، مقدار جدید را وارد نمایید)`
-                              : 'کلید اتصال زیرساخت شماره را اینجا الصاق کنید (اختیاری در حالت دمو)'
-                          }
-                          className="w-full px-3.5 py-2.5 pr-10 pl-10 text-sm rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950 text-slate-900 dark:text-white placeholder:text-slate-400 font-mono focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all"
-                        />
-                        <Key className="w-4 h-4 text-slate-400 absolute right-3.5 top-3.5 pointer-events-none" />
-                        <button
-                          type="button"
-                          onClick={() => setShowApiKey(!showApiKey)}
-                          className="absolute left-3.5 top-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-                        >
-                          {showApiKey ? (
-                            <EyeOff className="w-4 h-4" />
-                          ) : (
-                            <Eye className="w-4 h-4" />
-                          )}
-                        </button>
-                      </div>
-                      <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1.5">
-                        کلید اتصال اختصاصی را جهت ارتباط مستقیم با زیرساخت
-                        شماره‌های بین‌المللی وارد نمایید.
-                      </p>
-                    </div>
-
-                    {/* Toman Price Calculation Strategy (Priority Selection) */}
-                    <div className="rounded-surface border border-border/80 bg-muted/20 p-5 space-y-4">
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border/60 pb-3">
-                        <div>
-                          <h4 className="text-sm font-black text-foreground flex items-center gap-2">
-                            <Coins className="w-4 h-4 text-brand" />
-                            اولویت محاسبه قیمت تومان (Toman Price Engine)
-                          </h4>
-                          <p className="text-xs text-muted-foreground mt-0.5">
-                            تعیین اولویت نرخ‌گذاری: اولویت ۱ نرخ دستی، اولویت ۲
-                            مبدل زنده تتر SwapWallet
-                          </p>
-                        </div>
-
-                        {/* Live SwapWallet Ticker Badge */}
-                        {vnSettings?.live_usd_rate ? (
-                          <div className="flex items-center gap-1.5 px-3 py-1 rounded-control text-xs font-mono font-latin bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-xs">
-                            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                            <span>
-                              تتر SwapWallet:{' '}
-                              {vnSettings.live_usd_rate.toLocaleString('fa-IR')}{' '}
-                              تومان
-                            </span>
-                          </div>
-                        ) : null}
-                      </div>
-
-                      {/* Priority Option Selector Cards */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-                        {/* Option 1: Manual Rate */}
-                        <button
-                          type="button"
-                          onClick={() => setRatePriorityInput('manual')}
-                          className={`p-4 rounded-surface border text-right transition-all flex flex-col justify-between cursor-pointer ${
-                            ratePriorityInput === 'manual'
-                              ? 'border-brand bg-brand/10 ring-2 ring-brand/20 shadow-surface'
-                              : 'border-border/60 hover:border-border bg-card'
-                          }`}
-                        >
-                          <div className="flex items-start justify-between">
-                            <div className="flex items-center gap-2.5">
-                              <div
-                                className={`w-8 h-8 rounded-control flex items-center justify-center ${
-                                  ratePriorityInput === 'manual'
-                                    ? 'bg-primary text-primary-foreground shadow-control'
-                                    : 'bg-secondary text-secondary-foreground'
-                                }`}
-                              >
-                                <Sliders className="w-4 h-4" />
-                              </div>
-                              <div>
-                                <div className="text-sm font-black text-foreground">
-                                  اولویت ۱: نرخ دستی مدیر (Manual)
-                                </div>
-                                <div className="text-xs text-muted-foreground">
-                                  نرخ ثابت و مصوب مدیر سیستم
-                                </div>
-                              </div>
-                            </div>
-                            <div
-                              className={`w-5 h-5 rounded-full border flex items-center justify-center ${
-                                ratePriorityInput === 'manual'
-                                  ? 'border-brand bg-brand text-white'
-                                  : 'border-border/80'
-                              }`}
-                            >
-                              {ratePriorityInput === 'manual' && (
-                                <Check className="w-3 h-3" />
-                              )}
-                            </div>
-                          </div>
-                          <p className="text-[11px] text-muted-foreground mt-3 leading-relaxed">
-                            محاسبه قیمت‌ها تماماً بر اساس عدد دستی وارد شده در
-                            کادر نرخ دلار انجام می‌شود و نوسانات بازار تا تغییر
-                            دستی مدیر تاثیری نخواهد داشت.
-                          </p>
-                        </button>
-
-                        {/* Option 2: SwapWallet Converter */}
-                        <button
-                          type="button"
-                          onClick={() => setRatePriorityInput('swapwallet')}
-                          className={`p-4 rounded-surface border text-right transition-all flex flex-col justify-between cursor-pointer ${
-                            ratePriorityInput === 'swapwallet'
-                              ? 'border-brand bg-brand/10 ring-2 ring-brand/20 shadow-surface'
-                              : 'border-border/60 hover:border-border bg-card'
-                          }`}
-                        >
-                          <div className="flex items-start justify-between">
-                            <div className="flex items-center gap-2.5">
-                              <div
-                                className={`w-8 h-8 rounded-control flex items-center justify-center ${
-                                  ratePriorityInput === 'swapwallet'
-                                    ? 'bg-primary text-primary-foreground shadow-control'
-                                    : 'bg-secondary text-secondary-foreground'
-                                }`}
-                              >
-                                <Zap className="w-4 h-4" />
-                              </div>
-                              <div>
-                                <div className="text-sm font-black text-foreground flex items-center gap-1.5">
-                                  اولویت ۲: مبدل زنده تتر (SwapWallet)
-                                  <span className="text-[10px] px-1.5 py-0.5 rounded-control bg-brand/10 text-brand font-normal">
-                                    مشابه ArchNet
-                                  </span>
-                                </div>
-                                <div className="text-xs text-muted-foreground">
-                                  استعلام زنده و خودکار قیمت لحظه‌ای USDT
-                                </div>
-                              </div>
-                            </div>
-                            <div
-                              className={`w-5 h-5 rounded-full border flex items-center justify-center ${
-                                ratePriorityInput === 'swapwallet'
-                                  ? 'border-brand bg-brand text-white'
-                                  : 'border-border/80'
-                              }`}
-                            >
-                              {ratePriorityInput === 'swapwallet' && (
-                                <Check className="w-3 h-3" />
-                              )}
-                            </div>
-                          </div>
-                          <p className="text-[11px] text-muted-foreground mt-3 leading-relaxed">
-                            استعلام لحظه‌ای از API صرافی غیرمتمرکز SwapWallet با
-                            کش هوشمند ۳ دقیقه‌ای. در صورت قطعی اینترنت، بدون وقفه
-                            به نرخ دستی بازمی‌گردد.
-                          </p>
-                        </button>
-                      </div>
-
-                      {/* Effective Rate Status Banner */}
-                      <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-surface bg-card border border-border/80 text-xs">
-                        <div className="flex items-center gap-2">
-                          <span className="text-muted-foreground">
-                            منبع فعال فعلی:
-                          </span>
-                          <span className="font-bold text-foreground">
-                            {vnSettings?.active_rate_source === 'swapwallet'
-                              ? '🟢 مبدل زنده تتر SwapWallet (لحظه‌ای)'
-                              : '🔷 نرخ دستی تعیین شده در پنل مدیریت'}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-muted-foreground">
-                            نرخ دلار موثر در فروشگاه:
-                          </span>
-                          <span className="font-black text-brand font-mono font-latin text-sm">
-                            {(
-                              vnSettings?.effective_usd_rate || usdRateInput
-                            ).toLocaleString('fa-IR')}{' '}
-                            تومان
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Pricing and Margins Grid */}
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                      {/* Profit Margin */}
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                          درصد مارجین سود (%)
-                        </label>
-                        <div className="relative">
-                          <input
-                            type="number"
-                            step="1"
-                            min="0"
-                            max="200"
-                            value={marginInput}
-                            onChange={(e) =>
-                              setMarginInput(Number(e.target.value))
-                            }
-                            className="w-full px-3.5 py-2.5 pr-9 text-sm rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950 text-slate-900 dark:text-white font-mono focus:outline-none focus:ring-2 focus:ring-blue-600"
-                          />
-                          <Percent className="w-4 h-4 text-slate-400 absolute right-3 top-3 pointer-events-none" />
-                        </div>
-                        <span className="text-[10px] text-slate-400">
-                          سود اضافه شده به هر شماره
-                        </span>
-                      </div>
-
-                      {/* USD Rate */}
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                          نرخ دستی دلار / رزرو (تومان)
-                        </label>
-                        <div className="relative">
-                          <input
-                            type="number"
-                            step="500"
-                            value={usdRateInput}
-                            onChange={(e) =>
-                              setUsdRateInput(Number(e.target.value))
-                            }
-                            className="w-full px-3.5 py-2.5 pr-9 text-sm rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950 text-slate-900 dark:text-white font-mono focus:outline-none focus:ring-2 focus:ring-blue-600"
-                          />
-                          <DollarSign className="w-4 h-4 text-slate-400 absolute right-3 top-3 pointer-events-none" />
-                        </div>
-                        <span className="text-[10px] text-slate-400">
-                          مبنای اولویت دستی یا پشتیبان قطعی SwapWallet
-                        </span>
-                      </div>
-
-                      {/* RUB Rate */}
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                          نرخ روبل روسیه (تومان)
-                        </label>
-                        <div className="relative">
-                          <input
-                            type="number"
-                            step="10"
-                            value={rubRateInput}
-                            onChange={(e) =>
-                              setRubRateInput(Number(e.target.value))
-                            }
-                            className="w-full px-3.5 py-2.5 pr-9 text-sm rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950 text-slate-900 dark:text-white font-mono focus:outline-none focus:ring-2 focus:ring-blue-600"
-                          />
-                          <TrendingUp className="w-4 h-4 text-slate-400 absolute right-3 top-3 pointer-events-none" />
-                        </div>
-                        <span className="text-[10px] text-slate-400">
-                          نرخ پایه ارز سامانه
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Default Operator */}
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                        انتخابگر اپراتور مخابراتی
-                      </label>
-                      <select
-                        value={defaultOpInput}
-                        onChange={(e) => setDefaultOpInput(e.target.value)}
-                        className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-600"
-                      >
-                        <option value="any">
-                          any (خرید هوشمند بر اساس بیشترین درصد موفقیت تحویل
-                          SMS)
-                        </option>
-                        <option value="smart">
-                          smart (سیستم انتخاب بهینه اپراتور)
-                        </option>
-                      </select>
-                    </div>
-
-                    {/* Submit Button */}
-                    <div className="pt-2 flex justify-end">
-                      <button
-                        type="submit"
-                        disabled={vnSaveLoading}
-                        className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-medium text-sm transition-all shadow-md shadow-blue-500/20 disabled:opacity-50 flex items-center gap-2"
-                      >
-                        {vnSaveLoading ? (
-                          <>
-                            <RefreshCw className="w-4 h-4 animate-spin" />
-                            <span>در حال ذخیره‌سازی...</span>
-                          </>
-                        ) : (
-                          <>
-                            <Check className="w-4 h-4" />
-                            <span>ذخیره تنظیمات در دیتابیس</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  </form>
-                </div>
-
-                {/* Right Column: Service Health & Reassurance */}
-                <div className="space-y-6">
-                  <div className="bg-card rounded-surface border border-border/80 p-5 shadow-surface text-foreground space-y-4">
-                    <h3 className="font-black text-foreground text-sm">
-                      وضعیت سیستم و هشدارهای امنیتی
-                    </h3>
-                    <div className="space-y-3">
-                      <div className="p-3.5 rounded-surface bg-muted/20 border border-border/60">
-                        <div className="text-xs font-bold text-foreground">
-                          پیام وضعیت اتصال:
-                        </div>
-                        <div className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                          {vnSettings?.status_message || 'در حال بررسی...'}
-                        </div>
-                      </div>
-
-                      <div className="p-3.5 rounded-surface bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-400 space-y-2 leading-relaxed">
-                        <div className="font-bold flex items-center gap-1.5 text-emerald-400">
-                          <CheckCircle2 className="w-4 h-4" />
-                          <span>سیستم استرداد آنی (Instant Refund)</span>
-                        </div>
-                        <p className="text-[11px] text-muted-foreground leading-relaxed">
-                          در صورتی که ظرف ۱۵ دقیقه کدی دریافت نشود یا کاربر
-                          سفارش را لغو کند، هزینه به کیف پول کاربر بازگردانده
-                          شده و سفارش در سامانه بدون کسر هزینه کنسل می‌شود.
-                        </p>
-                      </div>
-
-                      <div className="p-3.5 rounded-surface bg-muted/20 border border-border/60 text-xs text-muted-foreground space-y-1">
-                        <div className="font-bold text-foreground">
-                          سرویس‌های پرفروش:
-                        </div>
-                        <div>• تلگرام (Telegram) - بیشترین تقاضا</div>
-                        <div>• هوش مصنوعی ChatGPT / OpenAI</div>
-                        <div>• واتساپ و گوگل (Google One)</div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Virtual Orders Audit Table */}
-              <div className="bg-card rounded-surface border border-border/80 p-5 sm:p-6 shadow-surface space-y-4 text-foreground">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/60 pb-4">
-                  <div>
-                    <h3 className="font-black text-foreground text-base">
-                      لاگ سفارشات اخیر شماره مجازی
-                    </h3>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      رصد و لاگ لحظه‌ای پیامک‌های OTP دریافتی توسط مشتریان
-                    </p>
-                  </div>
-
-                  <div className="flex items-center gap-2.5">
-                    {/* Search box for orders */}
-                    <div className="relative">
-                      <Search className="w-4 h-4 text-muted-foreground absolute right-3 top-2.5 pointer-events-none" />
-                      <input
-                        type="text"
-                        value={vnOrderSearch}
-                        onChange={(e) => {
-                          setVnOrderSearch(e.target.value)
-                          setVnOrdersPage(1)
-                        }}
-                        placeholder="جستجوی شماره، سفارش، کد..."
-                        className="h-9 pr-9 pl-3 w-48 sm:w-56 rounded-control border border-border/60 bg-muted/20 text-xs text-foreground placeholder:text-muted-foreground outline-none focus:border-brand"
-                      />
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={loadVirtualOrders}
-                      disabled={loadingOrders}
-                      className="h-9 px-3 rounded-control border border-border/60 bg-secondary text-secondary-foreground text-xs font-bold hover:bg-muted transition-colors flex items-center gap-1.5 cursor-pointer shadow-control"
-                      title="بروزرسانی لاگ"
-                    >
-                      <RefreshCw
-                        className={`w-3.5 h-3.5 ${loadingOrders ? 'animate-spin text-brand' : ''}`}
-                      />
-                      <span className="hidden sm:inline">بروزرسانی</span>
-                    </button>
-                  </div>
-                </div>
-
-                {paginatedVnOrders.length === 0 ? (
-                  <div className="py-12 text-center text-muted-foreground text-xs">
-                    {vnOrderSearch
-                      ? `سفارشی با مشخصات «${vnOrderSearch}» یافت نشد.`
-                      : 'هنوز سفارشی برای شماره‌های مجازی ثبت نشده است.'}
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-xs text-right">
-                      <thead>
-                        <tr className="border-b border-border/60 text-muted-foreground font-bold">
-                          <th className="pb-3 px-3">شماره سفارش</th>
-                          <th className="pb-3 px-3">سرویس</th>
-                          <th className="pb-3 px-3">کشور</th>
-                          <th className="pb-3 px-3">شماره تماس</th>
-                          <th className="pb-3 px-3 text-center">
-                            کد تایید (OTP)
-                          </th>
-                          <th className="pb-3 px-3">مبلغ (تومان)</th>
-                          <th className="pb-3 px-3 text-center">وضعیت</th>
-                          <th className="pb-3 px-3">زمان</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-border/60">
-                        {paginatedVnOrders.map((ord: any) => (
-                          <tr
-                            key={ord.id}
-                            className="hover:bg-muted/20 transition-colors"
-                          >
-                            <td className="py-3 px-3 font-mono font-latin font-bold text-foreground">
-                              {ord.order_no}
-                            </td>
-                            <td className="py-3 px-3 font-bold text-foreground">
-                              {ord.service_name_fa || ord.service}
-                            </td>
-                            <td className="py-3 px-3 text-muted-foreground">
-                              {ord.country_flag}{' '}
-                              {ord.country_name_fa || ord.country}
-                            </td>
-                            <td className="py-3 px-3 font-mono font-latin dir-ltr text-left text-foreground">
-                              {ord.phone}
-                            </td>
-                            <td className="py-3 px-3 text-center">
-                              {ord.sms_code ? (
-                                <span className="px-2.5 py-1 rounded-control bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-mono font-latin font-black text-sm">
-                                  {ord.sms_code}
-                                </span>
-                              ) : (
-                                <span className="text-muted-foreground text-[11px]">
-                                  در انتظار پیامک...
-                                </span>
-                              )}
-                            </td>
-                            <td className="py-3 px-3 font-mono font-latin font-bold text-foreground">
-                              {Number(ord.price_toman).toLocaleString('fa-IR')}
-                            </td>
-                            <td className="py-3 px-3 text-center">
-                              <span
-                                className={`px-2 py-0.5 rounded-control text-[10px] font-bold ${
-                                  ord.status === 'RECEIVED' ||
-                                  ord.status === 'FINISHED'
-                                    ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                                    : ord.status === 'PENDING'
-                                      ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
-                                      : 'bg-muted text-muted-foreground'
-                                }`}
-                              >
-                                {ord.status === 'RECEIVED'
-                                  ? 'دریافت شد'
-                                  : ord.status === 'FINISHED'
-                                    ? 'تکمیل شد'
-                                    : ord.status === 'PENDING'
-                                      ? 'در انتظار'
-                                      : ord.status}
-                              </span>
-                            </td>
-                            <td className="py-3 px-3 text-muted-foreground font-latin">
-                              {new Date(ord.created_at).toLocaleTimeString(
-                                'fa-IR',
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-
-                {/* Pagination Toolbar */}
-                {totalVnOrderPages > 1 && (
-                  <div className="flex items-center justify-between p-3 bg-muted/10 rounded-control border border-border/60 text-xs">
-                    <span className="text-muted-foreground">
-                      صفحه {vnOrdersPage} از {totalVnOrderPages} (مجموع{' '}
-                      {filteredVirtualOrders.length} سفارش)
-                    </span>
-                    <div className="flex items-center gap-1">
-                      <button
-                        type="button"
-                        disabled={vnOrdersPage <= 1}
-                        onClick={() => setVnOrdersPage((p) => p - 1)}
-                        className="p-1.5 rounded-control border border-border/60 hover:bg-muted text-muted-foreground hover:text-foreground disabled:opacity-40 cursor-pointer"
-                        title="صفحه قبلی"
-                      >
-                        <ChevronRight className="w-4 h-4" />
-                      </button>
-                      {Array.from(
-                        { length: totalVnOrderPages },
-                        (_, i) => i + 1,
-                      ).map((pNum) => (
-                        <button
-                          key={`vn-page-btn-${pNum}`}
-                          type="button"
-                          onClick={() => setVnOrdersPage(pNum)}
-                          className={`w-7 h-7 rounded-control font-bold font-latin cursor-pointer transition-colors ${
-                            vnOrdersPage === pNum
-                              ? 'bg-primary text-primary-foreground font-black'
-                              : 'hover:bg-muted text-muted-foreground'
-                          }`}
-                        >
-                          {pNum}
-                        </button>
-                      ))}
-                      <button
-                        type="button"
-                        disabled={vnOrdersPage >= totalVnOrderPages}
-                        onClick={() => setVnOrdersPage((p) => p + 1)}
-                        className="p-1.5 rounded-control border border-border/60 hover:bg-muted text-muted-foreground hover:text-foreground disabled:opacity-40 cursor-pointer"
-                        title="صفحه بعدی"
-                      >
-                        <ChevronLeft className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
+          {activeTab === 'virtual-numbers' && <AdminVirtualNumbersView />}
 
           {/* TAB: DELIVERY ENGINE & INSTANT FULFILLMENT INTEGRATION */}
           {activeTab === 'delivery' && (

@@ -21,8 +21,14 @@ import type {
 import { OfficialInvoiceModal } from '../invoice/OfficialInvoiceModal'
 import { SearchInput } from '../vibefarsi/SearchInput'
 import { AdminHeaderBanner } from './AdminHeaderBanner'
+import { TransactionsLogView } from './TransactionsLogView'
 
 export const AdminOrdersTableView: React.FC = () => {
+  // Subtab State: Orders vs Transactions
+  const [orderSubTab, setOrderSubTab] = useState<'orders' | 'transactions'>(
+    'orders',
+  )
+
   // State
   const [loading, setLoading] = useState(false)
   const [data, setData] = useState<AdminOrderListResult | null>(null)
@@ -230,298 +236,363 @@ export const AdminOrdersTableView: React.FC = () => {
       {/* Header Banner */}
       <AdminHeaderBanner
         icon={Layers}
-        title="میز کار و جدول جامع سفارشات و لایسنس‌ها"
-        subtitle="فیلتر و مدیریت تمام سفارش‌های پرداخت شده، تایید شده، در صف، تکمیل‌شده یا مرجوعی، همراه با قابلیت استرداد خودکار به کیف پول"
-        badgeText="مدیریت سفارشات"
+        title="مدیریت جامع سفارش‌ها و تراکنش‌های مالی"
+        subtitle="پایش کلیه سفارشات اشتراک‌ها، وضعیت تحویل، صف اپراتور و لاگ برخط تراکنش‌های درگاه و کیف پول"
+        badgeText="عملیات مالی و سفارشات"
         actions={
-          <button
-            type="button"
-            onClick={loadOrders}
-            disabled={loading}
-            className="h-9 px-4 rounded-control bg-secondary text-secondary-foreground border border-border/60 hover:bg-muted text-xs font-bold transition-all shadow-control flex items-center gap-2 cursor-pointer duration-motion active:scale-[0.98]"
-          >
-            <RefreshCw
-              className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`}
-            />
-            <span>به‌روزرسانی سفارشات</span>
-          </button>
+          orderSubTab === 'orders' ? (
+            <button
+              type="button"
+              onClick={loadOrders}
+              disabled={loading}
+              className="h-9 px-4 rounded-control bg-secondary text-secondary-foreground border border-border/60 hover:bg-muted text-xs font-bold transition-all shadow-control flex items-center gap-2 cursor-pointer duration-motion active:scale-[0.98]"
+            >
+              <RefreshCw
+                className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`}
+              />
+              <span>به‌روزرسانی سفارشات</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() =>
+                window.dispatchEvent(
+                  new CustomEvent('anahix:transactions:refresh'),
+                )
+              }
+              className="h-9 px-4 rounded-control bg-secondary text-secondary-foreground border border-border/60 hover:bg-muted text-xs font-bold transition-all shadow-control flex items-center gap-2 cursor-pointer duration-motion active:scale-[0.98]"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span>به‌روزرسانی تراکنش‌ها</span>
+            </button>
+          )
         }
       />
 
-      {/* Search Bar & 3 Responsive Dropdowns (Status, Delivery, Gateway) */}
-      <div className="bg-card rounded-surface border border-border/80 p-4 sm:p-5 shadow-surface">
-        <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3">
-          {/* Compact Debounced Search Bar with Clickable Search & Clear Buttons */}
-          <div className="flex-1 min-w-[200px] sm:min-w-[280px]">
-            <SearchInput
-              value={search}
-              onChange={(val) => {
-                setSearch(val)
-                setPage(1)
-              }}
-              onSearch={handleSearchSubmit}
-              placeholder="جستجو: شماره سفارش، موبایل یا ایمیل..."
-              debounceMs={350}
-            />
-          </div>
+      {/* Sub-Tabs Navigation for Orders vs Transactions */}
+      <div className="bg-card rounded-surface border border-border/80 p-2 shadow-surface flex items-center gap-1.5 overflow-x-auto scrollbar-none">
+        <button
+          type="button"
+          onClick={() => setOrderSubTab('orders')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-control text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+            orderSubTab === 'orders'
+              ? 'bg-primary text-primary-foreground font-black shadow-control'
+              : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
+          }`}
+        >
+          <ReceiptText className="w-4 h-4 shrink-0" />
+          <span>جدول جامع و پیگیری سفارش‌ها</span>
+        </button>
 
-          {/* 1. Status Filter Dropdown (Converted from bulky tabs to sleek dropdown per user request) */}
-          <div className="flex items-center gap-1.5 shrink-0">
-            <span className="text-[11px] text-muted-foreground shrink-0 font-bold whitespace-nowrap">
-              وضعیت:
-            </span>
-            <select
-              value={statusFilter}
-              onChange={(e) => {
-                setStatusFilter(e.target.value)
-                setPage(1)
-              }}
-              className="h-9 px-3 rounded-control border border-border/60 bg-muted/20 text-xs text-foreground outline-none focus:border-brand font-bold"
-            >
-              <option value="all">همه وضعیت‌ها</option>
-              <option value="paid">تایید شده / پرداخت شده</option>
-              <option value="in_queue">در صف اپراتور</option>
-              <option value="processing">در حال پردازش</option>
-              <option value="awaiting_customer_action">منتظر کد ۲FA</option>
-              <option value="completed">تکمیل شده</option>
-              <option value="cancelled">لغو شده</option>
-              <option value="refunded">مرجوعی / عودت وجه</option>
-              <option value="pending_payment">در انتظار پرداخت</option>
-            </select>
-          </div>
-
-          {/* 2. Delivery Type Dropdown */}
-          <div className="flex items-center gap-1.5 shrink-0">
-            <span className="text-[11px] text-muted-foreground shrink-0 font-bold whitespace-nowrap">
-              روش تحویل:
-            </span>
-            <select
-              value={deliveryTypeFilter}
-              onChange={(e) => {
-                setDeliveryTypeFilter(e.target.value)
-                setPage(1)
-              }}
-              className="h-9 px-3 rounded-control border border-border/60 bg-muted/20 text-xs text-foreground outline-none focus:border-brand"
-            >
-              <option value="all">همه روش‌ها</option>
-              <option value="instant">تحویل آنی و خودکار</option>
-              <option value="manual_operator">تحویل دستی اپراتور</option>
-              <option value="direct_transfer">ارتقای شخصی (Mode C)</option>
-              <option value="family_invite">دعوت‌نامه فمیلی</option>
-              <option value="activation_code">لایسنس و کد فعال‌سازی</option>
-            </select>
-          </div>
-
-          {/* 3. Payment Method Dropdown */}
-          <div className="flex items-center gap-1.5 shrink-0">
-            <span className="text-[11px] text-muted-foreground shrink-0 font-bold whitespace-nowrap">
-              درگاه:
-            </span>
-            <select
-              value={paymentMethodFilter}
-              onChange={(e) => {
-                setPaymentMethodFilter(e.target.value)
-                setPage(1)
-              }}
-              className="h-9 px-3 rounded-control border border-border/60 bg-muted/20 text-xs text-foreground outline-none focus:border-brand"
-            >
-              <option value="all">همه درگاه‌ها</option>
-              <option value="balance">کیف پول</option>
-              <option value="zarinpal">زرین‌پال</option>
-              <option value="card_to_card">کارت به کارت</option>
-              <option value="crypto">رمزارز (Crypto)</option>
-            </select>
-          </div>
-        </div>
+        <button
+          type="button"
+          onClick={() => setOrderSubTab('transactions')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-control text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+            orderSubTab === 'transactions'
+              ? 'bg-primary text-primary-foreground font-black shadow-control'
+              : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
+          }`}
+        >
+          <Package className="w-4 h-4 shrink-0" />
+          <span>لاگ تراکنش‌های مالی و درگاه‌ها</span>
+        </button>
       </div>
 
-      {/* Orders Table - Centered with Graphite Tokens */}
-      <div className="bg-card rounded-surface border border-border/80 shadow-surface overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-center text-xs">
-            <thead>
-              <tr className="border-b border-border/60 bg-muted/30 text-muted-foreground font-semibold select-none text-center">
-                <th className="py-4 px-4 text-center">شماره سفارش و تاریخ</th>
-                <th className="py-4 px-4 text-center">عنوان محصول و آیتم</th>
-                <th className="py-4 px-4 text-center">مشتری و شماره تماس</th>
-                <th className="py-4 px-4 text-center">مبلغ و درگاه پرداخت</th>
-                <th className="py-4 px-4 text-center">وضعیت سفارش</th>
-                <th className="py-4 px-4 text-center">عملیات مدیریت</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border/60">
-              {loading && (
-                <tr>
-                  <td
-                    colSpan={6}
-                    className="py-16 text-center text-muted-foreground"
-                  >
-                    <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-brand" />
-                    <span>در حال فراخوانی سفارش‌ها...</span>
-                  </td>
-                </tr>
-              )}
+      {orderSubTab === 'transactions' ? (
+        <div className="animate-in fade-in duration-200">
+          <TransactionsLogView hideHeader={true} />
+        </div>
+      ) : (
+        <>
+          {/* Search Bar & 3 Responsive Dropdowns (Status, Delivery, Gateway) */}
+          <div className="bg-card rounded-surface border border-border/80 p-4 sm:p-5 shadow-surface">
+            <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3">
+              {/* Compact Debounced Search Bar with Clickable Search & Clear Buttons */}
+              <div className="flex-1 min-w-[200px] sm:min-w-[280px]">
+                <SearchInput
+                  value={search}
+                  onChange={(val) => {
+                    setSearch(val)
+                    setPage(1)
+                  }}
+                  onSearch={handleSearchSubmit}
+                  placeholder="جستجو: شماره سفارش، موبایل یا ایمیل..."
+                  debounceMs={350}
+                />
+              </div>
 
-              {!loading && (!data?.orders || data.orders.length === 0) && (
-                <tr>
-                  <td
-                    colSpan={6}
-                    className="py-16 text-center text-muted-foreground"
-                  >
-                    <Package className="w-10 h-10 mx-auto mb-2 opacity-50" />
-                    <span className="font-bold">
-                      سفارشی با این مشخصات یافت نشد.
-                    </span>
-                  </td>
-                </tr>
-              )}
+              {/* 1. Status Filter Dropdown (Converted from bulky tabs to sleek dropdown per user request) */}
+              <div className="flex items-center gap-1.5 shrink-0">
+                <span className="text-[11px] text-muted-foreground shrink-0 font-bold whitespace-nowrap">
+                  وضعیت:
+                </span>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => {
+                    setStatusFilter(e.target.value)
+                    setPage(1)
+                  }}
+                  className="h-9 px-3 rounded-control border border-border/60 bg-muted/20 text-xs text-foreground outline-none focus:border-brand font-bold"
+                >
+                  <option value="all">همه وضعیت‌ها</option>
+                  <option value="paid">تایید شده / پرداخت شده</option>
+                  <option value="in_queue">در صف اپراتور</option>
+                  <option value="processing">در حال پردازش</option>
+                  <option value="awaiting_customer_action">منتظر کد ۲FA</option>
+                  <option value="completed">تکمیل شده</option>
+                  <option value="cancelled">لغو شده</option>
+                  <option value="refunded">مرجوعی / عودت وجه</option>
+                  <option value="pending_payment">در انتظار پرداخت</option>
+                </select>
+              </div>
 
-              {!loading &&
-                data?.orders?.map((ord: any) => {
-                  const oid = ord.order_id || ord.id || ord.order_number
-                  const badge = getStatusBadge(ord.status)
-                  return (
-                    <tr
-                      key={oid}
-                      className="hover:bg-muted/40 transition-colors"
-                    >
-                      {/* Order Number & Date */}
-                      <td className="py-3.5 px-4 text-center">
-                        <div className="font-mono font-bold text-brand font-latin">
-                          {ord.order_number}
-                        </div>
-                        <div className="text-[11px] text-muted-foreground font-mono mt-0.5 font-latin">
-                          {new Date(ord.created_at).toLocaleDateString('fa-IR')}
-                        </div>
-                      </td>
+              {/* 2. Delivery Type Dropdown */}
+              <div className="flex items-center gap-1.5 shrink-0">
+                <span className="text-[11px] text-muted-foreground shrink-0 font-bold whitespace-nowrap">
+                  روش تحویل:
+                </span>
+                <select
+                  value={deliveryTypeFilter}
+                  onChange={(e) => {
+                    setDeliveryTypeFilter(e.target.value)
+                    setPage(1)
+                  }}
+                  className="h-9 px-3 rounded-control border border-border/60 bg-muted/20 text-xs text-foreground outline-none focus:border-brand"
+                >
+                  <option value="all">همه روش‌ها</option>
+                  <option value="instant">تحویل آنی و خودکار</option>
+                  <option value="manual_operator">تحویل دستی اپراتور</option>
+                  <option value="direct_transfer">ارتقای شخصی (Mode C)</option>
+                  <option value="family_invite">دعوت‌نامه فمیلی</option>
+                  <option value="activation_code">لایسنس و کد فعال‌سازی</option>
+                </select>
+              </div>
 
-                      {/* Product Title */}
-                      <td className="py-3.5 px-4 text-center">
-                        <div className="font-bold text-foreground line-clamp-1">
-                          {ord.product_title || 'سفارش هوش مصنوعی'}
-                        </div>
-                        <div className="text-[10px] text-muted-foreground mt-0.5">
-                          شیوه تحویل:{' '}
-                          <span className="font-semibold text-foreground">
-                            {ord.delivery_type}
-                          </span>
-                        </div>
-                      </td>
+              {/* 3. Payment Method Dropdown */}
+              <div className="flex items-center gap-1.5 shrink-0">
+                <span className="text-[11px] text-muted-foreground shrink-0 font-bold whitespace-nowrap">
+                  درگاه:
+                </span>
+                <select
+                  value={paymentMethodFilter}
+                  onChange={(e) => {
+                    setPaymentMethodFilter(e.target.value)
+                    setPage(1)
+                  }}
+                  className="h-9 px-3 rounded-control border border-border/60 bg-muted/20 text-xs text-foreground outline-none focus:border-brand"
+                >
+                  <option value="all">همه درگاه‌ها</option>
+                  <option value="balance">کیف پول</option>
+                  <option value="zarinpal">زرین‌پال</option>
+                  <option value="card_to_card">کارت به کارت</option>
+                  <option value="crypto">رمزارز (Crypto)</option>
+                </select>
+              </div>
+            </div>
+          </div>
 
-                      {/* Customer Info */}
-                      <td className="py-3.5 px-4 font-mono font-latin text-center">
-                        <div className="font-bold text-foreground">
-                          {ord.customer_phone}
-                        </div>
-                        {ord.customer_email && (
-                          <div className="text-[10px] text-muted-foreground truncate max-w-[150px] mx-auto">
-                            {ord.customer_email}
-                          </div>
-                        )}
-                      </td>
-
-                      {/* Total Amount & Gateway */}
-                      <td className="py-3.5 px-4 font-mono font-latin text-center">
-                        <div className="font-bold text-sm text-foreground">
-                          {ord.total_amount_toman.toLocaleString('fa-IR')}{' '}
-                          <span className="text-[10px] font-sans font-normal text-muted-foreground">
-                            تومان
-                          </span>
-                        </div>
-                        <div className="text-[10px] text-muted-foreground font-sans">
-                          روش:{' '}
-                          {ord.payment_method === 'balance'
-                            ? 'کیف پول'
-                            : ord.payment_method === 'zarinpal'
-                              ? 'زرین‌پال'
-                              : ord.payment_method === 'card_to_card'
-                                ? 'کارت به کارت'
-                                : ord.payment_method}
-                        </div>
-                      </td>
-
-                      {/* Status Badge */}
-                      <td className="py-3.5 px-4 text-center">
-                        <span
-                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-control text-[10px] font-bold border ${badge.classes}`}
-                        >
-                          {badge.label}
-                        </span>
-                      </td>
-
-                      {/* Actions */}
-                      <td className="py-3.5 px-4 text-center">
-                        <div className="flex items-center justify-center gap-1.5">
-                          {/* Change Status Button */}
-                          <button
-                            type="button"
-                            onClick={() => openStatusModal(ord)}
-                            className="px-2.5 py-1 rounded-control bg-brand/10 text-brand hover:bg-brand/20 text-[11px] font-bold border border-brand/30 transition-colors cursor-pointer duration-motion active:scale-[0.98]"
-                          >
-                            تغییر وضعیت
-                          </button>
-
-                          {/* 2FA Prompt Button for Mode C */}
-                          {ord.status === 'awaiting_customer_action' ||
-                          ord.status === 'in_queue' ||
-                          ord.status === 'paid' ? (
-                            <button
-                              type="button"
-                              onClick={() => setPromptOrderId(oid)}
-                              className="p-1.5 rounded-control bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 border border-amber-500/30 transition-colors cursor-pointer duration-motion active:scale-[0.98]"
-                              title="ارسال درخواست کد ۲FA"
-                            >
-                              <Smartphone className="w-4 h-4" />
-                            </button>
-                          ) : null}
-
-                          {/* View Official Tax Invoice Button */}
-                          <button
-                            type="button"
-                            onClick={() => setInvoiceOrderNo(ord.order_number)}
-                            className="p-1.5 rounded-control bg-muted text-muted-foreground hover:text-foreground border border-border/60 transition-colors cursor-pointer duration-motion active:scale-[0.98]"
-                            title="مشاهده فاکتور رسمی"
-                          >
-                            <ReceiptText className="w-4 h-4" />
-                          </button>
-                        </div>
+          {/* Orders Table - Centered with Graphite Tokens */}
+          <div className="bg-card rounded-surface border border-border/80 shadow-surface overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-center text-xs">
+                <thead>
+                  <tr className="border-b border-border/60 bg-muted/30 text-muted-foreground font-semibold select-none text-center">
+                    <th className="py-4 px-4 text-center">
+                      شماره سفارش و تاریخ
+                    </th>
+                    <th className="py-4 px-4 text-center">
+                      عنوان محصول و آیتم
+                    </th>
+                    <th className="py-4 px-4 text-center">
+                      مشتری و شماره تماس
+                    </th>
+                    <th className="py-4 px-4 text-center">
+                      مبلغ و درگاه پرداخت
+                    </th>
+                    <th className="py-4 px-4 text-center">وضعیت سفارش</th>
+                    <th className="py-4 px-4 text-center">عملیات مدیریت</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/60">
+                  {loading && (
+                    <tr>
+                      <td
+                        colSpan={6}
+                        className="py-16 text-center text-muted-foreground"
+                      >
+                        <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-brand" />
+                        <span>در حال فراخوانی سفارش‌ها...</span>
                       </td>
                     </tr>
-                  )
-                })}
-            </tbody>
-          </table>
-        </div>
+                  )}
 
-        {/* Pagination */}
-        {data && data.total > 0 && (
-          <div className="p-4 border-t border-border/60 flex items-center justify-between text-xs text-muted-foreground">
-            <div>
-              صفحه {data.page} از {Math.ceil(data.total / data.page_size) || 1}{' '}
-              (مجموع {data.total.toLocaleString('fa-IR')} سفارش)
+                  {!loading && (!data?.orders || data.orders.length === 0) && (
+                    <tr>
+                      <td
+                        colSpan={6}
+                        className="py-16 text-center text-muted-foreground"
+                      >
+                        <Package className="w-10 h-10 mx-auto mb-2 opacity-50" />
+                        <span className="font-bold">
+                          سفارشی با این مشخصات یافت نشد.
+                        </span>
+                      </td>
+                    </tr>
+                  )}
+
+                  {!loading &&
+                    data?.orders?.map((ord: any) => {
+                      const oid = ord.order_id || ord.id || ord.order_number
+                      const badge = getStatusBadge(ord.status)
+                      return (
+                        <tr
+                          key={oid}
+                          className="hover:bg-muted/40 transition-colors"
+                        >
+                          {/* Order Number & Date */}
+                          <td className="py-3.5 px-4 text-center">
+                            <div className="font-mono font-bold text-brand font-latin">
+                              {ord.order_number}
+                            </div>
+                            <div className="text-[11px] text-muted-foreground font-mono mt-0.5 font-latin">
+                              {new Date(ord.created_at).toLocaleDateString(
+                                'fa-IR',
+                              )}
+                            </div>
+                          </td>
+
+                          {/* Product Title */}
+                          <td className="py-3.5 px-4 text-center">
+                            <div className="font-bold text-foreground line-clamp-1">
+                              {ord.product_title || 'سفارش هوش مصنوعی'}
+                            </div>
+                            <div className="text-[10px] text-muted-foreground mt-0.5">
+                              شیوه تحویل:{' '}
+                              <span className="font-semibold text-foreground">
+                                {ord.delivery_type}
+                              </span>
+                            </div>
+                          </td>
+
+                          {/* Customer Info */}
+                          <td className="py-3.5 px-4 font-mono font-latin text-center">
+                            <div className="font-bold text-foreground">
+                              {ord.customer_phone}
+                            </div>
+                            {ord.customer_email && (
+                              <div className="text-[10px] text-muted-foreground truncate max-w-[150px] mx-auto">
+                                {ord.customer_email}
+                              </div>
+                            )}
+                          </td>
+
+                          {/* Total Amount & Gateway */}
+                          <td className="py-3.5 px-4 font-mono font-latin text-center">
+                            <div className="font-bold text-sm text-foreground">
+                              {ord.total_amount_toman.toLocaleString('fa-IR')}{' '}
+                              <span className="text-[10px] font-sans font-normal text-muted-foreground">
+                                تومان
+                              </span>
+                            </div>
+                            <div className="text-[10px] text-muted-foreground font-sans">
+                              روش:{' '}
+                              {ord.payment_method === 'balance'
+                                ? 'کیف پول'
+                                : ord.payment_method === 'zarinpal'
+                                  ? 'زرین‌پال'
+                                  : ord.payment_method === 'card_to_card'
+                                    ? 'کارت به کارت'
+                                    : ord.payment_method}
+                            </div>
+                          </td>
+
+                          {/* Status Badge */}
+                          <td className="py-3.5 px-4 text-center">
+                            <span
+                              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-control text-[10px] font-bold border ${badge.classes}`}
+                            >
+                              {badge.label}
+                            </span>
+                          </td>
+
+                          {/* Actions */}
+                          <td className="py-3.5 px-4 text-center">
+                            <div className="flex items-center justify-center gap-1.5">
+                              {/* Change Status Button */}
+                              <button
+                                type="button"
+                                onClick={() => openStatusModal(ord)}
+                                className="px-2.5 py-1 rounded-control bg-brand/10 text-brand hover:bg-brand/20 text-[11px] font-bold border border-brand/30 transition-colors cursor-pointer duration-motion active:scale-[0.98]"
+                              >
+                                تغییر وضعیت
+                              </button>
+
+                              {/* 2FA Prompt Button for Mode C */}
+                              {ord.status === 'awaiting_customer_action' ||
+                              ord.status === 'in_queue' ||
+                              ord.status === 'paid' ? (
+                                <button
+                                  type="button"
+                                  onClick={() => setPromptOrderId(oid)}
+                                  className="p-1.5 rounded-control bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 border border-amber-500/30 transition-colors cursor-pointer duration-motion active:scale-[0.98]"
+                                  title="ارسال درخواست کد ۲FA"
+                                >
+                                  <Smartphone className="w-4 h-4" />
+                                </button>
+                              ) : null}
+
+                              {/* View Official Tax Invoice Button */}
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setInvoiceOrderNo(ord.order_number)
+                                }
+                                className="p-1.5 rounded-control bg-muted text-muted-foreground hover:text-foreground border border-border/60 transition-colors cursor-pointer duration-motion active:scale-[0.98]"
+                                title="مشاهده فاکتور رسمی"
+                              >
+                                <ReceiptText className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                </tbody>
+              </table>
             </div>
 
-            <div className="flex items-center gap-1.5">
-              <button
-                type="button"
-                disabled={page <= 1}
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                className="px-3 py-1.5 rounded-control border border-border/60 disabled:opacity-40 hover:bg-muted transition-colors cursor-pointer duration-motion active:scale-[0.98]"
-              >
-                قبلی
-              </button>
-              <button
-                type="button"
-                disabled={page >= Math.ceil(data.total / data.page_size)}
-                onClick={() => setPage((p) => p + 1)}
-                className="px-3 py-1.5 rounded-control border border-border/60 disabled:opacity-40 hover:bg-muted transition-colors cursor-pointer duration-motion active:scale-[0.98]"
-              >
-                بعدی
-              </button>
-            </div>
+            {/* Pagination */}
+            {data && data.total > 0 && (
+              <div className="p-4 border-t border-border/60 flex items-center justify-between text-xs text-muted-foreground">
+                <div>
+                  صفحه {data.page} از{' '}
+                  {Math.ceil(data.total / data.page_size) || 1} (مجموع{' '}
+                  {data.total.toLocaleString('fa-IR')} سفارش)
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    disabled={page <= 1}
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    className="px-3 py-1.5 rounded-control border border-border/60 disabled:opacity-40 hover:bg-muted transition-colors cursor-pointer duration-motion active:scale-[0.98]"
+                  >
+                    قبلی
+                  </button>
+                  <button
+                    type="button"
+                    disabled={page >= Math.ceil(data.total / data.page_size)}
+                    onClick={() => setPage((p) => p + 1)}
+                    className="px-3 py-1.5 rounded-control border border-border/60 disabled:opacity-40 hover:bg-muted transition-colors cursor-pointer duration-motion active:scale-[0.98]"
+                  >
+                    بعدی
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        </>
+      )}
 
       {/* ==================================================================== */}
       {/* STATUS CHANGER MODAL                                                 */}

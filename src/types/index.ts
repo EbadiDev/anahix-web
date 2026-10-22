@@ -368,7 +368,12 @@ export type TransactionType =
   | 'virtual_number'
   | 'deposit'
   | 'refund'
-export type TransactionStatus = 'SUCCESS' | 'PENDING' | 'FAILED' | 'REFUNDED'
+export type TransactionStatus =
+  | 'SUCCESS'
+  | 'PENDING'
+  | 'FAILED'
+  | 'REFUNDED'
+  | 'CANCELLED'
 
 export interface TransactionRecord {
   id: string
@@ -553,7 +558,9 @@ export interface CouponItem {
   current_usage: number
   category: string
   label?: string
+  starts_at?: string
   expires_at?: string
+  show_in_cart?: boolean
   is_active: boolean
   created_at: string
 }
@@ -575,6 +582,7 @@ export interface NotificationListResponse {
 }
 
 export interface ReferralStats {
+  system_status?: 'active' | 'coming_soon' | 'disabled'
   referral_code: string
   referral_url: string
   commission_rate_percent: number

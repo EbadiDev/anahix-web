@@ -30,10 +30,18 @@ export const SearchInput: React.FC<SearchInputProps> = ({
   const [internalVal, setInternalVal] = useState(value)
   const isFirstMount = useRef(true)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const lastEmittedRef = useRef<string>(value)
+  const onChangeRef = useRef(onChange)
+  onChangeRef.current = onChange
+  const onSearchRef = useRef(onSearch)
+  onSearchRef.current = onSearch
 
   // Keep internal state in sync if parent changes value externally
   useEffect(() => {
-    setInternalVal(value)
+    if (value !== lastEmittedRef.current) {
+      setInternalVal(value)
+      lastEmittedRef.current = value
+    }
   }, [value])
 
   // Debounced auto-search
@@ -43,35 +51,41 @@ export const SearchInput: React.FC<SearchInputProps> = ({
       return
     }
 
+    if (internalVal === lastEmittedRef.current) return
+
     if (debounceMs <= 0) {
-      onChange(internalVal)
-      onSearch?.(internalVal)
+      lastEmittedRef.current = internalVal
+      onChangeRef.current(internalVal)
+      onSearchRef.current?.(internalVal)
       return
     }
 
     if (timerRef.current) clearTimeout(timerRef.current)
     timerRef.current = setTimeout(() => {
-      onChange(internalVal)
-      onSearch?.(internalVal)
+      lastEmittedRef.current = internalVal
+      onChangeRef.current(internalVal)
+      onSearchRef.current?.(internalVal)
     }, debounceMs)
 
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current)
     }
-  }, [internalVal, debounceMs, onChange, onSearch])
+  }, [internalVal, debounceMs])
 
   const handleManualSubmit = (e?: React.FormEvent) => {
     if (e) e.preventDefault()
     if (timerRef.current) clearTimeout(timerRef.current)
-    onChange(internalVal)
-    onSearch?.(internalVal)
+    lastEmittedRef.current = internalVal
+    onChangeRef.current(internalVal)
+    onSearchRef.current?.(internalVal)
   }
 
   const handleClear = () => {
     if (timerRef.current) clearTimeout(timerRef.current)
     setInternalVal('')
-    onChange('')
-    onSearch?.('')
+    lastEmittedRef.current = ''
+    onChangeRef.current('')
+    onSearchRef.current?.('')
   }
 
   const isSm = size === 'sm'

@@ -166,6 +166,9 @@ export const UserProfilePage: React.FC = () => {
   const [loyaltyStatus, setLoyaltyStatus] = useState<
     'active' | 'coming_soon' | 'disabled'
   >('active')
+  const [referralStatus, setReferralStatus] = useState<
+    'active' | 'coming_soon' | 'disabled'
+  >('active')
   const [toastMsg, setToastMsg] = useState<{
     type: 'info' | 'error' | 'success'
     text: string
@@ -181,6 +184,15 @@ export const UserProfilePage: React.FC = () => {
           }
         })
         .catch(() => {})
+
+      apiService
+        .getReferralStats()
+        .then((ref) => {
+          if (ref?.system_status) {
+            setReferralStatus(ref.system_status)
+          }
+        })
+        .catch(() => {})
     }
   }, [customer?.phone])
 
@@ -193,7 +205,15 @@ export const UserProfilePage: React.FC = () => {
         text: 'باشگاه مشتریان در حال حاضر غیرفعال است.',
       })
     }
-  }, [activeTab, loyaltyStatus])
+    if (activeTab === 'referral' && referralStatus === 'disabled') {
+      setActiveTab('overview')
+      setSearchParams({ tab: 'overview' })
+      setToastMsg({
+        type: 'info',
+        text: 'سیستم همکاری در فروش در حال حاضر غیرفعال است.',
+      })
+    }
+  }, [activeTab, loyaltyStatus, referralStatus])
 
   useEffect(() => {
     if (customer) {
@@ -299,14 +319,18 @@ export const UserProfilePage: React.FC = () => {
           },
         ]
       : []),
-    {
-      id: 'referral',
-      label: 'همکاری در فروش و معرف',
-      shortLabel: 'معرف',
-      icon: Gift,
-      badge: '۱۰٪',
-      group: 'financial',
-    },
+    ...(referralStatus !== 'disabled'
+      ? [
+          {
+            id: 'referral' as const,
+            label: 'همکاری در فروش و معرف',
+            shortLabel: 'معرف',
+            icon: Gift,
+            badge: referralStatus === 'coming_soon' ? 'به‌زودی' : '۱۰٪',
+            group: 'financial' as const,
+          },
+        ]
+      : []),
     {
       id: 'support',
       label: 'پشتیبانی و تیکت‌ها',
@@ -707,23 +731,55 @@ export const UserProfilePage: React.FC = () => {
                   />
                 )}
 
-                {activeTab === 'loyalty' && (
-                  <ProfileLoyaltyTab
-                    customer={customer}
-                    onReloadCustomer={refreshProfile}
-                  />
-                )}
+                {activeTab === 'loyalty' &&
+                  (loyaltyStatus === 'coming_soon' ? (
+                    <div className="p-12 rounded-surface border border-border/80 bg-card text-center space-y-4">
+                      <div className="w-14 h-14 rounded-full bg-amber-500/10 text-amber-500 flex items-center justify-center mx-auto border border-amber-500/20">
+                        <Crown className="w-7 h-7" />
+                      </div>
+                      <div className="space-y-1.5 max-w-md mx-auto">
+                        <h3 className="text-base font-black text-foreground">
+                          باشگاه مشتریان VIP به‌زودی فعال می‌شود
+                        </h3>
+                        <p className="text-xs text-muted-foreground leading-relaxed">
+                          سیستم ارتقای سطح و تخفیف‌های ویژه باشگاه مشتریان به
+                          زودی در دسترس شما قرار خواهد گرفت.
+                        </p>
+                      </div>
+                    </div>
+                  ) : loyaltyStatus !== 'disabled' ? (
+                    <ProfileLoyaltyTab
+                      customer={customer}
+                      onReloadCustomer={refreshProfile}
+                    />
+                  ) : null)}
 
-                {activeTab === 'referral' && (
-                  <ProfileReferralTab
-                    customer={customer}
-                    onBalanceUpdated={(newBal) =>
-                      setCustomer((prev) =>
-                        prev ? { ...prev, balance_toman: newBal } : null,
-                      )
-                    }
-                  />
-                )}
+                {activeTab === 'referral' &&
+                  (referralStatus === 'coming_soon' ? (
+                    <div className="p-12 rounded-surface border border-border/80 bg-card text-center space-y-4">
+                      <div className="w-14 h-14 rounded-full bg-amber-500/10 text-amber-500 flex items-center justify-center mx-auto border border-amber-500/20">
+                        <Gift className="w-7 h-7" />
+                      </div>
+                      <div className="space-y-1.5 max-w-md mx-auto">
+                        <h3 className="text-base font-black text-foreground">
+                          سیستم همکاری در فروش به‌زودی فعال می‌شود
+                        </h3>
+                        <p className="text-xs text-muted-foreground leading-relaxed">
+                          امکان دریافت لینک اختصاصی معرف و دریافت پورسانت از هر
+                          خرید موفق دوستان به زودی در دسترس قرار می‌گیرد.
+                        </p>
+                      </div>
+                    </div>
+                  ) : referralStatus !== 'disabled' ? (
+                    <ProfileReferralTab
+                      customer={customer}
+                      onBalanceUpdated={(newBal) =>
+                        setCustomer((prev) =>
+                          prev ? { ...prev, balance_toman: newBal } : null,
+                        )
+                      }
+                    />
+                  ) : null)}
 
                 {activeTab === 'support' && (
                   <ProfileSupportTab

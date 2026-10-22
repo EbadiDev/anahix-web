@@ -1,17 +1,17 @@
 import {
-  AlertCircle,
   Award,
   Check,
-  CheckCircle2,
   Crown,
   Diamond,
   Edit2,
   Layers,
+  Lock,
   Medal,
   Plus,
   RefreshCw,
   Save,
   Settings,
+  Share2,
   Shield,
   Star,
   Trash2,
@@ -23,10 +23,17 @@ import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { apiService } from '../../services/api'
 import type { CreateOrUpdateLoyaltyTierRequest, LoyaltyTier } from '../../types'
+import { ConfirmModal } from '../vibefarsi/ConfirmModal'
+import { ModalCloseButton } from '../vibefarsi/ModalCloseButton'
+import { useNotification } from '../vibefarsi/NotificationContext'
 import { ToggleSwitch } from '../vibefarsi/ToggleSwitch'
 import { AdminHeaderBanner } from './AdminHeaderBanner'
 
 export const AdminLoyaltyTiersView: React.FC = () => {
+  const { success: notifySuccess, error: notifyError } = useNotification()
+  const [activeSubTab, setActiveSubTab] = useState<'tiers' | 'referral'>(
+    'tiers',
+  )
   const [tiers, setTiers] = useState<LoyaltyTier[]>([])
   const [loading, setLoading] = useState<boolean>(true)
   const [_settingsLoading, _setSettingsLoading] = useState<boolean>(false)
@@ -34,12 +41,14 @@ export const AdminLoyaltyTiersView: React.FC = () => {
     loyalty_enabled: 'true',
     loyalty_calculation_period: 'monthly_30d',
     loyalty_auto_upgrade: 'true',
+    referral_enabled: 'active',
+    referral_commission_rate: '10',
+    referral_bonus_amount: '20000',
+    referral_min_withdraw: '50000',
   })
   const [savingSettings, setSavingSettings] = useState<boolean>(false)
-  const [actionMsg, setActionMsg] = useState<{
-    type: 'success' | 'error'
-    text: string
-  } | null>(null)
+  const [tierToDelete, setTierToDelete] = useState<LoyaltyTier | null>(null)
+  const [deleting, setDeleting] = useState<boolean>(false)
 
   // Modal State for Create / Edit
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false)
@@ -73,10 +82,10 @@ export const AdminLoyaltyTiersView: React.FC = () => {
         setSettings(settingsRes)
       }
     } catch (err: any) {
-      setActionMsg({
-        type: 'error',
-        text: err?.message || 'خطا در بارگذاری اطلاعات سطوح وفاداری',
-      })
+      notifyError(
+        'خطا در بارگذاری',
+        err?.message || 'خطا در بارگذاری اطلاعات سطوح وفاداری',
+      )
     } finally {
       setLoading(false)
     }
@@ -162,16 +171,16 @@ export const AdminLoyaltyTiersView: React.FC = () => {
 
       if (editingTier) {
         await apiService.updateAdminLoyaltyTier(editingTier.id, payload)
-        setActionMsg({
-          type: 'success',
-          text: `سطح «${payload.name}» با موفقیت ویرایش شد.`,
-        })
+        notifySuccess(
+          'ویرایش سطح',
+          `سطح «${payload.name}» با موفقیت ویرایش شد.`,
+        )
       } else {
         await apiService.createAdminLoyaltyTier(payload)
-        setActionMsg({
-          type: 'success',
-          text: `سطح جدید «${payload.name}» با موفقیت ایجاد گردید.`,
-        })
+        notifySuccess(
+          'ایجاد سطح',
+          `سطح جدید «${payload.name}» با موفقیت ایجاد گردید.`,
+        )
       }
 
       setIsModalOpen(false)
@@ -183,28 +192,29 @@ export const AdminLoyaltyTiersView: React.FC = () => {
     }
   }
 
-  const handleDeleteTier = async (t: LoyaltyTier) => {
-    if (t.code === 'bronze') {
-      alert('سطح پایه برنزی سیستم غیرقابل حذف است.')
+  const handleDeleteTier = (t: LoyaltyTier) => {
+    if (t.code === 'bronze' || t.order_index === 0) {
+      notifyError('سطح پایه', 'سطح پایه برنزی سیستم غیرقابل حذف است.')
       return
     }
-    const confirmDelete = window.confirm(
-      `آیا از حذف سطح وفاداری «${t.name}» اطمینان دارید؟ کاربران این سطح به سطح برنزی منتقل خواهند شد.`,
-    )
-    if (!confirmDelete) return
+    setTierToDelete(t)
+  }
 
+  const handleConfirmDeleteTier = async () => {
+    if (!tierToDelete) return
+    setDeleting(true)
     try {
-      await apiService.deleteAdminLoyaltyTier(t.id)
-      setActionMsg({
-        type: 'success',
-        text: `سطح «${t.name}» با موفقیت حذف گردید.`,
-      })
+      await apiService.deleteAdminLoyaltyTier(tierToDelete.id)
+      notifySuccess(
+        'حذف سطح',
+        `سطح «${tierToDelete.name}» با موفقیت حذف گردید.`,
+      )
+      setTierToDelete(null)
       loadData()
     } catch (err: any) {
-      setActionMsg({
-        type: 'error',
-        text: err?.message || 'خطا در حذف سطح',
-      })
+      notifyError('خطا در حذف سطح', err?.message)
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -212,15 +222,12 @@ export const AdminLoyaltyTiersView: React.FC = () => {
     setSavingSettings(true)
     try {
       await apiService.updateAdminLoyaltySettings(settings)
-      setActionMsg({
-        type: 'success',
-        text: 'تنظیمات سراسری باشگاه مشتریان با موفقیت ذخیره شد.',
-      })
+      notifySuccess(
+        'ذخیره تنظیمات',
+        'تنظیمات باشگاه مشتریان و همکاری در فروش با موفقیت ذخیره شد.',
+      )
     } catch (err: any) {
-      setActionMsg({
-        type: 'error',
-        text: err?.message || 'خطا در ذخیره تنظیمات',
-      })
+      notifyError('خطا در ذخیره تنظیمات', err?.message)
     } finally {
       setSavingSettings(false)
     }
@@ -250,9 +257,9 @@ export const AdminLoyaltyTiersView: React.FC = () => {
       {/* Top Banner & Header */}
       <AdminHeaderBanner
         icon={Crown}
-        title="باشگاه مشتریان و سطوح وفاداری (VIP Club & Loyalty Tiers)"
-        subtitle="تعریف پویا و بدون هاردکد سطوح برنزی، نقره‌ای، طلایی و سازمانی به همراه تخفیف خودکار و اولویت در صف اپراتور"
-        badgeText="موتور وفاداری VIP"
+        title="باشگاه مشتریان، سطوح VIP و همکاری در فروش"
+        subtitle="تعریف پویای سطوح برنزی، نقره‌ای، طلایی و سازمانی به همراه تخفیف خودکار، اولویت در صف اپراتور و کمیسیون معرف"
+        badgeText="باشگاه مشتریان و معرف"
         actions={
           <div className="flex items-center gap-2">
             <button
@@ -266,332 +273,503 @@ export const AdminLoyaltyTiersView: React.FC = () => {
                 className={`w-4 h-4 ${loading ? 'animate-spin text-brand' : ''}`}
               />
             </button>
-            <button
-              type="button"
-              onClick={handleOpenCreateModal}
-              className="h-9 px-4 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs duration-motion ease-motion active:scale-[0.98] shadow-control flex items-center gap-2 cursor-pointer"
-            >
-              <Plus className="w-4 h-4" />
-              <span>تعریف سطح وفاداری جدید</span>
-            </button>
+            {activeSubTab === 'tiers' && (
+              <button
+                type="button"
+                onClick={handleOpenCreateModal}
+                className="h-9 px-4 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs duration-motion ease-motion active:scale-[0.98] shadow-control flex items-center gap-2 cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                <span>تعریف سطح وفاداری جدید</span>
+              </button>
+            )}
           </div>
         }
       />
 
-      {/* Action Notification Alert */}
-      {actionMsg && (
-        <div
-          className={`p-3.5 rounded-surface text-xs font-bold flex items-center justify-between border ${
-            actionMsg.type === 'success'
-              ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
-              : 'bg-destructive/10 border-destructive/30 text-destructive'
+      {/* Sub-Tabs Navigation for Loyalty Tiers vs Referral */}
+      <div className="bg-card rounded-surface border border-border/80 p-2 shadow-surface flex items-center gap-1.5 overflow-x-auto scrollbar-none">
+        <button
+          type="button"
+          onClick={() => setActiveSubTab('tiers')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-control text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+            activeSubTab === 'tiers'
+              ? 'bg-primary text-primary-foreground font-black shadow-control'
+              : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
           }`}
         >
-          <div className="flex items-center gap-2">
-            {actionMsg.type === 'success' ? (
-              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-            ) : (
-              <AlertCircle className="w-4 h-4 text-destructive" />
-            )}
-            <span>{actionMsg.text}</span>
+          <Crown className="w-4 h-4 shrink-0" />
+          <span>سطوح وفاداری و باشگاه مشتریان</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveSubTab('referral')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-control text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+            activeSubTab === 'referral'
+              ? 'bg-primary text-primary-foreground font-black shadow-control'
+              : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
+          }`}
+        >
+          <Share2 className="w-4 h-4 shrink-0" />
+          <span>همکاری در فروش و بازاریابی معرف (Referral)</span>
+        </button>
+      </div>
+
+      {activeSubTab === 'tiers' ? (
+        <>
+          {/* Global Loyalty Settings Panel */}
+          <div className="bg-card rounded-surface border border-border/80 p-5 sm:p-6 shadow-surface space-y-4 text-foreground">
+            <div className="flex items-center justify-between border-b border-border/60 pb-3">
+              <h2 className="text-base font-black text-foreground flex items-center gap-2">
+                <Settings className="w-4 h-4 text-amber-500" />
+                پیکربندی و تنظیمات هوشمند باشگاه وفاداری (System Settings)
+              </h2>
+              <button
+                type="button"
+                onClick={handleSaveGlobalSettings}
+                disabled={savingSettings}
+                className="h-9 px-4 bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs rounded-control duration-motion active:scale-[0.98] shadow-control flex items-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                <Save className="w-3.5 h-3.5" />
+                <span>
+                  {savingSettings ? 'در حال ذخیره...' : 'ذخیره تنظیمات'}
+                </span>
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Setting 1: System Status (3 states per user requirement) */}
+              <div className="bg-muted/20 p-4 rounded-surface border border-border/60 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-foreground">
+                    وضعیت باشگاه مشتریان (VIP Engine)
+                  </span>
+                  <span
+                    className={`text-[10px] font-bold px-2 py-0.5 rounded-control border ${
+                      settings.loyalty_enabled === 'active' ||
+                      settings.loyalty_enabled === 'true'
+                        ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                        : settings.loyalty_enabled === 'coming_soon'
+                          ? 'bg-amber-500/10 text-amber-500 border-amber-500/20'
+                          : 'bg-muted text-muted-foreground border-border/60'
+                    }`}
+                  >
+                    {settings.loyalty_enabled === 'active' ||
+                    settings.loyalty_enabled === 'true'
+                      ? 'فعال کامل'
+                      : settings.loyalty_enabled === 'coming_soon'
+                        ? 'به‌زودی'
+                        : 'غیرفعال'}
+                  </span>
+                </div>
+                <select
+                  value={
+                    settings.loyalty_enabled === 'active' ||
+                    settings.loyalty_enabled === 'true'
+                      ? 'active'
+                      : settings.loyalty_enabled === 'coming_soon'
+                        ? 'coming_soon'
+                        : 'disabled'
+                  }
+                  onChange={(e) =>
+                    setSettings({
+                      ...settings,
+                      loyalty_enabled: e.target.value,
+                    })
+                  }
+                  className="w-full h-9 bg-card border border-border/60 rounded-control px-2.5 text-xs text-foreground focus:outline-none focus:border-brand font-bold"
+                >
+                  <option value="active">
+                    🟢 فعال کامل (نمایش در پنل کاربری و اعمال خودکار تخفیف)
+                  </option>
+                  <option value="coming_soon">
+                    🟡 به‌زودی (نمایش بج به‌زودی، غیرقابل کلیک در پنل و مسدود بودن
+                    لینک)
+                  </option>
+                  <option value="disabled">
+                    🔴 غیرفعال کامل (حذف کامل از منوی پنل کاربری و سبد خرید)
+                  </option>
+                </select>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  کنترل وضعیت نمایش عمومی، رفتار لینک‌ها در پنل مشتری و اعمال
+                  تخفیف
+                </p>
+              </div>
+
+              {/* Setting 2: Calculation Period */}
+              <div className="bg-muted/20 p-4 rounded-surface border border-border/60 space-y-2">
+                <label className="text-xs font-bold text-foreground block">
+                  دوره محاسبه حجم خرید جهت ارتقای سطح
+                </label>
+                <select
+                  value={settings.loyalty_calculation_period || 'monthly_30d'}
+                  onChange={(e) =>
+                    setSettings({
+                      ...settings,
+                      loyalty_calculation_period: e.target.value,
+                    })
+                  }
+                  className="w-full h-9 bg-card border border-border/60 rounded-control px-2.5 text-xs text-foreground focus:outline-none focus:border-brand"
+                >
+                  <option value="monthly_30d">
+                    حجم خرید ۳۰ روز اخیر (توصیه شده - حفظ انگیزه خرید مداوم)
+                  </option>
+                  <option value="all_time">
+                    کل حجم خریدهای موفق از ابتدا (مادام‌العمر / Cumulative)
+                  </option>
+                </select>
+                <p className="text-[11px] text-muted-foreground">
+                  سطح کاربر بر اساس مجموع خریدهای واجد شرایط در این بازه محاسبه
+                  می‌گردد.
+                </p>
+              </div>
+
+              {/* Setting 3: Auto Level-Up */}
+              <div className="bg-muted/20 p-4 rounded-surface border border-border/60 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-foreground">
+                    ارتقای خودکار سطح (Auto-Upgrade)
+                  </span>
+                  <ToggleSwitch
+                    checked={settings.loyalty_auto_upgrade === 'true'}
+                    onChange={(checked) =>
+                      setSettings({
+                        ...settings,
+                        loyalty_auto_upgrade: checked ? 'true' : 'false',
+                      })
+                    }
+                    variant="primary"
+                    size="sm"
+                  />
+                </div>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  ارتقای خودکار سطح بلافاصله پس از پرداخت یا تکمیل سفارش بدون
+                  نیاز به تایید دستی اپراتور
+                </p>
+              </div>
+            </div>
           </div>
-          <button
-            type="button"
-            onClick={() => setActionMsg(null)}
-            className="p-1 rounded-control text-muted-foreground hover:text-foreground cursor-pointer"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-      )}
 
-      {/* Global Loyalty Settings Panel */}
-      <div className="bg-card rounded-surface border border-border/80 p-5 sm:p-6 shadow-surface space-y-4 text-foreground">
-        <div className="flex items-center justify-between border-b border-border/60 pb-3">
-          <h2 className="text-base font-black text-foreground flex items-center gap-2">
-            <Settings className="w-4 h-4 text-amber-500" />
-            پیکربندی و تنظیمات هوشمند باشگاه وفاداری (System Settings)
-          </h2>
-          <button
-            type="button"
-            onClick={handleSaveGlobalSettings}
-            disabled={savingSettings}
-            className="h-9 px-4 bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs rounded-control duration-motion active:scale-[0.98] shadow-control flex items-center gap-2 cursor-pointer disabled:opacity-50"
-          >
-            <Save className="w-3.5 h-3.5" />
-            <span>{savingSettings ? 'در حال ذخیره...' : 'ذخیره تنظیمات'}</span>
-          </button>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* Setting 1: System Status (3 states per user requirement) */}
-          <div className="bg-muted/20 p-4 rounded-surface border border-border/60 space-y-2.5">
+          {/* Loyalty Tiers Grid */}
+          <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-foreground">
-                وضعیت باشگاه مشتریان (VIP Engine)
+              <h2 className="text-base font-black text-foreground flex items-center gap-2">
+                <Layers className="w-5 h-5 text-brand" />
+                سطوح فعال وفاداری در دیتابیس ({tiers.length} سطح)
+              </h2>
+              <span className="text-xs text-muted-foreground">
+                ترتیب اعمال خودکار بر اساس آستانه خرید (از کمترین به بیشترین)
               </span>
+            </div>
+
+            {tiers.length === 0 ? (
+              <div className="bg-card border border-border/80 rounded-surface p-12 text-center text-muted-foreground text-xs shadow-surface">
+                هیچ سطح وفاداری تعریف نشده است. با کلیک بر روی دکمه «تعریف سطح
+                وفاداری جدید» شروع کنید.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {tiers.map((tier) => (
+                  <div
+                    key={tier.id}
+                    className="bg-card text-card-foreground border border-border/80 rounded-surface p-5 shadow-surface relative overflow-hidden flex flex-col justify-between group hover:border-brand/40 transition-colors space-y-4"
+                  >
+                    {/* Header Badge */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span
+                          className="px-3 py-1 rounded-control text-xs font-black flex items-center gap-1.5 shadow-xs"
+                          style={{
+                            backgroundColor: `${tier.badge_color}18`,
+                            color: tier.badge_color,
+                            borderColor: `${tier.badge_color}40`,
+                            borderWidth: 1,
+                          }}
+                        >
+                          {renderTierIcon(tier.icon)}
+                          {tier.name}
+                        </span>
+
+                        <span className="text-[11px] font-mono font-latin px-2 py-0.5 rounded-control bg-secondary text-secondary-foreground border border-border/60">
+                          #{tier.code}
+                        </span>
+                      </div>
+
+                      <p className="text-xs text-muted-foreground line-clamp-2 min-h-[32px] pt-1">
+                        {tier.description || 'بدون توضیحات اختصاصی'}
+                      </p>
+                    </div>
+
+                    {/* Key Numbers */}
+                    <div className="bg-muted/20 p-3.5 rounded-surface border border-border/60 space-y-2.5">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground">
+                          تخفیف خودکار:
+                        </span>
+                        <span className="font-black text-emerald-400 text-sm font-latin">
+                          {tier.discount_percent > 0
+                            ? `${tier.discount_percent}٪ تخفیف نقدی`
+                            : 'بدون تخفیف (پایه)'}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground">
+                          حداقل حجم خرید:
+                        </span>
+                        <span className="font-bold text-foreground font-latin">
+                          {tier.min_spend_toman > 0
+                            ? `${tier.min_spend_toman.toLocaleString('fa-IR')} تومان`
+                            : '۰ تومان (عضویت رایگان)'}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground">
+                          اولویت صف اپراتور:
+                        </span>
+                        <span
+                          className={`font-bold font-mono px-2 py-0.5 rounded-control text-[11px] ${
+                            tier.queue_priority >= 50
+                              ? 'bg-amber-500/10 text-amber-500 border border-amber-500/30'
+                              : tier.queue_priority >= 10
+                                ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
+                                : 'bg-muted text-muted-foreground'
+                          }`}
+                        >
+                          {tier.queue_priority >= 50
+                            ? `VIP طلایی (${tier.queue_priority})`
+                            : tier.queue_priority >= 10
+                              ? `اولویت بالا (${tier.queue_priority})`
+                              : `عادی (${tier.queue_priority})`}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between text-xs pt-1 border-t border-border/60">
+                        <span className="text-muted-foreground">
+                          کاربران این سطح:
+                        </span>
+                        <span className="font-bold text-brand font-latin">
+                          {(tier.user_count || 0).toLocaleString('fa-IR')} کاربر
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Perks Checklist */}
+                    <div className="space-y-1.5">
+                      <span className="text-[11px] font-bold text-muted-foreground block">
+                        مزایا و امکانات این سطح:
+                      </span>
+                      <div className="space-y-1 max-h-24 overflow-y-auto pr-1">
+                        {(tier.perks || []).map((p) => (
+                          <div
+                            key={p}
+                            className="text-[11px] text-slate-300 flex items-start gap-1.5"
+                          >
+                            <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
+                            <span className="line-clamp-1">{p}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Card Actions */}
+                    <div className="pt-2 border-t border-slate-800 flex items-center justify-between gap-2">
+                      <span
+                        className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                          tier.is_active
+                            ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                            : 'bg-rose-500/10 text-rose-400'
+                        }`}
+                      >
+                        {tier.is_active ? 'فعال در سیستم' : 'غیرفعال'}
+                      </span>
+
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => handleOpenEditModal(tier)}
+                          className="p-1.5 bg-secondary hover:bg-muted text-foreground border border-border/60 rounded-control transition cursor-pointer"
+                          title="ویرایش سطح"
+                        >
+                          <Edit2 className="w-3.5 h-3.5 text-brand" />
+                        </button>
+                        {tier.code !== 'bronze' && tier.order_index !== 0 ? (
+                          <button
+                            onClick={() => handleDeleteTier(tier)}
+                            className="p-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 rounded-control border border-rose-500/20 transition cursor-pointer"
+                            title="حذف سطح"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        ) : (
+                          <span
+                            className="p-1.5 bg-muted/40 text-muted-foreground rounded-control border border-border/40 select-none inline-flex items-center justify-center"
+                            title="سطح پایه برنزی سیستم است و غیرقابل حذف می‌باشد"
+                          >
+                            <Lock className="w-3.5 h-3.5 text-muted-foreground" />
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </>
+      ) : (
+        /* REFERRAL (همکاری در فروش) PANEL */
+        <div className="space-y-6 animate-in fade-in duration-200">
+          <div className="bg-card rounded-surface border border-border/80 p-6 shadow-surface space-y-5 text-foreground">
+            <div className="flex items-center justify-between border-b border-border/60 pb-3">
+              <div>
+                <h3 className="text-sm font-black text-foreground flex items-center gap-2">
+                  <Share2 className="w-4 h-4 text-brand" />
+                  <span>
+                    تنظیمات سیستم همکاری در فروش و معرف (Affiliate & Referral)
+                  </span>
+                </h3>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  کنترل نرخ پورسانت بازاریابی، پاداش ثبت‌نام خریدار جدید و حداقل
+                  موجودی جهت تسویه‌حساب
+                </p>
+              </div>
               <span
-                className={`text-[10px] font-bold px-2 py-0.5 rounded-control border ${
-                  settings.loyalty_enabled === 'active' ||
-                  settings.loyalty_enabled === 'true'
-                    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                    : settings.loyalty_enabled === 'coming_soon'
-                      ? 'bg-amber-500/10 text-amber-500 border-amber-500/20'
+                className={`text-xs px-2.5 py-1 rounded-control font-bold border ${
+                  settings.referral_enabled === 'active'
+                    ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30'
+                    : settings.referral_enabled === 'coming_soon'
+                      ? 'bg-amber-500/10 text-amber-500 border-amber-500/30'
                       : 'bg-muted text-muted-foreground border-border/60'
                 }`}
               >
-                {settings.loyalty_enabled === 'active' ||
-                settings.loyalty_enabled === 'true'
+                {settings.referral_enabled === 'active'
                   ? 'فعال کامل'
-                  : settings.loyalty_enabled === 'coming_soon'
+                  : settings.referral_enabled === 'coming_soon'
                     ? 'به‌زودی'
                     : 'غیرفعال'}
               </span>
             </div>
-            <select
-              value={
-                settings.loyalty_enabled === 'active' ||
-                settings.loyalty_enabled === 'true'
-                  ? 'active'
-                  : settings.loyalty_enabled === 'coming_soon'
-                    ? 'coming_soon'
-                    : 'disabled'
-              }
-              onChange={(e) =>
-                setSettings({
-                  ...settings,
-                  loyalty_enabled: e.target.value,
-                })
-              }
-              className="w-full h-9 bg-card border border-border/60 rounded-control px-2.5 text-xs text-foreground focus:outline-none focus:border-brand font-bold"
-            >
-              <option value="active">
-                🟢 فعال کامل (نمایش در پنل کاربری و اعمال خودکار تخفیف)
-              </option>
-              <option value="coming_soon">
-                🟡 به‌زودی (نمایش بج به‌زودی، غیرقابل کلیک در پنل و مسدود بودن
-                لینک)
-              </option>
-              <option value="disabled">
-                🔴 غیرفعال کامل (حذف کامل از منوی پنل کاربری و سبد خرید)
-              </option>
-            </select>
-            <p className="text-[11px] text-muted-foreground leading-relaxed">
-              کنترل وضعیت نمایش عمومی، رفتار لینک‌ها در پنل مشتری و اعمال تخفیف
-            </p>
-          </div>
 
-          {/* Setting 2: Calculation Period */}
-          <div className="bg-muted/20 p-4 rounded-surface border border-border/60 space-y-2">
-            <label className="text-xs font-bold text-foreground block">
-              دوره محاسبه حجم خرید جهت ارتقای سطح
-            </label>
-            <select
-              value={settings.loyalty_calculation_period || 'monthly_30d'}
-              onChange={(e) =>
-                setSettings({
-                  ...settings,
-                  loyalty_calculation_period: e.target.value,
-                })
-              }
-              className="w-full h-9 bg-card border border-border/60 rounded-control px-2.5 text-xs text-foreground focus:outline-none focus:border-brand"
-            >
-              <option value="monthly_30d">
-                حجم خرید ۳۰ روز اخیر (توصیه شده - حفظ انگیزه خرید مداوم)
-              </option>
-              <option value="all_time">
-                کل حجم خریدهای موفق از ابتدا (مادام‌العمر / Cumulative)
-              </option>
-            </select>
-            <p className="text-[11px] text-muted-foreground">
-              سطح کاربر بر اساس مجموع خریدهای واجد شرایط در این بازه محاسبه
-              می‌گردد.
-            </p>
-          </div>
-
-          {/* Setting 3: Auto Level-Up */}
-          <div className="bg-muted/20 p-4 rounded-surface border border-border/60 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-foreground">
-                ارتقای خودکار سطح (Auto-Upgrade)
-              </span>
-              <ToggleSwitch
-                checked={settings.loyalty_auto_upgrade === 'true'}
-                onChange={(checked) =>
-                  setSettings({
-                    ...settings,
-                    loyalty_auto_upgrade: checked ? 'true' : 'false',
-                  })
-                }
-                variant="primary"
-                size="sm"
-              />
-            </div>
-            <p className="text-[11px] text-muted-foreground leading-relaxed">
-              ارتقای خودکار سطح بلافاصله پس از پرداخت یا تکمیل سفارش بدون نیاز
-              به تایید دستی اپراتور
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Loyalty Tiers Grid */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-base font-black text-foreground flex items-center gap-2">
-            <Layers className="w-5 h-5 text-brand" />
-            سطوح فعال وفاداری در دیتابیس ({tiers.length} سطح)
-          </h2>
-          <span className="text-xs text-muted-foreground">
-            ترتیب اعمال خودکار بر اساس آستانه خرید (از کمترین به بیشترین)
-          </span>
-        </div>
-
-        {tiers.length === 0 ? (
-          <div className="bg-card border border-border/80 rounded-surface p-12 text-center text-muted-foreground text-xs shadow-surface">
-            هیچ سطح وفاداری تعریف نشده است. با کلیک بر روی دکمه «تعریف سطح
-            وفاداری جدید» شروع کنید.
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {tiers.map((tier) => (
-              <div
-                key={tier.id}
-                className="bg-card text-card-foreground border border-border/80 rounded-surface p-5 shadow-surface relative overflow-hidden flex flex-col justify-between group hover:border-brand/40 transition-colors space-y-4"
-              >
-                {/* Header Badge */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span
-                      className="px-3 py-1 rounded-control text-xs font-black flex items-center gap-1.5 shadow-xs"
-                      style={{
-                        backgroundColor: `${tier.badge_color}18`,
-                        color: tier.badge_color,
-                        borderColor: `${tier.badge_color}40`,
-                        borderWidth: 1,
-                      }}
-                    >
-                      {renderTierIcon(tier.icon)}
-                      {tier.name}
-                    </span>
-
-                    <span className="text-[11px] font-mono font-latin px-2 py-0.5 rounded-control bg-secondary text-secondary-foreground border border-border/60">
-                      #{tier.code}
-                    </span>
-                  </div>
-
-                  <p className="text-xs text-muted-foreground line-clamp-2 min-h-[32px] pt-1">
-                    {tier.description || 'بدون توضیحات اختصاصی'}
-                  </p>
-                </div>
-
-                {/* Key Numbers */}
-                <div className="bg-muted/20 p-3.5 rounded-surface border border-border/60 space-y-2.5">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-muted-foreground">تخفیف خودکار:</span>
-                    <span className="font-black text-emerald-400 text-sm font-latin">
-                      {tier.discount_percent > 0
-                        ? `${tier.discount_percent}٪ تخفیف نقدی`
-                        : 'بدون تخفیف (پایه)'}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-muted-foreground">
-                      حداقل حجم خرید:
-                    </span>
-                    <span className="font-bold text-foreground font-latin">
-                      {tier.min_spend_toman > 0
-                        ? `${tier.min_spend_toman.toLocaleString('fa-IR')} تومان`
-                        : '۰ تومان (عضویت رایگان)'}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-muted-foreground">
-                      اولویت صف اپراتور:
-                    </span>
-                    <span
-                      className={`font-bold font-mono px-2 py-0.5 rounded-control text-[11px] ${
-                        tier.queue_priority >= 50
-                          ? 'bg-amber-500/10 text-amber-500 border border-amber-500/30'
-                          : tier.queue_priority >= 10
-                            ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
-                            : 'bg-muted text-muted-foreground'
-                      }`}
-                    >
-                      {tier.queue_priority >= 50
-                        ? `VIP طلایی (${tier.queue_priority})`
-                        : tier.queue_priority >= 10
-                          ? `اولویت بالا (${tier.queue_priority})`
-                          : `عادی (${tier.queue_priority})`}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center justify-between text-xs pt-1 border-t border-border/60">
-                    <span className="text-muted-foreground">
-                      کاربران این سطح:
-                    </span>
-                    <span className="font-bold text-brand font-latin">
-                      {(tier.user_count || 0).toLocaleString('fa-IR')} کاربر
-                    </span>
-                  </div>
-                </div>
-
-                {/* Perks Checklist */}
-                <div className="space-y-1.5">
-                  <span className="text-[11px] font-bold text-muted-foreground block">
-                    مزایا و امکانات این سطح:
-                  </span>
-                  <div className="space-y-1 max-h-24 overflow-y-auto pr-1">
-                    {(tier.perks || []).map((p) => (
-                      <div
-                        key={p}
-                        className="text-[11px] text-slate-300 flex items-start gap-1.5"
-                      >
-                        <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
-                        <span className="line-clamp-1">{p}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Card Actions */}
-                <div className="pt-2 border-t border-slate-800 flex items-center justify-between gap-2">
-                  <span
-                    className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
-                      tier.is_active
-                        ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                        : 'bg-rose-500/10 text-rose-400'
-                    }`}
-                  >
-                    {tier.is_active ? 'فعال در سیستم' : 'غیرفعال'}
-                  </span>
-
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      onClick={() => handleOpenEditModal(tier)}
-                      className="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition"
-                      title="ویرایش سطح"
-                    >
-                      <Edit2 className="w-3.5 h-3.5" />
-                    </button>
-                    {tier.code !== 'bronze' && (
-                      <button
-                        onClick={() => handleDeleteTier(tier)}
-                        className="p-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 rounded-lg transition"
-                        title="حذف سطح"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-                  </div>
-                </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Setting 1: Referral Enabled 3-state */}
+              <div className="bg-muted/20 p-4 rounded-surface border border-border/60 space-y-2">
+                <label className="text-xs font-bold text-foreground block">
+                  وضعیت قابلیت همکاری در فروش
+                </label>
+                <select
+                  value={settings.referral_enabled || 'active'}
+                  onChange={(e) =>
+                    setSettings({
+                      ...settings,
+                      referral_enabled: e.target.value,
+                    })
+                  }
+                  className="w-full h-9 bg-card border border-border/60 rounded-control px-2.5 text-xs text-foreground focus:outline-none focus:border-brand font-bold cursor-pointer"
+                >
+                  <option value="active">
+                    🟢 فعال کامل (کد معرف فعال، واریز خودکار پورسانت در خریدها)
+                  </option>
+                  <option value="coming_soon">
+                    🟡 به‌زودی (نمایش بج به‌زودی در پنل کاربری)
+                  </option>
+                  <option value="disabled">
+                    ⚪ غیرفعال (مخفی‌سازی تب همکاری در فروش از پنل کاربران)
+                  </option>
+                </select>
+                <p className="text-[11px] text-muted-foreground">
+                  کنترل قابلیت دعوت از دوستان و بازاریابی برای مشتریان فروشگاه.
+                </p>
               </div>
-            ))}
+
+              {/* Setting 2: Commission Rate */}
+              <div className="bg-muted/20 p-4 rounded-surface border border-border/60 space-y-2">
+                <label className="text-xs font-bold text-foreground block">
+                  درصد پورسانت معرف از هر سفارش (%)
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  max={50}
+                  value={settings.referral_commission_rate || '10'}
+                  onChange={(e) =>
+                    setSettings({
+                      ...settings,
+                      referral_commission_rate: e.target.value,
+                    })
+                  }
+                  className="w-full h-9 bg-card border border-border/60 rounded-control px-3 text-xs text-foreground font-latin outline-none focus:border-brand"
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  درصدی از مبلغ خالص پرداخت‌شده هر سفارش که به کیف پول معرف واریز
+                  می‌گردد.
+                </p>
+              </div>
+
+              {/* Setting 3: Bonus for Referred User */}
+              <div className="bg-muted/20 p-4 rounded-surface border border-border/60 space-y-2">
+                <label className="text-xs font-bold text-foreground block">
+                  پاداش شارژ هدیه برای خریدار جدید (تومان)
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  step={1000}
+                  value={settings.referral_bonus_amount || '20000'}
+                  onChange={(e) =>
+                    setSettings({
+                      ...settings,
+                      referral_bonus_amount: e.target.value,
+                    })
+                  }
+                  className="w-full h-9 bg-card border border-border/60 rounded-control px-3 text-xs text-foreground font-latin outline-none focus:border-brand"
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  اعتبار هدیه‌ای که پس از اولین ثبت‌نام با کد معرف به کاربر جدید
+                  تعلق می‌گیرد.
+                </p>
+              </div>
+
+              {/* Setting 4: Min Withdraw Amount */}
+              <div className="bg-muted/20 p-4 rounded-surface border border-border/60 space-y-2">
+                <label className="text-xs font-bold text-foreground block">
+                  حداقل موجودی جهت درخواست تسویه‌حساب نقدی (تومان)
+                </label>
+                <input
+                  type="number"
+                  min={10000}
+                  step={5000}
+                  value={settings.referral_min_withdraw || '50000'}
+                  onChange={(e) =>
+                    setSettings({
+                      ...settings,
+                      referral_min_withdraw: e.target.value,
+                    })
+                  }
+                  className="w-full h-9 bg-card border border-border/60 rounded-control px-3 text-xs text-foreground font-latin outline-none focus:border-brand"
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  حداقل مبلغ درآمد همکاری در فروش برای انتقال به حساب بانکی شبا.
+                </p>
+              </div>
+            </div>
+
+            {/* Save Button for Referral */}
+            <div className="flex justify-end pt-2 border-t border-border/60">
+              <button
+                type="button"
+                onClick={handleSaveGlobalSettings}
+                disabled={savingSettings}
+                className="h-10 px-6 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs duration-motion ease-motion active:scale-[0.98] shadow-control flex items-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                <Save className="w-4 h-4" />
+                <span>ذخیره تنظیمات همکاری در فروش</span>
+              </button>
+            </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Modal: Create or Edit Loyalty Tier */}
       {isModalOpen &&
@@ -619,13 +797,10 @@ export const AdminLoyaltyTiersView: React.FC = () => {
                       ? `ویرایش سطح وفاداری: ${editingTier.name}`
                       : 'تعریف سطح وفاداری جدید (VIP Tier)'}
                   </h3>
-                  <button
-                    type="button"
+                  <ModalCloseButton
                     onClick={() => setIsModalOpen(false)}
-                    className="p-1 rounded-control text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
+                    size="sm"
+                  />
                 </div>
 
                 <form onSubmit={handleSaveTier} className="space-y-4 text-xs">
@@ -863,6 +1038,18 @@ export const AdminLoyaltyTiersView: React.FC = () => {
           </div>,
           document.body,
         )}
+
+      {/* Tier Delete Confirm Modal */}
+      <ConfirmModal
+        isOpen={Boolean(tierToDelete)}
+        onClose={() => setTierToDelete(null)}
+        onConfirm={handleConfirmDeleteTier}
+        title="حذف سطح وفاداری"
+        description={`آیا از حذف سطح وفاداری «${tierToDelete?.name || ''}» اطمینان دارید؟ کاربران این سطح به صورت خودکار به سطح برنزی منتقل خواهند شد.`}
+        confirmText="بله، حذف شود"
+        cancelText="انصراف"
+        loading={deleting}
+      />
     </div>
   )
 }

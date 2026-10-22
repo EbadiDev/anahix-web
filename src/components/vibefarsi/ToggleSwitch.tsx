@@ -19,7 +19,6 @@ export const ToggleSwitch: React.FC<ToggleSwitchProps> = ({
   style,
   ariaLabel,
   size = 'md',
-  variant = 'primary',
 }) => {
   const isSm = size === 'sm'
   const trackWidth = isSm ? 'w-9 h-5' : 'w-11 h-6'
@@ -27,15 +26,11 @@ export const ToggleSwitch: React.FC<ToggleSwitchProps> = ({
   const translateVal = isSm ? 'translate-x-4' : 'translate-x-5'
 
   const activeStyle: React.CSSProperties | undefined = checked
-    ? variant === 'emerald'
-      ? { backgroundColor: '#10b981', borderColor: '#10b981', ...style }
-      : {
-          backgroundColor:
-            'var(--event-primary, var(--primary-color, var(--brand, #2563eb)))',
-          borderColor:
-            'var(--event-primary, var(--primary-color, var(--brand, #2563eb)))',
-          ...style,
-        }
+    ? {
+        backgroundColor: '#f59e0b', // Vibe Farsi Signature Warm Amber/Orange
+        borderColor: '#d97706',
+        ...style,
+      }
     : style
 
   return (
@@ -49,7 +44,7 @@ export const ToggleSwitch: React.FC<ToggleSwitchProps> = ({
       onClick={() => !disabled && onChange(!checked)}
       className={`relative inline-flex ${trackWidth} shrink-0 cursor-pointer rounded-full border transition-all duration-200 ease-in-out focus:outline-none p-0.5 items-center select-none shadow-xs ${
         checked
-          ? 'text-white'
+          ? 'bg-amber-500 border-amber-600 text-white'
           : 'bg-muted/80 border-border/70 hover:border-border'
       } ${disabled ? 'opacity-40 cursor-not-allowed' : ''} ${className}`}
       style={activeStyle}
