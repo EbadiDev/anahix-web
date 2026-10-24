@@ -2,18 +2,15 @@ import {
   BookOpen,
   Calendar as CalendarIcon,
   Crown,
-  History,
+  Headphones,
   Image as ImageIcon,
   Layers,
-  LifeBuoy,
   LogOut,
-  MessageSquare,
   Radio,
   ReceiptText,
   Settings,
   ShieldCheck,
   Sliders,
-  Smartphone,
   Ticket,
   TrendingUp,
   UserCheck,
@@ -33,17 +30,14 @@ export type AdminTabType =
   | 'users'
   | 'all-orders'
   | 'queue'
+  | 'support'
   | 'tickets'
   | 'reviews'
   | 'content'
   | 'delivery'
   | 'virtual-numbers'
   | 'products'
-  | 'sms-gateway'
-  | 'billing'
-  | 'transactions'
-  | 'audit-logs'
-  | 'system'
+  | 'settings'
 
 interface AdminSidebarProps {
   activeTab: AdminTabType
@@ -115,7 +109,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
         },
         {
           id: 'coupons',
-          title: 'مدیریت کد تخفیف و کوپن‌ها',
+          title: 'مدیریت کدهای تخفیف',
           subtitle: 'میزان مصرف، سقف، انقضا و کدهای فعال',
           icon: Ticket,
         },
@@ -166,8 +160,8 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
       items: [
         {
           id: 'products',
-          title: 'کاتالوگ و انبار اکانت‌ها',
-          subtitle: 'مدیریت محصولات، عکس و تخفیف‌ها',
+          title: 'محصولات و انبار لایسنس‌ها',
+          subtitle: 'کاتالوگ، موجودی انبار و قیمت‌گذاری',
           icon: Sliders,
         },
       ],
@@ -177,31 +171,22 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
       items: [
         {
           id: 'users',
-          title: 'مدیریت کاربران (User 360°)',
-          subtitle: 'پرونده ۳۶۰ درجه، کیف پول و دسترسی‌ها',
+          title: 'مدیریت کاربران',
+          subtitle: 'پرونده کاربران، کیف پول و دسترسی‌ها',
           icon: Users,
         },
         {
-          id: 'tickets',
-          title: 'میزکار پشتیبانی و تیکت‌ها',
-          subtitle: 'پاسخگویی، اعلان پیامکی و پیوست‌ها',
-          icon: LifeBuoy,
+          id: 'support',
+          title: 'مرکز پشتیبانی و ارتباط با مشتریان',
+          subtitle: 'تیکت‌های فعال، پاسخگویی و تایید نظرات خریداران',
+          icon: Headphones,
           badge:
-            ticketsPendingCount && ticketsPendingCount > 0
-              ? ticketsPendingCount
+            (ticketsPendingCount || 0) + (reviewsPendingCount || 0) > 0
+              ? (ticketsPendingCount || 0) + (reviewsPendingCount || 0)
               : undefined,
-          pulse: Boolean(ticketsPendingCount && ticketsPendingCount > 0),
-        },
-        {
-          id: 'reviews',
-          title: 'مدیریت نظرات و بازخوردها',
-          subtitle: 'بررسی، تایید و پاسخ به خریداران',
-          icon: MessageSquare,
-          badge:
-            reviewsPendingCount && reviewsPendingCount > 0
-              ? reviewsPendingCount
-              : undefined,
-          pulse: Boolean(reviewsPendingCount && reviewsPendingCount > 0),
+          pulse: Boolean(
+            (ticketsPendingCount || 0) + (reviewsPendingCount || 0) > 0,
+          ),
         },
       ],
     },
@@ -217,37 +202,13 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
       ],
     },
     {
-      label: 'پیکربندی هسته و حسابرسی مالی',
+      label: 'پیکربندی هسته و سیستم',
       items: [
         {
-          id: 'billing',
-          title: 'فاکتور رسمی و مشخصات حقوقی',
-          subtitle: 'شناسه ملی، ارزش افزوده و مهر شرکت',
-          icon: ReceiptText,
-        },
-        {
-          id: 'sms-gateway',
-          title: 'سامانه پیامک و اعتبارسنجی',
-          subtitle: 'کد تایید OTP، خطوط و اعتبار ریالی',
-          icon: Smartphone,
-        },
-        {
-          id: 'system',
-          title: 'درگاه‌های پرداخت و سیستم',
-          subtitle: 'کیف پول، زرین‌پال و پارامترها',
+          id: 'settings',
+          title: 'تنظیمات و پیکربندی سیستم',
+          subtitle: 'فاکتور، پیامک، روش‌های ورود، درگاه‌ها و لاگ‌ها',
           icon: Settings,
-        },
-        {
-          id: 'transactions',
-          title: 'لاگ تراکنش‌های مالی',
-          subtitle: 'تمام پرداخت‌ها، کسر و مرجوعی‌ها',
-          icon: ReceiptText,
-        },
-        {
-          id: 'audit-logs',
-          title: 'لاگ فعالیت مدیران',
-          subtitle: 'ثبت رویدادها، تغییرات و دسترسی‌ها',
-          icon: History,
         },
       ],
     },

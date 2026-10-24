@@ -414,7 +414,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
             {couponDiscount > 0 && (
               <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-semibold">
-                <span>تخفیف کوپن ({coupon?.code}):</span>
+                <span>کد تخفیف ({coupon?.code}):</span>
                 <span>
                   - {Math.round(couponDiscount).toLocaleString('fa-IR')} تومان
                 </span>

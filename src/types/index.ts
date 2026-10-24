@@ -483,6 +483,25 @@ export interface ThemeSettings {
   offers_badge_text?: string
   offers_title?: string
   offers_subtitle?: string
+  site_name_fa?: string
+  site_name_en?: string
+  site_subtitle?: string
+  site_favicon_url?: string
+  site_logo_url?: string
+  meta_title?: string
+  meta_description?: string
+  meta_keywords?: string
+  og_image_url?: string
+  support_phone?: string
+  support_telegram?: string
+  header_menu_json?: string
+  footer_menu_json?: string
+  sms_api_key?: string
+  sms_line_number?: string
+  zarinpal_merchant_id?: string
+  google_client_id?: string
+  github_client_id?: string
+  fivesim_api_key?: string
 }
 
 export interface BannerItem {
@@ -590,6 +609,8 @@ export interface ReferralStats {
   successful_orders: number
   total_commission_toman: number
   withdrawable_commission_toman: number
+  bonus_amount_toman?: number
+  min_withdraw_toman?: number
 }
 
 export interface InventoryItem {
@@ -964,6 +985,7 @@ export type CustomerTier = 'standard' | 'colleague' | 'vip'
 export interface AdminCustomerListItem {
   id: string
   phone: string
+  avatar_url?: string
   first_name?: string
   last_name?: string
   full_name: string
@@ -989,8 +1011,16 @@ export interface AdminListCustomersRequest {
   search?: string
   status?: 'all' | 'active' | 'blocked'
   has_balance?: boolean
+  has_referral?: boolean
+  profile_completed?: boolean
   tier?: 'all' | 'standard' | 'colleague' | 'vip'
-  sort_by?: 'created_at' | 'last_login_at' | 'total_spent' | 'balance'
+  sort_by?:
+    | 'created_at'
+    | 'last_login_at'
+    | 'total_spent'
+    | 'balance'
+    | 'referral_balance'
+    | 'profile_completed'
   sort_order?: 'desc' | 'asc'
   page?: number
   page_size?: number

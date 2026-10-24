@@ -34,7 +34,10 @@ import type {
 import { toPersianDigits } from '../../utils/formatters'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
+import { ConfirmModal } from '../vibefarsi/ConfirmModal'
 import { ModalCloseButton } from '../vibefarsi/ModalCloseButton'
+import { useNotification } from '../vibefarsi/NotificationContext'
+import { ToggleSwitch } from '../vibefarsi/ToggleSwitch'
 
 interface ProfileSupportTabProps {
   orders: Order[]
@@ -63,6 +66,7 @@ export const ProfileSupportTab: React.FC<ProfileSupportTabProps> = ({
   orders,
   virtualOrders,
 }) => {
+  const { success: notifySuccess, error: notifyError } = useNotification()
   const [tickets, setTickets] = useState<TicketItem[]>([])
   const [loading, setLoading] = useState<boolean>(true)
   const [refreshing, setRefreshing] = useState<boolean>(false)
@@ -86,6 +90,8 @@ export const ProfileSupportTab: React.FC<ProfileSupportTabProps> = ({
   )
   const [isUploadingReplyAtt, setIsUploadingReplyAtt] = useState(false)
   const [sendingReply, setSendingReply] = useState(false)
+  const [closeTicketConfirm, setCloseTicketConfirm] = useState(false)
+  const [closingTicketLoading, setClosingTicketLoading] = useState(false)
   const [replyNotifySMS, setReplyNotifySMS] = useState(true)
 
   // Create new ticket modal state
@@ -194,7 +200,7 @@ export const ProfileSupportTab: React.FC<ProfileSupportTabProps> = ({
       const att = await apiService.uploadTicketAttachment(file)
       onSuccess(att)
     } catch (err: any) {
-      alert(err.message || 'خطا در آپلود فایل')
+      notifyError('خطا در آپلود فایل', err.message || 'خطا در آپلود فایل')
     } finally {
       setLoadingState(false)
     }
@@ -248,8 +254,9 @@ export const ProfileSupportTab: React.FC<ProfileSupportTabProps> = ({
       // Refresh list and open newly created ticket
       await loadTickets(true)
       setActiveTicketId(res.ticket.id)
+      notifySuccess('ثبت تیکت', 'تیکت پشتیبانی شما با موفقیت ثبت شد.')
     } catch (err: any) {
-      alert(err.message || 'خطا در ثبت تیکت')
+      notifyError('خطا در ثبت تیکت', err.message || 'خطا در ثبت تیکت')
     } finally {
       setSubmittingTicket(false)
     }
@@ -270,26 +277,36 @@ export const ProfileSupportTab: React.FC<ProfileSupportTabProps> = ({
 
       setReplyText('')
       setReplyAttachments([])
+      notifySuccess('ارسال پاسخ', 'پاسخ شما با موفقیت ارسال شد.')
       await loadTicketDetail(activeTicketId, true)
       await loadTickets(true)
     } catch (err: any) {
-      alert(err.message || 'خطا در ارسال پاسخ')
+      notifyError('خطا در ارسال پاسخ', err.message || 'خطا در ارسال پاسخ')
     } finally {
       setSendingReply(false)
     }
   }
 
   // Close Ticket
-  const handleCloseTicket = async () => {
+  const handleCloseTicket = () => {
     if (!activeTicketId) return
-    if (!confirm('آیا از بستن این تیکت اطمینان دارید؟')) return
+    setCloseTicketConfirm(true)
+  }
+
+  const confirmCloseTicket = async () => {
+    if (!activeTicketId) return
+    setClosingTicketLoading(true)
 
     try {
       await apiService.closeTicket(activeTicketId)
+      notifySuccess('بستن تیکت', 'تیکت با موفقیت بسته شد.')
+      setCloseTicketConfirm(false)
       await loadTicketDetail(activeTicketId, true)
       await loadTickets(true)
     } catch (err: any) {
-      alert(err.message || 'خطا در بستن تیکت')
+      notifyError('خطا در بستن تیکت', err.message || 'خطا در بستن تیکت')
+    } finally {
+      setClosingTicketLoading(false)
     }
   }
 
@@ -300,10 +317,11 @@ export const ProfileSupportTab: React.FC<ProfileSupportTabProps> = ({
     try {
       await apiService.rateTicket(activeTicketId, ratingVal, ratingComment)
       setRatedSuccess(true)
+      notifySuccess('ثبت امتیاز', 'امتیاز شما با موفقیت ثبت شد.')
       await loadTicketDetail(activeTicketId, true)
       await loadTickets(true)
     } catch (err: any) {
-      alert(err.message || 'خطا در ثبت امتیاز')
+      notifyError('خطا در ثبت امتیاز', err.message || 'خطا در ثبت امتیاز')
     } finally {
       setSubmittingRating(false)
     }
@@ -1024,15 +1042,15 @@ export const ProfileSupportTab: React.FC<ProfileSupportTabProps> = ({
 
                   {/* Preferences footer in reply box */}
                   <div className="flex items-center justify-between text-[11px] text-muted-foreground px-1 pt-1">
-                    <label className="flex items-center gap-1.5 cursor-pointer hover:text-foreground">
-                      <input
-                        type="checkbox"
+                    <div className="flex items-center gap-2 select-none">
+                      <ToggleSwitch
+                        size="sm"
                         checked={replyNotifySMS}
-                        onChange={(e) => setReplyNotifySMS(e.target.checked)}
-                        className="rounded-control accent-brand w-3.5 h-3.5"
+                        onChange={setReplyNotifySMS}
+                        ariaLabel="ارسال پیامک با دریافت پاسخ جدید"
                       />
                       <span>ارسال پیامک با دریافت پاسخ جدید از پشتیبانی</span>
-                    </label>
+                    </div>
                     <span className="hidden sm:inline">
                       کلید Enter جهت ارسال سریع
                     </span>
@@ -1260,29 +1278,31 @@ export const ProfileSupportTab: React.FC<ProfileSupportTabProps> = ({
                       تنظیمات اطلاع‌رسانی خودکار:
                     </span>
 
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs">
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+                      <div className="flex items-center gap-2 select-none">
+                        <ToggleSwitch
+                          size="sm"
                           checked={newNotifySMS}
-                          onChange={(e) => setNewNotifySMS(e.target.checked)}
-                          className="rounded-control accent-brand w-4 h-4"
+                          onChange={setNewNotifySMS}
+                          ariaLabel="ارسال پیامک به محض پاسخ کارشناس"
                         />
-                        <span className="text-foreground flex items-center gap-1">
+                        <span className="text-foreground flex items-center gap-1 font-medium">
                           <Phone className="w-3.5 h-3.5 text-emerald-400" />
                           ارسال پیامک به محض پاسخ کارشناس پشتیبانی
                         </span>
-                      </label>
+                      </div>
 
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
+                      <div className="flex items-center gap-2 select-none">
+                        <ToggleSwitch
+                          size="sm"
                           checked={newNotifyEmail}
-                          onChange={(e) => setNewNotifyEmail(e.target.checked)}
-                          className="rounded-control accent-brand w-4 h-4"
+                          onChange={setNewNotifyEmail}
+                          ariaLabel="ارسال ایمیل"
                         />
-                        <span className="text-foreground">ارسال ایمیل</span>
-                      </label>
+                        <span className="text-foreground font-medium">
+                          ارسال ایمیل
+                        </span>
+                      </div>
                     </div>
                   </div>
 
@@ -1334,6 +1354,18 @@ export const ProfileSupportTab: React.FC<ProfileSupportTabProps> = ({
           </div>,
           document.body,
         )}
+
+      {/* Close Ticket Confirmation Modal */}
+      <ConfirmModal
+        isOpen={closeTicketConfirm}
+        title="بستن تیکت پشتیبانی"
+        message="آیا از بستن و پایان رسیدگی به این تیکت اطمینان دارید؟ در صورت نیاز می‌توانید در آینده تیکت جدید ثبت نمایید."
+        confirmText="بله، تیکت بسته شود"
+        cancelText="انصراف"
+        loading={closingTicketLoading}
+        onConfirm={confirmCloseTicket}
+        onClose={() => setCloseTicketConfirm(false)}
+      />
     </div>
   )
 }

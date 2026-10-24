@@ -23,7 +23,7 @@ import {
   Zap,
 } from 'lucide-react'
 import type React from 'react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Link, useLocation } from 'react-router-dom'
 import { useCart } from '../lib/cartStore'
@@ -92,6 +92,18 @@ export const Header: React.FC<HeaderProps> = ({
   const [unreadNotifCount, setUnreadNotifCount] = useState<number>(0)
   const [loyaltyProfile, setLoyaltyProfile] =
     useState<CustomerLoyaltyProfile | null>(null)
+
+  const customHeaderMenus = useMemo(() => {
+    if (themeSettings?.header_menu_json) {
+      try {
+        const arr = JSON.parse(themeSettings.header_menu_json)
+        if (Array.isArray(arr) && arr.length > 0) {
+          return arr.filter((item: any) => item.is_active !== false)
+        }
+      } catch {}
+    }
+    return null
+  }, [themeSettings?.header_menu_json])
 
   const dropdownRef = useRef<HTMLDivElement>(null)
   const categoryMenuRef = useRef<HTMLDivElement>(null)
@@ -364,16 +376,24 @@ export const Header: React.FC<HeaderProps> = ({
 
             {/* Logo */}
             <Link to="/" className="flex items-center gap-2.5 group">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-600 text-white font-black text-lg shadow-sm shadow-blue-600/30 group-hover:scale-105 transition-transform">
-                A
-              </div>
+              {themeSettings?.site_logo_url ? (
+                <img
+                  src={themeSettings.site_logo_url}
+                  alt={themeSettings?.site_name_fa || 'آناهیکس'}
+                  className="h-9 w-auto max-w-[120px] object-contain group-hover:scale-105 transition-transform"
+                />
+              ) : (
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-600 text-white font-black text-lg shadow-sm shadow-blue-600/30 group-hover:scale-105 transition-transform font-latin">
+                  {(themeSettings?.site_name_en || 'A').charAt(0).toUpperCase()}
+                </div>
+              )}
               <div>
                 <div className="flex items-baseline gap-1.5">
                   <span className="text-base font-black tracking-tight text-foreground">
-                    آناهیکس
+                    {themeSettings?.site_name_fa || 'آناهیکس'}
                   </span>
                   <span className="font-latin text-xs font-bold text-blue-600 dark:text-blue-400">
-                    ANAHIX
+                    {themeSettings?.site_name_en || 'ANAHIX'}
                   </span>
                   {isAdminPage && (
                     <span className="text-[10px] bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 font-bold px-1.5 py-0.5 rounded-md mr-1">
@@ -384,7 +404,8 @@ export const Header: React.FC<HeaderProps> = ({
                 <p className="text-[10px] text-muted-foreground leading-none">
                   {isAdminPage
                     ? 'داشبورد کنترل عملیات و سفارش‌ها'
-                    : 'فروشگاه رسمی سرویس‌های بین‌المللی و شماره مجازی'}
+                    : themeSettings?.site_subtitle ||
+                      'فروشگاه رسمی سرویس‌های بین‌المللی و شماره مجازی'}
                 </p>
               </div>
             </Link>
@@ -492,44 +513,122 @@ export const Header: React.FC<HeaderProps> = ({
                   )}
                 </div>
 
-                <Link
-                  to="/virtual-numbers"
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl transition-colors relative ${
-                    pathname === '/virtual-numbers'
-                      ? 'text-blue-600 dark:text-blue-400 bg-blue-500/10 font-bold'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-                  }`}
-                >
-                  <Radio className="h-4 w-4" />
-                  <span>شماره مجازی (SMS)</span>
-                  <span className="px-1.5 py-0.2 rounded-full text-[9px] bg-blue-600 text-white font-bold">
-                    جدید
-                  </span>
-                </Link>
+                {customHeaderMenus ? (
+                  customHeaderMenus.map((item: any) => {
+                    const hasSubmenus =
+                      Array.isArray(item.children) && item.children.length > 0
+                    if (hasSubmenus) {
+                      return (
+                        <div
+                          key={item.id || item.link}
+                          className="relative group/customnav"
+                        >
+                          <Link
+                            to={item.link}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl transition-colors relative ${
+                              pathname === item.link ||
+                              item.children.some(
+                                (c: any) => c.link === pathname,
+                              )
+                                ? 'text-blue-600 dark:text-blue-400 bg-blue-500/10 font-bold'
+                                : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                            }`}
+                          >
+                            <span>{item.title}</span>
+                            {item.badge && (
+                              <span className="px-1.5 py-0.2 rounded-full text-[9px] bg-blue-600 text-white font-bold font-latin">
+                                {item.badge}
+                              </span>
+                            )}
+                            <ChevronDown className="h-3 w-3 text-muted-foreground group-hover/customnav:text-foreground transition-transform" />
+                          </Link>
 
-                <Link
-                  to="/blog"
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl transition-colors ${
-                    pathname.startsWith('/blog')
-                      ? 'text-blue-600 dark:text-blue-400 bg-blue-500/10 font-bold'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-                  }`}
-                >
-                  <BookOpen className="h-4 w-4" />
-                  <span>وبلاگ و آموزش‌ها</span>
-                </Link>
+                          {/* Submenu Dropdown */}
+                          <div className="absolute right-0 top-full pt-1.5 hidden group-hover/customnav:block z-[120] min-w-[220px] animate-in fade-in zoom-in-95">
+                            <div className="rounded-surface border border-border bg-popover p-2 shadow-2xl space-y-1 text-right">
+                              {item.children.map((sub: any) => (
+                                <Link
+                                  key={sub.id || sub.link}
+                                  to={sub.link}
+                                  className="block p-2 rounded-control hover:bg-accent text-right transition-colors"
+                                >
+                                  <div className="text-xs font-bold text-foreground">
+                                    {sub.title}
+                                  </div>
+                                  {sub.desc && (
+                                    <div className="text-[10px] text-muted-foreground mt-0.5 truncate">
+                                      {sub.desc}
+                                    </div>
+                                  )}
+                                </Link>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    }
 
-                <Link
-                  to="/help"
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl transition-colors ${
-                    pathname.startsWith('/help')
-                      ? 'text-blue-600 dark:text-blue-400 bg-blue-500/10 font-bold'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-                  }`}
-                >
-                  <HelpCircle className="h-4 w-4" />
-                  <span>پایگاه دانش</span>
-                </Link>
+                    return (
+                      <Link
+                        key={item.id || item.link}
+                        to={item.link}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl transition-colors relative ${
+                          pathname === item.link
+                            ? 'text-blue-600 dark:text-blue-400 bg-blue-500/10 font-bold'
+                            : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                        }`}
+                      >
+                        <span>{item.title}</span>
+                        {item.badge && (
+                          <span className="px-1.5 py-0.2 rounded-full text-[9px] bg-blue-600 text-white font-bold font-latin">
+                            {item.badge}
+                          </span>
+                        )}
+                      </Link>
+                    )
+                  })
+                ) : (
+                  <>
+                    <Link
+                      to="/virtual-numbers"
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl transition-colors relative ${
+                        pathname === '/virtual-numbers'
+                          ? 'text-blue-600 dark:text-blue-400 bg-blue-500/10 font-bold'
+                          : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                      }`}
+                    >
+                      <Radio className="h-4 w-4" />
+                      <span>شماره مجازی (SMS)</span>
+                      <span className="px-1.5 py-0.2 rounded-full text-[9px] bg-blue-600 text-white font-bold">
+                        جدید
+                      </span>
+                    </Link>
+
+                    <Link
+                      to="/blog"
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl transition-colors ${
+                        pathname.startsWith('/blog')
+                          ? 'text-blue-600 dark:text-blue-400 bg-blue-500/10 font-bold'
+                          : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                      }`}
+                    >
+                      <BookOpen className="h-4 w-4" />
+                      <span>وبلاگ و آموزش‌ها</span>
+                    </Link>
+
+                    <Link
+                      to="/help"
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl transition-colors ${
+                        pathname.startsWith('/help')
+                          ? 'text-blue-600 dark:text-blue-400 bg-blue-500/10 font-bold'
+                          : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                      }`}
+                    >
+                      <HelpCircle className="h-4 w-4" />
+                      <span>پایگاه دانش</span>
+                    </Link>
+                  </>
+                )}
               </nav>
             )}
           </div>
@@ -650,18 +749,18 @@ export const Header: React.FC<HeaderProps> = ({
                       <Link
                         to="/profile"
                         onClick={() => setUserDropdownOpen(false)}
-                        className="flex items-center gap-2 px-2.5 py-1.5 rounded-control text-xs font-bold text-foreground hover:text-brand hover:bg-brand/10 transition-colors text-right group"
+                        className="flex items-center gap-2 px-2.5 py-1.5 rounded-control text-xs font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-500/10 transition-colors text-right group"
                       >
-                        <User className="h-3.5 w-3.5 text-brand transition-transform group-hover:scale-110" />
+                        <User className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400 transition-transform group-hover:scale-110" />
                         <span>حساب کاربری</span>
                       </Link>
 
                       <Link
                         to="/track"
                         onClick={() => setUserDropdownOpen(false)}
-                        className="flex items-center gap-2 px-2.5 py-1.5 rounded-control text-xs font-bold text-foreground hover:text-brand hover:bg-brand/10 transition-colors text-right group"
+                        className="flex items-center gap-2 px-2.5 py-1.5 rounded-control text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 transition-colors text-right group"
                       >
-                        <ShieldCheck className="h-3.5 w-3.5 text-brand transition-transform group-hover:scale-110" />
+                        <ShieldCheck className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 transition-transform group-hover:scale-110" />
                         <span>پیگیری سفارش‌های من</span>
                       </Link>
 
@@ -702,7 +801,7 @@ export const Header: React.FC<HeaderProps> = ({
                             <Link
                               to="/"
                               onClick={() => setUserDropdownOpen(false)}
-                              className="flex items-center gap-2 px-2.5 py-1.5 rounded-control text-xs font-bold text-brand hover:bg-brand/10 transition-colors text-right"
+                              className="flex items-center gap-2 px-2.5 py-1.5 rounded-control text-xs font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-500/10 transition-colors text-right"
                             >
                               <Store className="h-3.5 w-3.5" />
                               <span>بازگشت به فروشگاه</span>

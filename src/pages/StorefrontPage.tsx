@@ -8,8 +8,8 @@ import {
   Eye,
   Flame,
   Headphones,
-  HelpCircle,
   Lock,
+  Package,
   RefreshCw,
   ShieldCheck,
   Sparkles,
@@ -42,6 +42,7 @@ import type {
   Order,
   PaymentGateway,
   Product,
+  ThemeSettings,
 } from '../types'
 
 interface StorefrontPageProps {
@@ -63,6 +64,7 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
   const navigate = useNavigate()
   const cart = useCart()
   const [customer, setCustomer] = useState<CustomerProfile | null>(null)
+  const [themeSettings, setThemeSettings] = useState<ThemeSettings | null>(null)
   const [products, setProducts] = useState<Product[]>([])
   const [banners, setBanners] = useState<BannerData[]>([])
   const [middleBanners, setMiddleBanners] = useState<BannerData[]>([])
@@ -127,7 +129,7 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
     async function init() {
       setLoading(true)
       try {
-        const [prods, pays, cust, bns, midBns, sideBns, flashBns, arts] =
+        const [prods, pays, cust, bns, midBns, sideBns, flashBns, arts, theme] =
           await Promise.all([
             apiService.getProducts(),
             apiService.getPayments(),
@@ -140,10 +142,12 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
               .getArticles({ page: 1, page_size: 3 })
               .then((r: any) => r?.items || [])
               .catch(() => []),
+            api.getThemeSettings().catch(() => null),
           ])
         setProducts(prods)
         setPayments(pays)
         if (cust) setCustomer(cust)
+        if (theme) setThemeSettings(theme)
         if (bns && bns.length > 0) {
           setBanners(bns)
         }
@@ -166,6 +170,15 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
       }
     }
     init()
+
+    const handleThemeSync = (e: any) => {
+      if (e.detail) {
+        setThemeSettings((prev) => ({ ...prev, ...e.detail }))
+      }
+    }
+    window.addEventListener('anahix:theme:updated', handleThemeSync)
+    return () =>
+      window.removeEventListener('anahix:theme:updated', handleThemeSync)
   }, [])
 
   const handleCartCheckoutSubmit = async (data: {
@@ -215,10 +228,17 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
 
   const filteredProducts = products
 
-  // Flash Sale Products
-  const flashSaleProducts = products.filter(
-    (p) => p.is_flash_sale && p.flash_sale_price_toman,
-  )
+  // Flash Sale Products (only active and non-expired)
+  const flashSaleProducts = products.filter((p) => {
+    if (!p.is_flash_sale || !p.flash_sale_price_toman) return false
+    if (p.flash_sale_end_at) {
+      const expiry = new Date(p.flash_sale_end_at).getTime()
+      if (!Number.isNaN(expiry) && expiry <= Date.now()) {
+        return false
+      }
+    }
+    return true
+  })
 
   // Best Sellers Products
   const bestSellerProducts = products
@@ -476,45 +496,56 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
               {/* Optional Promotional Flash Banners */}
               {flashSaleBanners.length > 0 && (
                 <div
-                  className={`grid gap-4 ${
+                  className={`grid gap-4 sm:gap-6 ${
                     flashSaleBanners.length === 1
                       ? 'grid-cols-1'
                       : 'grid-cols-1 md:grid-cols-2'
                   }`}
                 >
-                  {flashSaleBanners.map((fb) => (
-                    <Link
-                      key={fb.id}
-                      to={fb.link_url || '#flash-sale'}
-                      className="group relative overflow-hidden rounded-surface border border-rose-500/30 bg-card shadow-surface hover:border-rose-500/60 duration-motion transition-all block"
-                    >
-                      <div className="relative h-36 sm:h-44 w-full overflow-hidden">
-                        <img
-                          src={fb.image_url}
-                          alt={fb.title}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/40 to-transparent flex flex-col justify-end p-4 text-right text-white space-y-1 select-none">
-                          <div className="flex items-center gap-2">
-                            <span className="self-start px-2 py-0.5 rounded-control bg-rose-600 text-white font-black text-[10px] shadow-control flex items-center gap-1">
-                              <Flame className="w-3 h-3" />
-                              <span>
-                                {fb.badge_text || 'جشنواره شگفت‌انگیز'}
+                  {flashSaleBanners.map((fb, idx) => {
+                    const isLastOdd =
+                      flashSaleBanners.length % 2 !== 0 &&
+                      idx === flashSaleBanners.length - 1
+                    return (
+                      <Link
+                        key={fb.id}
+                        to={fb.link_url || '#flash-sale'}
+                        className={`group relative overflow-hidden rounded-surface border border-rose-500/30 bg-card shadow-surface hover:border-rose-500/60 duration-motion transition-all block ${
+                          isLastOdd ? 'md:col-span-2' : ''
+                        }`}
+                      >
+                        <div
+                          className={`relative w-full overflow-hidden ${
+                            isLastOdd ? 'h-40 sm:h-52' : 'h-36 sm:h-44'
+                          }`}
+                        >
+                          <img
+                            src={fb.image_url}
+                            alt={fb.title}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/40 to-transparent flex flex-col justify-end p-4 text-right text-white space-y-1 select-none">
+                            <div className="flex items-center gap-2">
+                              <span className="self-start px-2 py-0.5 rounded-control bg-rose-600 text-white font-black text-[10px] shadow-control flex items-center gap-1">
+                                <Flame className="w-3 h-3" />
+                                <span>
+                                  {fb.badge_text || 'جشنواره شگفت‌انگیز'}
+                                </span>
                               </span>
-                            </span>
+                            </div>
+                            <h4 className="font-black text-sm sm:text-base text-white">
+                              {fb.title}
+                            </h4>
+                            {fb.subtitle && (
+                              <p className="text-xs text-white/80 line-clamp-1">
+                                {fb.subtitle}
+                              </p>
+                            )}
                           </div>
-                          <h4 className="font-black text-sm sm:text-base text-white">
-                            {fb.title}
-                          </h4>
-                          {fb.subtitle && (
-                            <p className="text-xs text-white/80 line-clamp-1">
-                              {fb.subtitle}
-                            </p>
-                          )}
                         </div>
-                      </div>
-                    </Link>
-                  ))}
+                      </Link>
+                    )
+                  })}
                 </div>
               )}
 
@@ -664,13 +695,16 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
                   </p>
                 </div>
               ) : filteredProducts.length === 0 ? (
-                <div className="rounded-surface border border-border/60 bg-card p-12 text-center text-muted-foreground space-y-2 shadow-surface">
-                  <HelpCircle className="h-8 w-8 mx-auto text-muted-foreground/60" />
-                  <div className="font-bold text-sm text-foreground">
-                    محصولی یافت نشد
+                <div className="rounded-surface border border-border/80 bg-card p-8 sm:p-10 text-center space-y-3 shadow-surface max-w-md mx-auto">
+                  <div className="w-12 h-12 rounded-control bg-secondary text-brand border border-border/60 flex items-center justify-center mx-auto shadow-xs">
+                    <Package className="h-6 w-6 text-brand" />
                   </div>
-                  <p className="text-xs">
-                    در حال حاضر محصول فعالی در این بخش موجود نیست.
+                  <div className="font-bold text-sm text-foreground">
+                    محصولی در این کاتالوگ یافت نشد
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    در حال حاضر محصول یا اشتراک فعالی در این دسته‌بندی موجود
+                    نیست.
                   </p>
                 </div>
               ) : (
@@ -884,7 +918,7 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
                             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-control bg-muted/40 border border-border/60 text-[11px] font-bold text-muted-foreground">
                               <Eye className="h-3.5 w-3.5 text-muted-foreground" />
                               <span className="font-latin">
-                                {Number(art.view_count || 120).toLocaleString(
+                                {Number(art.view_count || 0).toLocaleString(
                                   'fa-IR',
                                 )}{' '}
                                 بازدید
@@ -1016,17 +1050,29 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8 text-right text-xs">
             <div className="space-y-3">
               <div className="flex items-center gap-2.5">
-                <div className="h-8 w-8 rounded-xl bg-blue-600 text-white font-black flex items-center justify-center text-sm shadow-sm">
-                  A
-                </div>
+                {themeSettings?.site_logo_url ? (
+                  <img
+                    src={themeSettings.site_logo_url}
+                    alt={themeSettings?.site_name_fa || 'آناهیکس'}
+                    className="h-8 w-auto max-w-[120px] object-contain"
+                  />
+                ) : (
+                  <div className="h-8 w-8 rounded-xl bg-blue-600 text-white font-black flex items-center justify-center text-sm shadow-sm font-latin">
+                    {(themeSettings?.site_name_en || 'A')
+                      .charAt(0)
+                      .toUpperCase()}
+                  </div>
+                )}
                 <span className="font-black text-foreground text-sm">
-                  آناهیکس (ANAHIX)
+                  {themeSettings?.site_name_fa || 'آناهیکس'}{' '}
+                  <span className="font-latin">
+                    ({themeSettings?.site_name_en || 'ANAHIX'})
+                  </span>
                 </span>
               </div>
               <p className="text-xs leading-relaxed text-muted-foreground">
-                سامانه هوشمند ارائه قانونی اشتراک‌های بین‌المللی، لایسنس‌های هوش
-                مصنوعی و شماره‌های مجازی بین‌المللی در ایران با زیرساخت پرداخت امن
-                عضو شتاب و تتر.
+                {themeSettings?.site_subtitle ||
+                  'سامانه هوشمند ارائه قانونی اشتراک‌های بین‌المللی، لایسنس‌های هوش مصنوعی و شماره‌های مجازی بین‌المللی در ایران با زیرساخت پرداخت امن عضو شتاب و تتر.'}
               </p>
             </div>
 
@@ -1035,37 +1081,75 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
                 دسترسی سریع
               </h5>
               <ul className="space-y-2.5 text-xs">
-                <li>
-                  <a href="#products-catalog" className="hover:text-blue-500">
-                    کاتالوگ اشتراک‌ها
-                  </a>
-                </li>
-                <li>
-                  <Link to="/virtual-numbers" className="hover:text-blue-500">
-                    شماره مجازی (SMS Verification)
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    to="/blog"
-                    className="hover:text-blue-500 font-semibold"
-                  >
-                    وبلاگ و آموزش‌ها (SEO Engine)
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    to="/help"
-                    className="hover:text-blue-500 font-semibold"
-                  >
-                    پایگاه دانش و رفع ارورها (Help Center)
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/track" className="hover:text-blue-500">
-                    پیگیری سفارش و فاکتورها
-                  </Link>
-                </li>
+                {themeSettings?.footer_menu_json ? (
+                  (() => {
+                    try {
+                      const parsed = JSON.parse(themeSettings.footer_menu_json)
+                      if (Array.isArray(parsed) && parsed.length > 0) {
+                        return parsed.map((item: any) => (
+                          <li key={item.id || item.link}>
+                            {item.link.startsWith('#') ? (
+                              <a
+                                href={item.link}
+                                className="hover:text-blue-500"
+                              >
+                                {item.title}
+                              </a>
+                            ) : (
+                              <Link
+                                to={item.link}
+                                className="hover:text-blue-500"
+                              >
+                                {item.title}
+                              </Link>
+                            )}
+                          </li>
+                        ))
+                      }
+                    } catch {}
+                    return null
+                  })()
+                ) : (
+                  <>
+                    <li>
+                      <a
+                        href="#products-catalog"
+                        className="hover:text-blue-500"
+                      >
+                        کاتالوگ اشتراک‌ها
+                      </a>
+                    </li>
+                    <li>
+                      <Link
+                        to="/virtual-numbers"
+                        className="hover:text-blue-500"
+                      >
+                        شماره مجازی (SMS Verification)
+                      </Link>
+                    </li>
+                    <li>
+                      <Link
+                        to="/blog"
+                        className="hover:text-blue-500 font-semibold"
+                      >
+                        وبلاگ و آموزش‌ها (SEO Engine)
+                      </Link>
+                    </li>
+                    <li>
+                      <Link
+                        to="/help"
+                        className="hover:text-blue-500 font-semibold"
+                      >
+                        پایگاه دانش و رفع ارورها (Help Center)
+                      </Link>
+                    </li>
+                    <li>
+                      <Link to="/track" className="hover:text-blue-500">
+                        پیگیری سفارش و فاکتورها
+                      </Link>
+                    </li>
+                  </>
+                )}
               </ul>
             </div>
 
@@ -1087,26 +1171,38 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
                 پشتیبانی و ارتباط
               </h5>
               <p className="text-xs leading-relaxed text-muted-foreground">
-                تیم پشتیبانی آناهیکس در کلیه روزهای هفته آماده پاسخگویی به
-                سوالات و راهنمایی فعال‌سازی شماست.
+                تیم پشتیبانی {themeSettings?.site_name_fa || 'آناهیکس'} در کلیه
+                روزهای هفته آماده پاسخگویی به سوالات و راهنمایی فعال‌سازی شماست.
               </p>
-              <div className="mt-3">
+              <div className="mt-3 space-y-2">
                 <a
-                  href="https://t.me/AnahixSupport"
+                  href={`https://t.me/${(
+                    themeSettings?.support_telegram || '@AnahixSupport'
+                  ).replace('@', '')}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-2 rounded-xl bg-blue-500/10 border border-blue-500/20 px-3.5 py-2 text-xs text-blue-400 font-bold hover:bg-blue-600 hover:text-white transition-colors"
                 >
                   <Headphones className="h-4 w-4" />
-                  <span>پشتیبانی تلگرام: @AnahixSupport</span>
+                  <span className="font-latin dir-ltr">
+                    پشتیبانی تلگرام:{' '}
+                    {themeSettings?.support_telegram || '@AnahixSupport'}
+                  </span>
                 </a>
+                {themeSettings?.support_phone && (
+                  <div className="text-muted-foreground text-[11px] font-mono font-latin">
+                    تلفن پشتیبانی: {themeSettings.support_phone}
+                  </div>
+                )}
               </div>
             </div>
           </div>
 
           <div className="border-t border-border pt-6 flex flex-wrap items-center justify-between gap-4 text-xs">
             <div>
-              © ۱۴۰۵ تمامی حقوق متعلق به سامانه آناهیکس (Anahix) می‌باشد.
+              © ۱۴۰۵ تمامی حقوق متعلق به سامانه{' '}
+              {themeSettings?.site_name_fa || 'آناهیکس'} (
+              {themeSettings?.site_name_en || 'Anahix'}) می‌باشد.
             </div>
             <div className="text-muted-foreground/80 font-latin text-[11px]">
               Vibe Farsi Graphite System • AES-256-GCM Vault

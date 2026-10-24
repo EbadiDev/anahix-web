@@ -33,6 +33,7 @@ import { AdminHeaderBanner } from './AdminHeaderBanner'
 
 interface CampaignCalendarEvent extends CalendarEvent {
   id?: string
+  endDate?: string
   color?: string
   couponCode?: string
   couponLabel?: string
@@ -222,21 +223,32 @@ export const AdminCalendarView: React.FC = () => {
     if (evt.isActive === false) {
       return {
         status: 'disabled' as const,
-        label: 'غیرفعال',
+        label: 'غیرفعال دستی',
         badgeClass: 'bg-muted text-muted-foreground border-border/60',
       }
     }
+    const eventEnd = evt.endDate || evt.date
     if (evt.date > todayJalaliDate) {
       return {
         status: 'reserved' as const,
         label: 'رزرو شده (آینده)',
-        badgeClass: 'bg-amber-500/10 text-amber-500 border-amber-500/30',
+        badgeClass:
+          'bg-amber-500/10 text-amber-500 border-amber-500/30 font-black',
+      }
+    }
+    if (todayJalaliDate > eventEnd) {
+      return {
+        status: 'expired' as const,
+        label: 'پایان‌یافته',
+        badgeClass:
+          'bg-rose-500/10 text-rose-500 border-rose-500/30 font-black',
       }
     }
     return {
       status: 'active' as const,
-      label: 'فعال',
-      badgeClass: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30',
+      label: 'فعال و جاری',
+      badgeClass:
+        'bg-emerald-500/10 text-emerald-500 border-emerald-500/30 font-black',
     }
   }
 
@@ -515,7 +527,7 @@ export const AdminCalendarView: React.FC = () => {
         }),
       )
     } catch (err: any) {
-      notifyError('خطا در تغییر وضعیت کوپن', err.message)
+      notifyError('خطا در تغییر وضعیت کد تخفیف', err.message)
     }
   }
 
@@ -548,6 +560,17 @@ export const AdminCalendarView: React.FC = () => {
         try {
           await apiService.adminDeleteCoupon(c.id)
           await loadCoupons()
+          if (newCouponCode.trim().toUpperCase() === code.toUpperCase()) {
+            setNewCouponCode('')
+            setNewCouponLabel('')
+          }
+          setEvents((prev) =>
+            prev.map((e) =>
+              e.couponCode?.toUpperCase() === code.toUpperCase()
+                ? { ...e, couponCode: undefined, couponLabel: undefined }
+                : e,
+            ),
+          )
           notifySuccess(
             'حذف کد تخفیف',
             `کد تخفیف «${c.code}» با موفقیت از پایگاه‌داده حذف شد.`,
@@ -558,7 +581,7 @@ export const AdminCalendarView: React.FC = () => {
             }),
           )
         } catch (err: any) {
-          notifyError('خطا در حذف کوپن', err.message)
+          notifyError('خطا در حذف کد تخفیف', err.message)
         }
       }
       setDeleteConfirm((prev) => ({ ...prev, isOpen: false }))
@@ -906,7 +929,7 @@ export const AdminCalendarView: React.FC = () => {
                   </div>
                   <div className="p-2.5 rounded-control bg-muted/20 border border-border/40 space-y-0.5">
                     <span className="text-[10px] text-muted-foreground block">
-                      کوپن‌های متصل
+                      کدهای تخفیف متصل
                     </span>
                     <span className="font-black text-foreground text-sm font-latin">
                       {toPersianDigits(
@@ -939,7 +962,7 @@ export const AdminCalendarView: React.FC = () => {
                   <SearchInput
                     value={tableSearch}
                     onChange={setTableSearch}
-                    placeholder="جستجو در عنوان یا کوپن..."
+                    placeholder="جستجو در عنوان یا کد تخفیف..."
                     debounceMs={300}
                   />
                 </div>
@@ -1001,7 +1024,7 @@ export const AdminCalendarView: React.FC = () => {
                         : 'text-muted-foreground hover:text-foreground'
                     }`}
                   >
-                    دارای کوپن (
+                    دارای کد تخفیف (
                     {events.filter((e) => Boolean(e.couponCode)).length})
                   </button>
                 </div>
@@ -1111,17 +1134,17 @@ export const AdminCalendarView: React.FC = () => {
                                             ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
                                             : 'bg-rose-500/10 text-rose-500 border-rose-500/20'
                                         }`}
-                                        title="تغییر وضعیت فعال‌بودن کوپن در دیتابیس"
+                                        title="تغییر وضعیت فعال‌بودن کد تخفیف در دیتابیس"
                                       >
                                         {matchedDbCoupon.is_active
-                                          ? 'کوپن فعال'
-                                          : 'کوپن غیرفعال'}
+                                          ? 'کد تخفیف فعال'
+                                          : 'کد تخفیف غیرفعال'}
                                       </button>
                                     )}
                                   </>
                                 ) : (
                                   <span className="text-muted-foreground text-[11px]">
-                                    بدون کوپن
+                                    بدون کد تخفیف
                                   </span>
                                 )}
                               </div>
@@ -1189,20 +1212,6 @@ export const AdminCalendarView: React.FC = () => {
                                 >
                                   <Trash2 className="w-3.5 h-3.5" />
                                 </button>
-                                {matchedDbCoupon && (
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      handleDeleteCouponByCode(
-                                        matchedDbCoupon.code,
-                                      )
-                                    }
-                                    className="px-2 py-1 rounded-control border border-rose-500/30 bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 text-[10px] font-bold cursor-pointer transition-colors"
-                                    title="حذف کامل کوپن متصل از پایگاه‌داده"
-                                  >
-                                    حذف کوپن
-                                  </button>
-                                )}
                               </div>
                             </td>
                           </tr>
@@ -1352,7 +1361,7 @@ export const AdminCalendarView: React.FC = () => {
                 </label>
                 {dbCoupons.length > 0 && (
                   <span className="text-[10px] text-muted-foreground font-bold">
-                    کلیک روی کوپن جهت درج در پیام:
+                    کلیک روی کد تخفیف جهت درج در پیام:
                   </span>
                 )}
               </div>
@@ -1672,22 +1681,66 @@ export const AdminCalendarView: React.FC = () => {
                     )}
                   </div>
 
-                  {/* Show in Cart Drawer Toggle for Event Coupon */}
+                  {/* Show in Cart Drawer Toggle & Attached Coupon Management inside Modal */}
                   {newCouponCode.trim() && (
-                    <div className="p-3.5 rounded-surface bg-muted/20 border border-border/60 flex items-center justify-between gap-3">
-                      <div className="space-y-0.5 text-right">
-                        <span className="font-bold text-foreground block">
-                          نمایش کوپن در پیشنهادات سریع سبد خرید
-                        </span>
-                        <p className="text-[11px] text-muted-foreground">
-                          در صورت فعال‌بودن، کد تخفیف این رویداد در چیپ‌های آماده
-                          سبد خرید خریداران نشان داده می‌شود.
-                        </p>
+                    <div className="p-3.5 rounded-surface bg-muted/20 border border-border/60 space-y-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="space-y-0.5 text-right">
+                          <span className="font-bold text-foreground block">
+                            نمایش کد تخفیف در پیشنهادات سریع سبد خرید
+                          </span>
+                          <p className="text-[11px] text-muted-foreground">
+                            در صورت فعال‌بودن، کد تخفیف «
+                            {newCouponCode.trim().toUpperCase()}» در چیپ‌های
+                            آماده سبد خرید خریداران نشان داده می‌شود.
+                          </p>
+                        </div>
+                        <ToggleSwitch
+                          checked={newCouponShowInCart}
+                          onChange={setNewCouponShowInCart}
+                        />
                       </div>
-                      <ToggleSwitch
-                        checked={newCouponShowInCart}
-                        onChange={setNewCouponShowInCart}
-                      />
+
+                      {/* Coupon Actions inside Modal */}
+                      <div className="flex items-center justify-between pt-2 border-t border-border/40">
+                        <span className="text-[11px] text-muted-foreground">
+                          کد تخفیف متصل:{' '}
+                          <strong className="font-mono text-brand font-latin font-bold">
+                            {newCouponCode.trim().toUpperCase()}
+                          </strong>
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setNewCouponCode('')
+                              setNewCouponLabel('')
+                            }}
+                            className="px-2.5 py-1 rounded-control text-[11px] font-bold border border-border/60 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                            title="جداسازی کد تخفیف از این رویداد بدون حذف از دیتابیس"
+                          >
+                            جداسازی از رویداد
+                          </button>
+                          {dbCoupons.some(
+                            (c) =>
+                              c.code.toUpperCase() ===
+                              newCouponCode.trim().toUpperCase(),
+                          ) && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                handleDeleteCouponByCode(newCouponCode.trim())
+                                setNewCouponCode('')
+                                setNewCouponLabel('')
+                              }}
+                              className="px-2.5 py-1 rounded-control text-[11px] font-bold border border-destructive/30 bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors cursor-pointer"
+                              title="حذف کامل این کد تخفیف از دیتابیس"
+                            >
+                              حذف کامل کد تخفیف
+                            </button>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   )}
 
@@ -1720,11 +1773,10 @@ export const AdminCalendarView: React.FC = () => {
                         سایت به نمایش درمی‌آید.
                       </p>
                     </div>
-                    <input
-                      type="checkbox"
+                    <ToggleSwitch
+                      size="sm"
                       checked={syncWithBanner}
-                      onChange={(e) => setSyncWithBanner(e.target.checked)}
-                      className="w-4 h-4 rounded accent-brand cursor-pointer"
+                      onChange={setSyncWithBanner}
                     />
                   </div>
 
@@ -1759,7 +1811,7 @@ export const AdminCalendarView: React.FC = () => {
         description={
           deleteConfirm.type === 'event'
             ? `آیا از حذف رویداد «${deleteConfirm.title}» از تقویم اطمینان دارید؟`
-            : `آیا از حذف کامل کد تخفیف «${deleteConfirm.couponCode}» از پایگاه‌داده اطمینان دارید؟ این کوپن دیگر در سبد خرید معتبر نخواهد بود.`
+            : `آیا از حذف کامل کد تخفیف «${deleteConfirm.couponCode}» از پایگاه‌داده اطمینان دارید؟ این کد تخفیف دیگر در سبد خرید معتبر نخواهد بود.`
         }
         confirmText="بله، حذف شود"
         cancelText="انصراف"

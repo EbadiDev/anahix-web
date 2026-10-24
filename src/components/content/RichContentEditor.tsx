@@ -32,6 +32,8 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { api } from '../../services/api'
 import type { ContentTemplate } from '../../types'
+import { ConfirmModal } from '../vibefarsi/ConfirmModal'
+import { useNotification } from '../vibefarsi/NotificationContext'
 import { MarkdownRenderer } from './MarkdownRenderer'
 
 interface RichContentEditorProps {
@@ -55,6 +57,7 @@ export const RichContentEditor: React.FC<RichContentEditorProps> = ({
   onReadingTimeChange,
   contentType = 'blog',
 }) => {
+  const { error: notifyError } = useNotification()
   const [viewMode, setViewMode] = useState<EditorViewMode>('split')
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [showLinkModal, setShowLinkModal] = useState(false)
@@ -66,6 +69,8 @@ export const RichContentEditor: React.FC<RichContentEditorProps> = ({
   const [isUploadingImage, setIsUploadingImage] = useState(false)
   const [imageUploadSuccess, setImageUploadSuccess] = useState(false)
   const [dbTemplates, setDbTemplates] = useState<ContentTemplate[]>([])
+  const [pendingTemplate, setPendingTemplate] =
+    useState<ContentTemplate | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const handleUploadImageFile = async (
@@ -89,7 +94,7 @@ export const RichContentEditor: React.FC<RichContentEditorProps> = ({
         }
       }
     } catch (err: any) {
-      alert(`خطا در آپلود تصویر: ${err.message || 'مشکل در ارتباط با سرور'}`)
+      notifyError('خطا در آپلود تصویر', err.message || 'مشکل در ارتباط با سرور')
     } finally {
       setIsUploadingImage(false)
     }
@@ -200,10 +205,8 @@ export const RichContentEditor: React.FC<RichContentEditorProps> = ({
 
   // Pre-built Database-driven Templates
   const applyTemplate = (tmpl: ContentTemplate) => {
-    if (
-      value.trim().length > 50 &&
-      !window.confirm(`محتوای فعلی با «${tmpl.title}» جایگزین شود؟`)
-    ) {
+    if (value.trim().length > 50) {
+      setPendingTemplate(tmpl)
       return
     }
     onChange(tmpl.template_content)
@@ -800,6 +803,22 @@ export const RichContentEditor: React.FC<RichContentEditorProps> = ({
           </div>,
           document.body,
         )}
+
+      {/* Template Confirmation Modal */}
+      <ConfirmModal
+        isOpen={Boolean(pendingTemplate)}
+        title="جایگزینی قالب آماده"
+        message={`آیا از جایگزینی محتوای فعلی با قالب «${pendingTemplate?.title || ''}» اطمینان دارید؟ محتوای متنی فعلی ویرایشگر پاکسازی خواهد شد.`}
+        confirmText="بله، قالب اعمال شود"
+        cancelText="انصراف"
+        onConfirm={() => {
+          if (pendingTemplate) {
+            onChange(pendingTemplate.template_content)
+            setPendingTemplate(null)
+          }
+        }}
+        onClose={() => setPendingTemplate(null)}
+      />
     </div>
   )
 }

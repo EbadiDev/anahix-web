@@ -15,6 +15,7 @@ import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { api } from '../../services/api'
 import type { BannerItem } from '../../types'
+import { ConfirmModal } from '../vibefarsi/ConfirmModal'
 import { ModalCloseButton } from '../vibefarsi/ModalCloseButton'
 import { useNotification } from '../vibefarsi/NotificationContext'
 import { SearchInput } from '../vibefarsi/SearchInput'
@@ -33,6 +34,15 @@ export const AdminBannersView: React.FC = () => {
   const [editingBanner, setEditingBanner] =
     useState<Partial<BannerItem> | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [deleteConfirm, setDeleteConfirm] = useState<{
+    isOpen: boolean
+    bannerId: string | null
+    loading: boolean
+  }>({
+    isOpen: false,
+    bannerId: null,
+    loading: false,
+  })
   const [saveLoading, setSaveLoading] = useState(false)
   const [uploadingImage, setUploadingImage] = useState(false)
 
@@ -76,14 +86,21 @@ export const AdminBannersView: React.FC = () => {
     setIsModalOpen(true)
   }
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('آیا از حذف این بنر اطمینان دارید؟')) return
+  const handleDelete = (id: string) => {
+    setDeleteConfirm({ isOpen: true, bannerId: id, loading: false })
+  }
+
+  const confirmDelete = async () => {
+    if (!deleteConfirm.bannerId) return
+    setDeleteConfirm((prev) => ({ ...prev, loading: true }))
     try {
-      await api.deleteBanner(id)
+      await api.deleteBanner(deleteConfirm.bannerId)
       success('بنر با موفقیت حذف شد')
+      setDeleteConfirm({ isOpen: false, bannerId: null, loading: false })
       loadBanners()
     } catch (err: any) {
       error('خطا در حذف بنر', err.message)
+      setDeleteConfirm((prev) => ({ ...prev, loading: false }))
     }
   }
 
@@ -896,6 +913,20 @@ export const AdminBannersView: React.FC = () => {
           </div>,
           document.body,
         )}
+
+      {/* DELETE CONFIRMATION MODAL */}
+      <ConfirmModal
+        isOpen={deleteConfirm.isOpen}
+        title="حذف بنر تبلیغاتی"
+        message="آیا از حذف کامل این بنر از ویترین فروشگاه اطمینان دارید؟ این عملیات غیرقابل بازگشت است."
+        confirmText="بله، بنر حذف شود"
+        cancelText="انصراف"
+        loading={deleteConfirm.loading}
+        onConfirm={confirmDelete}
+        onClose={() =>
+          setDeleteConfirm({ isOpen: false, bannerId: null, loading: false })
+        }
+      />
     </div>
   )
 }

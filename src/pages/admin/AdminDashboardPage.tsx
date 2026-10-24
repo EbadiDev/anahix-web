@@ -24,29 +24,26 @@ import {
 import type React from 'react'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { AdminActionLogView } from '../../components/admin/AdminActionLogView'
 import { AdminBannersView } from '../../components/admin/AdminBannersView'
 import { AdminBIAnalyticsView } from '../../components/admin/AdminBIAnalyticsView'
-import { AdminBillingSettingsView } from '../../components/admin/AdminBillingSettingsView'
 import { AdminCalendarView } from '../../components/admin/AdminCalendarView'
 import { AdminContentView } from '../../components/admin/AdminContentView'
+import { AdminCoreSettingsView } from '../../components/admin/AdminCoreSettingsView'
 import { AdminCouponsView } from '../../components/admin/AdminCouponsView'
 import { AdminHeaderBanner } from '../../components/admin/AdminHeaderBanner'
 import { AdminInventoryView } from '../../components/admin/AdminInventoryView'
 import { AdminLoyaltyTiersView } from '../../components/admin/AdminLoyaltyTiersView'
 import { AdminOrdersTableView } from '../../components/admin/AdminOrdersTableView'
-import { AdminReviewsView } from '../../components/admin/AdminReviewsView'
 import {
   AdminSidebar,
   type AdminTabType,
 } from '../../components/admin/AdminSidebar'
-import { AdminTicketsView } from '../../components/admin/AdminTicketsView'
+import { AdminSupportAndReviewsView } from '../../components/admin/AdminSupportAndReviewsView'
 import { AdminUsersView } from '../../components/admin/AdminUsersView'
 import { AdminVirtualNumbersView } from '../../components/admin/AdminVirtualNumbersView'
-import { SMSGatewayView } from '../../components/admin/SMSGatewayView'
-import { TransactionsLogView } from '../../components/admin/TransactionsLogView'
 import { Header } from '../../components/Header'
 import { OfficialInvoiceModal } from '../../components/invoice/OfficialInvoiceModal'
+import { ConfirmModal } from '../../components/vibefarsi/ConfirmModal'
 import { apiService } from '../../services/api'
 import type {
   InstantDeliverySettings,
@@ -113,6 +110,15 @@ export const AdminDashboardPage: React.FC = () => {
     'لطفاً کد تایید پیامک شده به گوشی خود را در بخش پیگیری وارد نمایید',
   )
   const [sendingPrompt, setSendingPrompt] = useState(false)
+  const [completeConfirm, setCompleteConfirm] = useState<{
+    isOpen: boolean
+    orderId: string | null
+    loading: boolean
+  }>({
+    isOpen: false,
+    orderId: null,
+    loading: false,
+  })
   const [revealedCreds, setRevealedCreds] = useState<Record<string, boolean>>(
     {},
   )
@@ -347,15 +353,27 @@ export const AdminDashboardPage: React.FC = () => {
   }
 
   // Complete Order
-  const handleCompleteOrder = async (orderId: string) => {
-    if (
-      !confirm(
-        'آیا از اتمام و تکمیل این سفارش و سوزاندن (Zeroize) پسورد کاربر اطمینان دارید؟',
+  const handleCompleteOrder = (orderId: string) => {
+    setCompleteConfirm({
+      isOpen: true,
+      orderId,
+      loading: false,
+    })
+  }
+
+  const confirmCompleteOrder = async () => {
+    if (!completeConfirm.orderId) return
+    setCompleteConfirm((prev) => ({ ...prev, loading: true }))
+    try {
+      await apiService.completeAdminOrder(
+        completeConfirm.orderId,
+        'اکانت با موفقیت فعال شد',
       )
-    )
-      return
-    await apiService.completeAdminOrder(orderId, 'اکانت با موفقیت فعال شد')
-    loadQueueOrders()
+      setCompleteConfirm({ isOpen: false, orderId: null, loading: false })
+      loadQueueOrders()
+    } catch {
+      setCompleteConfirm((prev) => ({ ...prev, loading: false }))
+    }
   }
 
   // Delivery Engine filtered & paginated groups
@@ -1297,18 +1315,15 @@ export const AdminDashboardPage: React.FC = () => {
             </div>
           )}
 
-          {/* TAB: SUPPORT & REAL TICKETING ENGINE DESK */}
-          {activeTab === 'tickets' && (
-            <AdminTicketsView
+          {/* TAB: SUPPORT, TICKETS & REVIEWS (UNIFIED CUSTOMER RELATIONS DESK) */}
+          {(activeTab === 'support' ||
+            activeTab === 'tickets' ||
+            activeTab === 'reviews') && (
+            <AdminSupportAndReviewsView
               adminUser={adminUser}
-              onUpdatePendingCount={setTicketsPendingCount}
-            />
-          )}
-
-          {/* TAB: BUYER REVIEWS & SOCIAL PROOF MODERATION DESK */}
-          {activeTab === 'reviews' && (
-            <AdminReviewsView
-              onStatsUpdated={(stats) =>
+              initialTab={activeTab === 'reviews' ? 'reviews' : 'tickets'}
+              onTicketsCountUpdated={setTicketsPendingCount}
+              onReviewsStatsUpdated={(stats) =>
                 setReviewsPendingCount(stats.pending_reviews)
               }
             />
@@ -1317,63 +1332,20 @@ export const AdminDashboardPage: React.FC = () => {
           {/* TAB 3: PRODUCTS & INVENTORY */}
           {activeTab === 'products' && <AdminInventoryView />}
 
-          {/* TAB 4: SYSTEM & PAYMENT GATEWAYS */}
-          {activeTab === 'system' && (
-            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-8 shadow-sm space-y-6">
-              <h3 className="font-bold text-base text-slate-900 dark:text-white border-b border-slate-100 dark:border-slate-800 pb-4">
-                درگاه‌های پرداخت فعال سیستم (ذخیره شده در دیتابیس)
-              </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
-                <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 space-y-2 bg-slate-50/50 dark:bg-slate-950/50">
-                  <div className="font-bold text-slate-900 dark:text-white flex items-center justify-between">
-                    <span>کیف پول آناهیکس (Balance)</span>
-                    <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-semibold">
-                      پیش‌فرض
-                    </span>
-                  </div>
-                  <p className="text-slate-500">
-                    پرداخت درون‌برنامه‌ای با کارمزد ۰٪
-                  </p>
-                </div>
-
-                <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 space-y-2 bg-slate-50/50 dark:bg-slate-950/50">
-                  <div className="font-bold text-slate-900 dark:text-white flex items-center justify-between">
-                    <span>درگاه بانکی شاپرک / زرین‌پال</span>
-                    <span className="text-[10px] bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full font-semibold">
-                      فعال
-                    </span>
-                  </div>
-                  <p className="text-slate-500">
-                    پرداخت امن اینترنتی با کلیه کارت‌های شتاب
-                  </p>
-                </div>
-
-                <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 space-y-2 bg-slate-50/50 dark:bg-slate-950/50">
-                  <div className="font-bold text-slate-900 dark:text-white flex items-center justify-between">
-                    <span>کارت به کارت هوشمند</span>
-                    <span className="text-[10px] bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full font-semibold">
-                      فعال
-                    </span>
-                  </div>
-                  <p className="text-slate-500">
-                    انتقال مستقیم پایا/ساتنا و تایید رسید
-                  </p>
-                </div>
-              </div>
-            </div>
+          {/* TAB: SYSTEM & CORE CONFIGURATION (UNIFIED SETTINGS DESK) */}
+          {activeTab === 'settings' && <AdminCoreSettingsView />}
+          {activeTab === ('billing' as any) && (
+            <AdminCoreSettingsView initialSubTab="billing" />
           )}
-
-          {/* TAB: SMS GATEWAY SETTINGS & TESTING */}
-          {activeTab === 'sms-gateway' && <SMSGatewayView />}
-
-          {/* TAB: OFFICIAL TAX BILLING SETTINGS */}
-          {activeTab === 'billing' && <AdminBillingSettingsView />}
-
-          {/* TAB: TRANSACTIONS FINANCIAL LOG */}
-          {activeTab === 'transactions' && <TransactionsLogView />}
-
-          {/* TAB: ADMIN ACTION & AUDIT LOG */}
-          {activeTab === 'audit-logs' && <AdminActionLogView />}
+          {activeTab === ('sms-gateway' as any) && (
+            <AdminCoreSettingsView initialSubTab="sms" />
+          )}
+          {activeTab === ('system' as any) && (
+            <AdminCoreSettingsView initialSubTab="gateways" />
+          )}
+          {activeTab === ('audit-logs' as any) && (
+            <AdminCoreSettingsView initialSubTab="audit-logs" />
+          )}
         </div>
       </div>
 
@@ -1386,6 +1358,20 @@ export const AdminDashboardPage: React.FC = () => {
           isAdmin={true}
         />
       )}
+
+      {/* Complete Order Confirmation Modal */}
+      <ConfirmModal
+        isOpen={completeConfirm.isOpen}
+        title="تکمیل سفارش و پاکسازی کلمه عبور (Zeroize)"
+        message="آیا از اتمام و تحویل این سفارش و سوزاندن قطعی و غیرقابل بازگشت رمز عبور کاربر از دیتابیس اطمینان دارید؟"
+        confirmText="بله، سفارش تکمیل و پسورد Zeroize شود"
+        cancelText="انصراف"
+        loading={completeConfirm.loading}
+        onConfirm={confirmCompleteOrder}
+        onClose={() =>
+          setCompleteConfirm({ isOpen: false, orderId: null, loading: false })
+        }
+      />
     </div>
   )
 }

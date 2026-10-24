@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AdminProtectedRoute } from './components/auth/AdminProtectedRoute'
 import { ProtectedRoute } from './components/auth/ProtectedRoute'
@@ -19,13 +19,74 @@ import { ProductDetailPage } from './pages/ProductDetailPage'
 import { StorefrontPage } from './pages/StorefrontPage'
 import { UserProfilePage } from './pages/UserProfilePage'
 import { VirtualNumbersPage } from './pages/VirtualNumbersPage'
-import { apiService } from './services/api'
-import type { Order } from './types'
+import { api, apiService } from './services/api'
+import type { Order, ThemeSettings } from './types'
 
 export function App() {
   const [orders, setOrders] = useState<Order[]>(() =>
     apiService.getCustomerOrders(),
   )
+
+  // Dynamic Site Branding, Favicon & SEO Sync from Database
+  useEffect(() => {
+    const applyThemeToDocument = (settings: ThemeSettings) => {
+      // 1. Meta Title & Document Title
+      if (settings.meta_title) {
+        document.title = settings.meta_title
+      } else if (settings.site_name_fa) {
+        const en = settings.site_name_en ? ` (${settings.site_name_en})` : ''
+        document.title = `${settings.site_name_fa}${en} | پلتفرم تحویل فوری اشتراک‌های هوش مصنوعی`
+      }
+
+      // 2. FavIcon
+      if (settings.site_favicon_url) {
+        let link: HTMLLinkElement | null =
+          document.querySelector("link[rel*='icon']")
+        if (!link) {
+          link = document.createElement('link')
+          link.rel = 'icon'
+          document.head.appendChild(link)
+        }
+        link.href = settings.site_favicon_url
+      }
+
+      // 3. Meta Description
+      if (settings.meta_description) {
+        const metaDesc = document.querySelector("meta[name='description']")
+        if (metaDesc) {
+          metaDesc.setAttribute('content', settings.meta_description)
+        }
+      }
+
+      // 4. Meta Keywords
+      if (settings.meta_keywords) {
+        let metaKeywords = document.querySelector("meta[name='keywords']")
+        if (!metaKeywords) {
+          metaKeywords = document.createElement('meta')
+          metaKeywords.setAttribute('name', 'keywords')
+          document.head.appendChild(metaKeywords)
+        }
+        metaKeywords.setAttribute('content', settings.meta_keywords)
+      }
+    }
+
+    api
+      .getThemeSettings()
+      .then((settings) => {
+        if (settings) applyThemeToDocument(settings)
+      })
+      .catch(() => {})
+
+    const handleThemeEvent = (e: any) => {
+      if (e.detail) {
+        applyThemeToDocument(e.detail)
+      }
+    }
+
+    window.addEventListener('anahix:theme:updated', handleThemeEvent)
+    return () =>
+      window.removeEventListener('anahix:theme:updated', handleThemeEvent)
+  }, [])
 
   const handleOrderCreated = (newOrder: Order) => {
     apiService.saveCustomerOrder(newOrder)

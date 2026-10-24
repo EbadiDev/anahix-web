@@ -42,6 +42,7 @@ import { TelegramIcon } from '../components/SocialIcons'
 import { Button } from '../components/ui/button'
 import { apiService } from '../services/api'
 import type { CustomerProfile, Order, VirtualNumberOrder } from '../types'
+import { toPersianDigits } from '../utils/formatters'
 
 type ProfileTabId =
   | 'overview'
@@ -169,6 +170,7 @@ export const UserProfilePage: React.FC = () => {
   const [referralStatus, setReferralStatus] = useState<
     'active' | 'coming_soon' | 'disabled'
   >('active')
+  const [referralStats, setReferralStats] = useState<any>(null)
   const [toastMsg, setToastMsg] = useState<{
     type: 'info' | 'error' | 'success'
     text: string
@@ -186,13 +188,42 @@ export const UserProfilePage: React.FC = () => {
         .catch(() => {})
 
       apiService
-        .getReferralStats()
+        .getReferralStats(customer.phone)
         .then((ref) => {
           if (ref?.system_status) {
             setReferralStatus(ref.system_status)
           }
+          if (ref) {
+            setReferralStats(ref)
+          }
         })
         .catch(() => {})
+    }
+  }, [customer?.phone])
+
+  useEffect(() => {
+    const handleSync = () => {
+      if (customer?.phone) {
+        apiService
+          .getCustomerLoyaltyProfile(customer.phone)
+          .then((p) => {
+            if (p?.system_status) setLoyaltyStatus(p.system_status)
+          })
+          .catch(() => {})
+        apiService
+          .getReferralStats(customer.phone)
+          .then((ref) => {
+            if (ref?.system_status) setReferralStatus(ref.system_status)
+            if (ref) setReferralStats(ref)
+          })
+          .catch(() => {})
+      }
+    }
+    window.addEventListener('anahix:loyalty:updated', handleSync)
+    window.addEventListener('anahix:referral:updated', handleSync)
+    return () => {
+      window.removeEventListener('anahix:loyalty:updated', handleSync)
+      window.removeEventListener('anahix:referral:updated', handleSync)
     }
   }, [customer?.phone])
 
@@ -326,7 +357,12 @@ export const UserProfilePage: React.FC = () => {
             label: 'همکاری در فروش و معرف',
             shortLabel: 'معرف',
             icon: Gift,
-            badge: referralStatus === 'coming_soon' ? 'به‌زودی' : '۱۰٪',
+            badge:
+              referralStatus === 'coming_soon'
+                ? 'به‌زودی'
+                : referralStats?.commission_rate_percent
+                  ? `${toPersianDigits(referralStats.commission_rate_percent)}٪`
+                  : '۱۰٪',
             group: 'financial' as const,
           },
         ]

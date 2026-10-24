@@ -1,6 +1,4 @@
 import {
-  AlertCircle,
-  CheckCircle2,
   Layers,
   Package,
   ReceiptText,
@@ -8,7 +6,6 @@ import {
   Send,
   Smartphone,
   Tag,
-  X,
 } from 'lucide-react'
 import type React from 'react'
 import { useEffect, useState } from 'react'
@@ -19,11 +16,15 @@ import type {
   AdminUpdateOrderStatusRequest,
 } from '../../types'
 import { OfficialInvoiceModal } from '../invoice/OfficialInvoiceModal'
+import { ModalCloseButton } from '../vibefarsi/ModalCloseButton'
+import { useNotification } from '../vibefarsi/NotificationContext'
 import { SearchInput } from '../vibefarsi/SearchInput'
+import { ToggleSwitch } from '../vibefarsi/ToggleSwitch'
 import { AdminHeaderBanner } from './AdminHeaderBanner'
 import { TransactionsLogView } from './TransactionsLogView'
 
 export const AdminOrdersTableView: React.FC = () => {
+  const { success: notifySuccess, error: notifyError } = useNotification()
   // Subtab State: Orders vs Transactions
   const [orderSubTab, setOrderSubTab] = useState<'orders' | 'transactions'>(
     'orders',
@@ -55,14 +56,13 @@ export const AdminOrdersTableView: React.FC = () => {
 
   // Invoice Modal
   const [invoiceOrderNo, setInvoiceOrderNo] = useState<string | null>(null)
-  const [toastMsg, setToastMsg] = useState<{
-    type: 'success' | 'error'
-    text: string
-  } | null>(null)
 
   const showToast = (type: 'success' | 'error', text: string) => {
-    setToastMsg({ type, text })
-    setTimeout(() => setToastMsg(null), 3500)
+    if (type === 'success') {
+      notifySuccess('عملیات موفق', text)
+    } else {
+      notifyError('خطا در پردازش', text)
+    }
   }
 
   // Fetch orders
@@ -153,86 +153,57 @@ export const AdminOrdersTableView: React.FC = () => {
       case 'paid':
         return {
           label: 'پرداخت شده / تایید شده',
-          classes:
-            'bg-blue-50 text-blue-700 dark:bg-blue-950/80 dark:text-blue-300 border-blue-200 dark:border-blue-900',
+          classes: 'bg-brand/10 text-brand border-brand/30 font-bold',
         }
       case 'in_queue':
         return {
           label: 'در صف اپراتور',
           classes:
-            'bg-amber-50 text-amber-700 dark:bg-amber-950/80 dark:text-amber-300 border-amber-200 dark:border-amber-900',
+            'bg-amber-500/10 text-amber-500 border-amber-500/30 font-bold',
         }
       case 'processing':
         return {
           label: 'در حال پردازش',
           classes:
-            'bg-purple-50 text-purple-700 dark:bg-purple-950/80 dark:text-purple-300 border-purple-200 dark:border-purple-900',
+            'bg-purple-500/10 text-purple-500 border-purple-500/30 font-bold',
         }
       case 'awaiting_customer_action':
         return {
           label: 'منتظر کد ۲FA / اقدام خریدار',
           classes:
-            'bg-orange-50 text-orange-700 dark:bg-orange-950/80 dark:text-orange-300 border-orange-200 dark:border-orange-900',
+            'bg-amber-500/10 text-amber-500 border-amber-500/30 font-bold',
         }
       case 'completed':
         return {
           label: 'تکمیل شده',
           classes:
-            'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/80 dark:text-emerald-300 border-emerald-200 dark:border-emerald-900',
+            'bg-emerald-500/10 text-emerald-500 border-emerald-500/30 font-bold',
         }
       case 'cancelled':
         return {
           label: 'لغو شده',
-          classes:
-            'bg-red-50 text-red-700 dark:bg-red-950/80 dark:text-red-400 border-red-200 dark:border-red-900',
+          classes: 'bg-rose-500/10 text-rose-500 border-rose-500/30 font-bold',
         }
       case 'refunded':
         return {
           label: 'مرجوعی / عودت وجه',
-          classes:
-            'bg-rose-50 text-rose-700 dark:bg-rose-950/80 dark:text-rose-400 border-rose-200 dark:border-rose-900',
+          classes: 'bg-rose-500/10 text-rose-500 border-rose-500/30 font-bold',
         }
       case 'pending_payment':
         return {
           label: 'در انتظار پرداخت',
-          classes:
-            'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700',
+          classes: 'bg-muted text-muted-foreground border-border/60',
         }
       default:
         return {
           label: st,
-          classes:
-            'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 border-slate-200',
+          classes: 'bg-muted text-muted-foreground border-border/60',
         }
     }
   }
 
   return (
     <div className="space-y-6">
-      {/* Toast Alert */}
-      {toastMsg && (
-        <div
-          className={`fixed top-6 left-6 z-50 px-5 py-3.5 rounded-2xl shadow-xl flex items-center gap-3 border transition-all animate-in fade-in slide-in-from-top-4 ${
-            toastMsg.type === 'success'
-              ? 'bg-emerald-600 text-white border-emerald-500 shadow-emerald-500/20'
-              : 'bg-red-600 text-white border-red-500 shadow-red-500/20'
-          }`}
-        >
-          {toastMsg.type === 'success' ? (
-            <CheckCircle2 className="w-5 h-5 shrink-0" />
-          ) : (
-            <AlertCircle className="w-5 h-5 shrink-0" />
-          )}
-          <span className="text-xs font-semibold">{toastMsg.text}</span>
-          <button
-            onClick={() => setToastMsg(null)}
-            className="p-1 hover:bg-white/20 rounded-lg transition-colors mr-2"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-      )}
-
       {/* Header Banner */}
       <AdminHeaderBanner
         icon={Layers}
@@ -627,13 +598,10 @@ export const AdminOrdersTableView: React.FC = () => {
                     </p>
                   </div>
 
-                  <button
-                    type="button"
+                  <ModalCloseButton
                     onClick={() => setIsStatusModalOpen(false)}
-                    className="p-1.5 rounded-control text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
+                    size="sm"
+                  />
                 </div>
 
                 <form onSubmit={handleStatusSubmit} className="space-y-4">
@@ -671,13 +639,7 @@ export const AdminOrdersTableView: React.FC = () => {
                   {/* Automatic Refund to Customer Wallet Toggle */}
                   {(newStatus === 'cancelled' || newStatus === 'refunded') && (
                     <div className="p-4 rounded-surface bg-amber-500/10 border border-amber-500/30 space-y-2">
-                      <label className="flex items-center gap-2 cursor-pointer select-none">
-                        <input
-                          type="checkbox"
-                          checked={refundToWallet}
-                          onChange={(e) => setRefundToWallet(e.target.checked)}
-                          className="rounded-control accent-amber-500 w-4 h-4"
-                        />
+                      <div className="flex items-center justify-between gap-3">
                         <span className="text-xs font-bold text-foreground">
                           استرداد خودکار وجه سفارش به کیف پول مشتری (
                           {selectedOrder.total_amount_toman.toLocaleString(
@@ -685,10 +647,15 @@ export const AdminOrdersTableView: React.FC = () => {
                           )}{' '}
                           تومان)
                         </span>
-                      </label>
-                      <p className="text-[11px] text-muted-foreground leading-relaxed pr-6">
-                        در صورت فعال بودن این گزینه، مبلغ پرداختی سفارش فوراً به
-                        موجودی کیف پول کاربر اضافه شده و سند تراکنش استردادی ثبت
+                        <ToggleSwitch
+                          size="sm"
+                          checked={refundToWallet}
+                          onChange={setRefundToWallet}
+                        />
+                      </div>
+                      <p className="text-[11px] text-muted-foreground leading-relaxed">
+                        با فعال‌بودن این گزینه، بلافاصله پس از ثبت وضعیت لغو یا
+                        استرداد، مبلغ سفارش به مانده موجودی کیف پول خریدار شارژ
                         می‌گردد.
                       </p>
                     </div>
@@ -760,13 +727,10 @@ export const AdminOrdersTableView: React.FC = () => {
                     <Smartphone className="w-5 h-5 text-amber-500" />
                     ارسال درخواست کد دو مرحله‌ای (2FA)
                   </h3>
-                  <button
-                    type="button"
+                  <ModalCloseButton
                     onClick={() => setPromptOrderId(null)}
-                    className="p-1 rounded-control text-muted-foreground hover:text-foreground cursor-pointer"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
+                    size="sm"
+                  />
                 </div>
 
                 <div>

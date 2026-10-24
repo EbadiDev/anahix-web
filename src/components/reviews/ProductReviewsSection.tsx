@@ -23,6 +23,7 @@ import type {
 import { AuthModal } from '../AuthModal'
 import { Button } from '../ui/button'
 import { useNotification } from '../vibefarsi/NotificationContext'
+import { ToggleSwitch } from '../vibefarsi/ToggleSwitch'
 import { SubmitReviewModal } from './SubmitReviewModal'
 
 function toPersianDigits(n: number | string): string {
@@ -402,20 +403,16 @@ export const ProductReviewsSection: React.FC<ProductReviewsSectionProps> = ({
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          {/* Only with comments checkbox */}
-          <label className="flex items-center gap-2 cursor-pointer select-none text-xs text-muted-foreground hover:text-foreground">
-            <input
-              type="checkbox"
+          {/* Only with comments toggle */}
+          <div className="flex items-center gap-2 select-none text-xs text-muted-foreground hover:text-foreground">
+            <ToggleSwitch
+              size="sm"
               checked={onlyWithComments}
-              onChange={(e) =>
-                setOnlyWithComments(
-                  e.target.value === 'true' || e.target.checked,
-                )
-              }
-              className="rounded border-input text-blue-600 focus:ring-blue-600 h-3.5 w-3.5"
+              onChange={setOnlyWithComments}
+              ariaLabel="فقط نظرات متنی"
             />
             <span>فقط نظرات متنی</span>
-          </label>
+          </div>
 
           {/* Sort selector */}
           <div className="flex items-center gap-1 text-xs">

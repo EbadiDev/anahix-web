@@ -19,6 +19,7 @@ import { useEffect, useState } from 'react'
 import { apiService } from '../../services/api'
 import type { AdminReviewStats, ReviewItem } from '../../types'
 import { Button } from '../ui/button'
+import { ConfirmModal } from '../vibefarsi/ConfirmModal'
 import { useNotification } from '../vibefarsi/NotificationContext'
 import { SearchInput } from '../vibefarsi/SearchInput'
 
@@ -53,6 +54,15 @@ export const AdminReviewsView: React.FC<AdminReviewsViewProps> = ({
     null,
   )
   const [rejectReason, setRejectReason] = useState('')
+  const [deleteConfirm, setDeleteConfirm] = useState<{
+    isOpen: boolean
+    reviewId: string | null
+    loading: boolean
+  }>({
+    isOpen: false,
+    reviewId: null,
+    loading: false,
+  })
   const [actionLoading, setActionLoading] = useState<Record<string, boolean>>(
     {},
   )
@@ -150,17 +160,21 @@ export const AdminReviewsView: React.FC<AdminReviewsViewProps> = ({
     }
   }
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('آیا از حذف کامل این نظر اطمینان دارید؟')) return
-    setActionLoading((prev) => ({ ...prev, [id]: true }))
+  const handleDelete = (id: string) => {
+    setDeleteConfirm({ isOpen: true, reviewId: id, loading: false })
+  }
+
+  const confirmDelete = async () => {
+    if (!deleteConfirm.reviewId) return
+    setDeleteConfirm((prev) => ({ ...prev, loading: true }))
     try {
-      await apiService.deleteAdminReview(id)
+      await apiService.deleteAdminReview(deleteConfirm.reviewId)
       notifySuccess('حذف نظر', 'نظر خریدار با موفقیت حذف شد.')
+      setDeleteConfirm({ isOpen: false, reviewId: null, loading: false })
       await fetchReviews()
     } catch (err: any) {
       notifyError('خطا در حذف نظر', err.message)
-    } finally {
-      setActionLoading((prev) => ({ ...prev, [id]: false }))
+      setDeleteConfirm((prev) => ({ ...prev, loading: false }))
     }
   }
 
@@ -429,7 +443,7 @@ export const AdminReviewsView: React.FC<AdminReviewsViewProps> = ({
                 {/* Experience Tags */}
                 {rev.experience_tags && rev.experience_tags.length > 0 && (
                   <div className="flex flex-wrap gap-1.5">
-                    {rev.experience_tags.map((tag) => (
+                    {rev.experience_tags.map((tag: string) => (
                       <span
                         key={tag}
                         className="inline-flex items-center gap-1 text-xs font-medium bg-blue-50/50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200/50 dark:border-blue-900/40 px-2.5 py-1 rounded-xl"
@@ -677,6 +691,20 @@ export const AdminReviewsView: React.FC<AdminReviewsViewProps> = ({
           </div>
         )}
       </div>
+
+      {/* DELETE CONFIRMATION MODAL */}
+      <ConfirmModal
+        isOpen={deleteConfirm.isOpen}
+        title="حذف نظر خریدار"
+        message="آیا از حذف کامل این نظر و امتیاز آن از فروشگاه اطمینان دارید؟ این عملیات غیرقابل بازگشت است."
+        confirmText="بله، نظر حذف شود"
+        cancelText="انصراف"
+        loading={deleteConfirm.loading}
+        onConfirm={confirmDelete}
+        onClose={() =>
+          setDeleteConfirm({ isOpen: false, reviewId: null, loading: false })
+        }
+      />
     </div>
   )
 }

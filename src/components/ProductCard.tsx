@@ -118,16 +118,25 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 
   const brand = getBrandDetails()
 
-  // Effective price & discount logic
-  const effectivePrice =
-    product.is_flash_sale && product.flash_sale_price_toman
-      ? product.flash_sale_price_toman
-      : product.price_toman
+  // Check if timed discount has expired
+  const isFlashSaleExpired = Boolean(
+    product.flash_sale_end_at &&
+      new Date(product.flash_sale_end_at).getTime() <= Date.now(),
+  )
+  const isFlashSaleActive = Boolean(
+    product.is_flash_sale &&
+      product.flash_sale_price_toman &&
+      !isFlashSaleExpired,
+  )
 
-  const originalPrice =
-    product.is_flash_sale && product.flash_sale_price_toman
-      ? product.price_toman
-      : Math.round((product.price_toman * 1.18) / 10000) * 10000
+  // Effective price & discount logic
+  const effectivePrice = isFlashSaleActive
+    ? (product.flash_sale_price_toman as number)
+    : product.price_toman
+
+  const originalPrice = isFlashSaleActive
+    ? product.price_toman
+    : Math.round((product.price_toman * 1.18) / 10000) * 10000
 
   const discountPercent =
     originalPrice > effectivePrice
@@ -136,7 +145,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 
   // Live Timer for Timed Discount
   const hasTimedDiscount = Boolean(
-    product.is_flash_sale && product.flash_sale_end_at,
+    isFlashSaleActive && product.flash_sale_end_at,
   )
   const targetExpiry = hasTimedDiscount
     ? new Date(product.flash_sale_end_at as string).getTime()

@@ -2,12 +2,16 @@ import {
   AlertCircle,
   Calendar,
   CheckCircle2,
+  ChevronDown,
+  ChevronUp,
+  Coins,
   Copy,
   Download,
   Edit2,
   ExternalLink,
   Flame,
   Globe,
+  GripVertical,
   HelpCircle,
   Key,
   Loader2,
@@ -17,10 +21,8 @@ import {
   Search,
   Sparkles,
   Table,
-  Ticket,
   Trash2,
   Upload,
-  X,
 } from 'lucide-react'
 import type React from 'react'
 import { useEffect, useState } from 'react'
@@ -28,26 +30,24 @@ import { createPortal } from 'react-dom'
 import { apiService } from '../../services/api'
 import type {
   AdminProduct,
-  CouponItem,
   InventoryItem,
   InventoryStats,
   ProductPlan,
 } from '../../types'
+import { RichContentEditor } from '../content/RichContentEditor'
 import { ConfirmModal } from '../vibefarsi/ConfirmModal'
 import { ModalCloseButton } from '../vibefarsi/ModalCloseButton'
-import { useNotification } from '../vibefarsi/NotificationContext'
 import { SearchInput } from '../vibefarsi/SearchInput'
 import { ToggleSwitch } from '../vibefarsi/ToggleSwitch'
+import { AdminHeaderBanner } from './AdminHeaderBanner'
 
 export const AdminInventoryView: React.FC = () => {
-  const { success: notifySuccess, error: notifyError } = useNotification()
-  const [activeSubtab, setActiveSubtab] = useState<
-    'catalog' | 'inventory' | 'coupons'
-  >('catalog')
+  const [activeSubtab, setActiveSubtab] = useState<'catalog' | 'inventory'>(
+    'catalog',
+  )
   const [stats, setStats] = useState<InventoryStats | null>(null)
   const [items, setItems] = useState<InventoryItem[]>([])
   const [adminProducts, setAdminProducts] = useState<AdminProduct[]>([])
-  const [coupons, setCoupons] = useState<CouponItem[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedProduct, setSelectedProduct] = useState<string>('all')
   const [selectedStatus, setSelectedStatus] = useState<string>('all')
@@ -123,7 +123,7 @@ export const AdminInventoryView: React.FC = () => {
     null,
   )
   const [deleteLoading, setDeleteLoading] = useState(false)
-  const [deleteError, setDeleteError] = useState('')
+  const [draggedPlanIdx, setDraggedPlanIdx] = useState<number | null>(null)
 
   // Export Modal state
   const [isExportOpen, setIsExportOpen] = useState(false)
@@ -140,33 +140,15 @@ export const AdminInventoryView: React.FC = () => {
   const [replaceSuccessMsg, setReplaceSuccessMsg] = useState('')
   const [replaceErrorMsg, setReplaceErrorMsg] = useState('')
 
-  // Create Coupon Modal state
-  const [isCreateCouponOpen, setIsCreateCouponOpen] = useState(false)
-  const [couponCode, setCouponCode] = useState('')
-  const [couponType, setCouponType] = useState<'percentage' | 'fixed'>(
-    'percentage',
-  )
-  const [couponValue, setCouponValue] = useState(10)
-  const [minSpend, setMinSpend] = useState(0)
-  const [maxDiscount, setMaxDiscount] = useState(0)
-  const [perUserLimit, setPerUserLimit] = useState(1)
-  const [maxUsage, setMaxUsage] = useState(100)
-  const [couponLabel, setCouponLabel] = useState('')
-  const [couponToDelete, setCouponToDelete] = useState<CouponItem | null>(null)
-  const [createCouponLoading, setCreateCouponLoading] = useState(false)
-  const [createCouponError, setCreateCouponError] = useState('')
-
   // Initial fetch
   const loadData = async () => {
     setLoading(true)
     try {
-      const [statsData, couponsData, adminProdsData] = await Promise.all([
+      const [statsData, adminProdsData] = await Promise.all([
         apiService.getInventoryStats().catch(() => null),
-        apiService.listCoupons().catch(() => []),
         apiService.adminListProducts().catch(() => []),
       ])
       if (statsData) setStats(statsData)
-      setCoupons(couponsData)
       setAdminProducts(adminProdsData)
 
       // Fetch items
@@ -910,21 +892,55 @@ export const AdminInventoryView: React.FC = () => {
 
   const openDeleteModal = (p: AdminProduct) => {
     setProductToDelete(p)
-    setDeleteError('')
     setIsDeleteModalOpen(true)
+  }
+
+  // Plans Drag & Drop Handlers
+  const handlePlanDragStart = (e: React.DragEvent, idx: number) => {
+    setDraggedPlanIdx(idx)
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('text/plain', String(idx))
+  }
+
+  const handlePlanDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+  }
+
+  const handlePlanDrop = (e: React.DragEvent, targetIdx: number) => {
+    e.preventDefault()
+    if (draggedPlanIdx === null || draggedPlanIdx === targetIdx) {
+      setDraggedPlanIdx(null)
+      return
+    }
+
+    const updated = [...pPlans]
+    const [moved] = updated.splice(draggedPlanIdx, 1)
+    updated.splice(targetIdx, 0, moved)
+
+    setPPlans(updated)
+    setPPlansJSON(JSON.stringify(updated, null, 2))
+    setDraggedPlanIdx(null)
+  }
+
+  const movePlan = (fromIdx: number, toIdx: number) => {
+    if (toIdx < 0 || toIdx >= pPlans.length) return
+    const updated = [...pPlans]
+    const [moved] = updated.splice(fromIdx, 1)
+    updated.splice(toIdx, 0, moved)
+    setPPlans(updated)
+    setPPlansJSON(JSON.stringify(updated, null, 2))
   }
 
   const handleDeleteProductSubmit = async () => {
     if (!productToDelete) return
     setDeleteLoading(true)
-    setDeleteError('')
     try {
       await apiService.adminDeleteProduct(productToDelete.id)
       setIsDeleteModalOpen(false)
       setProductToDelete(null)
       loadData()
-    } catch (err: any) {
-      setDeleteError(err.message || 'خطا در حذف محصول')
+    } catch {
     } finally {
       setDeleteLoading(false)
     }
@@ -980,79 +996,6 @@ export const AdminInventoryView: React.FC = () => {
     }
   }
 
-  const handleCreateCouponSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setCreateCouponLoading(true)
-    setCreateCouponError('')
-    try {
-      const created = await apiService.createCoupon({
-        code: couponCode.trim().toUpperCase(),
-        discount_type: couponType,
-        discount_value: Number(couponValue),
-        min_order_amount_toman: Number(minSpend) || 0,
-        max_discount_toman: Number(maxDiscount) || 0,
-        per_user_limit: Number(perUserLimit) || 1,
-        max_usage: Number(maxUsage) || 100,
-        label: couponLabel.trim() || undefined,
-        is_active: true,
-      })
-      setCoupons((prev) => [created, ...prev])
-      setIsCreateCouponOpen(false)
-      setCouponCode('')
-      setCouponLabel('')
-      setCouponValue(10)
-    } catch (err: any) {
-      setCreateCouponError(err.message || 'خطا در ساخت کوپن')
-    } finally {
-      setCreateCouponLoading(false)
-    }
-  }
-
-  const handleToggleCoupon = async (c: CouponItem) => {
-    try {
-      const updated = await apiService.adminToggleCoupon(c.id)
-      setCoupons((prev) =>
-        prev.map((item) => (item.id === c.id ? updated : item)),
-      )
-      window.dispatchEvent(
-        new CustomEvent('anahix:coupon:changed', {
-          detail: { code: c.code, action: 'toggled' },
-        }),
-      )
-      notifySuccess(
-        'تغییر وضعیت کوپن',
-        `کد تخفیف «${c.code}» اکنون ${updated.is_active ? 'فعال' : 'غیرفعال'} شد.`,
-      )
-    } catch (err: any) {
-      notifyError('خطا در تغییر وضعیت کوپن', err.message)
-    }
-  }
-
-  const handleDeleteCouponClick = (c: CouponItem) => {
-    setCouponToDelete(c)
-  }
-
-  const handleConfirmDeleteCoupon = async () => {
-    if (!couponToDelete) return
-    try {
-      await apiService.adminDeleteCoupon(couponToDelete.id)
-      const deletedCode = couponToDelete.code
-      setCoupons((prev) => prev.filter((item) => item.id !== couponToDelete.id))
-      setCouponToDelete(null)
-      window.dispatchEvent(
-        new CustomEvent('anahix:coupon:changed', {
-          detail: { code: deletedCode, action: 'deleted' },
-        }),
-      )
-      notifySuccess(
-        'حذف کد تخفیف',
-        `کد تخفیف «${deletedCode}» با موفقیت حذف شد.`,
-      )
-    } catch (err: any) {
-      notifyError('خطا در حذف کوپن', err.message)
-    }
-  }
-
   const filteredAdminProducts = adminProducts.filter((p) => {
     const q = catalogSearch.toLowerCase().trim()
     const matchesSearch =
@@ -1083,18 +1026,15 @@ export const AdminInventoryView: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Top Header & Subtabs */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/80 pb-4">
-        <div>
-          <h2 className="text-lg font-black text-foreground flex items-center gap-2">
-            <Package className="h-5 w-5 text-blue-600" />
-            <span>مدیریت محصولات، موجودی انبار و کوپن‌ها</span>
-          </h2>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            ایجاد و ویرایش کاتالوگ فروشگاه، نظارت بر مخزن لایسنس‌ها و کدهای تخفیف
-          </p>
-        </div>
+      <AdminHeaderBanner
+        icon={Package}
+        title="محصولات و انبار لایسنس‌ها"
+        subtitle="کاتالوگ، موجودی انبار لایسنس‌ها و قیمت‌گذاری محصولات"
+        badgeText="کاتالوگ و انبارداری"
+      />
 
-        <div className="flex items-center gap-1.5 bg-muted/40 p-1 rounded-control border border-border/40">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/80 pb-4">
+        <div className="flex items-center gap-1.5 bg-muted/40 p-1 rounded-surface border border-border/60 overflow-x-auto scrollbar-none">
           <button
             type="button"
             onClick={() => setActiveSubtab('catalog')}
@@ -1118,18 +1058,6 @@ export const AdminInventoryView: React.FC = () => {
           >
             <Key className="h-3.5 w-3.5" />
             <span>موجودی لایسنس و کلیدها</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveSubtab('coupons')}
-            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-control text-xs duration-motion ease-motion transition-all cursor-pointer ${
-              activeSubtab === 'coupons'
-                ? 'bg-primary text-primary-foreground font-black shadow-control'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            <Ticket className="h-3.5 w-3.5" />
-            <span>کدهای تخفیف ({coupons.length})</span>
           </button>
         </div>
       </div>
@@ -1178,8 +1106,8 @@ export const AdminInventoryView: React.FC = () => {
         </div>
       )}
 
-      {/* Metrics Row for Inventory & Coupons */}
-      {activeSubtab !== 'catalog' && stats && (
+      {/* Metrics Row for Inventory */}
+      {activeSubtab === 'inventory' && stats && (
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-right">
           <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
             <span className="text-[11px] font-medium text-muted-foreground block">
@@ -1325,39 +1253,65 @@ export const AdminInventoryView: React.FC = () => {
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-right text-xs">
-                  <thead className="bg-muted/40 text-muted-foreground border-b border-border text-[11px] font-semibold">
+                <table className="w-full text-center text-xs">
+                  <thead className="bg-muted/40 text-muted-foreground border-b border-border text-[11px] font-semibold select-none">
                     <tr>
-                      <th className="p-3.5">محصول و عنوان</th>
-                      <th className="p-3.5">دسته‌بندی و شیوه تحویل</th>
-                      <th className="p-3.5">قیمت فروش</th>
-                      <th className="p-3.5">قیمت تمام‌شده</th>
-                      <th className="p-3.5">موجودی / SLA</th>
-                      <th className="p-3.5">وضعیت</th>
+                      <th className="p-3.5 text-right pr-6">
+                        محصول، تصویر و عنوان
+                      </th>
+                      <th className="p-3.5 text-center">
+                        دسته‌بندی و شیوه تحویل
+                      </th>
+                      <th className="p-3.5 text-center">قیمت فروش</th>
+                      <th className="p-3.5 text-center">قیمت تمام‌شده</th>
+                      <th className="p-3.5 text-center">موجودی / SLA</th>
+                      <th className="p-3.5 text-center">وضعیت</th>
                       <th className="p-3.5 text-center">عملیات</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
                     {filteredAdminProducts.map((p) => (
                       <tr key={p.id} className="hover:bg-muted/30 transition">
-                        <td className="p-3.5">
-                          <div className="font-bold text-foreground flex items-center gap-2">
-                            <span>{p.title_fa}</span>
-                            {p.group_tag && (
-                              <span className="text-[10px] px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400 font-mono">
-                                {p.group_tag}
-                              </span>
-                            )}
-                          </div>
-                          <div className="text-[11px] text-muted-foreground mt-0.5 flex items-center gap-2">
-                            <span>{p.title}</span>
-                            <span className="font-mono text-[10px] text-muted-foreground/70">
-                              ({p.slug})
-                            </span>
+                        <td className="p-3.5 text-right pr-6">
+                          <div className="flex items-center gap-3">
+                            <div className="relative w-12 h-12 rounded-control bg-secondary border border-border/60 overflow-hidden shrink-0 flex items-center justify-center">
+                              {p.image_url ? (
+                                <img
+                                  src={p.image_url}
+                                  alt={p.title_fa}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <Package className="w-6 h-6 text-muted-foreground/50" />
+                              )}
+                              {p.icon_url && (
+                                <img
+                                  src={p.icon_url}
+                                  alt="آیکون"
+                                  className="absolute bottom-0.5 right-0.5 w-4 h-4 rounded-full bg-card p-0.5 border border-border/60 shadow-xs"
+                                />
+                              )}
+                            </div>
+                            <div>
+                              <div className="font-bold text-foreground flex items-center gap-2">
+                                <span>{p.title_fa}</span>
+                                {p.group_tag && (
+                                  <span className="text-[10px] px-2 py-0.5 rounded-control bg-brand/10 text-brand font-mono font-latin">
+                                    {p.group_tag}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-[11px] text-muted-foreground mt-0.5 flex items-center gap-1.5 font-latin">
+                                <span>{p.title}</span>
+                                <span className="text-[10px] text-muted-foreground/70">
+                                  ({p.slug})
+                                </span>
+                              </div>
+                            </div>
                           </div>
                         </td>
-                        <td className="p-3.5">
-                          <div className="flex flex-col gap-1 items-start">
+                        <td className="p-3.5 text-center">
+                          <div className="flex flex-col gap-1 items-center justify-center">
                             <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-secondary text-secondary-foreground">
                               {p.category === 'ai_chat'
                                 ? 'هوش مصنوعی'
@@ -1372,8 +1326,8 @@ export const AdminInventoryView: React.FC = () => {
                             <span
                               className={`text-[10px] font-semibold flex items-center gap-1 ${
                                 p.delivery_type === 'instant'
-                                  ? 'text-emerald-600 dark:text-emerald-400'
-                                  : 'text-amber-600 dark:text-amber-400'
+                                  ? 'text-emerald-500'
+                                  : 'text-amber-500'
                               }`}
                             >
                               {p.delivery_type === 'instant'
@@ -1382,22 +1336,45 @@ export const AdminInventoryView: React.FC = () => {
                             </span>
                           </div>
                         </td>
-                        <td className="p-3.5 font-bold font-mono text-foreground">
+                        <td className="p-3.5 font-bold font-mono text-foreground text-center font-latin">
                           {p.price_toman.toLocaleString('fa-IR')}{' '}
-                          <span className="text-[10px] font-normal text-muted-foreground">
+                          <span className="text-[10px] font-normal text-muted-foreground font-sans">
                             تومان
                           </span>
                         </td>
-                        <td className="p-3.5 font-mono text-muted-foreground">
+                        <td className="p-3.5 font-mono text-muted-foreground text-center font-latin">
                           {p.base_cost_usd > 0 ? (
-                            <span>${p.base_cost_usd.toFixed(2)}</span>
+                            <div className="group/cost relative inline-block cursor-help">
+                              <span className="border-b border-dashed border-border/80 hover:text-foreground transition-colors font-bold">
+                                ${p.base_cost_usd.toFixed(2)}
+                              </span>
+                              {/* Hover Tooltip showing Toman equivalent */}
+                              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover/cost:flex flex-col items-center z-[130] pointer-events-none whitespace-nowrap animate-in fade-in zoom-in-95">
+                                <div className="bg-popover text-popover-foreground border border-border px-3 py-1.5 rounded-control shadow-xl text-xs text-right font-sans">
+                                  <div className="font-bold text-foreground flex items-center gap-1">
+                                    <Coins className="w-3.5 h-3.5 text-emerald-500" />
+                                    <span>قیمت تمام‌شده به تومان:</span>
+                                  </div>
+                                  <div className="font-mono font-latin text-emerald-500 font-bold text-sm mt-0.5">
+                                    {Math.round(
+                                      p.base_cost_usd * 98500,
+                                    ).toLocaleString('fa-IR')}{' '}
+                                    تومان
+                                  </div>
+                                  <div className="text-[10px] text-muted-foreground mt-0.5">
+                                    بر مبنای نرخ حواله دلار / تتر (۹۸,۵۰۰ تومان)
+                                  </div>
+                                </div>
+                                <div className="w-2 h-2 bg-popover border-b border-r border-border rotate-45 -mt-1" />
+                              </div>
+                            </div>
                           ) : (
                             <span className="text-muted-foreground/40">-</span>
                           )}
                         </td>
-                        <td className="p-3.5">
+                        <td className="p-3.5 text-center">
                           {p.delivery_type === 'instant' ? (
-                            <div className="flex items-center gap-1.5">
+                            <div className="flex items-center justify-center gap-1.5 font-mono font-latin">
                               <span
                                 className={`h-2 w-2 rounded-full ${
                                   (p.available_stock ?? 0) > 0
@@ -1410,25 +1387,25 @@ export const AdminInventoryView: React.FC = () => {
                                   'fa-IR',
                                 )}
                               </span>
-                              <span className="text-[10px] text-muted-foreground">
+                              <span className="text-[10px] text-muted-foreground font-sans">
                                 کلید موجود
                               </span>
                             </div>
                           ) : (
-                            <div className="text-[11px] text-muted-foreground">
+                            <div className="text-[11px] text-muted-foreground text-center">
                               {p.sla_display_text ||
                                 `${p.sla_min_minutes} الی ${p.sla_max_minutes} دقیقه`}
                             </div>
                           )}
                         </td>
-                        <td className="p-3.5">
+                        <td className="p-3.5 text-center">
                           <button
                             type="button"
                             onClick={() => handleToggleProductActive(p)}
-                            className={`px-2.5 py-1 rounded-full text-[10px] font-bold transition flex items-center gap-1 cursor-pointer ${
+                            className={`px-2.5 py-1 rounded-control text-[10px] font-bold transition flex items-center justify-center gap-1 mx-auto cursor-pointer border ${
                               p.is_active
-                                ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/25'
-                                : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                                ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30'
+                                : 'bg-muted text-muted-foreground border-border/60 hover:bg-muted/80'
                             }`}
                             title="کلیک برای تغییر وضعیت"
                           >
@@ -1440,13 +1417,13 @@ export const AdminInventoryView: React.FC = () => {
                             </span>
                           </button>
                         </td>
-                        <td className="p-3.5">
-                          <div className="flex items-center justify-center gap-1">
+                        <td className="p-3.5 text-center">
+                          <div className="flex items-center justify-center gap-1.5">
                             <a
                               href={`/products/${p.slug}`}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="h-8 w-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 transition"
+                              className="h-8 w-8 rounded-control border border-border/60 bg-secondary flex items-center justify-center text-muted-foreground hover:text-emerald-500 hover:bg-muted transition shadow-xs"
                               title="مشاهده صفحه اختصاصی محصول در فروشگاه (PDP)"
                             >
                               <ExternalLink className="h-3.5 w-3.5" />
@@ -1454,7 +1431,7 @@ export const AdminInventoryView: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => openEditProductModal(p)}
-                              className="h-8 w-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/50 transition"
+                              className="h-8 w-8 rounded-control border border-border/60 bg-secondary flex items-center justify-center text-muted-foreground hover:text-brand hover:bg-muted transition shadow-xs cursor-pointer"
                               title="ویرایش محصول"
                             >
                               <Edit2 className="h-3.5 w-3.5" />
@@ -1462,7 +1439,7 @@ export const AdminInventoryView: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => openDeleteModal(p)}
-                              className="h-8 w-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition"
+                              className="h-8 w-8 rounded-control border border-destructive/20 bg-secondary flex items-center justify-center text-destructive hover:bg-destructive/10 transition shadow-xs cursor-pointer"
                               title="حذف محصول"
                             >
                               <Trash2 className="h-3.5 w-3.5" />
@@ -1573,40 +1550,42 @@ export const AdminInventoryView: React.FC = () => {
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-right text-xs">
-                  <thead className="bg-muted/40 text-muted-foreground border-b border-border text-[11px] font-semibold">
+                <table className="w-full text-center text-xs">
+                  <thead className="bg-muted/40 text-muted-foreground border-b border-border text-[11px] font-semibold select-none">
                     <tr>
-                      <th className="p-3.5">شناسه</th>
-                      <th className="p-3.5">محصول متصل</th>
-                      <th className="p-3.5">پیش‌نمایش کلید / محتوا</th>
-                      <th className="p-3.5">وضعیت</th>
-                      <th className="p-3.5">برچسب پارت</th>
-                      <th className="p-3.5">سفارش متصل</th>
-                      <th className="p-3.5">تاریخ ثبت</th>
+                      <th className="p-3.5 text-center">شناسه</th>
+                      <th className="p-3.5 text-center">محصول متصل</th>
+                      <th className="p-3.5 text-center">
+                        پیش‌نمایش کلید / محتوا
+                      </th>
+                      <th className="p-3.5 text-center">وضعیت</th>
+                      <th className="p-3.5 text-center">برچسب پارت</th>
+                      <th className="p-3.5 text-center">سفارش متصل</th>
+                      <th className="p-3.5 text-center">تاریخ ثبت</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
                     {filteredItems.map((it) => (
                       <tr key={it.id} className="hover:bg-muted/30 transition">
-                        <td className="p-3.5 font-mono text-muted-foreground">
+                        <td className="p-3.5 font-mono text-muted-foreground text-center font-latin">
                           #{it.id}
                         </td>
-                        <td className="p-3.5 font-medium text-foreground">
+                        <td className="p-3.5 font-medium text-foreground text-center">
                           {it.product_title || 'سرویس نامشخص'}
                         </td>
-                        <td className="p-3.5 font-mono text-[11px] text-muted-foreground/90 max-w-[220px] truncate">
+                        <td className="p-3.5 font-mono text-[11px] text-muted-foreground/90 max-w-[220px] truncate text-center font-latin mx-auto">
                           {it.payload_preview}
                         </td>
-                        <td className="p-3.5">
+                        <td className="p-3.5 text-center">
                           <span
-                            className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                            className={`px-2.5 py-0.5 rounded-control text-[10px] font-bold border ${
                               it.status === 'available'
-                                ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
+                                ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30'
                                 : it.status === 'reserved'
-                                  ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
+                                  ? 'bg-amber-500/10 text-amber-500 border-amber-500/30'
                                   : it.status === 'sold'
-                                    ? 'bg-blue-500/15 text-blue-600 dark:text-blue-400'
-                                    : 'bg-rose-500/15 text-rose-600 dark:text-rose-400'
+                                    ? 'bg-brand/10 text-brand border-brand/30'
+                                    : 'bg-rose-500/10 text-rose-500 border-rose-500/30'
                             }`}
                           >
                             {it.status === 'available'
@@ -1618,142 +1597,24 @@ export const AdminInventoryView: React.FC = () => {
                                   : 'سوخته/باطل'}
                           </span>
                         </td>
-                        <td className="p-3.5 font-mono text-[11px] text-muted-foreground">
+                        <td className="p-3.5 font-mono text-[11px] text-muted-foreground text-center font-latin">
                           {it.batch_tag || '-'}
                         </td>
-                        <td className="p-3.5 font-mono text-muted-foreground">
+                        <td className="p-3.5 font-mono text-muted-foreground text-center font-latin">
                           {it.reserved_order_id ? (
-                            <span className="text-blue-600 dark:text-blue-400">
+                            <span className="text-brand font-bold">
                               #{it.reserved_order_id.slice(0, 8)}...
                             </span>
                           ) : (
                             '-'
                           )}
                         </td>
-                        <td className="p-3.5 text-muted-foreground text-[11px]">
+                        <td className="p-3.5 text-muted-foreground text-[11px] text-center font-mono font-latin">
                           {it.created_at
                             ? new Date(it.created_at).toLocaleDateString(
                                 'fa-IR',
                               )
                             : '-'}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* SUBTAB 2: COUPONS */}
-      {activeSubtab === 'coupons' && (
-        <div className="space-y-4">
-          <div className="rounded-surface border border-border/80 bg-card p-4 flex items-center justify-between gap-3 shadow-surface">
-            <div>
-              <h3 className="text-sm font-black text-foreground">
-                کدهای تخفیف فعال و زمان‌دار
-              </h3>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                تخفیف‌های درصدی یا مبلغ ثابت با محدودیت سقف، برچسب سبد خرید و
-                قابلیت حذف و غیرفعال‌سازی
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setIsCreateCouponOpen(true)}
-              className="h-9 px-4 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground text-xs font-black transition flex items-center gap-1.5 shadow-control cursor-pointer duration-motion active:scale-[0.98]"
-            >
-              <Plus className="h-4 w-4" />
-              <span>ایجاد کوپن جدید</span>
-            </button>
-          </div>
-
-          <div className="rounded-surface border border-border/80 bg-card overflow-hidden shadow-surface">
-            {coupons.length === 0 ? (
-              <div className="py-16 text-center text-muted-foreground space-y-2">
-                <Ticket className="h-10 w-10 mx-auto text-muted-foreground/50 stroke-1" />
-                <div className="text-xs font-medium">
-                  هیچ کد تخفیفی تاکنون تعریف نشده است
-                </div>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-right text-xs">
-                  <thead className="bg-muted/40 text-muted-foreground border-b border-border/60 text-[11px] font-semibold">
-                    <tr>
-                      <th className="p-3.5">کد تخفیف</th>
-                      <th className="p-3.5">برچسب سبد خرید</th>
-                      <th className="p-3.5">نوع و مقدار</th>
-                      <th className="p-3.5">حداقل خرید</th>
-                      <th className="p-3.5">سقف تخفیف</th>
-                      <th className="p-3.5">مصرف / سقف</th>
-                      <th className="p-3.5">وضعیت</th>
-                      <th className="p-3.5 text-center">عملیات</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border/60">
-                    {coupons.map((c) => (
-                      <tr key={c.id} className="hover:bg-muted/30 transition">
-                        <td className="p-3.5">
-                          <span className="font-mono font-black text-brand bg-brand/10 border border-brand/20 px-2.5 py-1 rounded-control">
-                            {c.code}
-                          </span>
-                        </td>
-                        <td className="p-3.5">
-                          {c.label ? (
-                            <span className="px-2 py-0.5 rounded-control bg-muted text-foreground border border-border/60 text-[11px] font-bold">
-                              {c.label}
-                            </span>
-                          ) : (
-                            <span className="text-muted-foreground text-[11px]">
-                              -
-                            </span>
-                          )}
-                        </td>
-                        <td className="p-3.5 font-bold text-foreground">
-                          {c.discount_type === 'percentage'
-                            ? `${c.discount_value}% تخفیف`
-                            : `${c.discount_value.toLocaleString('fa-IR')} تومان`}
-                        </td>
-                        <td className="p-3.5 font-mono text-muted-foreground">
-                          {c.min_order_amount_toman > 0
-                            ? `${c.min_order_amount_toman.toLocaleString('fa-IR')} تومان`
-                            : 'بدون حداقل'}
-                        </td>
-                        <td className="p-3.5 font-mono text-muted-foreground">
-                          {c.max_discount_toman > 0
-                            ? `${c.max_discount_toman.toLocaleString('fa-IR')} تومان`
-                            : 'بدون سقف'}
-                        </td>
-                        <td className="p-3.5 font-mono text-muted-foreground font-latin">
-                          {(c.current_usage ?? 0).toLocaleString('fa-IR')} /{' '}
-                          {c.max_usage.toLocaleString('fa-IR')}
-                        </td>
-                        <td className="p-3.5">
-                          <button
-                            type="button"
-                            onClick={() => handleToggleCoupon(c)}
-                            className={`px-2.5 py-0.5 rounded-control text-[10px] font-black cursor-pointer transition-transform active:scale-95 border ${
-                              c.is_active
-                                ? 'bg-emerald-500/15 text-emerald-500 border-emerald-500/30'
-                                : 'bg-rose-500/15 text-rose-500 border-rose-500/30'
-                            }`}
-                            title="برای تغییر وضعیت کلیک کنید"
-                          >
-                            {c.is_active ? 'فعال' : 'غیرفعال'}
-                          </button>
-                        </td>
-                        <td className="p-3.5 text-center">
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteCouponClick(c)}
-                            className="p-1.5 rounded-control border border-destructive/20 text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
-                            title="حذف کوپن تخفیف"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
                         </td>
                       </tr>
                     ))}
@@ -1815,25 +1676,22 @@ export const AdminInventoryView: React.FC = () => {
                           <span>مشاهده در فروشگاه</span>
                         </a>
                       )}
-                      <button
-                        type="button"
+                      <ModalCloseButton
                         onClick={() => setIsProductModalOpen(false)}
-                        className="h-8 w-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
+                        size="sm"
+                      />
                     </div>
                   </div>
 
                   {/* Navigation Tabs for PDP Configuration */}
-                  <div className="flex items-center gap-1 overflow-x-auto pt-1 scrollbar-none">
+                  <div className="flex items-center gap-1.5 p-1 bg-muted/40 rounded-surface border border-border/60 overflow-x-auto pt-1 scrollbar-none">
                     <button
                       type="button"
                       onClick={() => setProductModalTab('general')}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap ${
+                      className={`px-3.5 py-1.5 rounded-control text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer duration-motion active:scale-[0.98] ${
                         productModalTab === 'general'
-                          ? 'bg-blue-600 text-white shadow-sm'
-                          : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                          ? 'bg-primary text-primary-foreground font-black shadow-control'
+                          : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
                       }`}
                     >
                       <Package className="h-3.5 w-3.5" />
@@ -1842,10 +1700,10 @@ export const AdminInventoryView: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => setProductModalTab('seo')}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap ${
+                      className={`px-3.5 py-1.5 rounded-control text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer duration-motion active:scale-[0.98] ${
                         productModalTab === 'seo'
-                          ? 'bg-blue-600 text-white shadow-sm'
-                          : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                          ? 'bg-primary text-primary-foreground font-black shadow-control'
+                          : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
                       }`}
                     >
                       <Globe className="h-3.5 w-3.5" />
@@ -1854,10 +1712,10 @@ export const AdminInventoryView: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => setProductModalTab('plans')}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap ${
+                      className={`px-3.5 py-1.5 rounded-control text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer duration-motion active:scale-[0.98] ${
                         productModalTab === 'plans'
-                          ? 'bg-blue-600 text-white shadow-sm'
-                          : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                          ? 'bg-primary text-primary-foreground font-black shadow-control'
+                          : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
                       }`}
                     >
                       <Calendar className="h-3.5 w-3.5" />
@@ -1866,10 +1724,10 @@ export const AdminInventoryView: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => setProductModalTab('comparison')}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap ${
+                      className={`px-3.5 py-1.5 rounded-control text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer duration-motion active:scale-[0.98] ${
                         productModalTab === 'comparison'
-                          ? 'bg-blue-600 text-white shadow-sm'
-                          : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                          ? 'bg-primary text-primary-foreground font-black shadow-control'
+                          : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
                       }`}
                     >
                       <Table className="h-3.5 w-3.5" />
@@ -1878,10 +1736,10 @@ export const AdminInventoryView: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => setProductModalTab('guide')}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap ${
+                      className={`px-3.5 py-1.5 rounded-control text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer duration-motion active:scale-[0.98] ${
                         productModalTab === 'guide'
-                          ? 'bg-blue-600 text-white shadow-sm'
-                          : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                          ? 'bg-primary text-primary-foreground font-black shadow-control'
+                          : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
                       }`}
                     >
                       <Sparkles className="h-3.5 w-3.5" />
@@ -1890,10 +1748,10 @@ export const AdminInventoryView: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => setProductModalTab('faq')}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap ${
+                      className={`px-3.5 py-1.5 rounded-control text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer duration-motion active:scale-[0.98] ${
                         productModalTab === 'faq'
-                          ? 'bg-blue-600 text-white shadow-sm'
-                          : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                          ? 'bg-primary text-primary-foreground font-black shadow-control'
+                          : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
                       }`}
                     >
                       <HelpCircle className="h-3.5 w-3.5" />
@@ -2512,43 +2370,56 @@ export const AdminInventoryView: React.FC = () => {
 
                       {/* Badges & Merchandising Options */}
                       <div className="grid grid-cols-2 gap-3 p-3 rounded-surface bg-muted/20 border border-border/60">
-                        <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-foreground">
-                          <input
-                            type="checkbox"
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xs font-bold text-foreground">
+                            محصول پرفروش‌ترین (Best Seller)
+                          </span>
+                          <ToggleSwitch
+                            size="sm"
                             checked={pIsBestSeller}
-                            onChange={(e) => setPIsBestSeller(e.target.checked)}
-                            className="h-4 w-4 rounded accent-brand cursor-pointer"
+                            onChange={setPIsBestSeller}
                           />
-                          <span>محصول پرفروش‌ترین (Best Seller)</span>
-                        </label>
+                        </div>
 
-                        <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-foreground">
-                          <input
-                            type="checkbox"
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xs font-bold text-foreground">
+                            محصول ویژه ویترین (Featured)
+                          </span>
+                          <ToggleSwitch
+                            size="sm"
                             checked={pIsFeatured}
-                            onChange={(e) => setPIsFeatured(e.target.checked)}
-                            className="h-4 w-4 rounded accent-brand cursor-pointer"
+                            onChange={setPIsFeatured}
                           />
-                          <span>محصول ویژه ویترین (Featured)</span>
-                        </label>
+                        </div>
                       </div>
 
                       {/* Active Toggle */}
-                      <div className="flex items-center justify-between p-3 rounded-xl bg-muted/40 border border-border">
+                      <div className="flex items-center justify-between p-3.5 rounded-surface bg-muted/20 border border-border/60">
                         <div>
-                          <span className="font-bold text-foreground block">
-                            فعال در ویترین فروشگاه
+                          <span className="font-bold text-foreground block text-xs">
+                            وضعیت انتشار: فعال در ویترین فروشگاه
                           </span>
-                          <span className="text-[11px] text-muted-foreground">
+                          <span className="text-[11px] text-muted-foreground mt-0.5 block">
                             در صورت غیرفعال بودن، مشتریان این محصول را در
                             کاتالوگ اصلی نخواهند دید.
                           </span>
                         </div>
-                        <ToggleSwitch
-                          checked={pIsActive}
-                          onChange={setPIsActive}
-                          variant="primary"
-                        />
+                        <div className="flex items-center gap-2.5">
+                          <span
+                            className={`px-2.5 py-0.5 rounded-control text-[10px] font-bold border ${
+                              pIsActive
+                                ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30'
+                                : 'bg-rose-500/10 text-rose-500 border-rose-500/30'
+                            }`}
+                          >
+                            {pIsActive ? 'فعال در فروشگاه' : 'غیرفعال'}
+                          </span>
+                          <ToggleSwitch
+                            checked={pIsActive}
+                            onChange={(checked) => setPIsActive(checked)}
+                            ariaLabel="فعال در ویترین فروشگاه"
+                          />
+                        </div>
                       </div>
                     </div>
                   )}
@@ -2711,19 +2582,58 @@ export const AdminInventoryView: React.FC = () => {
                         </div>
                       </div>
 
-                      {/* Visual Plans List */}
+                      {/* Visual Plans List with Drag & Drop */}
                       {pPlans.length > 0 ? (
                         <div className="space-y-3">
                           {pPlans.map((pl, idx) => (
                             <div
                               key={pl.id || `plan-${idx}`}
-                              className="p-4 rounded-2xl border border-border bg-card space-y-3 relative group"
+                              draggable
+                              onDragStart={(e) => handlePlanDragStart(e, idx)}
+                              onDragOver={handlePlanDragOver}
+                              onDrop={(e) => handlePlanDrop(e, idx)}
+                              className={`p-4 rounded-surface border bg-card space-y-3 relative group transition-all duration-200 ${
+                                draggedPlanIdx === idx
+                                  ? 'opacity-40 border-dashed border-brand'
+                                  : 'border-border/80 shadow-surface hover:border-brand/40'
+                              }`}
                             >
                               <div className="flex items-center justify-between border-b border-border/60 pb-2">
                                 <div className="flex items-center gap-2">
-                                  <span className="h-6 w-6 rounded-lg bg-blue-600/10 text-blue-600 font-bold flex items-center justify-center text-xs">
+                                  {/* Drag Grip Handle */}
+                                  <div
+                                    className="cursor-grab active:cursor-grabbing p-1 text-muted-foreground hover:text-foreground transition-colors"
+                                    title="درگ و دراپ جهت جابجایی ردیف و اولویت پلن"
+                                  >
+                                    <GripVertical className="w-4 h-4" />
+                                  </div>
+
+                                  <span className="h-6 w-6 rounded-control bg-secondary text-brand font-black flex items-center justify-center text-xs font-latin border border-border/60">
                                     {idx + 1}
                                   </span>
+
+                                  {/* Move Up / Down Buttons */}
+                                  <div className="flex items-center gap-0.5">
+                                    <button
+                                      type="button"
+                                      disabled={idx === 0}
+                                      onClick={() => movePlan(idx, idx - 1)}
+                                      className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-20 cursor-pointer"
+                                      title="انتقال به بالا"
+                                    >
+                                      <ChevronUp className="w-3.5 h-3.5" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      disabled={idx === pPlans.length - 1}
+                                      onClick={() => movePlan(idx, idx + 1)}
+                                      className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-20 cursor-pointer"
+                                      title="انتقال به پایین"
+                                    >
+                                      <ChevronDown className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
+
                                   <input
                                     type="text"
                                     value={pl.title}
@@ -2736,10 +2646,10 @@ export const AdminInventoryView: React.FC = () => {
                                       )
                                     }}
                                     placeholder="عنوان پلن"
-                                    className="h-7 px-2 font-bold text-foreground bg-transparent border-b border-dashed border-border/80 focus:outline-none focus:border-blue-500 text-xs w-60"
+                                    className="h-7 px-2 font-bold text-foreground bg-transparent border-b border-dashed border-border/80 focus:outline-none focus:border-brand text-xs w-60"
                                   />
                                   {pl.badge && (
-                                    <span className="px-2 py-0.5 rounded-full text-[10px] bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold">
+                                    <span className="px-2 py-0.5 rounded-control text-[10px] bg-brand/10 text-brand border border-brand/20 font-bold">
                                       {pl.badge}
                                     </span>
                                   )}
@@ -2762,7 +2672,7 @@ export const AdminInventoryView: React.FC = () => {
                                           JSON.stringify(updated, null, 2),
                                         )
                                       }}
-                                      className="text-blue-600"
+                                      className="text-brand"
                                     />
                                     <span>پلن پیش‌فرض انتخاب</span>
                                   </label>
@@ -2777,7 +2687,7 @@ export const AdminInventoryView: React.FC = () => {
                                         JSON.stringify(updated, null, 2),
                                       )
                                     }}
-                                    className="h-7 w-7 rounded-lg text-rose-500 hover:bg-rose-500/10 flex items-center justify-center transition"
+                                    className="h-7 w-7 rounded-control text-destructive hover:bg-destructive/10 border border-destructive/20 flex items-center justify-center transition cursor-pointer"
                                     title="حذف این پلن"
                                   >
                                     <Trash2 className="h-3.5 w-3.5" />
@@ -2923,21 +2833,23 @@ export const AdminInventoryView: React.FC = () => {
                   {/* TAB 4: COMPARISON TABLE */}
                   {productModalTab === 'comparison' && (
                     <div className="space-y-4">
-                      <div className="flex flex-wrap items-center justify-between p-3 rounded-xl bg-muted/40 border border-border gap-2">
+                      <div className="flex flex-wrap items-center justify-between p-3.5 rounded-surface bg-muted/20 border border-border/60 gap-2">
                         <div>
-                          <h4 className="font-bold text-foreground">
-                            جدول مقایسه ویژگی‌ها (Comparison Matrix)
+                          <h4 className="font-black text-foreground text-xs flex items-center gap-2">
+                            <Table className="h-4 w-4 text-brand" />
+                            <span>جدول مقایسه ویژگی‌ها (Comparison Matrix)</span>
                           </h4>
-                          <p className="text-[11px] text-muted-foreground">
+                          <p className="text-[11px] text-muted-foreground mt-0.5">
                             مقایسه قابلیت‌های نسخه رایگان با پلاس و تیمی روی صفحه
-                            محصول
+                            محصول (پشتیبانی از فرمت‌های متنی، مارک‌داون و
+                            ساختاریافته)
                           </p>
                         </div>
                         <div className="flex items-center gap-2">
                           <button
                             type="button"
                             onClick={handleGenerateDefaultComparison}
-                            className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm"
+                            className="h-8 px-3 rounded-control bg-secondary text-brand hover:bg-muted text-xs font-bold flex items-center gap-1.5 border border-border/60 shadow-xs cursor-pointer duration-motion active:scale-[0.98]"
                           >
                             <Sparkles className="h-3.5 w-3.5" />
                             <span>بارگذاری قالب پیشنهادی</span>
@@ -2945,24 +2857,20 @@ export const AdminInventoryView: React.FC = () => {
                         </div>
                       </div>
 
-                      <div>
-                        <label
-                          htmlFor="p-comp-json"
-                          className="font-bold text-foreground block mb-1"
-                        >
-                          محتوای ساختاریافته جدول مقایسه (JSON)
+                      <div className="space-y-1.5">
+                        <label className="font-bold text-foreground block text-xs">
+                          ویرایشگر متن و جدول مقایسه ویژگی‌های محصول:
                         </label>
-                        <textarea
-                          id="p-comp-json"
-                          rows={12}
-                          placeholder='{\n  "columns": [...],\n  "features": [...]\n}'
+                        <RichContentEditor
                           value={pComparisonJSON}
-                          onChange={(e) => setPComparisonJSON(e.target.value)}
-                          className="w-full p-3 rounded-xl border border-border bg-background focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono text-xs leading-relaxed"
+                          onChange={setPComparisonJSON}
+                          placeholder="## جدول مقایسه ویژگی‌ها&#10;&#10;| ویژگی | پلن رایگان | پلن پلاس |&#10;| --- | --- | --- |&#10;| دسترسی نامحدود | ✕ | ✓ |"
+                          minHeight="320px"
+                          label="محتوای جدول مقایسه"
                         />
                         <span className="text-[10px] text-muted-foreground mt-1 block">
-                          نکته: در صورت خالی بودن، سیستم به طور هوشمند بر مبنای
-                          نوع اکانت مقایسه استاندارد را نمایش می‌دهد.
+                          نکته: در صورت خالی بودن، سیستم بر مبنای نوع سرویس جدول
+                          استاندارد را نمایش می‌دهد.
                         </span>
                       </div>
                     </div>
@@ -2971,13 +2879,14 @@ export const AdminInventoryView: React.FC = () => {
                   {/* TAB 5: ACTIVATION GUIDE */}
                   {productModalTab === 'guide' && (
                     <div className="space-y-4">
-                      <div className="flex flex-wrap items-center justify-between p-3 rounded-xl bg-muted/40 border border-border gap-2">
+                      <div className="flex flex-wrap items-center justify-between p-3.5 rounded-surface bg-muted/20 border border-border/60 gap-2">
                         <div>
-                          <h4 className="font-bold text-foreground">
-                            راهنمای گام‌به‌گام فعال‌سازی و رفع تحریم
+                          <h4 className="font-black text-foreground text-xs flex items-center gap-2">
+                            <Sparkles className="h-4 w-4 text-brand" />
+                            <span>راهنمای گام‌به‌گام فعال‌سازی و رفع تحریم</span>
                           </h4>
-                          <p className="text-[11px] text-muted-foreground">
-                            مراحل مصور تحویل، لینک، ورود و آموزش تنظیم DNS
+                          <p className="text-[11px] text-muted-foreground mt-0.5">
+                            مراحل مصور تحویل، لینک، لاگین و آموزش تنظیم DNS
                             ضدتحریم (شکن / الکترو)
                           </p>
                         </div>
@@ -2985,7 +2894,7 @@ export const AdminInventoryView: React.FC = () => {
                           <button
                             type="button"
                             onClick={handleGenerateDefaultGuide}
-                            className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm"
+                            className="h-8 px-3 rounded-control bg-secondary text-brand hover:bg-muted text-xs font-bold flex items-center gap-1.5 border border-border/60 shadow-xs cursor-pointer duration-motion active:scale-[0.98]"
                           >
                             <Sparkles className="h-3.5 w-3.5" />
                             <span>بارگذاری راهنمای پیشنهادی</span>
@@ -2993,20 +2902,16 @@ export const AdminInventoryView: React.FC = () => {
                         </div>
                       </div>
 
-                      <div>
-                        <label
-                          htmlFor="p-guide-json"
-                          className="font-bold text-foreground block mb-1"
-                        >
-                          مراحل گام‌به‌گام فعال‌سازی (JSON)
+                      <div className="space-y-1.5">
+                        <label className="font-bold text-foreground block text-xs">
+                          ویرایشگر مراحل فعال‌سازی و آموزش استفاده:
                         </label>
-                        <textarea
-                          id="p-guide-json"
-                          rows={12}
-                          placeholder='[\n  {\n    "step_number": 1,\n    "title": "...",\n    "description": "...",\n    "tip": "..."\n  }\n]'
+                        <RichContentEditor
                           value={pGuideJSON}
-                          onChange={(e) => setPGuideJSON(e.target.value)}
-                          className="w-full p-3 rounded-xl border border-border bg-background focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono text-xs leading-relaxed"
+                          onChange={setPGuideJSON}
+                          placeholder="### مرحله اول: پرداخت و دریافت لایسنس&#10;پس از پرداخت، اطلاعات اشتراک صادر می‌شود...&#10;&#10;### تنظیمات DNS شکن:&#10;178.22.122.100"
+                          minHeight="320px"
+                          label="راهنمای فعال‌سازی"
                         />
                       </div>
                     </div>
@@ -3056,12 +2961,12 @@ export const AdminInventoryView: React.FC = () => {
                     </div>
                   )}
 
-                  {/* Form Buttons: Graphite technical minimal - Primary white button with black text */}
-                  <div className="flex items-center gap-2.5 pt-3 border-t border-border/60">
+                  {/* Form Submit Button: Full-width Graphite primary button without cancel button per user instruction */}
+                  <div className="pt-3 border-t border-border/60">
                     <button
                       type="submit"
                       disabled={productSubmitting}
-                      className="flex-1 h-10 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground text-xs font-black duration-motion ease-motion active:scale-[0.98] shadow-control flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
+                      className="w-full h-11 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground text-xs font-black duration-motion ease-motion active:scale-[0.98] shadow-control flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
                     >
                       {productSubmitting && (
                         <Loader2 className="h-4 w-4 animate-spin" />
@@ -3072,13 +2977,6 @@ export const AdminInventoryView: React.FC = () => {
                           : 'ثبت و انتشار محصول در فروشگاه'}
                       </span>
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => setIsProductModalOpen(false)}
-                      className="h-10 px-5 rounded-control border border-border/60 bg-card text-xs font-bold text-muted-foreground hover:text-foreground hover:bg-muted duration-motion ease-motion active:scale-[0.98] cursor-pointer"
-                    >
-                      انصراف
-                    </button>
                   </div>
                 </form>
               </div>
@@ -3088,74 +2986,20 @@ export const AdminInventoryView: React.FC = () => {
         )}
 
       {/* DELETE PRODUCT MODAL */}
-      {isDeleteModalOpen &&
-        productToDelete &&
-        createPortal(
-          <div
-            className="fixed inset-0 overflow-y-auto bg-black/80 backdrop-blur-md p-3 sm:p-6 animate-in fade-in"
-            style={{
-              position: 'fixed',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              width: '100vw',
-              height: '100vh',
-              zIndex: 2147483600,
-            }}
-            dir="rtl"
-          >
-            <div className="min-h-full w-full flex items-start sm:items-center justify-center">
-              <div className="max-w-md w-full my-auto bg-card rounded-surface border border-border/80 shadow-overlay p-6 space-y-4 animate-in zoom-in-95 duration-150 text-foreground">
-                <div className="h-10 w-10 rounded-xl bg-rose-500/10 text-rose-600 flex items-center justify-center mx-auto">
-                  <Trash2 className="h-5 w-5" />
-                </div>
-                <div className="text-center space-y-1">
-                  <h3 className="text-sm font-black text-foreground">
-                    حذف محصول از کاتالوگ
-                  </h3>
-                  <p className="text-xs text-muted-foreground">
-                    آیا از حذف محصول{' '}
-                    <strong className="text-foreground">
-                      {productToDelete.title_fa}
-                    </strong>{' '}
-                    اطمینان دارید؟ این عملیات قابل بازگشت نیست.
-                  </p>
-                </div>
-                {deleteError && (
-                  <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-xs flex items-center gap-2">
-                    <AlertCircle className="h-4 w-4 shrink-0" />
-                    <span>{deleteError}</span>
-                  </div>
-                )}
-                <div className="flex items-center gap-2 pt-2">
-                  <button
-                    type="button"
-                    onClick={handleDeleteProductSubmit}
-                    disabled={deleteLoading}
-                    className="flex-1 h-10 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition flex items-center justify-center gap-2 disabled:opacity-50"
-                  >
-                    {deleteLoading && (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    )}
-                    <span>بله، حذف شود</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsDeleteModalOpen(false)
-                      setProductToDelete(null)
-                    }}
-                    className="h-10 px-4 rounded-control border border-border/60 text-xs font-bold text-muted-foreground hover:text-foreground hover:bg-muted cursor-pointer duration-motion active:scale-[0.98]"
-                  >
-                    انصراف
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>,
-          document.body,
-        )}
+      <ConfirmModal
+        isOpen={isDeleteModalOpen && Boolean(productToDelete)}
+        onClose={() => {
+          setIsDeleteModalOpen(false)
+          setProductToDelete(null)
+        }}
+        onConfirm={handleDeleteProductSubmit}
+        title="حذف محصول از کاتالوگ"
+        description={`آیا از حذف محصول «${productToDelete?.title_fa || ''}» از کاتالوگ فروشگاه اطمینان دارید؟ این عملیات غیرقابل بازگشت است.`}
+        confirmText="بله، محصول حذف شود"
+        cancelText="انصراف"
+        loading={deleteLoading}
+        variant="danger"
+      />
 
       {/* EXPORT MODAL */}
       {isExportOpen &&
@@ -3183,13 +3027,10 @@ export const AdminInventoryView: React.FC = () => {
                       خروجی کلیدهای انبار
                     </h3>
                   </div>
-                  <button
-                    type="button"
+                  <ModalCloseButton
                     onClick={() => setIsExportOpen(false)}
-                    className="text-muted-foreground hover:text-foreground"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
+                    size="sm"
+                  />
                 </div>
 
                 {exportLoading ? (
@@ -3218,7 +3059,7 @@ export const AdminInventoryView: React.FC = () => {
                     <button
                       type="button"
                       onClick={handleCopyExport}
-                      className="w-full h-10 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition flex items-center justify-center gap-2"
+                      className="w-full h-11 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground text-xs font-black transition flex items-center justify-center gap-2 shadow-control cursor-pointer duration-motion active:scale-[0.98]"
                     >
                       {copiedExport ? (
                         <>
@@ -3269,13 +3110,10 @@ export const AdminInventoryView: React.FC = () => {
                       تعویض کلید سفارش (گارانتی)
                     </h3>
                   </div>
-                  <button
-                    type="button"
+                  <ModalCloseButton
                     onClick={() => setIsReplaceOpen(false)}
-                    className="text-muted-foreground hover:text-foreground"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
+                    size="sm"
+                  />
                 </div>
 
                 {replaceSuccessMsg && (
@@ -3346,256 +3184,30 @@ export const AdminInventoryView: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 pt-2">
+                <div className="flex items-center justify-end gap-2 pt-2 border-t border-border/60">
+                  <button
+                    type="button"
+                    onClick={() => setIsReplaceOpen(false)}
+                    className="h-10 px-4 rounded-control border border-border/60 bg-secondary hover:bg-muted text-foreground text-xs font-bold transition shadow-xs cursor-pointer duration-motion active:scale-[0.98]"
+                  >
+                    انصراف
+                  </button>
                   <button
                     type="submit"
                     disabled={replaceLoading}
-                    className="flex-1 h-10 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition flex items-center justify-center gap-2 disabled:opacity-50"
+                    className="h-10 px-6 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground text-xs font-black transition flex items-center justify-center gap-2 disabled:opacity-50 shadow-control cursor-pointer duration-motion active:scale-[0.98]"
                   >
                     {replaceLoading && (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     )}
                     <span>جایگزینی کلید جدید</span>
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => setIsReplaceOpen(false)}
-                    className="h-10 px-4 rounded-xl border border-border text-xs font-semibold hover:bg-muted"
-                  >
-                    انصراف
-                  </button>
                 </div>
               </form>
             </div>
           </div>,
           document.body,
         )}
-
-      {/* CREATE COUPON MODAL */}
-      {isCreateCouponOpen &&
-        createPortal(
-          <div
-            className="fixed inset-0 overflow-y-auto bg-black/80 backdrop-blur-md p-3 sm:p-6 animate-in fade-in"
-            style={{
-              position: 'fixed',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              width: '100vw',
-              height: '100vh',
-              zIndex: 2147483600,
-            }}
-            dir="rtl"
-          >
-            <div className="min-h-full w-full flex items-start sm:items-center justify-center">
-              <form
-                onSubmit={handleCreateCouponSubmit}
-                className="max-w-md w-full my-auto bg-card rounded-surface border border-border/80 shadow-overlay p-6 space-y-4 animate-in zoom-in-95 text-foreground"
-              >
-                <div className="flex items-center justify-between border-b border-border/60 pb-3">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-control bg-secondary text-brand flex items-center justify-center border border-border/60 shadow-xs">
-                      <Ticket className="h-4 w-4" />
-                    </div>
-                    <h3 className="text-sm font-black text-foreground">
-                      ایجاد کوپن تخفیف جدید
-                    </h3>
-                  </div>
-                  <ModalCloseButton
-                    onClick={() => setIsCreateCouponOpen(false)}
-                    size="sm"
-                  />
-                </div>
-
-                {createCouponError && (
-                  <div className="p-3 rounded-control bg-rose-500/10 border border-rose-500/20 text-rose-500 text-xs flex items-center gap-2">
-                    <AlertCircle className="h-4 w-4 shrink-0" />
-                    <span>{createCouponError}</span>
-                  </div>
-                )}
-
-                <div className="space-y-3 text-xs">
-                  <div>
-                    <label
-                      htmlFor="create-coupon-code"
-                      className="font-bold text-foreground block mb-1"
-                    >
-                      کد تخفیف (لاتین) *
-                    </label>
-                    <input
-                      id="create-coupon-code"
-                      type="text"
-                      required
-                      placeholder="مثال: NOROOZ1405"
-                      value={couponCode}
-                      onChange={(e) => setCouponCode(e.target.value)}
-                      className="w-full h-10 px-3.5 rounded-field border border-border/60 bg-muted/20 font-mono uppercase focus:outline-none focus:border-brand text-foreground"
-                    />
-                  </div>
-
-                  <div>
-                    <label
-                      htmlFor="create-coupon-label"
-                      className="font-bold text-foreground block mb-1"
-                    >
-                      برچسب نمایشی در سبد خرید (اختیاری)
-                    </label>
-                    <input
-                      id="create-coupon-label"
-                      type="text"
-                      placeholder="مثال: ۲۰٪ تخفیف یا ۵۰ هزار تومان تخفیف"
-                      value={couponLabel}
-                      onChange={(e) => setCouponLabel(e.target.value)}
-                      className="w-full h-10 px-3.5 rounded-field border border-border/60 bg-muted/20 focus:outline-none focus:border-brand text-foreground"
-                    />
-                    <p className="text-[10px] text-muted-foreground mt-0.5">
-                      در صورت خالی ماندن، برچسب درصد یا مبلغ به طور خودکار
-                      محاسبه و درج خواهد شد.
-                    </p>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2.5">
-                    <div>
-                      <label
-                        htmlFor="create-coupon-type"
-                        className="font-bold text-foreground block mb-1"
-                      >
-                        نوع تخفیف
-                      </label>
-                      <select
-                        id="create-coupon-type"
-                        value={couponType}
-                        onChange={(e) => setCouponType(e.target.value as any)}
-                        className="w-full h-10 px-3 rounded-field border border-border/60 bg-muted/20 focus:outline-none focus:border-brand text-foreground cursor-pointer font-bold"
-                      >
-                        <option value="percentage">درصدی (%)</option>
-                        <option value="fixed">مبلغ ثابت (تومان)</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label
-                        htmlFor="create-coupon-val"
-                        className="font-bold text-foreground block mb-1"
-                      >
-                        {couponType === 'percentage'
-                          ? 'درصد تخفیف'
-                          : 'مبلغ (تومان)'}
-                      </label>
-                      <input
-                        id="create-coupon-val"
-                        type="number"
-                        min={1}
-                        value={couponValue}
-                        onChange={(e) => setCouponValue(Number(e.target.value))}
-                        className="w-full h-10 px-3 rounded-field border border-border/60 bg-muted/20 font-mono focus:outline-none focus:border-brand text-foreground"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2.5">
-                    <div>
-                      <label
-                        htmlFor="create-min-spend"
-                        className="font-bold text-foreground block mb-1"
-                      >
-                        حداقل خرید (تومان)
-                      </label>
-                      <input
-                        id="create-min-spend"
-                        type="number"
-                        min={0}
-                        value={minSpend}
-                        onChange={(e) => setMinSpend(Number(e.target.value))}
-                        className="w-full h-10 px-3 rounded-field border border-border/60 bg-muted/20 font-mono focus:outline-none focus:border-brand text-foreground"
-                      />
-                    </div>
-                    <div>
-                      <label
-                        htmlFor="create-max-discount"
-                        className="font-bold text-foreground block mb-1"
-                      >
-                        سقف تخفیف (تومان)
-                      </label>
-                      <input
-                        id="create-max-discount"
-                        type="number"
-                        min={0}
-                        value={maxDiscount}
-                        onChange={(e) => setMaxDiscount(Number(e.target.value))}
-                        className="w-full h-10 px-3 rounded-field border border-border/60 bg-muted/20 font-mono focus:outline-none focus:border-brand text-foreground"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2.5">
-                    <div>
-                      <label
-                        htmlFor="create-per-user"
-                        className="font-bold text-foreground block mb-1"
-                      >
-                        دفعات مجاز هر کاربر
-                      </label>
-                      <input
-                        id="create-per-user"
-                        type="number"
-                        min={1}
-                        value={perUserLimit}
-                        onChange={(e) =>
-                          setPerUserLimit(Number(e.target.value))
-                        }
-                        className="w-full h-10 px-3 rounded-field border border-border/60 bg-muted/20 font-mono focus:outline-none focus:border-brand text-foreground"
-                      />
-                    </div>
-                    <div>
-                      <label
-                        htmlFor="create-max-usage"
-                        className="font-bold text-foreground block mb-1"
-                      >
-                        سقف کل مصرف کوپن
-                      </label>
-                      <input
-                        id="create-max-usage"
-                        type="number"
-                        min={1}
-                        value={maxUsage}
-                        onChange={(e) => setMaxUsage(Number(e.target.value))}
-                        className="w-full h-10 px-3 rounded-field border border-border/60 bg-muted/20 font-mono focus:outline-none focus:border-brand text-foreground"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Full-width submit button without cancel button per user instruction */}
-                <div className="pt-3">
-                  <button
-                    type="submit"
-                    disabled={createCouponLoading}
-                    className="w-full h-11 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground text-xs font-black transition flex items-center justify-center gap-2 disabled:opacity-50 shadow-control cursor-pointer duration-motion active:scale-[0.98]"
-                  >
-                    {createCouponLoading && (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    )}
-                    <span>ثبت و فعال‌سازی کوپن تخفیف</span>
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>,
-          document.body,
-        )}
-
-      {/* Unified Confirm Modal for Coupon Deletion */}
-      <ConfirmModal
-        isOpen={Boolean(couponToDelete)}
-        onClose={() => setCouponToDelete(null)}
-        onConfirm={handleConfirmDeleteCoupon}
-        title="حذف کد تخفیف"
-        description={`آیا از حذف کامل کد تخفیف «${couponToDelete?.code || ''}» از پایگاه‌داده اطمینان دارید؟ این کد دیگر در سبد خرید معتبر نخواهد بود.`}
-        confirmText="بله، حذف شود"
-        cancelText="انصراف"
-        variant="danger"
-      />
     </div>
   )
 }

@@ -1,5 +1,4 @@
 import {
-  AlertCircle,
   ArrowLeft,
   ArrowRight,
   Calendar,
@@ -12,6 +11,7 @@ import {
   Headphones,
   HelpCircle,
   Lock,
+  Package,
   RefreshCw,
   ShieldCheck,
   ShoppingCart,
@@ -32,6 +32,7 @@ import {
   OpenAIIcon,
 } from '../components/BrandIcons'
 import { CartDrawer } from '../components/CartDrawer'
+import { MarkdownRenderer } from '../components/content/MarkdownRenderer'
 import { Header } from '../components/Header'
 import { ProductReviewsSection } from '../components/reviews/ProductReviewsSection'
 import { TelegramIcon } from '../components/SocialIcons'
@@ -329,22 +330,27 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
           }
           onOpenCart={() => setIsCartOpen(true)}
         />
-        <main className="flex-1 max-w-3xl mx-auto px-4 py-20 w-full text-center space-y-4">
-          <div className="h-16 w-16 rounded-3xl bg-rose-500/10 text-rose-600 flex items-center justify-center mx-auto">
-            <AlertCircle className="h-8 w-8" />
-          </div>
-          <h2 className="text-xl font-black text-foreground">محصول یافت نشد</h2>
-          <p className="text-sm text-muted-foreground leading-relaxed max-w-md mx-auto">
-            {error || 'آدرس محصول نامعتبر است یا محصول از کاتالوگ حذف شده است.'}
-          </p>
-          <div className="pt-2">
-            <Link
-              to="/"
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs transition"
-            >
-              <ArrowRight className="h-4 w-4" />
-              <span>بازگشت به ویترین اصلی فروشگاه</span>
-            </Link>
+        <main className="flex-1 max-w-xl mx-auto px-4 py-16 w-full text-center">
+          <div className="rounded-surface border border-border/80 bg-card p-8 sm:p-10 shadow-surface space-y-4">
+            <div className="w-14 h-14 rounded-control bg-secondary text-brand border border-border/60 flex items-center justify-center mx-auto shadow-xs">
+              <Package className="h-7 w-7 text-brand" />
+            </div>
+            <h2 className="text-lg sm:text-xl font-black text-foreground">
+              محصول مورد نظر یافت نشد
+            </h2>
+            <p className="text-xs text-muted-foreground leading-relaxed max-w-sm mx-auto">
+              {error ||
+                'آدرس این سرویس نامعتبر است یا ممکن است این محصول از کاتالوگ فروشگاه برداشته شده باشد.'}
+            </p>
+            <div className="pt-2">
+              <Link
+                to="/"
+                className="h-10 px-5 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs shadow-control transition-all duration-motion active:scale-[0.98] inline-flex items-center gap-2 cursor-pointer"
+              >
+                <ArrowRight className="h-4 w-4" />
+                <span>بازگشت به ویترین اصلی فروشگاه</span>
+              </Link>
+            </div>
           </div>
         </main>
       </div>
@@ -724,23 +730,33 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
         </ScrollReveal>
 
         {/* SECTION 2: COMPARISON MATRIX TABLE */}
-        {product.comparison_table?.columns &&
-          product.comparison_table.columns.length > 0 && (
-            <ScrollReveal>
-              <section className="rounded-surface border border-border/80 bg-card p-6 sm:p-8 space-y-6 shadow-surface">
-                <div className="text-right space-y-1">
-                  <div className="inline-flex items-center gap-1.5 text-xs font-bold text-brand bg-brand/10 px-3 py-1 rounded-control border border-brand/20">
-                    <Table className="h-3.5 w-3.5" />
-                    <span>بررسی فنی و تفاوت پلن‌ها</span>
-                  </div>
-                  <h3 className="text-xl sm:text-2xl font-black text-foreground">
-                    جدول مقایسه قابلیت‌ها و نسخه‌های مختلف
-                  </h3>
-                  <p className="text-xs sm:text-sm text-muted-foreground">
-                    تفاوت دقیق امکانات نسخه رایگان با اشتراک‌های حرفه‌ای و تیمی
-                  </p>
+        {((product.comparison_table?.columns &&
+          product.comparison_table.columns.length > 0) ||
+          Boolean(
+            product.comparison_json &&
+              !product.comparison_json.trim().startsWith('{'),
+          )) && (
+          <ScrollReveal>
+            <section className="rounded-surface border border-border/80 bg-card p-6 sm:p-8 space-y-6 shadow-surface">
+              <div className="text-right space-y-1">
+                <div className="inline-flex items-center gap-1.5 text-xs font-bold text-brand bg-brand/10 px-3 py-1 rounded-control border border-brand/20">
+                  <Table className="h-3.5 w-3.5" />
+                  <span>بررسی فنی و تفاوت پلن‌ها</span>
                 </div>
+                <h3 className="text-xl sm:text-2xl font-black text-foreground">
+                  جدول مقایسه قابلیت‌ها و نسخه‌های مختلف
+                </h3>
+                <p className="text-xs sm:text-sm text-muted-foreground">
+                  تفاوت دقیق امکانات نسخه رایگان با اشتراک‌های حرفه‌ای و تیمی
+                </p>
+              </div>
 
+              {product.comparison_json &&
+              !product.comparison_json.trim().startsWith('{') ? (
+                <div className="p-4 rounded-surface border border-border/60 bg-muted/20">
+                  <MarkdownRenderer content={product.comparison_json} />
+                </div>
+              ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-right text-xs">
                     <thead className="border-b border-border">
@@ -748,7 +764,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                         <th className="p-4 font-bold text-muted-foreground w-1/3">
                           ویژگی / قابلیت
                         </th>
-                        {product.comparison_table.columns.map((col) => (
+                        {product.comparison_table?.columns.map((col) => (
                           <th
                             key={col.key}
                             className={`p-4 text-center rounded-control transition ${
@@ -777,7 +793,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border/60">
-                      {product.comparison_table.features.map((feat) => (
+                      {product.comparison_table?.features.map((feat) => (
                         <tr
                           key={feat.name}
                           className="hover:bg-muted/30 transition"
@@ -816,12 +832,16 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                     </tbody>
                   </table>
                 </div>
-              </section>
-            </ScrollReveal>
-          )}
+              )}
+            </section>
+          </ScrollReveal>
+        )}
 
         {/* SECTION 3: STEP-BY-STEP ACTIVATION & ANTI-SANCTION / DNS GUIDE */}
-        {product.activation_guide && product.activation_guide.length > 0 && (
+        {((product.activation_guide && product.activation_guide.length > 0) ||
+          Boolean(
+            product.guide_json && !product.guide_json.trim().startsWith('['),
+          )) && (
           <ScrollReveal>
             <section className="rounded-surface border border-border/80 bg-card p-6 sm:p-8 space-y-6 shadow-surface">
               <div className="text-right space-y-1">
@@ -837,39 +857,45 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                 </p>
               </div>
 
-              {/* 4 Steps Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                {product.activation_guide.map((step) => (
-                  <div
-                    key={step.step_number}
-                    className="p-5 rounded-surface border border-border/60 bg-muted/20 space-y-3 relative overflow-hidden group hover:border-brand/40 transition-all"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="h-8 w-8 rounded-control bg-secondary text-brand border border-border/60 font-black text-xs flex items-center justify-center shadow-control">
-                        {step.step_number}
-                      </span>
-                      <span className="text-[11px] font-bold text-muted-foreground font-mono">
-                        مرحله {step.step_number}
-                      </span>
-                    </div>
-
-                    <h4 className="font-bold text-sm text-foreground">
-                      {step.title}
-                    </h4>
-
-                    <p className="text-xs text-muted-foreground leading-relaxed">
-                      {step.description}
-                    </p>
-
-                    {step.tip && (
-                      <div className="p-2.5 rounded-control bg-card border border-border/60 text-[11px] text-muted-foreground flex items-start gap-1.5 leading-relaxed">
-                        <HelpCircle className="h-3.5 w-3.5 text-brand shrink-0 mt-0.5" />
-                        <span>{step.tip}</span>
+              {product.guide_json &&
+              !product.guide_json.trim().startsWith('[') ? (
+                <div className="p-4 rounded-surface border border-border/60 bg-muted/20">
+                  <MarkdownRenderer content={product.guide_json} />
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {product.activation_guide?.map((step) => (
+                    <div
+                      key={step.step_number}
+                      className="p-5 rounded-surface border border-border/60 bg-muted/20 space-y-3 relative overflow-hidden group hover:border-brand/40 transition-all"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="h-8 w-8 rounded-control bg-secondary text-brand border border-border/60 font-black text-xs flex items-center justify-center shadow-control">
+                          {step.step_number}
+                        </span>
+                        <span className="text-[11px] font-bold text-muted-foreground font-mono">
+                          مرحله {step.step_number}
+                        </span>
                       </div>
-                    )}
-                  </div>
-                ))}
-              </div>
+
+                      <h4 className="font-bold text-sm text-foreground">
+                        {step.title}
+                      </h4>
+
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        {step.description}
+                      </p>
+
+                      {step.tip && (
+                        <div className="p-2.5 rounded-control bg-card border border-border/60 text-[11px] text-muted-foreground flex items-start gap-1.5 leading-relaxed">
+                          <HelpCircle className="h-3.5 w-3.5 text-brand shrink-0 mt-0.5" />
+                          <span>{step.tip}</span>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
 
               {/* Anti-Sanction & Recommended DNS Helper Card */}
               <div className="rounded-surface border border-brand/30 bg-brand/5 p-5 sm:p-6 space-y-4">

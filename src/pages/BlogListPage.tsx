@@ -319,7 +319,7 @@ export const BlogListPage: React.FC = () => {
                           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-control bg-muted/40 border border-border/60 text-[11px] font-bold text-muted-foreground">
                             <Eye className="h-3.5 w-3.5 text-muted-foreground" />
                             <span className="font-latin">
-                              {Number(art.view_count || 120).toLocaleString(
+                              {Number(art.view_count || 0).toLocaleString(
                                 'fa-IR',
                               )}{' '}
                               بازدید

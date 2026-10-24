@@ -12,7 +12,6 @@ import {
   MessageSquare,
   Plus,
   RefreshCw,
-  Search,
   Sparkles,
   Tag,
   ThumbsDown,
@@ -36,7 +35,11 @@ import type {
   ServiceTarget,
 } from '../../types'
 import { RichContentEditor } from '../content/RichContentEditor'
+import { ConfirmModal } from '../vibefarsi/ConfirmModal'
+import { ModalCloseButton } from '../vibefarsi/ModalCloseButton'
 import { useNotification } from '../vibefarsi/NotificationContext'
+import { SearchInput } from '../vibefarsi/SearchInput'
+import { ToggleSwitch } from '../vibefarsi/ToggleSwitch'
 
 type ContentSubTab =
   | 'articles'
@@ -51,6 +54,19 @@ export const AdminContentView: React.FC = () => {
   const [categories, setCategories] = useState<ContentCategory[]>([])
   const [services, setServices] = useState<ServiceTarget[]>([])
   const [templates, setTemplates] = useState<ContentTemplate[]>([])
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean
+    title: string
+    message: string
+    loading: boolean
+    onConfirm: () => Promise<void>
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    loading: false,
+    onConfirm: async () => {},
+  })
   const [products, setProducts] = useState<Product[]>([])
   const [isLoading, setIsLoading] = useState(false)
 
@@ -351,15 +367,30 @@ export const AdminContentView: React.FC = () => {
     }
   }
 
-  const handleDeleteArticle = async (id: string) => {
-    if (!window.confirm('آیا از حذف این مقاله اطمینان دارید؟')) return
-    try {
-      await api.deleteAdminArticle(id)
-      showToast('مقاله با موفقیت حذف شد')
-      loadArticles()
-    } catch (e: any) {
-      showToast(e.message || 'خطا در حذف مقاله', 'error')
-    }
+  const handleDeleteArticle = (id: string) => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'حذف مقاله وبلاگ',
+      message:
+        'آیا از حذف این مقاله آموزشی و کلیه پیوندهای سئوی آن اطمینان دارید؟ این عملیات غیرقابل بازگشت است.',
+      loading: false,
+      onConfirm: async () => {
+        setConfirmModal((prev) => ({ ...prev, loading: true }))
+        try {
+          await api.deleteAdminArticle(id)
+          showToast('مقاله با موفقیت حذف شد')
+          setConfirmModal((prev) => ({
+            ...prev,
+            isOpen: false,
+            loading: false,
+          }))
+          loadArticles()
+        } catch (e: any) {
+          showToast(e.message || 'خطا در حذف مقاله', 'error')
+          setConfirmModal((prev) => ({ ...prev, loading: false }))
+        }
+      },
+    })
   }
 
   // Handle Guide form
@@ -449,15 +480,30 @@ export const AdminContentView: React.FC = () => {
     }
   }
 
-  const handleDeleteGuide = async (id: string) => {
-    if (!window.confirm('آیا از حذف این راهنما اطمینان دارید؟')) return
-    try {
-      await api.deleteAdminHelpGuide(id)
-      showToast('راهنما با موفقیت حذف شد')
-      loadGuides()
-    } catch (e: any) {
-      showToast(e.message || 'خطا در حذف راهنما', 'error')
-    }
+  const handleDeleteGuide = (id: string) => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'حذف راهنمای پایگاه دانش',
+      message:
+        'آیا از حذف این راهنمای حل ارور و تحریم اطمینان دارید؟ این اقدام از پایگاه دانش حذف خواهد شد.',
+      loading: false,
+      onConfirm: async () => {
+        setConfirmModal((prev) => ({ ...prev, loading: true }))
+        try {
+          await api.deleteAdminHelpGuide(id)
+          showToast('راهنما با موفقیت حذف شد')
+          setConfirmModal((prev) => ({
+            ...prev,
+            isOpen: false,
+            loading: false,
+          }))
+          loadGuides()
+        } catch (e: any) {
+          showToast(e.message || 'خطا در حذف راهنما', 'error')
+          setConfirmModal((prev) => ({ ...prev, loading: false }))
+        }
+      },
+    })
   }
 
   // Handle Comments
@@ -475,15 +521,29 @@ export const AdminContentView: React.FC = () => {
     }
   }
 
-  const handleDeleteComment = async (id: string) => {
-    if (!window.confirm('دیدگاه حذف شود؟')) return
-    try {
-      await api.deleteAdminComment(id)
-      showToast('دیدگاه با موفقیت حذف شد')
-      loadComments()
-    } catch (e: any) {
-      showToast(e.message || 'خطا در حذف دیدگاه', 'error')
-    }
+  const handleDeleteComment = (id: string) => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'حذف دیدگاه کاربر',
+      message: 'آیا از حذف کامل این دیدگاه و نظرات زیرمجموعه آن اطمینان دارید؟',
+      loading: false,
+      onConfirm: async () => {
+        setConfirmModal((prev) => ({ ...prev, loading: true }))
+        try {
+          await api.deleteAdminComment(id)
+          showToast('دیدگاه با موفقیت حذف شد')
+          setConfirmModal((prev) => ({
+            ...prev,
+            isOpen: false,
+            loading: false,
+          }))
+          loadComments()
+        } catch (e: any) {
+          showToast(e.message || 'خطا در حذف دیدگاه', 'error')
+          setConfirmModal((prev) => ({ ...prev, loading: false }))
+        }
+      },
+    })
   }
 
   // Handle Categories
@@ -507,15 +567,30 @@ export const AdminContentView: React.FC = () => {
     }
   }
 
-  const handleDeleteCategory = async (id: string) => {
-    if (!window.confirm('آیا از حذف این دسته‌بندی اطمینان دارید؟')) return
-    try {
-      await api.deleteAdminContentCategory(id)
-      showToast('دسته‌بندی با موفقیت حذف شد')
-      loadCategories()
-    } catch (e: any) {
-      showToast(e.message || 'خطا در حذف دسته', 'error')
-    }
+  const handleDeleteCategory = (id: string) => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'حذف دسته‌بندی محتوا',
+      message:
+        'آیا از حذف این دسته‌بندی اطمینان دارید؟ مقالات مربوطه به دسته عمومی منتقل خواهند شد.',
+      loading: false,
+      onConfirm: async () => {
+        setConfirmModal((prev) => ({ ...prev, loading: true }))
+        try {
+          await api.deleteAdminContentCategory(id)
+          showToast('دسته‌بندی با موفقیت حذف شد')
+          setConfirmModal((prev) => ({
+            ...prev,
+            isOpen: false,
+            loading: false,
+          }))
+          loadCategories()
+        } catch (e: any) {
+          showToast(e.message || 'خطا در حذف دسته', 'error')
+          setConfirmModal((prev) => ({ ...prev, loading: false }))
+        }
+      },
+    })
   }
 
   // Handle Templates
@@ -539,15 +614,29 @@ export const AdminContentView: React.FC = () => {
     }
   }
 
-  const handleDeleteTemplate = async (id: string) => {
-    if (!window.confirm('آیا از حذف این قالب اطمینان دارید؟')) return
-    try {
-      await api.deleteAdminContentTemplate(id)
-      showToast('قالب با موفقیت حذف شد')
-      loadTemplates()
-    } catch (e: any) {
-      showToast(e.message || 'خطا در حذف قالب', 'error')
-    }
+  const handleDeleteTemplate = (id: string) => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'حذف قالب آماده',
+      message: 'آیا از حذف این قالب متنی محتوا از دیتابیس اطمینان دارید؟',
+      loading: false,
+      onConfirm: async () => {
+        setConfirmModal((prev) => ({ ...prev, loading: true }))
+        try {
+          await api.deleteAdminContentTemplate(id)
+          showToast('قالب با موفقیت حذف شد')
+          setConfirmModal((prev) => ({
+            ...prev,
+            isOpen: false,
+            loading: false,
+          }))
+          loadTemplates()
+        } catch (e: any) {
+          showToast(e.message || 'خطا در حذف قالب', 'error')
+          setConfirmModal((prev) => ({ ...prev, loading: false }))
+        }
+      },
+    })
   }
 
   return (
@@ -994,35 +1083,37 @@ export const AdminContentView: React.FC = () => {
 
               {/* Visibility & Featured Toggles */}
               <div className="flex items-center gap-6 pt-3 border-t border-border">
-                <label className="flex items-center gap-2 text-xs font-medium cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={articleForm.is_published}
-                    onChange={(e) =>
+                <div className="flex items-center gap-2.5">
+                  <ToggleSwitch
+                    size="sm"
+                    checked={Boolean(articleForm.is_published)}
+                    onChange={(checked) =>
                       setArticleForm({
                         ...articleForm,
-                        is_published: e.target.checked,
+                        is_published: checked,
                       })
                     }
-                    className="rounded border-border text-primary focus:ring-primary h-4 w-4"
                   />
-                  <span>انتشار عمومی (در دسترس کاربران و موتورهای جستجو)</span>
-                </label>
+                  <span className="text-xs font-medium text-foreground">
+                    انتشار عمومی (در دسترس کاربران و موتورهای جستجو)
+                  </span>
+                </div>
 
-                <label className="flex items-center gap-2 text-xs font-medium cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={articleForm.is_featured}
-                    onChange={(e) =>
+                <div className="flex items-center gap-2.5">
+                  <ToggleSwitch
+                    size="sm"
+                    checked={Boolean(articleForm.is_featured)}
+                    onChange={(checked) =>
                       setArticleForm({
                         ...articleForm,
-                        is_featured: e.target.checked,
+                        is_featured: checked,
                       })
                     }
-                    className="rounded border-border text-primary focus:ring-primary h-4 w-4"
                   />
-                  <span>پین کردن به عنوان مقاله ویژه صفحه اصلی وبلاگ</span>
-                </label>
+                  <span className="text-xs font-medium text-foreground">
+                    پین کردن به عنوان مقاله ویژه صفحه اصلی وبلاگ
+                  </span>
+                </div>
               </div>
             </div>
           ) : (
@@ -1030,25 +1121,14 @@ export const AdminContentView: React.FC = () => {
             <div className="space-y-4">
               {/* Filter bar */}
               <div className="bg-card border border-border rounded-xl p-3 flex flex-wrap items-center justify-between gap-3">
-                <div className="flex items-center gap-2 flex-1 min-w-[240px]">
-                  <div className="relative flex-1">
-                    <Search className="h-4 w-4 absolute right-3 top-2.5 text-muted-foreground" />
-                    <input
-                      type="text"
-                      value={articleSearch}
-                      onChange={(e) => setArticleSearch(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && loadArticles()}
-                      placeholder="جستجو در عنوان، محتوا یا اسلاگ مقالات..."
-                      className="w-full pl-3 pr-9 py-1.5 text-xs rounded-lg border border-border bg-background focus:outline-hidden focus:ring-1 focus:ring-primary"
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={loadArticles}
-                    className="px-3 py-1.5 bg-muted text-foreground text-xs font-semibold rounded-lg hover:bg-muted/80 transition-colors"
-                  >
-                    جستجو
-                  </button>
+                <div className="flex-1 min-w-[240px]">
+                  <SearchInput
+                    value={articleSearch}
+                    onChange={setArticleSearch}
+                    onSearch={() => loadArticles()}
+                    placeholder="جستجو در عنوان، محتوا یا اسلاگ مقالات..."
+                    debounceMs={300}
+                  />
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -1081,15 +1161,17 @@ export const AdminContentView: React.FC = () => {
               {/* Table */}
               <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
                 <div className="overflow-x-auto">
-                  <table className="w-full text-right text-xs">
+                  <table className="w-full text-center text-xs">
                     <thead>
-                      <tr className="border-b border-border bg-muted/40 text-muted-foreground font-semibold">
-                        <th className="p-3.5">تصویر و عنوان مقاله</th>
-                        <th className="p-3.5">دسته‌بندی</th>
-                        <th className="p-3.5">زمان مطالعه</th>
-                        <th className="p-3.5">بازدید</th>
-                        <th className="p-3.5">وضعیت</th>
-                        <th className="p-3.5 text-left">عملیات</th>
+                      <tr className="border-b border-border bg-muted/40 text-muted-foreground font-semibold select-none">
+                        <th className="p-3.5 text-right pr-6">
+                          تصویر و عنوان مقاله
+                        </th>
+                        <th className="p-3.5 text-center">دسته‌بندی</th>
+                        <th className="p-3.5 text-center">زمان مطالعه</th>
+                        <th className="p-3.5 text-center">بازدید</th>
+                        <th className="p-3.5 text-center">وضعیت</th>
+                        <th className="p-3.5 text-center">عملیات</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border/60">
@@ -1098,7 +1180,7 @@ export const AdminContentView: React.FC = () => {
                           key={art.id}
                           className="hover:bg-muted/30 transition-colors"
                         >
-                          <td className="p-3.5">
+                          <td className="p-3.5 text-right pr-6">
                             <div className="flex items-center gap-3">
                               <img
                                 src={
@@ -1123,24 +1205,24 @@ export const AdminContentView: React.FC = () => {
                               </div>
                             </div>
                           </td>
-                          <td className="p-3.5">
+                          <td className="p-3.5 text-center">
                             <span className="bg-blue-500/10 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded-md font-medium text-[11px]">
                               {art.category_name}
                             </span>
                           </td>
-                          <td className="p-3.5">
-                            <span className="flex items-center gap-1 text-muted-foreground">
+                          <td className="p-3.5 text-center">
+                            <span className="inline-flex items-center justify-center gap-1 text-muted-foreground">
                               <Clock className="h-3 w-3 text-blue-500" />
                               <span>{art.reading_time_minutes} دقیقه</span>
                             </span>
                           </td>
-                          <td className="p-3.5">
-                            <span className="flex items-center gap-1 text-muted-foreground font-medium">
+                          <td className="p-3.5 text-center font-mono font-latin">
+                            <span className="inline-flex items-center justify-center gap-1 text-muted-foreground font-medium">
                               <Eye className="h-3 w-3" />
                               <span>{art.view_count.toLocaleString()}</span>
                             </span>
                           </td>
-                          <td className="p-3.5">
+                          <td className="p-3.5 text-center">
                             {art.is_published ? (
                               <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-semibold text-[11px]">
                                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
@@ -1153,8 +1235,8 @@ export const AdminContentView: React.FC = () => {
                               </span>
                             )}
                           </td>
-                          <td className="p-3.5 text-left">
-                            <div className="flex items-center justify-end gap-1.5">
+                          <td className="p-3.5 text-center">
+                            <div className="flex items-center justify-center gap-1.5">
                               <a
                                 href={`/blog/${art.slug}`}
                                 target="_blank"
@@ -1423,25 +1505,14 @@ export const AdminContentView: React.FC = () => {
             /* Guides List View */
             <div className="space-y-4">
               <div className="bg-card border border-border rounded-xl p-3 flex flex-wrap items-center justify-between gap-3">
-                <div className="flex items-center gap-2 flex-1 min-w-[240px]">
-                  <div className="relative flex-1">
-                    <Search className="h-4 w-4 absolute right-3 top-2.5 text-muted-foreground" />
-                    <input
-                      type="text"
-                      value={guideSearch}
-                      onChange={(e) => setGuideSearch(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && loadGuides()}
-                      placeholder="جستجو در راهنماها، ارورها و راه‌حل‌ها..."
-                      className="w-full pl-3 pr-9 py-1.5 text-xs rounded-lg border border-border bg-background focus:outline-hidden focus:ring-1 focus:ring-primary"
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={loadGuides}
-                    className="px-3 py-1.5 bg-muted text-foreground text-xs font-semibold rounded-lg hover:bg-muted/80 transition-colors"
-                  >
-                    جستجو
-                  </button>
+                <div className="flex-1 min-w-[240px]">
+                  <SearchInput
+                    value={guideSearch}
+                    onChange={setGuideSearch}
+                    onSearch={() => loadGuides()}
+                    placeholder="جستجو در راهنماها، ارورها و راه‌حل‌ها..."
+                    debounceMs={300}
+                  />
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -1478,15 +1549,17 @@ export const AdminContentView: React.FC = () => {
               {/* Table */}
               <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
                 <div className="overflow-x-auto">
-                  <table className="w-full text-right text-xs">
+                  <table className="w-full text-center text-xs">
                     <thead>
-                      <tr className="border-b border-border bg-muted/40 text-muted-foreground font-semibold">
-                        <th className="p-3.5">عنوان راهنما</th>
-                        <th className="p-3.5">سرویس هدف</th>
-                        <th className="p-3.5">دشواری</th>
-                        <th className="p-3.5">بازخورد مفید (👍 / 👎)</th>
-                        <th className="p-3.5">بازدید</th>
-                        <th className="p-3.5 text-left">عملیات</th>
+                      <tr className="border-b border-border bg-muted/40 text-muted-foreground font-semibold select-none">
+                        <th className="p-3.5 text-right pr-6">عنوان راهنما</th>
+                        <th className="p-3.5 text-center">سرویس هدف</th>
+                        <th className="p-3.5 text-center">دشواری</th>
+                        <th className="p-3.5 text-center">
+                          بازخورد مفید (👍 / 👎)
+                        </th>
+                        <th className="p-3.5 text-center">بازدید</th>
+                        <th className="p-3.5 text-center">عملیات</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border/60">
@@ -1495,7 +1568,7 @@ export const AdminContentView: React.FC = () => {
                           key={g.id}
                           className="hover:bg-muted/30 transition-colors"
                         >
-                          <td className="p-3.5">
+                          <td className="p-3.5 text-right pr-6">
                             <div className="space-y-0.5">
                               <span className="font-bold text-foreground block">
                                 {g.title}
@@ -1505,18 +1578,18 @@ export const AdminContentView: React.FC = () => {
                               </span>
                             </div>
                           </td>
-                          <td className="p-3.5">
-                            <span className="bg-muted px-2 py-0.5 rounded-md text-[11px] font-semibold text-foreground">
+                          <td className="p-3.5 text-center">
+                            <span className="bg-muted px-2 py-0.5 rounded-md text-[11px] font-semibold text-foreground font-latin">
                               {g.service_target.toUpperCase()}
                             </span>
                           </td>
-                          <td className="p-3.5">
+                          <td className="p-3.5 text-center">
                             <span className="text-muted-foreground">
                               {g.difficulty}
                             </span>
                           </td>
-                          <td className="p-3.5">
-                            <div className="flex items-center gap-3 text-[11px]">
+                          <td className="p-3.5 text-center font-mono font-latin">
+                            <div className="inline-flex items-center justify-center gap-3 text-[11px]">
                               <span className="text-emerald-600 font-semibold flex items-center gap-1">
                                 <ThumbsUp className="h-3 w-3" />
                                 {g.helpful_yes}
@@ -1527,13 +1600,13 @@ export const AdminContentView: React.FC = () => {
                               </span>
                             </div>
                           </td>
-                          <td className="p-3.5">
+                          <td className="p-3.5 text-center font-mono font-latin">
                             <span className="text-muted-foreground">
                               {g.view_count.toLocaleString()}
                             </span>
                           </td>
-                          <td className="p-3.5 text-left">
-                            <div className="flex items-center justify-end gap-1.5">
+                          <td className="p-3.5 text-center">
+                            <div className="flex items-center justify-center gap-1.5">
                               <a
                                 href={`/help/${g.slug}`}
                                 target="_blank"
@@ -1885,13 +1958,10 @@ export const AdminContentView: React.FC = () => {
                       ? 'ویرایش دسته‌بندی'
                       : 'افزودن دسته‌بندی جدید'}
                   </h3>
-                  <button
-                    type="button"
+                  <ModalCloseButton
                     onClick={() => setIsCategoryModalOpen(false)}
-                    className="p-1 rounded-control text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
+                    size="sm"
+                  />
                 </div>
                 <div className="space-y-3">
                   <div>
@@ -2036,13 +2106,10 @@ export const AdminContentView: React.FC = () => {
                       ? 'ویرایش قالب آماده نگارش'
                       : 'افزودن قالب آماده جدید به دیتابیس'}
                   </h3>
-                  <button
-                    type="button"
+                  <ModalCloseButton
                     onClick={() => setIsTemplateModalOpen(false)}
-                    className="p-1 rounded-control text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
+                    size="sm"
+                  />
                 </div>
 
                 <div className="space-y-3">
@@ -2186,6 +2253,18 @@ export const AdminContentView: React.FC = () => {
           </div>,
           document.body,
         )}
+
+      {/* CONFIRM DELETE MODAL */}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        confirmText="بله، حذف شود"
+        cancelText="انصراف"
+        loading={confirmModal.loading}
+        onConfirm={confirmModal.onConfirm}
+        onClose={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
+      />
     </div>
   )
 }

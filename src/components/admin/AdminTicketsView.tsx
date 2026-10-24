@@ -19,7 +19,6 @@ import {
   Star,
   Trash2,
   User,
-  X,
 } from 'lucide-react'
 import type React from 'react'
 import { useCallback, useEffect, useRef, useState } from 'react'
@@ -36,8 +35,11 @@ import type {
 import { Badge } from '../ui/badge'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
+import { ConfirmModal } from '../vibefarsi/ConfirmModal'
+import { ModalCloseButton } from '../vibefarsi/ModalCloseButton'
 import { useNotification } from '../vibefarsi/NotificationContext'
 import { SearchInput } from '../vibefarsi/SearchInput'
+import { ToggleSwitch } from '../vibefarsi/ToggleSwitch'
 
 interface AdminTicketsViewProps {
   adminUser?: any
@@ -124,6 +126,17 @@ export const AdminTicketsView: React.FC<AdminTicketsViewProps> = ({
   // Lightbox Zoom
   const [zoomImage, setZoomImage] = useState<string | null>(null)
   const [copiedOrderId, setCopiedOrderId] = useState<string | null>(null)
+  const [deleteConfirm, setDeleteConfirm] = useState<{
+    isOpen: boolean
+    ticketId: string | null
+    ticketNum: string | null
+    loading: boolean
+  }>({
+    isOpen: false,
+    ticketId: null,
+    ticketNum: null,
+    loading: false,
+  })
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
@@ -326,18 +339,38 @@ export const AdminTicketsView: React.FC<AdminTicketsViewProps> = ({
   }
 
   // Delete Ticket
-  const handleDeleteTicket = async (ticketId: string, tNum: string) => {
-    if (!confirm(`آیا از حذف تیکت #${tNum} اطمینان دارید؟`)) return
+  const handleDeleteTicket = (ticketId: string, tNum: string) => {
+    setDeleteConfirm({
+      isOpen: true,
+      ticketId,
+      ticketNum: tNum,
+      loading: false,
+    })
+  }
+
+  const confirmDeleteTicket = async () => {
+    if (!deleteConfirm.ticketId) return
+    setDeleteConfirm((prev) => ({ ...prev, loading: true }))
 
     try {
-      await apiService.adminDeleteTicket(ticketId)
-      notifySuccess('حذف تیکت', `تیکت #${tNum} با موفقیت حذف شد.`)
-      if (activeTicketId === ticketId) {
+      await apiService.adminDeleteTicket(deleteConfirm.ticketId)
+      notifySuccess(
+        'حذف تیکت',
+        `تیکت #${deleteConfirm.ticketNum} با موفقیت حذف شد.`,
+      )
+      if (activeTicketId === deleteConfirm.ticketId) {
         setActiveTicketId(null)
       }
+      setDeleteConfirm({
+        isOpen: false,
+        ticketId: null,
+        ticketNum: null,
+        loading: false,
+      })
       await fetchTickets(true)
     } catch (err: any) {
       notifyError('خطا در حذف تیکت', err.message)
+      setDeleteConfirm((prev) => ({ ...prev, loading: false }))
     }
   }
 
@@ -473,102 +506,104 @@ export const AdminTicketsView: React.FC<AdminTicketsViewProps> = ({
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         <div
           onClick={() => setStatusFilter('all')}
-          className={`p-4 rounded-2xl border transition-all cursor-pointer ${
+          className={`p-4 rounded-surface border transition-all cursor-pointer shadow-surface select-none ${
             statusFilter === 'all'
-              ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-950/20 shadow-xs'
-              : 'border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-slate-300'
+              ? 'border-brand bg-brand/10 shadow-control'
+              : 'border-border/80 bg-card hover:border-border'
           }`}
         >
-          <div className="text-[11px] font-bold text-slate-500">کل تیکت‌ها</div>
-          <div className="text-xl font-black text-slate-900 dark:text-white mt-1">
+          <div className="text-[11px] font-bold text-muted-foreground">
+            کل تیکت‌ها
+          </div>
+          <div className="text-xl font-black text-foreground mt-1 font-mono font-latin">
             {stats.total}
           </div>
         </div>
 
         <div
           onClick={() => setStatusFilter('awaiting_admin')}
-          className={`p-4 rounded-2xl border transition-all cursor-pointer ${
+          className={`p-4 rounded-surface border transition-all cursor-pointer shadow-surface select-none ${
             statusFilter === 'awaiting_admin'
-              ? 'border-rose-500 bg-rose-50/60 dark:bg-rose-950/30 shadow-xs'
-              : 'border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-slate-300'
+              ? 'border-rose-500 bg-rose-500/10 shadow-control'
+              : 'border-border/80 bg-card hover:border-border'
           }`}
         >
-          <div className="text-[11px] font-bold text-rose-600 dark:text-rose-400 flex items-center justify-between">
+          <div className="text-[11px] font-bold text-rose-500 flex items-center justify-between">
             <span>در انتظار ادمین</span>
             {stats.awaiting_admin > 0 && (
               <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
             )}
           </div>
-          <div className="text-xl font-black text-rose-600 dark:text-rose-400 mt-1">
+          <div className="text-xl font-black text-rose-500 mt-1 font-mono font-latin">
             {stats.awaiting_admin}
           </div>
         </div>
 
         <div
           onClick={() => setStatusFilter('awaiting_user')}
-          className={`p-4 rounded-2xl border transition-all cursor-pointer ${
+          className={`p-4 rounded-surface border transition-all cursor-pointer shadow-surface select-none ${
             statusFilter === 'awaiting_user'
-              ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-950/20 shadow-xs'
-              : 'border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-slate-300'
+              ? 'border-brand bg-brand/10 shadow-control'
+              : 'border-border/80 bg-card hover:border-border'
           }`}
         >
-          <div className="text-[11px] font-bold text-blue-600 dark:text-blue-400">
+          <div className="text-[11px] font-bold text-brand">
             در انتظار کاربر
           </div>
-          <div className="text-xl font-black text-blue-600 dark:text-blue-400 mt-1">
+          <div className="text-xl font-black text-brand mt-1 font-mono font-latin">
             {stats.awaiting_user}
           </div>
         </div>
 
         <div
           onClick={() => setStatusFilter('in_progress')}
-          className={`p-4 rounded-2xl border transition-all cursor-pointer ${
+          className={`p-4 rounded-surface border transition-all cursor-pointer shadow-surface select-none ${
             statusFilter === 'in_progress'
-              ? 'border-purple-500 bg-purple-50/50 dark:bg-purple-950/20 shadow-xs'
-              : 'border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-slate-300'
+              ? 'border-purple-500 bg-purple-500/10 shadow-control'
+              : 'border-border/80 bg-card hover:border-border'
           }`}
         >
-          <div className="text-[11px] font-bold text-purple-600 dark:text-purple-400">
+          <div className="text-[11px] font-bold text-purple-500">
             در حال بررسی
           </div>
-          <div className="text-xl font-black text-purple-600 dark:text-purple-400 mt-1">
+          <div className="text-xl font-black text-purple-500 mt-1 font-mono font-latin">
             {stats.in_progress}
           </div>
         </div>
 
         <div
           onClick={() => setStatusFilter('resolved')}
-          className={`p-4 rounded-2xl border transition-all cursor-pointer ${
+          className={`p-4 rounded-surface border transition-all cursor-pointer shadow-surface select-none ${
             statusFilter === 'resolved'
-              ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20 shadow-xs'
-              : 'border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-slate-300'
+              ? 'border-emerald-500 bg-emerald-500/10 shadow-control'
+              : 'border-border/80 bg-card hover:border-border'
           }`}
         >
-          <div className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
-            حل شده
-          </div>
-          <div className="text-xl font-black text-emerald-600 dark:text-emerald-400 mt-1">
+          <div className="text-[11px] font-bold text-emerald-500">حل شده</div>
+          <div className="text-xl font-black text-emerald-500 mt-1 font-mono font-latin">
             {stats.resolved}
           </div>
         </div>
 
         <div
           onClick={() => setStatusFilter('closed')}
-          className={`p-4 rounded-2xl border transition-all cursor-pointer ${
+          className={`p-4 rounded-surface border transition-all cursor-pointer shadow-surface select-none ${
             statusFilter === 'closed'
-              ? 'border-slate-400 bg-slate-100 dark:bg-slate-800 shadow-xs'
-              : 'border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-slate-300'
+              ? 'border-border bg-muted shadow-control'
+              : 'border-border/80 bg-card hover:border-border'
           }`}
         >
-          <div className="text-[11px] font-bold text-slate-500">بسته شده</div>
-          <div className="text-xl font-black text-slate-700 dark:text-slate-300 mt-1">
+          <div className="text-[11px] font-bold text-muted-foreground">
+            بسته شده
+          </div>
+          <div className="text-xl font-black text-muted-foreground mt-1 font-mono font-latin">
             {stats.closed}
           </div>
         </div>
       </div>
 
       {/* 3. Filters & Search Bar */}
-      <div className="p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col md:flex-row items-center justify-between gap-3 shadow-xs">
+      <div className="p-4 rounded-surface border border-border/80 bg-card flex flex-col md:flex-row items-center justify-between gap-3 shadow-surface">
         <div className="flex-1 w-full md:w-auto">
           <SearchInput
             value={searchQuery}
@@ -582,7 +617,7 @@ export const AdminTicketsView: React.FC<AdminTicketsViewProps> = ({
           <select
             value={departmentFilter}
             onChange={(e) => setDepartmentFilter(e.target.value)}
-            className="h-10 px-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-700 dark:text-slate-300 text-xs flex-1 sm:flex-none"
+            className="h-10 px-3 rounded-field border border-border/60 bg-muted/20 text-foreground text-xs flex-1 sm:flex-none outline-none focus:border-brand font-medium cursor-pointer"
           >
             {DEPARTMENTS.map((d) => (
               <option key={d.id} value={d.id}>
@@ -594,7 +629,7 @@ export const AdminTicketsView: React.FC<AdminTicketsViewProps> = ({
           <select
             value={priorityFilter}
             onChange={(e) => setPriorityFilter(e.target.value)}
-            className="h-10 px-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-700 dark:text-slate-300 text-xs flex-1 sm:flex-none"
+            className="h-10 px-3 rounded-field border border-border/60 bg-muted/20 text-foreground text-xs flex-1 sm:flex-none outline-none focus:border-brand font-medium cursor-pointer"
           >
             {PRIORITIES.map((p) => (
               <option key={p.id} value={p.id}>
@@ -637,41 +672,41 @@ export const AdminTicketsView: React.FC<AdminTicketsViewProps> = ({
           </p>
         </div>
       ) : (
-        <div className="rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs overflow-hidden">
+        <div className="rounded-surface border border-border/80 bg-card shadow-surface overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-right text-xs">
-              <thead className="bg-slate-50 dark:bg-slate-950 text-slate-500 dark:text-slate-400 font-bold border-b border-slate-100 dark:border-slate-800">
+            <table className="w-full text-center text-xs">
+              <thead className="bg-muted/40 text-muted-foreground font-semibold border-b border-border/60 select-none">
                 <tr>
-                  <th className="py-3.5 px-4">شناسه و اولویت</th>
-                  <th className="py-3.5 px-4">موضوع و دپارتمان</th>
-                  <th className="py-3.5 px-4">کاربر / مشتری</th>
-                  <th className="py-3.5 px-4">سفارش مرتبط</th>
-                  <th className="py-3.5 px-4">وضعیت</th>
-                  <th className="py-3.5 px-4">آخرین پاسخ</th>
+                  <th className="py-3.5 px-4 text-center">شناسه و اولویت</th>
+                  <th className="py-3.5 px-4 text-right pr-6">
+                    موضوع و دپارتمان
+                  </th>
+                  <th className="py-3.5 px-4 text-center">کاربر / مشتری</th>
+                  <th className="py-3.5 px-4 text-center">سفارش مرتبط</th>
+                  <th className="py-3.5 px-4 text-center">وضعیت</th>
+                  <th className="py-3.5 px-4 text-center">آخرین پاسخ</th>
                   <th className="py-3.5 px-4 text-center">عملیات</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-sans">
+              <tbody className="divide-y divide-border/60 font-sans">
                 {tickets.map((t) => (
                   <tr
                     key={t.id}
-                    className="hover:bg-blue-50/40 dark:hover:bg-slate-800/40 transition-colors cursor-pointer group"
+                    className="hover:bg-muted/30 transition-colors cursor-pointer group"
                     onClick={() => setActiveTicketId(t.id)}
                   >
-                    <td className="py-3.5 px-4 font-mono font-bold">
-                      <div className="flex items-center gap-2">
-                        <span className="text-blue-600 dark:text-blue-400">
-                          #{t.ticket_number}
-                        </span>
+                    <td className="py-3.5 px-4 font-mono font-latin font-bold text-center">
+                      <div className="flex items-center justify-center gap-2">
+                        <span className="text-brand">#{t.ticket_number}</span>
                         {getPriorityBadge(t.priority)}
                       </div>
                     </td>
 
-                    <td className="py-3.5 px-4">
-                      <div className="font-bold text-slate-900 dark:text-white max-w-xs truncate group-hover:text-blue-600 transition-colors">
+                    <td className="py-3.5 px-4 text-right pr-6">
+                      <div className="font-bold text-foreground max-w-xs truncate group-hover:text-brand transition-colors">
                         {t.subject}
                       </div>
-                      <div className="text-[11px] text-slate-400 mt-0.5">
+                      <div className="text-[11px] text-muted-foreground mt-0.5">
                         دپارتمان:{' '}
                         {DEPARTMENTS.find(
                           (d) => d.id === t.department,
@@ -679,17 +714,17 @@ export const AdminTicketsView: React.FC<AdminTicketsViewProps> = ({
                       </div>
                     </td>
 
-                    <td className="py-3.5 px-4">
-                      <div className="font-medium text-slate-800 dark:text-slate-200">
+                    <td className="py-3.5 px-4 text-center">
+                      <div className="font-medium text-foreground">
                         {t.customer_name || 'کاربر'}
                       </div>
-                      <div className="font-mono text-[11px] text-slate-400 mt-0.5 flex items-center gap-1">
+                      <div className="font-mono font-latin text-[11px] text-muted-foreground mt-0.5 flex items-center justify-center gap-1">
                         <Phone className="w-3 h-3 text-emerald-500" />
                         {t.customer_phone}
                       </div>
                     </td>
 
-                    <td className="py-3.5 px-4">
+                    <td className="py-3.5 px-4 text-center">
                       {t.related_order_no ? (
                         <div
                           onClick={(e) => {
@@ -698,7 +733,7 @@ export const AdminTicketsView: React.FC<AdminTicketsViewProps> = ({
                               handleCopy(t.related_order_no, t.id)
                             }
                           }}
-                          className="inline-flex items-center gap-1 font-mono text-[11px] font-bold text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950 px-2 py-0.5 rounded-md hover:bg-purple-100 transition-colors"
+                          className="inline-flex items-center gap-1 font-mono font-latin text-[11px] font-bold text-brand bg-brand/10 border border-brand/20 px-2 py-0.5 rounded-control hover:bg-brand/20 transition-colors cursor-pointer"
                           title="کلیک جهت کپی شماره سفارش"
                         >
                           <span>#{t.related_order_no}</span>
@@ -709,17 +744,21 @@ export const AdminTicketsView: React.FC<AdminTicketsViewProps> = ({
                           )}
                         </div>
                       ) : (
-                        <span className="text-slate-400 text-[11px]">—</span>
+                        <span className="text-muted-foreground text-[11px]">
+                          —
+                        </span>
                       )}
                     </td>
 
-                    <td className="py-3.5 px-4">{getStatusBadge(t.status)}</td>
+                    <td className="py-3.5 px-4 text-center">
+                      {getStatusBadge(t.status)}
+                    </td>
 
-                    <td className="py-3.5 px-4">
-                      <div className="font-mono text-[11px] text-slate-600 dark:text-slate-300">
+                    <td className="py-3.5 px-4 text-center">
+                      <div className="font-mono font-latin text-[11px] text-muted-foreground">
                         {formatPersianDate(t.last_reply_at || t.created_at)}
                       </div>
-                      <div className="text-[10px] text-slate-400 mt-0.5">
+                      <div className="text-[10px] text-muted-foreground mt-0.5">
                         توسط:{' '}
                         {t.last_reply_by === 'customer' ? 'کاربر' : 'پشتیبانی'}
                       </div>
@@ -733,7 +772,7 @@ export const AdminTicketsView: React.FC<AdminTicketsViewProps> = ({
                         <Button
                           size="sm"
                           onClick={() => setActiveTicketId(t.id)}
-                          className="h-8 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs"
+                          className="h-8 px-3 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground text-xs font-black shadow-control transition-all duration-motion active:scale-[0.98]"
                         >
                           مشاهده و پاسخ
                         </Button>
@@ -743,10 +782,10 @@ export const AdminTicketsView: React.FC<AdminTicketsViewProps> = ({
                           onClick={() =>
                             handleDeleteTicket(t.id, t.ticket_number)
                           }
-                          className="p-1.5 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition-colors"
+                          className="h-8 w-8 rounded-control border border-destructive/20 hover:bg-destructive/10 text-destructive flex items-center justify-center transition-colors cursor-pointer shadow-xs"
                           title="حذف تیکت"
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     </td>
@@ -856,13 +895,10 @@ export const AdminTicketsView: React.FC<AdminTicketsViewProps> = ({
                       <option value="urgent">فوری</option>
                     </select>
 
-                    <button
-                      type="button"
+                    <ModalCloseButton
                       onClick={() => setActiveTicketId(null)}
-                      className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-slate-800 dark:hover:text-white flex items-center justify-center transition-colors"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
+                      size="sm"
+                    />
                   </div>
                 </div>
 
@@ -1048,29 +1084,29 @@ export const AdminTicketsView: React.FC<AdminTicketsViewProps> = ({
                     </div>
 
                     {!isInternalNote && (
-                      <div className="flex items-center gap-4 text-[11px] text-slate-600 dark:text-slate-400">
-                        <label className="flex items-center gap-1.5 cursor-pointer">
-                          <input
-                            type="checkbox"
+                      <div className="flex items-center gap-4 text-[11px] text-muted-foreground">
+                        <div className="flex items-center gap-2">
+                          <ToggleSwitch
+                            size="sm"
                             checked={notifySMS}
-                            onChange={(e) => setNotifySMS(e.target.checked)}
-                            className="rounded text-blue-600 focus:ring-blue-500 w-3.5 h-3.5"
+                            onChange={setNotifySMS}
                           />
-                          <span className="flex items-center gap-1">
+                          <span className="flex items-center gap-1 font-semibold text-foreground">
                             <Phone className="w-3 h-3 text-emerald-500" />
-                            پیامک خودکار SMS.ir به کاربر
+                            پیامک خودکار SMS.ir
                           </span>
-                        </label>
+                        </div>
 
-                        <label className="flex items-center gap-1.5 cursor-pointer">
-                          <input
-                            type="checkbox"
+                        <div className="flex items-center gap-2">
+                          <ToggleSwitch
+                            size="sm"
                             checked={notifyEmail}
-                            onChange={(e) => setNotifyEmail(e.target.checked)}
-                            className="rounded text-blue-600 focus:ring-blue-500 w-3.5 h-3.5"
+                            onChange={setNotifyEmail}
                           />
-                          <span>ارسال ایمیل</span>
-                        </label>
+                          <span className="font-semibold text-foreground">
+                            ارسال ایمیل
+                          </span>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -1225,6 +1261,25 @@ export const AdminTicketsView: React.FC<AdminTicketsViewProps> = ({
           </div>,
           document.body,
         )}
+
+      {/* DELETE CONFIRMATION MODAL */}
+      <ConfirmModal
+        isOpen={deleteConfirm.isOpen}
+        title="حذف تیکت پشتیبانی"
+        message={`آیا از حذف کامل تیکت #${deleteConfirm.ticketNum} و کلیه پیام‌های آن اطمینان دارید؟ این عملیات غیرقابل بازگشت است.`}
+        confirmText="بله، تیکت حذف شود"
+        cancelText="انصراف"
+        loading={deleteConfirm.loading}
+        onConfirm={confirmDeleteTicket}
+        onClose={() =>
+          setDeleteConfirm({
+            isOpen: false,
+            ticketId: null,
+            ticketNum: null,
+            loading: false,
+          })
+        }
+      />
     </div>
   )
 }

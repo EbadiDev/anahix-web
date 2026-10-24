@@ -14,7 +14,6 @@ import {
   ShieldAlert,
   ShieldCheck,
   UserCheck,
-  X,
   Zap,
 } from 'lucide-react'
 import type React from 'react'
@@ -22,6 +21,7 @@ import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { apiService } from '../../services/api'
 import type { AdminActionLogRecord } from '../../types'
+import { ModalCloseButton } from '../vibefarsi/ModalCloseButton'
 import { SearchInput } from '../vibefarsi/SearchInput'
 
 export const AdminActionLogView: React.FC = () => {
@@ -497,13 +497,10 @@ export const AdminActionLogView: React.FC = () => {
                       جزئیات رویداد سیستمی
                     </h3>
                   </div>
-                  <button
-                    type="button"
+                  <ModalCloseButton
                     onClick={() => setSelectedLog(null)}
-                    className="p-1 rounded-control text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
+                    size="sm"
+                  />
                 </div>
 
                 <div className="p-5 space-y-4 text-xs">

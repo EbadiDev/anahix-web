@@ -78,7 +78,7 @@ export const AdminCouponsView: React.FC = () => {
       const data = await apiService.listCoupons()
       setCoupons(Array.isArray(data) ? data : [])
     } catch (err: any) {
-      notifyError('خطا در دریافت کوپن‌ها', err.message)
+      notifyError('خطا در دریافت کدهای تخفیف', err.message)
     } finally {
       setLoading(false)
     }
@@ -142,7 +142,7 @@ export const AdminCouponsView: React.FC = () => {
     )
     setFormExpiresAt(c.expires_at ? c.expires_at.split('T')[0] : '')
     setFormIsActive(c.is_active !== false)
-    setFormShowInCart(true)
+    setFormShowInCart(c.show_in_cart !== false)
 
     // Parse category scope
     const cat = c.category || 'all'
@@ -200,19 +200,20 @@ export const AdminCouponsView: React.FC = () => {
         category: resolvedCategory,
         label: formLabel.trim() || undefined,
         expires_at: formExpiresAt ? `${formExpiresAt}T23:59:59Z` : undefined,
+        show_in_cart: formShowInCart,
         is_active: formIsActive,
       }
 
       if (editingCouponId) {
         await apiService.adminUpdateCoupon(editingCouponId, payload as any)
         notifySuccess(
-          'ویرایش کوپن',
+          'ویرایش کد تخفیف',
           `کد تخفیف «${cleanCode}» با موفقیت ویرایش شد.`,
         )
       } else {
         await apiService.createCoupon(payload as any)
         notifySuccess(
-          'ایجاد کوپن',
+          'ایجاد کد تخفیف',
           `کد تخفیف «${cleanCode}» با موفقیت ایجاد و فعال شد.`,
         )
       }
@@ -229,7 +230,7 @@ export const AdminCouponsView: React.FC = () => {
       )
     } catch (err: any) {
       setFormError(err.message || 'خطا در ثبت کد تخفیف')
-      notifyError('خطا در ثبت کوپن', err.message)
+      notifyError('خطا در ثبت کد تخفیف', err.message)
     } finally {
       setSubmitting(false)
     }
@@ -242,16 +243,57 @@ export const AdminCouponsView: React.FC = () => {
         prev.map((item) => (item.id === c.id ? updated : item)),
       )
       notifySuccess(
-        'تغییر وضعیت کوپن',
+        'تغییر وضعیت کد تخفیف',
         `کد تخفیف «${c.code}» اکنون ${updated.is_active ? 'فعال' : 'غیرفعال'} شد.`,
       )
       window.dispatchEvent(
         new CustomEvent('anahix:coupon:changed', {
-          detail: { code: c.code, action: 'toggled' },
+          detail: {
+            code: c.code,
+            action: 'toggled',
+            is_active: updated.is_active,
+          },
         }),
       )
     } catch (err: any) {
-      notifyError('خطا در تغییر وضعیت کوپن', err.message)
+      notifyError('خطا در تغییر وضعیت کد تخفیف', err.message)
+    }
+  }
+
+  const handleToggleShowInCart = async (c: CouponItem) => {
+    try {
+      const nextVal = c.show_in_cart === false
+      const updated = await apiService.adminUpdateCoupon(c.id, {
+        show_in_cart: nextVal,
+        is_active: c.is_active,
+      })
+      setCoupons((prev) =>
+        prev.map((item) =>
+          item.id === c.id
+            ? {
+                ...item,
+                show_in_cart: nextVal,
+                is_active: updated?.is_active ?? c.is_active,
+              }
+            : item,
+        ),
+      )
+      notifySuccess(
+        'تغییر وضعیت نمایش',
+        `کد تخفیف «${c.code}» اکنون در سبد خرید ${nextVal ? 'نمایش داده می‌شود' : 'مخفی شد'}.`,
+      )
+      window.dispatchEvent(
+        new CustomEvent('anahix:coupon:changed', {
+          detail: {
+            code: c.code,
+            action: 'toggled_cart',
+            show_in_cart: nextVal,
+            is_active: c.is_active,
+          },
+        }),
+      )
+    } catch (err: any) {
+      notifyError('خطا در تغییر وضعیت نمایش', err.message)
     }
   }
 
@@ -273,7 +315,7 @@ export const AdminCouponsView: React.FC = () => {
         }),
       )
     } catch (err: any) {
-      notifyError('خطا در حذف کوپن', err.message)
+      notifyError('خطا در حذف کد تخفیف', err.message)
     } finally {
       setDeleting(false)
     }
@@ -379,9 +421,9 @@ export const AdminCouponsView: React.FC = () => {
       {/* Header Banner */}
       <AdminHeaderBanner
         icon={Ticket}
-        title="سیستم جامع مدیریت کد تخفیف و کوپن‌ها"
+        title="سیستم جامع مدیریت کدهای تخفیف"
         subtitle="تعریف کدهای تخفیف درصدی و تومانی، پایش میزان مصرف، تعیین مهلت انقضا و اتصال به محصولات"
-        badgeText="مدیریت پروموشن‌ها"
+        badgeText="مدیریت تخفیف‌ها"
         actions={
           <div className="flex items-center gap-2">
             <button
@@ -402,7 +444,7 @@ export const AdminCouponsView: React.FC = () => {
               className="h-9 px-4 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs duration-motion ease-motion active:scale-[0.98] shadow-control flex items-center gap-1.5 cursor-pointer"
             >
               <Plus className="w-4 h-4" />
-              <span>ایجاد کوپن جدید</span>
+              <span>ایجاد کد تخفیف جدید</span>
             </button>
           </div>
         }
@@ -540,8 +582,8 @@ export const AdminCouponsView: React.FC = () => {
                       کد تخفیفی با این مشخصات یافت نشد
                     </p>
                     <p className="text-[11px]">
-                      می‌توانید با زدن دکمه «ایجاد کوپن جدید» اولین کد تخفیف را
-                      ثبت کنید.
+                      می‌توانید با زدن دکمه «ایجاد کد تخفیف جدید» اولین کد تخفیف
+                      را ثبت کنید.
                     </p>
                   </td>
                 </tr>
@@ -655,9 +697,25 @@ export const AdminCouponsView: React.FC = () => {
 
                       {/* Show in Cart Drawer */}
                       <td className="p-3.5 text-center">
-                        <span className="px-2 py-0.5 rounded-control text-[10px] font-bold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
-                          نمایش در سبد ✓
-                        </span>
+                        <div className="flex items-center justify-center gap-2">
+                          <ToggleSwitch
+                            size="sm"
+                            checked={c.show_in_cart !== false}
+                            onChange={() => handleToggleShowInCart(c)}
+                            ariaLabel="نمایش در سبد خرید"
+                          />
+                          <span
+                            className={`text-[10px] font-bold ${
+                              c.show_in_cart !== false
+                                ? 'text-amber-500'
+                                : 'text-muted-foreground'
+                            }`}
+                          >
+                            {c.show_in_cart !== false
+                              ? 'نمایش در سبد'
+                              : 'مخفی در سبد'}
+                          </span>
+                        </div>
                       </td>
 
                       {/* Expiry */}
@@ -680,20 +738,23 @@ export const AdminCouponsView: React.FC = () => {
                         )}
                       </td>
 
-                      {/* Active Status Badge with 4 distinct colors */}
+                      {/* Active Status Badge with ToggleSwitch */}
                       <td className="p-3.5 text-center">
-                        <div className="flex items-center justify-center">
+                        <div className="flex items-center justify-center gap-2">
+                          <ToggleSwitch
+                            size="sm"
+                            checked={c.is_active}
+                            onChange={() => handleToggle(c)}
+                            ariaLabel="وضعیت فعال یا غیرفعال"
+                          />
                           {(() => {
                             const st = getCouponStatus(c)
                             return (
-                              <button
-                                type="button"
-                                onClick={() => handleToggle(c)}
-                                className={`px-2.5 py-0.5 rounded-control text-[10px] cursor-pointer transition-transform active:scale-95 border ${st.className}`}
-                                title="برای تغییر وضعیت فعال/غیرفعال کلیک کنید"
+                              <span
+                                className={`px-2 py-0.5 rounded-control text-[10px] border ${st.className}`}
                               >
                                 {st.label}
-                              </button>
+                              </span>
                             )
                           })()}
                         </div>
@@ -743,8 +804,8 @@ export const AdminCouponsView: React.FC = () => {
                     <Ticket className="w-5 h-5 text-brand" />
                     <span>
                       {editingCouponId
-                        ? `ویرایش کوپن: ${formCode}`
-                        : 'ایجاد کوپن تخفیف جدید'}
+                        ? `ویرایش کد تخفیف: ${formCode}`
+                        : 'ایجاد کد تخفیف جدید'}
                     </span>
                   </h3>
                   <ModalCloseButton
@@ -1088,7 +1149,7 @@ export const AdminCouponsView: React.FC = () => {
                   <div className="p-3.5 rounded-surface bg-muted/20 border border-border/60 flex items-center justify-between gap-3">
                     <div className="space-y-0.5 text-right">
                       <span className="font-bold text-foreground block">
-                        وضعیت فعال‌بودن کوپن
+                        وضعیت فعال‌بودن کد تخفیف
                       </span>
                       <p className="text-[11px] text-muted-foreground">
                         در صورت فعال بودن، مشتریان می‌توانند کد را در سبد خرید
@@ -1115,8 +1176,8 @@ export const AdminCouponsView: React.FC = () => {
                       )}
                       <span>
                         {editingCouponId
-                          ? 'ذخیره تغییرات کوپن'
-                          : 'ثبت و انتشار کوپن'}
+                          ? 'ذخیره تغییرات کد تخفیف'
+                          : 'ثبت و انتشار کد تخفیف'}
                       </span>
                     </button>
                   </div>

@@ -148,7 +148,7 @@ export const AdminLoyaltyTiersView: React.FC = () => {
   const handleSaveTier = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!formName.trim() || !formCode.trim()) {
-      alert('لطفاً عنوان و کد یکتای سطح را وارد نمایید.')
+      notifyError('اطلاعات ناقص', 'لطفاً عنوان و کد یکتای سطح را وارد نمایید.')
       return
     }
 
@@ -186,7 +186,7 @@ export const AdminLoyaltyTiersView: React.FC = () => {
       setIsModalOpen(false)
       loadData()
     } catch (err: any) {
-      alert(err?.message || 'خطا در ثبت اطلاعات سطح')
+      notifyError('خطا در ثبت سطح', err?.message || 'خطا در ثبت اطلاعات سطح')
     } finally {
       setModalLoading(false)
     }
@@ -222,6 +222,12 @@ export const AdminLoyaltyTiersView: React.FC = () => {
     setSavingSettings(true)
     try {
       await apiService.updateAdminLoyaltySettings(settings)
+      window.dispatchEvent(
+        new CustomEvent('anahix:loyalty:updated', { detail: settings }),
+      )
+      window.dispatchEvent(
+        new CustomEvent('anahix:referral:updated', { detail: settings }),
+      )
       notifySuccess(
         'ذخیره تنظیمات',
         'تنظیمات باشگاه مشتریان و همکاری در فروش با موفقیت ذخیره شد.',
@@ -1005,15 +1011,16 @@ export const AdminLoyaltyTiersView: React.FC = () => {
 
                   {/* Status & Submit */}
                   <div className="flex items-center justify-between pt-4 border-t border-border/60">
-                    <label className="flex items-center gap-2 cursor-pointer text-foreground font-semibold">
-                      <input
-                        type="checkbox"
+                    <div className="flex items-center gap-3">
+                      <ToggleSwitch
+                        size="sm"
                         checked={formIsActive}
-                        onChange={(e) => setFormIsActive(e.target.checked)}
-                        className="rounded accent-brand cursor-pointer"
+                        onChange={setFormIsActive}
                       />
-                      <span>سطح فعال و قابل محاسبه برای کاربران باشد</span>
-                    </label>
+                      <span className="text-foreground text-xs font-semibold">
+                        سطح فعال و قابل محاسبه برای کاربران باشد
+                      </span>
+                    </div>
 
                     <div className="flex items-center gap-2">
                       <button

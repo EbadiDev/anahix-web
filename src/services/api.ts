@@ -1425,7 +1425,7 @@ export const apiService = {
     if (res.ok && json.code === 200 && json.data) {
       return json.data
     }
-    throw new Error(json.msg || 'خطا در ایجاد کوپن تخفیف')
+    throw new Error(json.msg || 'خطا در ایجاد کد تخفیف')
   },
 
   async adminUpdateCoupon(
@@ -1445,7 +1445,7 @@ export const apiService = {
     if (res.ok && json.code === 200 && json.data) {
       return json.data
     }
-    throw new Error(json.msg || 'خطا در ویرایش کوپن تخفیف')
+    throw new Error(json.msg || 'خطا در ویرایش کد تخفیف')
   },
 
   async adminToggleCoupon(id: string): Promise<CouponItem> {
@@ -1460,7 +1460,7 @@ export const apiService = {
     if (res.ok && json.code === 200 && json.data) {
       return json.data
     }
-    throw new Error(json.msg || 'خطا در تغییر وضعیت کوپن')
+    throw new Error(json.msg || 'خطا در تغییر وضعیت کد تخفیف')
   },
 
   async adminDeleteCoupon(id: string): Promise<void> {
@@ -1473,7 +1473,7 @@ export const apiService = {
     })
     const json = await res.json()
     if (!res.ok || json.code !== 200) {
-      throw new Error(json.msg || 'خطا در حذف کوپن')
+      throw new Error(json.msg || 'خطا در حذف کد تخفیف')
     }
   },
 

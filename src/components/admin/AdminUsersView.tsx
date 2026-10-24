@@ -1,5 +1,4 @@
 import {
-  AlertCircle,
   ArrowDownLeft,
   ArrowUpRight,
   Award,
@@ -10,7 +9,6 @@ import {
   Copy,
   Eye,
   Key,
-  KeyRound,
   Layers,
   Mail,
   Minus,
@@ -18,26 +16,20 @@ import {
   Plus,
   Radio,
   RefreshCw,
-  Save,
-  Search,
   Send,
   Share2,
   Shield,
-  ShieldAlert,
   ShieldCheck,
   Smartphone,
-  ToggleLeft,
-  ToggleRight,
   UserCheck,
   Users,
   UserX,
   Wallet,
-  X,
 } from 'lucide-react'
 import type React from 'react'
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { api, apiService } from '../../services/api'
+import { apiService } from '../../services/api'
 import type {
   AdminAdjustCustomerWalletRequest,
   AdminCustomerDetail360Response,
@@ -49,11 +41,16 @@ import type {
   AdminSendCustomerSMSRequest,
   AdminUpdateCustomerStatusRequest,
   CustomerTier,
-  ThemeSettings,
 } from '../../types'
+import { ConfirmModal } from '../vibefarsi/ConfirmModal'
+import { ModalCloseButton } from '../vibefarsi/ModalCloseButton'
+import { useNotification } from '../vibefarsi/NotificationContext'
+import { SearchInput } from '../vibefarsi/SearchInput'
+import { ToggleSwitch } from '../vibefarsi/ToggleSwitch'
 import { AdminHeaderBanner } from './AdminHeaderBanner'
 
 export const AdminUsersView: React.FC = () => {
+  const { success: notifySuccess, error: notifyError } = useNotification()
   // Main Users Table State
   const [loading, setLoading] = useState(false)
   const [data, setData] = useState<AdminListCustomersResponse | null>(null)
@@ -64,9 +61,13 @@ export const AdminUsersView: React.FC = () => {
   const [tierFilter, setTierFilter] = useState<
     'all' | 'standard' | 'colleague' | 'vip'
   >('all')
-  const [hasBalanceFilter, setHasBalanceFilter] = useState(false)
   const [sortBy, setSortBy] = useState<
-    'created_at' | 'last_login_at' | 'total_spent' | 'balance'
+    | 'created_at'
+    | 'last_login_at'
+    | 'total_spent'
+    | 'balance'
+    | 'referral_balance'
+    | 'profile_completed'
   >('created_at')
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc')
   const [page, setPage] = useState(1)
@@ -121,52 +122,23 @@ export const AdminUsersView: React.FC = () => {
     text: string
   } | null>(null)
 
-  // Global Notification / Toast
-  const [toastMsg, setToastMsg] = useState<{
-    type: 'success' | 'error'
-    text: string
-  } | null>(null)
-
-  // Multi-Auth System Settings (Moved from Theme Settings per architectural restructuring)
-  const [authSettings, setAuthSettings] = useState<ThemeSettings>({
-    event_name: 'عادی',
-    event_active: false,
-    primary_color: '#2563eb',
-    accent_color: '#3b82f6',
-    header_announcement: 'تمامی سرویس‌ها فعال است',
-    event_effect: 'none',
-    auth_google_enabled: true,
-    auth_github_enabled: true,
-    auth_password_enabled: true,
-    auth_otp_required: false,
-  })
-  const [authSaveLoading, setAuthSaveLoading] = useState(false)
-
-  useEffect(() => {
-    api
-      .getAdminThemeSettings()
-      .then((s) => {
-        if (s) setAuthSettings(s)
-      })
-      .catch(() => {})
-  }, [])
-
-  const handleSaveAuthSettings = async () => {
-    setAuthSaveLoading(true)
-    try {
-      await api.updateAdminThemeSettings(authSettings)
-      showToast('success', 'تنظیمات روش‌های ورود مشتریان با موفقیت ذخیره گردید')
-    } catch (err: any) {
-      showToast('error', err.message || 'خطا در ذخیره تنظیمات ورود')
-    } finally {
-      setAuthSaveLoading(false)
-    }
-  }
   const [copiedKey, setCopiedKey] = useState<string | null>(null)
+  const [blockConfirm, setBlockConfirm] = useState<{
+    isOpen: boolean
+    user: AdminCustomerListItem | null
+    loading: boolean
+  }>({
+    isOpen: false,
+    user: null,
+    loading: false,
+  })
 
   const showToast = (type: 'success' | 'error', text: string) => {
-    setToastMsg({ type, text })
-    setTimeout(() => setToastMsg(null), 4000)
+    if (type === 'success') {
+      notifySuccess('عملیات موفق', text)
+    } else {
+      notifyError('خطا در عملیات', text)
+    }
   }
 
   const copyToClipboard = (text: string, id: string) => {
@@ -182,7 +154,6 @@ export const AdminUsersView: React.FC = () => {
       const params: AdminListCustomersRequest = {
         search: search.trim() || undefined,
         status: statusFilter,
-        has_balance: hasBalanceFilter || undefined,
         tier: tierFilter,
         sort_by: sortBy,
         sort_order: sortOrder,
@@ -200,13 +171,7 @@ export const AdminUsersView: React.FC = () => {
 
   useEffect(() => {
     loadCustomers()
-  }, [page, statusFilter, tierFilter, hasBalanceFilter, sortBy, sortOrder])
-
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    setPage(1)
-    loadCustomers()
-  }
+  }, [page, statusFilter, tierFilter, sortBy, sortOrder])
 
   // Load Customer 360
   const openCustomerDrawer = async (customerId: string) => {
@@ -249,11 +214,14 @@ export const AdminUsersView: React.FC = () => {
     e.preventDefault()
     if (!walletTargetUser) return
     if (!walletReason.trim()) {
-      alert('درج علت تراکنش جهت ثبت در اسناد مالی و لاگ حسابرسی الزامی است.')
+      showToast(
+        'error',
+        'درج علت تراکنش جهت ثبت در اسناد مالی و لاگ حسابرسی الزامی است.',
+      )
       return
     }
     if (walletAmount <= 0) {
-      alert('مبلغ باید بزرگتر از صفر باشد.')
+      showToast('error', 'مبلغ باید بزرگتر از صفر باشد.')
       return
     }
 
@@ -284,28 +252,43 @@ export const AdminUsersView: React.FC = () => {
     }
   }
 
-  // Quick Toggle Block Status
-  const handleToggleBlock = async (user: AdminCustomerListItem) => {
-    const nextState = !user.is_active
-    const promptReason = nextState
-      ? ''
-      : prompt('علت مسدودسازی این کاربر را وارد نمایید (اختیاری):') || ''
+  // Quick Toggle Block Status with ConfirmModal
+  const handleToggleBlock = (user: AdminCustomerListItem) => {
+    if (user.is_active) {
+      setBlockConfirm({
+        isOpen: true,
+        user,
+        loading: false,
+      })
+    } else {
+      executeToggleBlock(user, true, '')
+    }
+  }
+
+  const executeToggleBlock = async (
+    user: AdminCustomerListItem,
+    nextState: boolean,
+    reason: string,
+  ) => {
+    setBlockConfirm((prev) => ({ ...prev, loading: true }))
     try {
       const payload: AdminUpdateCustomerStatusRequest = {
         is_active: nextState,
-        block_reason: promptReason,
+        block_reason: reason,
       }
       await apiService.updateCustomerStatus(user.id, payload)
       showToast(
         'success',
-        `حساب کاربری ${user.phone} با موفقیت ${nextState ? 'فعال و رفع انسداد' : 'مسدود'} شد.`,
+        `حساب کاربری ${user.full_name || user.phone} با موفقیت ${nextState ? 'فعال و رفع انسداد' : 'مسدود'} شد.`,
       )
+      setBlockConfirm({ isOpen: false, user: null, loading: false })
       loadCustomers()
       if (selectedCustomerId === user.id) {
         openCustomerDrawer(user.id)
       }
     } catch (err: any) {
       showToast('error', err.message || 'خطا در تغییر وضعیت حساب')
+      setBlockConfirm((prev) => ({ ...prev, loading: false }))
     }
   }
 
@@ -347,7 +330,7 @@ export const AdminUsersView: React.FC = () => {
     e.preventDefault()
     if (!customer360) return
     if (!smsMessage.trim()) {
-      alert('متن پیامک نمی‌تواند خالی باشد.')
+      showToast('error', 'متن پیامک نمی‌تواند خالی باشد.')
       return
     }
 
@@ -390,7 +373,7 @@ export const AdminUsersView: React.FC = () => {
     e.preventDefault()
     if (!customer360 || !replaceTargetOrder || !selectedOrderItemId) return
     if (!newKeyPayload.trim()) {
-      alert('لایسنس یا کلید جدید الزامی است.')
+      showToast('error', 'لایسنس یا کلید جدید الزامی است.')
       return
     }
 
@@ -414,36 +397,12 @@ export const AdminUsersView: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Toast Notification */}
-      {toastMsg && (
-        <div
-          className={`fixed top-6 left-6 z-50 px-5 py-3.5 rounded-2xl shadow-xl flex items-center gap-3 border transition-all animate-in fade-in slide-in-from-top-4 ${
-            toastMsg.type === 'success'
-              ? 'bg-emerald-600 text-white border-emerald-500 shadow-emerald-500/20'
-              : 'bg-red-600 text-white border-red-500 shadow-red-500/20'
-          }`}
-        >
-          {toastMsg.type === 'success' ? (
-            <CheckCircle2 className="w-5 h-5 shrink-0" />
-          ) : (
-            <AlertCircle className="w-5 h-5 shrink-0" />
-          )}
-          <span className="text-xs font-semibold">{toastMsg.text}</span>
-          <button
-            onClick={() => setToastMsg(null)}
-            className="p-1 hover:bg-white/20 rounded-lg transition-colors mr-2"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-      )}
-
       {/* Top Header Card & Stats Banner */}
       <AdminHeaderBanner
         icon={Users}
-        title="مدیریت جامع کاربران و نمای ۳۶۰ درجه (User 360°)"
-        subtitle="مشاهده پرونده کامل، کنترل کیف پول، سوابق سفارشات لایسنس و شماره‌های مجازی، مدیریت دسترسی‌ها و یادداشت‌های امنیتی"
-        badgeText="مرکز کنترل کاربران"
+        title="مدیریت کاربران"
+        subtitle="مشاهده پرونده کاربران، کنترل دسترسی‌ها، مدیریت کیف پول و سوابق سفارشات"
+        badgeText="مدیریت کاربران"
         actions={
           <button
             type="button"
@@ -505,184 +464,25 @@ export const AdminUsersView: React.FC = () => {
         </div>
       </div>
 
-      {/* MULTI-AUTH SYSTEM CONTROLS (Relocated from Theme Settings per architecture instructions) */}
-      <div className="bg-card rounded-surface border border-border/80 p-5 sm:p-6 shadow-surface space-y-4 text-foreground">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/60 pb-3">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-control bg-secondary text-brand border border-border/60 flex items-center justify-center shrink-0">
-              <KeyRound className="w-4 h-4" />
-            </div>
-            <div>
-              <h3 className="text-sm font-black text-foreground">
-                تنظیمات روش‌های ورود و ثبت‌نام مشتریان (Multi-Auth System)
-              </h3>
-              <p className="text-[11px] text-muted-foreground mt-0.5">
-                تعیین گزینه‌های ورود فعال در مدال احراز هویت (گوگل، گیت‌هاب، کلمه
-                عبور ثابت و کد پیامکی OTP)
-              </p>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={handleSaveAuthSettings}
-            disabled={authSaveLoading}
-            className="h-8 px-4 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs duration-motion active:scale-[0.98] shadow-control flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-          >
-            <Save className="w-3.5 h-3.5" />
-            <span>
-              {authSaveLoading ? 'در حال ذخیره...' : 'ذخیره تنظیمات ورود'}
-            </span>
-          </button>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
-          {/* Google */}
-          <div className="flex items-center justify-between p-3.5 rounded-control border border-border/60 bg-muted/20">
-            <div>
-              <span className="font-bold text-foreground block">
-                ورود با Google
-              </span>
-              <span className="text-[10px] text-muted-foreground">
-                جیمیل و آواتار خودکار
-              </span>
-            </div>
-            <button
-              type="button"
-              onClick={() =>
-                setAuthSettings((prev) => ({
-                  ...prev,
-                  auth_google_enabled: !prev.auth_google_enabled,
-                }))
-              }
-              className={`p-1 cursor-pointer transition-colors ${authSettings.auth_google_enabled ? 'text-brand' : 'text-muted-foreground'}`}
-            >
-              {authSettings.auth_google_enabled ? (
-                <ToggleRight className="w-7 h-7" />
-              ) : (
-                <ToggleLeft className="w-7 h-7" />
-              )}
-            </button>
-          </div>
-
-          {/* GitHub */}
-          <div className="flex items-center justify-between p-3.5 rounded-control border border-border/60 bg-muted/20">
-            <div>
-              <span className="font-bold text-foreground block">
-                ورود با GitHub
-              </span>
-              <span className="text-[10px] text-muted-foreground">
-                ویژه توسعه‌دهندگان
-              </span>
-            </div>
-            <button
-              type="button"
-              onClick={() =>
-                setAuthSettings((prev) => ({
-                  ...prev,
-                  auth_github_enabled: !prev.auth_github_enabled,
-                }))
-              }
-              className={`p-1 cursor-pointer transition-colors ${authSettings.auth_github_enabled ? 'text-brand' : 'text-muted-foreground'}`}
-            >
-              {authSettings.auth_github_enabled ? (
-                <ToggleRight className="w-7 h-7" />
-              ) : (
-                <ToggleLeft className="w-7 h-7" />
-              )}
-            </button>
-          </div>
-
-          {/* Password */}
-          <div className="flex items-center justify-between p-3.5 rounded-control border border-border/60 bg-muted/20">
-            <div>
-              <span className="font-bold text-foreground block">
-                ورود با کلمه عبور
-              </span>
-              <span className="text-[10px] text-muted-foreground">
-                رمز عبور ثابت
-              </span>
-            </div>
-            <button
-              type="button"
-              onClick={() =>
-                setAuthSettings((prev) => ({
-                  ...prev,
-                  auth_password_enabled: !prev.auth_password_enabled,
-                }))
-              }
-              className={`p-1 cursor-pointer transition-colors ${authSettings.auth_password_enabled ? 'text-brand' : 'text-muted-foreground'}`}
-            >
-              {authSettings.auth_password_enabled ? (
-                <ToggleRight className="w-7 h-7" />
-              ) : (
-                <ToggleLeft className="w-7 h-7" />
-              )}
-            </button>
-          </div>
-
-          {/* OTP */}
-          <div className="flex items-center justify-between p-3.5 rounded-control border border-border/60 bg-muted/20">
-            <div>
-              <span className="font-bold text-foreground block">
-                الزام پیامک OTP
-              </span>
-              <span className="text-[10px] text-muted-foreground">
-                کد پیامکی دومرحله‌ای
-              </span>
-            </div>
-            <button
-              type="button"
-              onClick={() =>
-                setAuthSettings((prev) => ({
-                  ...prev,
-                  auth_otp_required: !prev.auth_otp_required,
-                }))
-              }
-              className={`p-1 cursor-pointer transition-colors ${authSettings.auth_otp_required ? 'text-brand' : 'text-muted-foreground'}`}
-            >
-              {authSettings.auth_otp_required ? (
-                <ToggleRight className="w-7 h-7" />
-              ) : (
-                <ToggleLeft className="w-7 h-7" />
-              )}
-            </button>
-          </div>
-        </div>
-      </div>
-
       {/* Advanced Filter & Search Toolbar */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 sm:p-5 shadow-sm space-y-4">
-        <form
-          onSubmit={handleSearchSubmit}
-          className="flex flex-col md:flex-row items-stretch md:items-center gap-3"
-        >
-          {/* Search Input */}
-          <div className="relative flex-1">
-            <Search className="w-4 h-4 text-slate-400 absolute right-3.5 top-3.5 pointer-events-none" />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="جستجوی سریع بر اساس: شماره موبایل، نام و نام‌خانوادگی، ایمیل، یا کد معرف..."
-              className="w-full pl-4 pr-10 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white placeholder:text-slate-400 text-xs focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all font-sans"
-            />
-          </div>
-
-          <button
-            type="submit"
-            className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-colors shrink-0 shadow-sm shadow-blue-600/20"
-          >
-            جستجو و اعمال
-          </button>
-        </form>
+      <div className="bg-card rounded-surface border border-border/80 p-4 sm:p-5 shadow-surface space-y-4">
+        <SearchInput
+          value={search}
+          onChange={setSearch}
+          onSearch={() => {
+            setPage(1)
+            loadCustomers()
+          }}
+          placeholder="جستجوی سریع بر اساس: شماره موبایل، نام و نام‌خانوادگی، ایمیل، یا کد معرف..."
+          debounceMs={300}
+        />
 
         {/* Filter Pills and Dropdowns */}
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-100 dark:border-slate-800/80 text-xs">
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-border/60 text-xs">
           <div className="flex flex-wrap items-center gap-2">
             {/* Status Filter */}
-            <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800/60 p-1 rounded-xl">
-              <span className="text-[11px] font-medium text-slate-500 px-2">
+            <div className="flex items-center gap-1.5 bg-muted/30 border border-border/40 p-1 rounded-control">
+              <span className="text-[11px] font-bold text-muted-foreground px-2">
                 وضعیت:
               </span>
               {(['all', 'active', 'blocked'] as const).map((st) => (
@@ -693,10 +493,10 @@ export const AdminUsersView: React.FC = () => {
                     setStatusFilter(st)
                     setPage(1)
                   }}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
+                  className={`px-3 py-1 rounded-control text-xs font-bold transition-all cursor-pointer ${
                     statusFilter === st
-                      ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-sm font-bold'
-                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                      ? 'bg-primary text-primary-foreground shadow-control'
+                      : 'text-muted-foreground hover:text-foreground'
                   }`}
                 >
                   {st === 'all' && 'همه'}
@@ -707,8 +507,8 @@ export const AdminUsersView: React.FC = () => {
             </div>
 
             {/* Tier Filter */}
-            <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800/60 p-1 rounded-xl">
-              <span className="text-[11px] font-medium text-slate-500 px-2">
+            <div className="flex items-center gap-1.5 bg-muted/30 border border-border/40 p-1 rounded-control">
+              <span className="text-[11px] font-bold text-muted-foreground px-2">
                 سطح کاربری:
               </span>
               {(['all', 'standard', 'colleague', 'vip'] as const).map((tr) => (
@@ -719,10 +519,10 @@ export const AdminUsersView: React.FC = () => {
                     setTierFilter(tr)
                     setPage(1)
                   }}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
+                  className={`px-3 py-1 rounded-control text-xs font-bold transition-all cursor-pointer ${
                     tierFilter === tr
-                      ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-sm font-bold'
-                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                      ? 'bg-primary text-primary-foreground shadow-control'
+                      : 'text-muted-foreground hover:text-foreground'
                   }`}
                 >
                   {tr === 'all' && 'همه'}
@@ -732,39 +532,27 @@ export const AdminUsersView: React.FC = () => {
                 </button>
               ))}
             </div>
-
-            {/* Has Balance Toggle */}
-            <label className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-700 dark:text-slate-300 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={hasBalanceFilter}
-                onChange={(e) => {
-                  setHasBalanceFilter(e.target.checked)
-                  setPage(1)
-                }}
-                className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-3.5 h-3.5"
-              />
-              <span className="text-[11px] font-medium">
-                فقط کاربران با موجودی کیف پول
-              </span>
-            </label>
           </div>
 
           {/* Sort By Dropdown */}
           <div className="flex items-center gap-2">
-            <span className="text-[11px] text-slate-400">مرتب‌سازی:</span>
+            <span className="text-[11px] font-bold text-muted-foreground">
+              مرتب‌سازی:
+            </span>
             <select
               value={sortBy}
               onChange={(e) => {
                 setSortBy(e.target.value as any)
                 setPage(1)
               }}
-              className="py-1 px-2.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-200 text-xs focus:outline-none"
+              className="h-8 px-2.5 rounded-control border border-border/60 bg-card text-foreground text-xs focus:outline-none focus:border-brand font-bold cursor-pointer"
             >
               <option value="created_at">تاریخ عضویت</option>
               <option value="last_login_at">آخرین ورود</option>
               <option value="total_spent">مجموع خرید</option>
               <option value="balance">موجودی کیف پول</option>
+              <option value="referral_balance">درآمد معرف (ریفرال)</option>
+              <option value="profile_completed">پروفایل‌های تکمیل‌شده</option>
             </select>
 
             <button
@@ -772,7 +560,7 @@ export const AdminUsersView: React.FC = () => {
               onClick={() =>
                 setSortOrder((prev) => (prev === 'desc' ? 'asc' : 'desc'))
               }
-              className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400"
+              className="p-1.5 rounded-control border border-border/60 bg-secondary hover:bg-muted text-foreground transition shadow-control cursor-pointer"
               title={sortOrder === 'desc' ? 'نزولی' : 'صعودی'}
             >
               {sortOrder === 'desc' ? (
@@ -786,24 +574,27 @@ export const AdminUsersView: React.FC = () => {
       </div>
 
       {/* Main Users Table View */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+      <div className="bg-card rounded-surface border border-border/80 shadow-surface overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-right text-xs">
+          <table className="w-full text-center text-xs">
             <thead>
-              <tr className="border-b border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-950/40 text-slate-500 dark:text-slate-400 font-semibold select-none">
-                <th className="py-4 px-4">اطلاعات هویتی و شماره موبایل</th>
-                <th className="py-4 px-4">موجودی کیف پول (تومان)</th>
+              <tr className="border-b border-border/60 bg-muted/40 text-muted-foreground font-semibold select-none">
+                <th className="py-4 px-4 text-center">
+                  اطلاعات هویتی و شماره موبایل
+                </th>
+                <th className="py-4 px-4 text-center">
+                  موجودی کیف پول (تومان)
+                </th>
                 <th className="py-4 px-4 text-center">تعداد سفارش‌ها</th>
-                <th className="py-4 px-4">درآمد معرف (ریفرال)</th>
-                <th className="py-4 px-4">آخرین ورود و وضعیت</th>
-                <th className="py-4 px-4 text-center">وضعیت حساب</th>
-                <th className="py-4 px-4 text-left">عملیات سریع</th>
+                <th className="py-4 px-4 text-center">درآمد معرف (ریفرال)</th>
+                <th className="py-4 px-4 text-center">آخرین ورود و وضعیت</th>
+                <th className="py-4 px-4 text-center">عملیات</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
+            <tbody className="divide-y divide-border/60">
               {loading && (
                 <tr>
-                  <td colSpan={7} className="py-16 text-center text-slate-400">
+                  <td colSpan={6} className="py-16 text-center text-slate-400">
                     <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-blue-600" />
                     <span>در حال فراخوانی اطلاعات کاربران...</span>
                   </td>
@@ -814,7 +605,7 @@ export const AdminUsersView: React.FC = () => {
                 (!data?.customers || data.customers.length === 0) && (
                   <tr>
                     <td
-                      colSpan={7}
+                      colSpan={6}
                       className="py-16 text-center text-slate-500"
                     >
                       <UserX className="w-10 h-10 mx-auto mb-2 text-slate-300 dark:text-slate-600" />
@@ -831,45 +622,62 @@ export const AdminUsersView: React.FC = () => {
                   return (
                     <tr
                       key={user.id}
-                      className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors group"
+                      className="hover:bg-muted/30 transition-colors group"
                     >
                       {/* Identity & Mobile */}
-                      <td className="py-3.5 px-4">
-                        <div className="flex items-center gap-3">
-                          <div className="relative">
-                            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-slate-200 to-slate-100 dark:from-slate-800 dark:to-slate-700 text-slate-700 dark:text-slate-200 flex items-center justify-center font-bold text-sm shadow-sm">
-                              {user.full_name?.charAt(0) || 'ک'}
-                            </div>
+                      <td className="py-3.5 px-4 text-center">
+                        <div className="flex items-center justify-center gap-3">
+                          <div className="relative shrink-0">
+                            {user.avatar_url ? (
+                              <img
+                                src={user.avatar_url}
+                                alt={user.full_name || 'کاربر'}
+                                className="w-10 h-10 rounded-control object-cover border border-border/60 shadow-control"
+                              />
+                            ) : (
+                              <div className="w-10 h-10 rounded-control bg-secondary text-foreground border border-border/60 flex items-center justify-center font-bold text-sm shadow-control">
+                                {user.full_name?.charAt(0) || 'ک'}
+                              </div>
+                            )}
                             {user.is_online && (
                               <span
-                                className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-500 border-2 border-white dark:border-slate-900 animate-pulse"
+                                className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-background animate-pulse"
                                 title="کاربر آنلاین است"
                               />
                             )}
                           </div>
 
-                          <div>
-                            <div className="flex items-center gap-2">
+                          <div className="text-right">
+                            <div className="flex items-center gap-2 flex-wrap">
                               <button
                                 type="button"
                                 onClick={() => openCustomerDrawer(user.id)}
-                                className="font-bold text-slate-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 text-right transition-colors"
+                                className="font-bold text-foreground hover:text-brand text-right transition-colors cursor-pointer"
                               >
-                                {user.full_name}
+                                {user.full_name || 'کاربر بدون نام'}
                               </button>
                               {user.tier === 'vip' && (
-                                <span className="px-1.5 py-0.5 rounded text-[10px] font-black bg-amber-100 dark:bg-amber-950/80 text-amber-700 dark:text-amber-300 border border-amber-300/80">
+                                <span className="px-1.5 py-0.5 rounded-control text-[10px] font-black bg-amber-500/10 text-amber-500 border border-amber-500/30">
                                   VIP
                                 </span>
                               )}
                               {user.tier === 'colleague' && (
-                                <span className="px-1.5 py-0.5 rounded text-[10px] font-black bg-blue-100 dark:bg-blue-950/80 text-blue-700 dark:text-blue-300 border border-blue-300/80">
+                                <span className="px-1.5 py-0.5 rounded-control text-[10px] font-black bg-brand/10 text-brand border border-brand/30">
                                   همکار
+                                </span>
+                              )}
+                              {user.full_name && user.email ? (
+                                <span className="px-1.5 py-0.2 rounded-control text-[9px] font-bold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                                  پروفایل کامل ✓
+                                </span>
+                              ) : (
+                                <span className="px-1.5 py-0.2 rounded-control text-[9px] font-bold bg-muted text-muted-foreground border border-border/40">
+                                  شماره خام
                                 </span>
                               )}
                             </div>
 
-                            <div className="flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400 font-mono mt-0.5">
+                            <div className="flex items-center gap-2 text-[11px] text-muted-foreground font-mono font-latin mt-0.5">
                               <span>{user.phone}</span>
                               {user.email && (
                                 <>
@@ -885,17 +693,17 @@ export const AdminUsersView: React.FC = () => {
                       </td>
 
                       {/* Current Balance */}
-                      <td className="py-3.5 px-4 font-mono">
+                      <td className="py-3.5 px-4 font-mono font-latin text-center">
                         <span
                           className={`font-bold text-sm ${
                             isPositiveBalance
-                              ? 'text-emerald-600 dark:text-emerald-400'
-                              : 'text-slate-500 dark:text-slate-400'
+                              ? 'text-emerald-500'
+                              : 'text-muted-foreground'
                           }`}
                         >
                           {user.balance_toman.toLocaleString('fa-IR')}
                         </span>
-                        <span className="text-[10px] text-slate-400 mr-1 font-sans">
+                        <span className="text-[10px] text-muted-foreground mr-1 font-sans">
                           تومان
                         </span>
                       </td>
@@ -903,13 +711,13 @@ export const AdminUsersView: React.FC = () => {
                       {/* Orders Count */}
                       <td className="py-3.5 px-4 text-center">
                         <div className="inline-flex flex-col items-center">
-                          <span className="font-mono font-bold text-slate-900 dark:text-white">
+                          <span className="font-mono font-latin font-bold text-foreground">
                             {user.total_orders_count.toLocaleString('fa-IR')}
                           </span>
-                          <span className="text-[10px] text-slate-400">
+                          <span className="text-[10px] text-muted-foreground font-sans">
                             (
                             {user.store_orders_count > 0
-                              ? `${user.store_orders_count} اکانت`
+                              ? `${user.store_orders_count} اشتراک`
                               : '۰'}
                             {user.virtual_orders_count > 0
                               ? ` + ${user.virtual_orders_count} شماره`
@@ -920,30 +728,30 @@ export const AdminUsersView: React.FC = () => {
                       </td>
 
                       {/* Referral Income */}
-                      <td className="py-3.5 px-4 font-mono">
-                        <div className="font-bold text-slate-800 dark:text-slate-200">
+                      <td className="py-3.5 px-4 font-mono font-latin text-center">
+                        <div className="font-bold text-foreground">
                           {user.referral_balance_toman.toLocaleString('fa-IR')}{' '}
-                          <span className="text-[10px] font-sans font-normal text-slate-400">
+                          <span className="text-[10px] font-sans font-normal text-muted-foreground">
                             تومان
                           </span>
                         </div>
-                        <div className="text-[10px] text-blue-600 dark:text-blue-400">
+                        <div className="text-[10px] text-brand font-bold font-latin">
                           کد: {user.referral_code}
                         </div>
                       </td>
 
                       {/* Last Login & Online Status */}
-                      <td className="py-3.5 px-4 text-[11px]">
+                      <td className="py-3.5 px-4 text-[11px] text-center">
                         {user.last_login_at ? (
-                          <div className="space-y-0.5">
-                            <div className="font-mono text-slate-700 dark:text-slate-300">
+                          <div className="space-y-0.5 inline-block text-center">
+                            <div className="font-mono font-latin text-foreground">
                               {new Date(user.last_login_at).toLocaleDateString(
                                 'fa-IR',
                               )}
                             </div>
-                            <div className="flex items-center gap-1.5 text-slate-400">
+                            <div className="flex items-center justify-center gap-1.5 text-muted-foreground">
                               <Clock className="w-3 h-3" />
-                              <span>
+                              <span className="font-mono font-latin">
                                 {new Date(
                                   user.last_login_at,
                                 ).toLocaleTimeString('fa-IR', {
@@ -954,76 +762,24 @@ export const AdminUsersView: React.FC = () => {
                             </div>
                           </div>
                         ) : (
-                          <span className="text-slate-400">بدون ورود</span>
+                          <span className="text-muted-foreground">
+                            بدون ورود
+                          </span>
                         )}
                       </td>
 
-                      {/* Account Status Badge */}
-                      <td className="py-3.5 px-4 text-center">
-                        <span
-                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold ${
-                            user.is_active
-                              ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
-                              : 'bg-red-50 dark:bg-red-950/60 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800'
-                          }`}
-                        >
-                          {user.is_active ? (
-                            <>
-                              <CheckCircle2 className="w-3 h-3" />
-                              <span>فعال</span>
-                            </>
-                          ) : (
-                            <>
-                              <ShieldAlert className="w-3 h-3" />
-                              <span>مسدود</span>
-                            </>
-                          )}
-                        </span>
-                      </td>
-
                       {/* Quick Actions */}
-                      <td className="py-3.5 px-4 text-left">
-                        <div className="flex items-center justify-end gap-1.5">
+                      <td className="py-3.5 px-4 text-center">
+                        <div className="flex items-center justify-center">
                           {/* 360 Profile Drawer Button */}
                           <button
                             type="button"
                             onClick={() => openCustomerDrawer(user.id)}
-                            className="p-1.5 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900 border border-blue-200 dark:border-blue-800 transition-colors"
-                            title="مشاهده پرونده ۳۶۰ درجه مشتری"
+                            className="h-8 px-3 rounded-control bg-brand/10 text-brand hover:bg-brand/20 border border-brand/30 transition-all shadow-xs cursor-pointer flex items-center gap-1.5 text-xs font-bold duration-motion active:scale-[0.98]"
+                            title="مشاهده پرونده کامل مشتری، وضعیت حساب و مدیریت مالی"
                           >
-                            <Eye className="w-4 h-4" />
-                          </button>
-
-                          {/* Quick Wallet Topup/Debit */}
-                          <button
-                            type="button"
-                            onClick={() => openWalletModal(user)}
-                            className="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900 border border-emerald-200 dark:border-emerald-800 transition-colors"
-                            title="شارژ یا کسر موجودی کیف پول"
-                          >
-                            <Coins className="w-4 h-4" />
-                          </button>
-
-                          {/* Block/Unblock Switch */}
-                          <button
-                            type="button"
-                            onClick={() => handleToggleBlock(user)}
-                            className={`p-1.5 rounded-lg border transition-colors ${
-                              user.is_active
-                                ? 'bg-red-50 dark:bg-red-950/50 text-red-600 dark:text-red-400 hover:bg-red-100 border-red-200 dark:border-red-900'
-                                : 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 border-emerald-200 dark:border-emerald-900'
-                            }`}
-                            title={
-                              user.is_active
-                                ? 'مسدودسازی حساب کاربری'
-                                : 'رفع مسدودی و فعال‌سازی'
-                            }
-                          >
-                            {user.is_active ? (
-                              <UserX className="w-4 h-4" />
-                            ) : (
-                              <UserCheck className="w-4 h-4" />
-                            )}
+                            <Eye className="w-3.5 h-3.5" />
+                            <span>مشاهده پرونده</span>
                           </button>
                         </div>
                       </td>
@@ -1036,7 +792,7 @@ export const AdminUsersView: React.FC = () => {
 
         {/* Pagination Bar */}
         {data && data.total > 0 && (
-          <div className="p-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500">
+          <div className="p-4 border-t border-border/60 flex items-center justify-between text-xs text-muted-foreground">
             <div>
               نمایش صفحه {data.page} از{' '}
               {Math.ceil(data.total / data.page_size) || 1} (مجموع{' '}
@@ -1048,7 +804,7 @@ export const AdminUsersView: React.FC = () => {
                 type="button"
                 disabled={page <= 1}
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
-                className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 disabled:opacity-40 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                className="px-3.5 py-1.5 rounded-control border border-border/60 bg-secondary hover:bg-muted text-foreground disabled:opacity-40 transition shadow-control cursor-pointer"
               >
                 قبلی
               </button>
@@ -1056,7 +812,7 @@ export const AdminUsersView: React.FC = () => {
                 type="button"
                 disabled={page >= Math.ceil(data.total / data.page_size)}
                 onClick={() => setPage((p) => p + 1)}
-                className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 disabled:opacity-40 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                className="px-3.5 py-1.5 rounded-control border border-border/60 bg-secondary hover:bg-muted text-foreground disabled:opacity-40 transition shadow-control cursor-pointer"
               >
                 بعدی
               </button>
@@ -1090,39 +846,72 @@ export const AdminUsersView: React.FC = () => {
               {/* Drawer Header */}
               <div className="p-5 sm:p-6 bg-muted/30 border-b border-border/60 flex items-start justify-between gap-4 shrink-0">
                 <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center font-bold text-lg shadow-md shadow-blue-500/20 shrink-0">
-                    {customer360?.customer.full_name?.charAt(0) || 'ک'}
+                  <div className="relative w-12 h-12 rounded-control bg-secondary border border-border/60 overflow-hidden shrink-0 flex items-center justify-center shadow-control">
+                    {customer360?.customer.avatar_url ? (
+                      <img
+                        src={customer360.customer.avatar_url}
+                        alt={customer360.customer.full_name || 'کاربر'}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="font-bold text-lg text-brand font-latin">
+                        {customer360?.customer.full_name?.charAt(0) || 'ک'}
+                      </div>
+                    )}
                   </div>
                   <div>
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">
-                        {customer360?.customer.full_name ||
-                          'در حال بارگذاری...'}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="text-base sm:text-lg font-black text-foreground">
+                        {customer360?.customer.full_name || 'کاربر بدون نام'}
                       </h3>
                       {customer360?.customer.tier && (
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                        <span className="px-2 py-0.5 rounded-control text-[10px] font-black bg-brand/10 text-brand border border-brand/20 font-latin">
                           سطح: {customer360.customer.tier.toUpperCase()}
                         </span>
                       )}
                       {customer360?.customer.is_online && (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-control text-[10px] font-bold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
                           <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                           آنلاین
                         </span>
                       )}
+                      {customer360?.customer && (
+                        <div className="flex items-center gap-2 mr-2 px-2.5 py-1 rounded-control bg-card border border-border/60 shadow-xs">
+                          <span className="text-xs font-bold text-muted-foreground">
+                            وضعیت حساب:
+                          </span>
+                          <ToggleSwitch
+                            size="sm"
+                            checked={customer360.customer.is_active}
+                            onChange={() =>
+                              handleToggleBlock(customer360.customer)
+                            }
+                            ariaLabel="وضعیت فعال یا مسدود بودن حساب کاربری"
+                          />
+                          <span
+                            className={`px-2 py-0.5 rounded-control text-[10px] font-bold border ${
+                              customer360.customer.is_active
+                                ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
+                                : 'bg-rose-500/10 text-rose-500 border-rose-500/20'
+                            }`}
+                          >
+                            {customer360.customer.is_active ? 'فعال' : 'مسدود'}
+                          </span>
+                        </div>
+                      )}
                     </div>
-                    <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 mt-1 font-mono">
+                    <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground mt-1.5 font-mono font-latin">
                       <span className="flex items-center gap-1">
-                        <Phone className="w-3.5 h-3.5" />
+                        <Phone className="w-3.5 h-3.5 text-brand" />
                         {customer360?.customer.phone}
                       </span>
                       {customer360?.customer.email && (
                         <span className="flex items-center gap-1">
-                          <Mail className="w-3.5 h-3.5" />
+                          <Mail className="w-3.5 h-3.5 text-brand" />
                           {customer360.customer.email}
                         </span>
                       )}
-                      <span className="font-sans text-[11px] text-slate-400">
+                      <span className="font-sans text-[11px] text-muted-foreground">
                         عضویت:{' '}
                         {customer360?.customer.created_at &&
                           new Date(
@@ -1139,31 +928,25 @@ export const AdminUsersView: React.FC = () => {
                     onClick={() =>
                       customer360 && openWalletModal(customer360.customer)
                     }
-                    className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-colors flex items-center gap-1.5 shadow-sm"
+                    className="h-9 px-3.5 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground text-xs font-black transition-all flex items-center gap-1.5 shadow-control cursor-pointer duration-motion active:scale-[0.98]"
                   >
                     <Plus className="w-3.5 h-3.5" />
-                    <span>شارژ / کسر</span>
+                    <span>شارژ / کسر موجودی</span>
                   </button>
 
-                  <button
-                    type="button"
-                    onClick={closeDrawer}
-                    className="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
+                  <ModalCloseButton onClick={closeDrawer} size="sm" />
                 </div>
               </div>
 
               {/* 5 Vital Tabs Bar */}
-              <div className="flex items-center border-b border-slate-200 dark:border-slate-800 px-4 sm:px-6 bg-white dark:bg-slate-900 shrink-0 overflow-x-auto text-xs font-semibold scrollbar-none">
+              <div className="flex items-center border-b border-border/60 px-4 sm:px-6 bg-card shrink-0 overflow-x-auto text-xs font-semibold scrollbar-none">
                 <button
                   type="button"
                   onClick={() => setActiveDrawerTab('wallet')}
-                  className={`py-3 px-3.5 border-b-2 flex items-center gap-2 transition-all whitespace-nowrap ${
+                  className={`py-3 px-3.5 border-b-2 flex items-center gap-2 transition-all whitespace-nowrap cursor-pointer ${
                     activeDrawerTab === 'wallet'
-                      ? 'border-blue-600 text-blue-600 dark:text-blue-400 font-bold'
-                      : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                      ? 'border-brand text-brand font-black'
+                      : 'border-transparent text-muted-foreground hover:text-foreground'
                   }`}
                 >
                   <Wallet className="w-4 h-4" />
@@ -1173,25 +956,25 @@ export const AdminUsersView: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setActiveDrawerTab('orders')}
-                  className={`py-3 px-3.5 border-b-2 flex items-center gap-2 transition-all whitespace-nowrap ${
+                  className={`py-3 px-3.5 border-b-2 flex items-center gap-2 transition-all whitespace-nowrap cursor-pointer ${
                     activeDrawerTab === 'orders'
-                      ? 'border-blue-600 text-blue-600 dark:text-blue-400 font-bold'
-                      : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                      ? 'border-brand text-brand font-black'
+                      : 'border-transparent text-muted-foreground hover:text-foreground'
                   }`}
                 >
                   <Layers className="w-4 h-4" />
                   <span>
-                    سفارشات لایسنس ({customer360?.orders.length || 0})
+                    سفارشات اشتراک ({customer360?.orders.length || 0})
                   </span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => setActiveDrawerTab('virtual_numbers')}
-                  className={`py-3 px-3.5 border-b-2 flex items-center gap-2 transition-all whitespace-nowrap ${
+                  className={`py-3 px-3.5 border-b-2 flex items-center gap-2 transition-all whitespace-nowrap cursor-pointer ${
                     activeDrawerTab === 'virtual_numbers'
-                      ? 'border-blue-600 text-blue-600 dark:text-blue-400 font-bold'
-                      : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                      ? 'border-brand text-brand font-black'
+                      : 'border-transparent text-muted-foreground hover:text-foreground'
                   }`}
                 >
                   <Radio className="w-4 h-4" />
@@ -1203,15 +986,15 @@ export const AdminUsersView: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setActiveDrawerTab('affiliate')}
-                  className={`py-3 px-3.5 border-b-2 flex items-center gap-2 transition-all whitespace-nowrap ${
+                  className={`py-3 px-3.5 border-b-2 flex items-center gap-2 transition-all whitespace-nowrap cursor-pointer ${
                     activeDrawerTab === 'affiliate'
-                      ? 'border-blue-600 text-blue-600 dark:text-blue-400 font-bold'
-                      : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                      ? 'border-brand text-brand font-black'
+                      : 'border-transparent text-muted-foreground hover:text-foreground'
                   }`}
                 >
                   <Share2 className="w-4 h-4" />
                   <span>
-                    زیرمجموعه‌ها و ریفرال (
+                    زیرمجموعه‌ها و معرف (
                     {customer360?.affiliate_stats.referred_count || 0})
                   </span>
                 </button>
@@ -1219,10 +1002,10 @@ export const AdminUsersView: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setActiveDrawerTab('security')}
-                  className={`py-3 px-3.5 border-b-2 flex items-center gap-2 transition-all whitespace-nowrap ${
+                  className={`py-3 px-3.5 border-b-2 flex items-center gap-2 transition-all whitespace-nowrap cursor-pointer ${
                     activeDrawerTab === 'security'
-                      ? 'border-blue-600 text-blue-600 dark:text-blue-400 font-bold'
-                      : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                      ? 'border-brand text-brand font-black'
+                      : 'border-transparent text-muted-foreground hover:text-foreground'
                   }`}
                 >
                   <Shield className="w-4 h-4" />
@@ -1246,27 +1029,29 @@ export const AdminUsersView: React.FC = () => {
                       <div className="space-y-6">
                         {/* Balance Cards */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          <div className="bg-gradient-to-br from-emerald-600 to-teal-700 text-white rounded-2xl p-5 shadow-lg shadow-emerald-600/10 relative overflow-hidden">
-                            <div className="flex items-center justify-between text-xs text-emerald-100 mb-1">
-                              <span>موجودی فعلی کیف پول</span>
-                              <Wallet className="w-5 h-5 opacity-80" />
+                          <div className="rounded-surface border border-border/80 bg-card p-5 shadow-surface relative overflow-hidden space-y-3">
+                            <div className="flex items-center justify-between text-xs text-muted-foreground">
+                              <span className="font-bold">
+                                موجودی فعلی کیف پول
+                              </span>
+                              <Wallet className="w-5 h-5 text-emerald-500" />
                             </div>
-                            <div className="text-3xl font-black font-mono mt-1">
+                            <div className="text-3xl font-black font-mono font-latin text-foreground">
                               {customer360.customer.balance_toman.toLocaleString(
                                 'fa-IR',
                               )}{' '}
-                              <span className="text-sm font-sans font-normal">
+                              <span className="text-sm font-sans font-normal text-muted-foreground">
                                 تومان
                               </span>
                             </div>
-                            <div className="mt-4 pt-3 border-t border-white/20 flex items-center justify-between">
+                            <div className="pt-3 border-t border-border/60 flex items-center justify-between gap-2">
                               <button
                                 type="button"
                                 onClick={() => {
                                   setWalletAction('credit')
                                   openWalletModal(customer360.customer)
                                 }}
-                                className="px-3 py-1.5 rounded-xl bg-white/20 hover:bg-white/30 text-xs font-bold transition-colors flex items-center gap-1.5"
+                                className="h-8 px-3 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground text-xs font-black transition-all flex items-center gap-1.5 shadow-control cursor-pointer duration-motion active:scale-[0.98]"
                               >
                                 <Plus className="w-3.5 h-3.5" />
                                 <span>شارژ دستی</span>
@@ -1278,7 +1063,7 @@ export const AdminUsersView: React.FC = () => {
                                   setWalletAction('debit')
                                   openWalletModal(customer360.customer)
                                 }}
-                                className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-medium transition-colors flex items-center gap-1.5"
+                                className="h-8 px-3 rounded-control bg-secondary hover:bg-muted text-foreground border border-border/60 text-xs font-bold transition-all flex items-center gap-1.5 shadow-control cursor-pointer duration-motion active:scale-[0.98]"
                               >
                                 <Minus className="w-3.5 h-3.5" />
                                 <span>کسر دستی</span>
@@ -1286,22 +1071,24 @@ export const AdminUsersView: React.FC = () => {
                             </div>
                           </div>
 
-                          <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 flex flex-col justify-between">
+                          <div className="rounded-surface border border-border/80 bg-card p-5 shadow-surface flex flex-col justify-between space-y-3">
                             <div>
-                              <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
-                                <span>موجودی پورسانت ریفرال</span>
-                                <Share2 className="w-4 h-4 text-blue-500" />
+                              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                <span className="font-bold">
+                                  موجودی پورسانت ریفرال
+                                </span>
+                                <Share2 className="w-4 h-4 text-brand" />
                               </div>
-                              <div className="text-2xl font-black font-mono text-slate-900 dark:text-white mt-1">
+                              <div className="text-2xl font-black font-mono font-latin text-foreground mt-1">
                                 {customer360.customer.referral_balance_toman.toLocaleString(
                                   'fa-IR',
                                 )}{' '}
-                                <span className="text-xs font-sans font-normal text-slate-400">
+                                <span className="text-xs font-sans font-normal text-muted-foreground">
                                   تومان
                                 </span>
                               </div>
                             </div>
-                            <p className="text-[11px] text-slate-500 mt-3 leading-relaxed">
+                            <p className="text-[11px] text-muted-foreground leading-relaxed pt-2 border-t border-border/40">
                               کاربر می‌تواند این مبلغ را مستقیماً به کیف پول خرید
                               خود منتقل کرده یا درخواست تسویه ریالی ثبت کند.
                             </p>
@@ -1311,55 +1098,61 @@ export const AdminUsersView: React.FC = () => {
                         {/* Transactions History Table */}
                         <div className="space-y-3">
                           <div className="flex items-center justify-between">
-                            <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                              <Clock className="w-4 h-4 text-blue-600" />
-                              تاریخچه تراکنش‌های کیف پول مشتری
+                            <h4 className="text-sm font-black text-foreground flex items-center gap-2">
+                              <Clock className="w-4 h-4 text-brand" />
+                              <span>تاریخچه تراکنش‌های کیف پول مشتری</span>
                             </h4>
-                            <span className="text-xs text-slate-400 font-mono">
+                            <span className="text-xs text-muted-foreground font-mono font-latin">
                               {customer360.wallet_transactions.length} تراکنش
                               اخیر
                             </span>
                           </div>
 
-                          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+                          <div className="rounded-surface border border-border/80 bg-card overflow-hidden shadow-surface">
                             {customer360.wallet_transactions.length === 0 ? (
-                              <div className="p-8 text-center text-xs text-slate-400">
+                              <div className="p-8 text-center text-xs text-muted-foreground">
                                 هیچ تراکنش مالی برای این کاربر ثبت نشده است.
                               </div>
                             ) : (
                               <div className="overflow-x-auto">
-                                <table className="w-full text-right text-xs">
+                                <table className="w-full text-center text-xs">
                                   <thead>
-                                    <tr className="bg-slate-50 dark:bg-slate-950 text-slate-400 border-b border-slate-100 dark:border-slate-800 font-medium">
-                                      <th className="py-2.5 px-3">کد تراکنش</th>
-                                      <th className="py-2.5 px-3">
+                                    <tr className="bg-muted/40 text-muted-foreground border-b border-border/60 font-semibold select-none">
+                                      <th className="py-2.5 px-3 text-center">
+                                        کد تراکنش
+                                      </th>
+                                      <th className="py-2.5 px-3 text-center">
                                         نوع عملیات
                                       </th>
-                                      <th className="py-2.5 px-3">
+                                      <th className="py-2.5 px-3 text-center">
                                         مبلغ (تومان)
                                       </th>
-                                      <th className="py-2.5 px-3">شرح و علت</th>
-                                      <th className="py-2.5 px-3">تاریخ</th>
+                                      <th className="py-2.5 px-3 text-center">
+                                        شرح و علت
+                                      </th>
+                                      <th className="py-2.5 px-3 text-center">
+                                        تاریخ
+                                      </th>
                                     </tr>
                                   </thead>
-                                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                                  <tbody className="divide-y divide-border/60">
                                     {customer360.wallet_transactions.map(
                                       (tx: any) => (
                                         <tr
                                           key={tx.id}
-                                          className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30"
+                                          className="hover:bg-muted/30 transition-colors"
                                         >
-                                          <td className="py-3 px-3 font-mono font-bold text-slate-800 dark:text-slate-200">
+                                          <td className="py-3 px-3 font-mono font-latin font-bold text-brand text-center">
                                             {tx.transaction_number}
                                           </td>
-                                          <td className="py-3 px-3">
+                                          <td className="py-3 px-3 text-center">
                                             <span
-                                              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold ${
+                                              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-control text-[10px] font-bold border ${
                                                 tx.order_type ===
                                                   'admin_adjustment' ||
                                                 tx.order_type === 'deposit'
-                                                  ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400'
-                                                  : 'bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-400'
+                                                  ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30'
+                                                  : 'bg-amber-500/10 text-amber-500 border-amber-500/30'
                                               }`}
                                             >
                                               {tx.order_type ===
@@ -1376,15 +1169,15 @@ export const AdminUsersView: React.FC = () => {
                                                 'شماره مجازی'}
                                             </span>
                                           </td>
-                                          <td className="py-3 px-3 font-mono font-bold text-slate-900 dark:text-white">
+                                          <td className="py-3 px-3 font-mono font-latin font-bold text-foreground text-center">
                                             {tx.amount_toman.toLocaleString(
                                               'fa-IR',
                                             )}
                                           </td>
-                                          <td className="py-3 px-3 text-slate-600 dark:text-slate-300 max-w-[220px] truncate">
+                                          <td className="py-3 px-3 text-muted-foreground max-w-[220px] truncate text-center mx-auto">
                                             {tx.description || '-'}
                                           </td>
-                                          <td className="py-3 px-3 font-mono text-slate-400 text-[11px]">
+                                          <td className="py-3 px-3 font-mono font-latin text-muted-foreground text-[11px] text-center">
                                             {new Date(
                                               tx.created_at,
                                             ).toLocaleDateString('fa-IR')}
@@ -1405,17 +1198,19 @@ export const AdminUsersView: React.FC = () => {
                     {activeDrawerTab === 'orders' && (
                       <div className="space-y-4">
                         <div className="flex items-center justify-between">
-                          <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                            <Layers className="w-4 h-4 text-blue-600" />
-                            تاریخچه خریدهای لایسنس و اشتراک‌های اختصاصی
+                          <h4 className="text-sm font-black text-foreground flex items-center gap-2">
+                            <Layers className="w-4 h-4 text-brand" />
+                            <span>
+                              تاریخچه خریدهای لایسنس و اشتراک‌های اختصاصی
+                            </span>
                           </h4>
-                          <span className="text-xs text-slate-400 font-mono">
+                          <span className="text-xs text-muted-foreground font-mono font-latin">
                             مجموع {customer360.orders.length} سفارش
                           </span>
                         </div>
 
                         {customer360.orders.length === 0 ? (
-                          <div className="bg-slate-50 dark:bg-slate-900 rounded-2xl p-12 text-center text-slate-400 text-xs">
+                          <div className="rounded-surface border border-border/80 bg-card p-12 text-center text-muted-foreground text-xs shadow-surface">
                             هنوز سفارشی برای این مشتری ثبت نشده است.
                           </div>
                         ) : (
@@ -1423,19 +1218,19 @@ export const AdminUsersView: React.FC = () => {
                             {customer360.orders.map((ord) => (
                               <div
                                 key={ord.id}
-                                className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 space-y-3 hover:border-blue-300 dark:hover:border-blue-800 transition-colors"
+                                className="rounded-surface border border-border/80 bg-card p-4 space-y-3 shadow-surface hover:border-brand/40 transition-colors"
                               >
-                                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800 pb-2.5">
+                                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 pb-2.5">
                                   <div>
                                     <div className="flex items-center gap-2">
-                                      <span className="font-mono font-bold text-blue-600 dark:text-blue-400 text-xs">
+                                      <span className="font-mono font-latin font-bold text-brand text-xs">
                                         {ord.order_number}
                                       </span>
-                                      <span className="font-bold text-xs text-slate-900 dark:text-white">
+                                      <span className="font-black text-xs text-foreground">
                                         {ord.product_title}
                                       </span>
                                     </div>
-                                    <span className="text-[11px] text-slate-400 font-mono mt-0.5">
+                                    <span className="text-[11px] text-muted-foreground font-mono font-latin mt-0.5 block">
                                       ثبت:{' '}
                                       {new Date(
                                         ord.created_at,
@@ -1451,10 +1246,10 @@ export const AdminUsersView: React.FC = () => {
                                   </div>
 
                                   <div className="flex items-center gap-2">
-                                    <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                                    <span className="px-2.5 py-1 rounded-control text-[10px] font-bold bg-muted text-muted-foreground border border-border/60">
                                       {ord.status}
                                     </span>
-                                    <span className="font-mono font-bold text-xs text-slate-900 dark:text-white">
+                                    <span className="font-mono font-latin font-bold text-xs text-foreground">
                                       {ord.total_amount_toman.toLocaleString(
                                         'fa-IR',
                                       )}{' '}
@@ -1465,12 +1260,12 @@ export const AdminUsersView: React.FC = () => {
 
                                 {/* Delivered Payload / Key Area */}
                                 {ord.delivered_payload ? (
-                                  <div className="bg-slate-50 dark:bg-slate-950 p-3 rounded-xl border border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3">
+                                  <div className="bg-muted/20 p-3 rounded-control border border-border/60 flex items-center justify-between gap-3">
                                     <div className="min-w-0">
-                                      <div className="text-[10px] text-slate-400 mb-0.5">
+                                      <div className="text-[10px] text-muted-foreground mb-0.5 font-bold">
                                         لایسنس / مشخصات تحویل داده شده به مشتری:
                                       </div>
-                                      <div className="font-mono text-xs text-slate-800 dark:text-slate-200 truncate select-all">
+                                      <div className="font-mono font-latin text-xs text-foreground truncate select-all">
                                         {ord.delivered_payload}
                                       </div>
                                     </div>
@@ -1484,7 +1279,7 @@ export const AdminUsersView: React.FC = () => {
                                             ord.id,
                                           )
                                         }
-                                        className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 hover:bg-white dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors"
+                                        className="p-1.5 rounded-control border border-border/60 bg-secondary hover:bg-muted text-foreground transition-colors cursor-pointer"
                                         title="کپی کلید"
                                       >
                                         {copiedKey === ord.id ? (
@@ -1497,7 +1292,7 @@ export const AdminUsersView: React.FC = () => {
                                       <button
                                         type="button"
                                         onClick={() => openReplaceKeyModal(ord)}
-                                        className="px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/80 text-blue-600 dark:text-blue-300 border border-blue-200 dark:border-blue-800 text-[11px] font-bold hover:bg-blue-100 transition-colors flex items-center gap-1"
+                                        className="h-8 px-2.5 rounded-control bg-secondary text-brand hover:bg-muted border border-border/60 text-[11px] font-bold transition-all flex items-center gap-1 cursor-pointer duration-motion active:scale-[0.98]"
                                       >
                                         <Key className="w-3 h-3" />
                                         <span>تعویض کلید</span>
@@ -1505,14 +1300,14 @@ export const AdminUsersView: React.FC = () => {
                                     </div>
                                   </div>
                                 ) : (
-                                  <div className="flex items-center justify-between text-xs text-slate-400 py-1">
+                                  <div className="flex items-center justify-between text-xs text-muted-foreground py-1">
                                     <span>
                                       هنوز کلید یا لایسنسی تحویل داده نشده است.
                                     </span>
                                     <button
                                       type="button"
                                       onClick={() => openReplaceKeyModal(ord)}
-                                      className="px-2.5 py-1 rounded-lg bg-blue-600 text-white text-[11px] font-bold hover:bg-blue-700 transition-colors flex items-center gap-1"
+                                      className="h-8 px-3 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground text-[11px] font-black transition-all flex items-center gap-1 cursor-pointer duration-motion active:scale-[0.98] shadow-control"
                                     >
                                       <Key className="w-3 h-3" />
                                       <span>ثبت / درج لایسنس</span>
@@ -1530,53 +1325,65 @@ export const AdminUsersView: React.FC = () => {
                     {activeDrawerTab === 'virtual_numbers' && (
                       <div className="space-y-4">
                         <div className="flex items-center justify-between">
-                          <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                            <Radio className="w-4 h-4 text-blue-600" />
-                            تاریخچه شماره‌های مجازی خریداری‌شده (5SIM)
+                          <h4 className="text-sm font-black text-foreground flex items-center gap-2">
+                            <Radio className="w-4 h-4 text-brand" />
+                            <span>
+                              تاریخچه شماره‌های مجازی خریداری‌شده (5SIM)
+                            </span>
                           </h4>
-                          <span className="text-xs text-slate-400 font-mono">
+                          <span className="text-xs text-muted-foreground font-mono font-latin">
                             {customer360.virtual_numbers.length} شماره
                           </span>
                         </div>
 
                         {customer360.virtual_numbers.length === 0 ? (
-                          <div className="bg-slate-50 dark:bg-slate-900 rounded-2xl p-12 text-center text-slate-400 text-xs">
+                          <div className="rounded-surface border border-border/80 bg-card p-12 text-center text-muted-foreground text-xs shadow-surface">
                             این کاربر هیچ خرید شماره مجازی نداشته است.
                           </div>
                         ) : (
-                          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+                          <div className="rounded-surface border border-border/80 bg-card overflow-hidden shadow-surface">
                             <div className="overflow-x-auto">
-                              <table className="w-full text-right text-xs">
+                              <table className="w-full text-center text-xs">
                                 <thead>
-                                  <tr className="bg-slate-50 dark:bg-slate-950 text-slate-400 border-b border-slate-100 dark:border-slate-800 font-medium">
-                                    <th className="py-3 px-3">کشور و سرویس</th>
-                                    <th className="py-3 px-3">شماره دریافتی</th>
-                                    <th className="py-3 px-3">
+                                  <tr className="bg-muted/40 text-muted-foreground border-b border-border/60 font-semibold select-none">
+                                    <th className="py-3 px-3 text-center">
+                                      کشور و سرویس
+                                    </th>
+                                    <th className="py-3 px-3 text-center">
+                                      شماره دریافتی
+                                    </th>
+                                    <th className="py-3 px-3 text-center">
                                       کد SMS دریافتی
                                     </th>
-                                    <th className="py-3 px-3">قیمت (تومان)</th>
-                                    <th className="py-3 px-3">وضعیت</th>
-                                    <th className="py-3 px-3">تاریخ</th>
+                                    <th className="py-3 px-3 text-center">
+                                      قیمت (تومان)
+                                    </th>
+                                    <th className="py-3 px-3 text-center">
+                                      وضعیت
+                                    </th>
+                                    <th className="py-3 px-3 text-center">
+                                      تاریخ
+                                    </th>
                                   </tr>
                                 </thead>
-                                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                                <tbody className="divide-y divide-border/60">
                                   {customer360.virtual_numbers.map(
                                     (vn: any) => (
                                       <tr
                                         key={vn.id}
-                                        className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30"
+                                        className="hover:bg-muted/30 transition-colors"
                                       >
-                                        <td className="py-3 px-3">
-                                          <div className="flex items-center gap-2">
+                                        <td className="py-3 px-3 text-center">
+                                          <div className="flex items-center justify-center gap-2">
                                             <span className="text-base">
                                               {vn.country_flag || '🌐'}
                                             </span>
-                                            <div>
-                                              <div className="font-bold text-slate-900 dark:text-white">
+                                            <div className="text-right">
+                                              <div className="font-bold text-foreground">
                                                 {vn.service_name_fa ||
                                                   vn.service}
                                               </div>
-                                              <div className="text-[10px] text-slate-400">
+                                              <div className="text-[10px] text-muted-foreground font-latin">
                                                 {vn.country_name_fa ||
                                                   vn.country}{' '}
                                                 ({vn.operator})
@@ -1585,13 +1392,13 @@ export const AdminUsersView: React.FC = () => {
                                           </div>
                                         </td>
 
-                                        <td className="py-3 px-3 font-mono font-bold text-slate-800 dark:text-slate-200">
+                                        <td className="py-3 px-3 font-mono font-latin font-bold text-foreground text-center">
                                           {vn.phone}
                                         </td>
 
-                                        <td className="py-3 px-3">
+                                        <td className="py-3 px-3 text-center">
                                           {vn.sms_code ? (
-                                            <div className="inline-flex items-center gap-1 bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 font-mono font-bold px-2.5 py-1 rounded-lg">
+                                            <div className="inline-flex items-center gap-1.5 bg-emerald-500/10 text-emerald-500 border border-emerald-500/30 font-mono font-latin font-bold px-2.5 py-1 rounded-control">
                                               <span>{vn.sms_code}</span>
                                               <button
                                                 type="button"
@@ -1601,7 +1408,7 @@ export const AdminUsersView: React.FC = () => {
                                                     vn.id,
                                                   )
                                                 }
-                                                className="p-0.5 hover:bg-emerald-200 rounded"
+                                                className="p-0.5 hover:bg-emerald-500/20 rounded cursor-pointer"
                                                 title="کپی کد"
                                               >
                                                 {copiedKey === vn.id ? (
@@ -1612,34 +1419,34 @@ export const AdminUsersView: React.FC = () => {
                                               </button>
                                             </div>
                                           ) : (
-                                            <span className="text-slate-400">
+                                            <span className="text-muted-foreground text-xs">
                                               در انتظار پیامک...
                                             </span>
                                           )}
                                         </td>
 
-                                        <td className="py-3 px-3 font-mono font-bold text-slate-900 dark:text-white">
+                                        <td className="py-3 px-3 font-mono font-latin font-bold text-foreground text-center">
                                           {vn.price_toman.toLocaleString(
                                             'fa-IR',
                                           )}
                                         </td>
 
-                                        <td className="py-3 px-3">
+                                        <td className="py-3 px-3 text-center">
                                           <span
-                                            className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                            className={`px-2 py-0.5 rounded-control text-[10px] font-bold border ${
                                               vn.status === 'RECEIVED' ||
                                               vn.status === 'FINISHED'
-                                                ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400'
+                                                ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30'
                                                 : vn.status === 'CANCELED'
-                                                  ? 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400'
-                                                  : 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400'
+                                                  ? 'bg-rose-500/10 text-rose-500 border-rose-500/30'
+                                                  : 'bg-amber-500/10 text-amber-500 border-amber-500/30'
                                             }`}
                                           >
                                             {vn.status}
                                           </span>
                                         </td>
 
-                                        <td className="py-3 px-3 font-mono text-[11px] text-slate-400">
+                                        <td className="py-3 px-3 font-mono font-latin text-[11px] text-muted-foreground text-center">
                                           {new Date(
                                             vn.created_at,
                                           ).toLocaleDateString('fa-IR')}
@@ -1659,12 +1466,12 @@ export const AdminUsersView: React.FC = () => {
                     {activeDrawerTab === 'affiliate' && (
                       <div className="space-y-6">
                         {/* Referral Code Box */}
-                        <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl p-5 flex items-center justify-between gap-4">
+                        <div className="rounded-surface border border-border/80 bg-card p-5 shadow-surface flex items-center justify-between gap-4">
                           <div>
-                            <div className="text-xs text-blue-200">
+                            <div className="text-xs text-muted-foreground font-bold">
                               کد معرف اختصاصی این کاربر:
                             </div>
-                            <div className="text-2xl font-black font-mono mt-0.5 tracking-wider">
+                            <div className="text-2xl font-black font-mono font-latin text-brand mt-0.5 tracking-wider">
                               {customer360.affiliate_stats.referral_code}
                             </div>
                           </div>
@@ -1677,10 +1484,10 @@ export const AdminUsersView: React.FC = () => {
                                 'ref-code',
                               )
                             }
-                            className="px-3.5 py-2 rounded-xl bg-white/20 hover:bg-white/30 text-white text-xs font-bold transition-colors flex items-center gap-1.5"
+                            className="h-9 px-3.5 rounded-control bg-secondary hover:bg-muted text-foreground border border-border/60 text-xs font-bold transition-colors flex items-center gap-1.5 shadow-xs cursor-pointer duration-motion active:scale-[0.98]"
                           >
                             {copiedKey === 'ref-code' ? (
-                              <Check className="w-4 h-4 text-emerald-300" />
+                              <Check className="w-4 h-4 text-emerald-500" />
                             ) : (
                               <Copy className="w-4 h-4" />
                             )}
@@ -1690,44 +1497,44 @@ export const AdminUsersView: React.FC = () => {
 
                         {/* 4 Stats Cards */}
                         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                          <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5">
-                            <div className="text-[11px] text-slate-400">
+                          <div className="rounded-surface border border-border/60 bg-muted/20 p-3.5 space-y-1">
+                            <div className="text-[11px] text-muted-foreground font-bold">
                               تعداد زیرمجموعه‌ها
                             </div>
-                            <div className="text-xl font-black font-mono text-slate-900 dark:text-white mt-1">
+                            <div className="text-xl font-black font-mono font-latin text-foreground mt-1">
                               {customer360.affiliate_stats.referred_count.toLocaleString(
                                 'fa-IR',
                               )}
                             </div>
                           </div>
 
-                          <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5">
-                            <div className="text-[11px] text-slate-400">
+                          <div className="rounded-surface border border-border/60 bg-muted/20 p-3.5 space-y-1">
+                            <div className="text-[11px] text-muted-foreground font-bold">
                               کل درآمد کمیسیون
                             </div>
-                            <div className="text-lg font-black font-mono text-emerald-600 dark:text-emerald-400 mt-1">
+                            <div className="text-lg font-black font-mono font-latin text-emerald-500 mt-1">
                               {customer360.affiliate_stats.total_commission_toman.toLocaleString(
                                 'fa-IR',
                               )}
                             </div>
                           </div>
 
-                          <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5">
-                            <div className="text-[11px] text-slate-400">
+                          <div className="rounded-surface border border-border/60 bg-muted/20 p-3.5 space-y-1">
+                            <div className="text-[11px] text-muted-foreground font-bold">
                               انتقال به کیف پول
                             </div>
-                            <div className="text-lg font-black font-mono text-blue-600 dark:text-blue-400 mt-1">
+                            <div className="text-lg font-black font-mono font-latin text-brand mt-1">
                               {customer360.affiliate_stats.transferred_commission_toman.toLocaleString(
                                 'fa-IR',
                               )}
                             </div>
                           </div>
 
-                          <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5">
-                            <div className="text-[11px] text-slate-400">
+                          <div className="rounded-surface border border-border/60 bg-muted/20 p-3.5 space-y-1">
+                            <div className="text-[11px] text-muted-foreground font-bold">
                               آماده تسویه
                             </div>
-                            <div className="text-lg font-black font-mono text-amber-600 dark:text-amber-400 mt-1">
+                            <div className="text-lg font-black font-mono font-latin text-amber-500 mt-1">
                               {customer360.affiliate_stats.available_commission_toman.toLocaleString(
                                 'fa-IR',
                               )}
@@ -1737,42 +1544,46 @@ export const AdminUsersView: React.FC = () => {
 
                         {/* Referred Customers List */}
                         <div className="space-y-3">
-                          <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                            <Users className="w-4 h-4 text-blue-600" />
-                            لیست کاربران عضو شده با لینک این مشتری
+                          <h4 className="text-sm font-black text-foreground flex items-center gap-2">
+                            <Users className="w-4 h-4 text-brand" />
+                            <span>لیست کاربران عضو شده با لینک این مشتری</span>
                           </h4>
 
-                          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+                          <div className="rounded-surface border border-border/80 bg-card overflow-hidden shadow-surface">
                             {customer360.affiliate_stats.referred_users
                               .length === 0 ? (
-                              <div className="p-8 text-center text-xs text-slate-400">
+                              <div className="p-8 text-center text-xs text-muted-foreground">
                                 هنوز کاربری با لینک این معرف عضو نشده است.
                               </div>
                             ) : (
-                              <table className="w-full text-right text-xs">
+                              <table className="w-full text-center text-xs">
                                 <thead>
-                                  <tr className="bg-slate-50 dark:bg-slate-950 text-slate-400 border-b border-slate-100 dark:border-slate-800 font-medium">
-                                    <th className="py-2.5 px-3">
+                                  <tr className="bg-muted/40 text-muted-foreground border-b border-border/60 font-semibold select-none">
+                                    <th className="py-2.5 px-3 text-center">
                                       نام و مشخصات
                                     </th>
-                                    <th className="py-2.5 px-3">شماره تماس</th>
-                                    <th className="py-2.5 px-3">تاریخ عضویت</th>
+                                    <th className="py-2.5 px-3 text-center">
+                                      شماره تماس
+                                    </th>
+                                    <th className="py-2.5 px-3 text-center">
+                                      تاریخ عضویت
+                                    </th>
                                   </tr>
                                 </thead>
-                                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                                <tbody className="divide-y divide-border/60">
                                   {customer360.affiliate_stats.referred_users.map(
                                     (ru) => (
                                       <tr
                                         key={ru.id}
-                                        className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30"
+                                        className="hover:bg-muted/30 transition-colors"
                                       >
-                                        <td className="py-2.5 px-3 font-bold text-slate-800 dark:text-slate-200">
+                                        <td className="py-2.5 px-3 font-bold text-foreground text-center">
                                           {ru.full_name}
                                         </td>
-                                        <td className="py-2.5 px-3 font-mono text-slate-600 dark:text-slate-300">
+                                        <td className="py-2.5 px-3 font-mono font-latin text-muted-foreground text-center">
                                           {ru.phone}
                                         </td>
-                                        <td className="py-2.5 px-3 font-mono text-slate-400 text-[11px]">
+                                        <td className="py-2.5 px-3 font-mono font-latin text-muted-foreground text-[11px] text-center">
                                           {new Date(
                                             ru.created_at,
                                           ).toLocaleDateString('fa-IR')}
@@ -1794,17 +1605,19 @@ export const AdminUsersView: React.FC = () => {
                         {/* Security & Access Controls */}
                         <form
                           onSubmit={handleSaveSecurityNotes}
-                          className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 space-y-4"
+                          className="bg-card rounded-surface border border-border/80 p-5 sm:p-6 shadow-surface space-y-4 text-foreground"
                         >
-                          <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                            <ShieldCheck className="w-4 h-4 text-blue-600" />
-                            سطح کاربری، وضعیت انسداد و یادداشت‌های محرمانه
-                            اپراتور
+                          <h4 className="text-sm font-black text-foreground flex items-center gap-2">
+                            <ShieldCheck className="w-4 h-4 text-brand" />
+                            <span>
+                              سطح کاربری، وضعیت انسداد و یادداشت‌های محرمانه
+                              اپراتور
+                            </span>
                           </h4>
 
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div>
-                              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                            <div className="space-y-1.5">
+                              <label className="block text-xs font-bold text-foreground">
                                 تعیین سطح کاربری:
                               </label>
                               <select
@@ -1812,7 +1625,7 @@ export const AdminUsersView: React.FC = () => {
                                 onChange={(e) =>
                                   setEditTier(e.target.value as CustomerTier)
                                 }
-                                className="w-full py-2 px-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-600"
+                                className="w-full h-10 px-3 rounded-field border border-border/60 bg-muted/20 text-xs font-bold text-foreground focus:outline-none focus:border-brand cursor-pointer"
                               >
                                 <option value="standard">
                                   کاربر عادی (Standard)
@@ -1826,8 +1639,8 @@ export const AdminUsersView: React.FC = () => {
                               </select>
                             </div>
 
-                            <div>
-                              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                            <div className="space-y-1.5">
+                              <label className="block text-xs font-bold text-foreground">
                                 دلیل مسدودسازی حساب (در صورت مسدود بودن):
                               </label>
                               <input
@@ -1837,13 +1650,13 @@ export const AdminUsersView: React.FC = () => {
                                   setEditBlockReason(e.target.value)
                                 }
                                 placeholder="مثلاً: تلاش برای تقلب یا نقض قوانین"
-                                className="w-full py-2 px-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-600 font-sans"
+                                className="w-full h-10 px-3.5 rounded-field border border-border/60 bg-muted/20 text-xs text-foreground focus:outline-none focus:border-brand font-sans"
                               />
                             </div>
                           </div>
 
-                          <div>
-                            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                          <div className="space-y-1.5">
+                            <label className="block text-xs font-bold text-foreground">
                               یادداشت‌های محرمانه داخلی اپراتورها (Internal
                               Notes):
                             </label>
@@ -1852,16 +1665,16 @@ export const AdminUsersView: React.FC = () => {
                               value={editNotes}
                               onChange={(e) => setEditNotes(e.target.value)}
                               placeholder="مثلاً: مشتری بسیار وفادار است، در تحویل اکانت‌های ۲FA حساس دقت شود..."
-                              className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-600 font-sans leading-relaxed"
+                              className="w-full p-3.5 rounded-field border border-border/60 bg-muted/20 text-xs text-foreground focus:outline-none focus:border-brand font-sans leading-relaxed resize-none"
                             />
                           </div>
 
                           {securityFeedback && (
                             <div
-                              className={`p-3 rounded-xl text-xs font-medium flex items-center gap-2 ${
+                              className={`p-3 rounded-control text-xs font-bold flex items-center gap-2 ${
                                 securityFeedback.type === 'success'
-                                  ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
-                                  : 'bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300'
+                                  ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
+                                  : 'bg-rose-500/10 text-rose-500 border border-rose-500/20'
                               }`}
                             >
                               <CheckCircle2 className="w-4 h-4 shrink-0" />
@@ -1869,14 +1682,14 @@ export const AdminUsersView: React.FC = () => {
                             </div>
                           )}
 
-                          <div className="flex justify-end">
+                          <div className="flex justify-end pt-2">
                             <button
                               type="submit"
                               disabled={securitySubmitting}
-                              className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-colors flex items-center gap-2 shadow-sm"
+                              className="h-10 px-6 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground text-xs font-black transition-all shadow-control flex items-center gap-2 cursor-pointer duration-motion active:scale-[0.98] disabled:opacity-50"
                             >
                               {securitySubmitting && (
-                                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                <RefreshCw className="w-3.5 h-3.5 animate-spin text-brand" />
                               )}
                               <span>ذخیره تنظیمات و یادداشت</span>
                             </button>
@@ -2012,20 +1825,19 @@ export const AdminUsersView: React.FC = () => {
                     </p>
                   </div>
 
-                  <button
-                    type="button"
+                  <ModalCloseButton
                     onClick={() => setIsWalletModalOpen(false)}
-                    className="p-1.5 rounded-control text-muted-foreground hover:text-foreground hover:bg-muted cursor-pointer transition-colors"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
+                    size="sm"
+                  />
                 </div>
 
                 <form onSubmit={handleWalletSubmit} className="space-y-4">
                   {/* Current Balance Indicator */}
-                  <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-950 flex items-center justify-between text-xs">
-                    <span className="text-slate-500">موجودی فعلی حساب:</span>
-                    <span className="font-mono font-bold text-slate-900 dark:text-white">
+                  <div className="p-3.5 rounded-control bg-muted/20 border border-border/60 flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground font-bold">
+                      موجودی فعلی حساب:
+                    </span>
+                    <span className="font-mono font-latin font-bold text-foreground">
                       {walletTargetUser.balance_toman.toLocaleString('fa-IR')}{' '}
                       تومان
                     </span>
@@ -2036,10 +1848,10 @@ export const AdminUsersView: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => setWalletAction('credit')}
-                      className={`py-2.5 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 border ${
+                      className={`h-10 px-4 rounded-control text-xs font-bold transition-all flex items-center justify-center gap-2 border cursor-pointer ${
                         walletAction === 'credit'
-                          ? 'bg-emerald-600 text-white border-emerald-600 shadow-md shadow-emerald-600/20'
-                          : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'
+                          ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-500 shadow-control font-black'
+                          : 'bg-secondary text-muted-foreground border-border/60 hover:text-foreground'
                       }`}
                     >
                       <Plus className="w-4 h-4" />
@@ -2049,10 +1861,10 @@ export const AdminUsersView: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => setWalletAction('debit')}
-                      className={`py-2.5 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 border ${
+                      className={`h-10 px-4 rounded-control text-xs font-bold transition-all flex items-center justify-center gap-2 border cursor-pointer ${
                         walletAction === 'debit'
-                          ? 'bg-red-600 text-white border-red-600 shadow-md shadow-red-600/20'
-                          : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'
+                          ? 'bg-rose-500/10 border-rose-500/40 text-rose-500 shadow-control font-black'
+                          : 'bg-secondary text-muted-foreground border-border/60 hover:text-foreground'
                       }`}
                     >
                       <Minus className="w-4 h-4" />
@@ -2061,8 +1873,8 @@ export const AdminUsersView: React.FC = () => {
                   </div>
 
                   {/* Amount Input & Quick Chips */}
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-bold text-foreground">
                       مبلغ تراکنش (تومان):
                     </label>
                     <input
@@ -2072,16 +1884,16 @@ export const AdminUsersView: React.FC = () => {
                       value={walletAmount}
                       onChange={(e) => setWalletAmount(Number(e.target.value))}
                       required
-                      className="w-full py-2.5 px-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white font-mono text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-600 text-left"
+                      className="w-full h-10 px-3.5 rounded-field border border-border/60 bg-muted/20 text-foreground font-mono font-latin text-sm font-bold focus:outline-none focus:border-brand text-left"
                     />
 
-                    <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                    <div className="flex flex-wrap items-center gap-1.5 pt-1">
                       {[50000, 100000, 200000, 500000, 1000000].map((amt) => (
                         <button
                           key={amt}
                           type="button"
                           onClick={() => setWalletAmount(amt)}
-                          className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-[11px] font-mono text-slate-700 dark:text-slate-300 transition-colors"
+                          className="px-2.5 py-1 rounded-control bg-secondary hover:bg-muted text-[11px] font-mono font-latin text-foreground border border-border/60 transition shadow-xs cursor-pointer"
                         >
                           {amt.toLocaleString('fa-IR')}
                         </button>
@@ -2090,10 +1902,10 @@ export const AdminUsersView: React.FC = () => {
                   </div>
 
                   {/* Mandatory Reason Field */}
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-bold text-foreground">
                       علت تراکنش{' '}
-                      <span className="text-red-500">* (اجباری)</span>:
+                      <span className="text-destructive">* (اجباری)</span>:
                     </label>
                     <textarea
                       rows={2}
@@ -2101,39 +1913,31 @@ export const AdminUsersView: React.FC = () => {
                       onChange={(e) => setWalletReason(e.target.value)}
                       required
                       placeholder="مثلاً: واریز کارت به کارت آفلاین فیش شماره ۱۲۳۴۵، یا جبران خسارت قطعی اکانت"
-                      className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-600 font-sans"
+                      className="w-full p-3.5 rounded-field border border-border/60 bg-muted/20 text-xs text-foreground focus:outline-none focus:border-brand font-sans leading-relaxed resize-none"
                     />
-                    <p className="text-[11px] text-slate-400 mt-1">
+                    <p className="text-[11px] text-muted-foreground">
                       این علت در لاگ حسابرسی (AuditLog) و لاگ مالی تراکنش‌های
                       مشتری ثبت خواهد شد.
                     </p>
                   </div>
 
-                  <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
-                    <button
-                      type="button"
-                      onClick={() => setIsWalletModalOpen(false)}
-                      className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-800 text-xs font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                    >
-                      انصراف
-                    </button>
-
+                  <div className="pt-2">
                     <button
                       type="submit"
                       disabled={walletSubmitting}
-                      className={`px-5 py-2.5 rounded-xl text-white text-xs font-bold transition-all shadow-md flex items-center gap-2 ${
+                      className={`w-full h-11 rounded-control text-primary-foreground text-xs font-black transition-all shadow-control flex items-center justify-center gap-2 cursor-pointer duration-motion active:scale-[0.98] disabled:opacity-50 ${
                         walletAction === 'credit'
-                          ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/20'
-                          : 'bg-red-600 hover:bg-red-700 shadow-red-600/20'
+                          ? 'bg-emerald-600 hover:bg-emerald-700'
+                          : 'bg-rose-600 hover:bg-rose-700'
                       }`}
                     >
                       {walletSubmitting && (
-                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        <RefreshCw className="w-4 h-4 animate-spin" />
                       )}
                       <span>
                         {walletAction === 'credit'
-                          ? 'تایید و شارژ کیف پول'
-                          : 'تایید و کسر از کیف پول'}
+                          ? 'تایید و شارژ کیف پول کاربر'
+                          : 'تایید و کسر از کیف پول کاربر'}
                       </span>
                     </button>
                   </div>
@@ -2181,18 +1985,15 @@ export const AdminUsersView: React.FC = () => {
                     </p>
                   </div>
 
-                  <button
-                    type="button"
+                  <ModalCloseButton
                     onClick={() => setIsReplaceKeyOpen(false)}
-                    className="p-1.5 rounded-control text-muted-foreground hover:text-foreground hover:bg-muted cursor-pointer transition-colors"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
+                    size="sm"
+                  />
                 </div>
 
                 <form onSubmit={handleReplaceKeySubmit} className="space-y-4">
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-bold text-foreground">
                       کلید، لایسنس یا اکانت جدید تحویلی به خریدار:
                     </label>
                     <textarea
@@ -2201,12 +2002,12 @@ export const AdminUsersView: React.FC = () => {
                       onChange={(e) => setNewKeyPayload(e.target.value)}
                       required
                       placeholder="کلید یا لینک فعال‌سازی جدید را اینجا وارد فرمایید..."
-                      className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs font-mono text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-600 text-left"
+                      className="w-full p-3.5 rounded-field border border-border/60 bg-muted/20 text-xs font-mono font-latin text-foreground focus:outline-none focus:border-brand text-left resize-none"
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-bold text-foreground">
                       علت تعویض کلید (جهت ثبت در لاگ و حسابرسی):
                     </label>
                     <input
@@ -2214,15 +2015,15 @@ export const AdminUsersView: React.FC = () => {
                       value={replaceKeyReason}
                       onChange={(e) => setReplaceKeyReason(e.target.value)}
                       placeholder="مثلاً: قطع شدن اکانت قبلی، درخواست تمدید، رفع اشکال لایسنس"
-                      className="w-full py-2 px-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-600 font-sans"
+                      className="w-full h-10 px-3.5 rounded-field border border-border/60 bg-muted/20 text-xs text-foreground focus:outline-none focus:border-brand font-sans"
                     />
                   </div>
 
-                  <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+                  <div className="flex items-center justify-end gap-3 pt-3 border-t border-border/60">
                     <button
                       type="button"
                       onClick={() => setIsReplaceKeyOpen(false)}
-                      className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-800 text-xs font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                      className="h-10 px-4 rounded-control border border-border/60 bg-secondary hover:bg-muted text-xs font-bold text-foreground transition shadow-control cursor-pointer"
                     >
                       انصراف
                     </button>
@@ -2230,10 +2031,10 @@ export const AdminUsersView: React.FC = () => {
                     <button
                       type="submit"
                       disabled={replaceKeySubmitting}
-                      className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all shadow-md shadow-blue-600/20 flex items-center gap-2"
+                      className="h-10 px-6 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground text-xs font-black transition-all shadow-control flex items-center gap-2 cursor-pointer duration-motion active:scale-[0.98] disabled:opacity-50"
                     >
                       {replaceKeySubmitting && (
-                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin text-brand" />
                       )}
                       <span>ثبت و تعویض کلید</span>
                     </button>
@@ -2244,6 +2045,29 @@ export const AdminUsersView: React.FC = () => {
           </div>,
           document.body,
         )}
+
+      {/* Block Account Confirmation Modal */}
+      <ConfirmModal
+        isOpen={blockConfirm.isOpen && Boolean(blockConfirm.user)}
+        onClose={() =>
+          setBlockConfirm({ isOpen: false, user: null, loading: false })
+        }
+        onConfirm={() => {
+          if (blockConfirm.user) {
+            executeToggleBlock(
+              blockConfirm.user,
+              false,
+              'مسدودسازی توسط مدیر سیستم',
+            )
+          }
+        }}
+        title="مسدودسازی حساب کاربری"
+        description={`آیا از مسدودسازی دسترسی کاربر «${blockConfirm.user?.full_name || blockConfirm.user?.phone || ''}» اطمینان دارید؟ کاربر امکان ورود به حساب و ثبت سفارش جدید را نخواهد داشت.`}
+        confirmText="بله، حساب مسدود شود"
+        cancelText="انصراف"
+        loading={blockConfirm.loading}
+        variant="danger"
+      />
     </div>
   )
 }

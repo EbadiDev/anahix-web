@@ -57,6 +57,13 @@ export const ProfileReferralTab: React.FC<ProfileReferralTabProps> = ({
 
   useEffect(() => {
     loadStats()
+    const handleUpdate = () => {
+      loadStats()
+    }
+    window.addEventListener('anahix:referral:updated', handleUpdate)
+    return () => {
+      window.removeEventListener('anahix:referral:updated', handleUpdate)
+    }
   }, [])
 
   const copyLink = () => {
@@ -108,12 +115,15 @@ export const ProfileReferralTab: React.FC<ProfileReferralTabProps> = ({
               </span>
             </div>
             <h2 className="text-xl sm:text-2xl font-black text-foreground">
-              ۱۰٪ کمیسیون دائمی از تمامی خریدهای دوستان شما
+              {toPersianDigits(stats?.commission_rate_percent ?? 10)}٪ کمیسیون
+              دائمی از تمامی خریدهای دوستان شما
             </h2>
             <p className="text-xs text-muted-foreground mt-1 max-w-xl leading-relaxed">
               با اشتراک‌گذاری لینک اختصاصی خود، به ازای هر خرید اشتراک هوش مصنوعی
-              یا شماره مجازی توسط دوستانتان، ۱۰٪ از مبلغ سفارش مستقیماً به عنوان
-              پورسانت برای شما محاسبه شده و قابل انتقال به کیف پول است.
+              یا شماره مجازی توسط دوستانتان،{' '}
+              {toPersianDigits(stats?.commission_rate_percent ?? 10)}٪ از مبلغ
+              سفارش مستقیماً به عنوان پورسانت برای شما محاسبه شده و قابل انتقال
+              به کیف پول است.
             </p>
           </div>
 

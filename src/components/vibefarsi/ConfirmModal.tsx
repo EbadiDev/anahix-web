@@ -8,7 +8,8 @@ interface ConfirmModalProps {
   onClose: () => void
   onConfirm: () => void | Promise<void>
   title: string
-  description: string
+  description?: string
+  message?: string
   confirmText?: string
   cancelText?: string
   variant?: 'danger' | 'warning' | 'primary'
@@ -22,6 +23,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
   onConfirm,
   title,
   description,
+  message,
   confirmText = 'بله، حذف شود',
   cancelText = 'انصراف',
   variant = 'danger',
@@ -31,10 +33,11 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
   if (!isOpen) return null
 
   const isDanger = variant === 'danger'
+  const descText = description || message || ''
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[999999] overflow-y-auto bg-black/80 backdrop-blur-md p-3 sm:p-6 animate-in fade-in duration-200"
+      className="fixed inset-0 overflow-y-auto bg-black/80 backdrop-blur-md p-3 sm:p-6 animate-in fade-in duration-200"
       style={{
         position: 'fixed',
         top: 0,
@@ -43,6 +46,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
         bottom: 0,
         width: '100vw',
         height: '100vh',
+        zIndex: 2147483647,
       }}
       dir="rtl"
     >
@@ -74,7 +78,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
 
           {/* Description */}
           <p className="text-xs text-muted-foreground leading-relaxed">
-            {description}
+            {descText}
           </p>
 
           {/* Actions */}
