@@ -496,6 +496,8 @@ export interface ThemeSettings {
   support_telegram?: string
   header_menu_json?: string
   footer_menu_json?: string
+  ticket_sms_mode?: 'default_on' | 'default_off' | 'disabled'
+  ticket_email_mode?: 'default_on' | 'default_off' | 'disabled'
   sms_api_key?: string
   sms_line_number?: string
   zarinpal_merchant_id?: string
@@ -545,6 +547,7 @@ export interface SMSSettings {
   is_sandbox: boolean
   live_credit: number
   lines: string[]
+  ticket_sms_mode?: 'default_on' | 'default_off' | 'disabled'
 }
 
 // Cart & Ecommerce Types
@@ -660,6 +663,8 @@ export interface ReviewItem {
   order_number?: string
   customer_name: string
   customer_phone?: string
+  customer_avatar?: string
+  customer_email?: string
   rating: number
   comment: string
   experience_tags: string[]
@@ -846,6 +851,7 @@ export interface AdminUpdateTicketPayload {
   assigned_admin_name?: string
   notify_sms?: boolean
   notify_email?: boolean
+  notify_via_sms?: boolean
 }
 
 export interface AdminTicketStats {
@@ -1090,6 +1096,7 @@ export interface AdminUpdateCustomerStatusRequest {
   internal_notes?: string
   full_name?: string
   email?: string
+  new_password?: string
 }
 
 export interface AdminSendCustomerSMSRequest {
@@ -1141,7 +1148,10 @@ export interface TOCItem {
 export interface ArticleComment {
   id: string
   article_id: string
+  article_title?: string
+  article_slug?: string
   author_name: string
+  email?: string
   content: string
   status: 'pending' | 'approved' | 'rejected'
   admin_reply?: string
@@ -1195,6 +1205,9 @@ export interface HelpGuideListItem {
   icon: string
   difficulty: string
   service_target: string
+  author_name?: string
+  author_role?: string
+  author_avatar?: string
   reading_time_minutes: number
   view_count: number
   helpful_yes: number
@@ -1262,6 +1275,9 @@ export interface CreateHelpGuidePayload {
   icon: string
   difficulty: string
   service_target: string
+  author_name?: string
+  author_role?: string
+  author_avatar?: string
   reading_time_minutes?: number
   sort_order: number
   is_featured: boolean

@@ -1,7 +1,5 @@
 import {
-  AlertCircle,
   BellRing,
-  CheckCircle2,
   Coins,
   Eye,
   EyeOff,
@@ -22,11 +20,13 @@ import type React from 'react'
 import { useEffect, useState } from 'react'
 import { api } from '../../services/api'
 import type { SMSSettings } from '../../types'
+import { useNotification } from '../vibefarsi/NotificationContext'
 import { ToggleSwitch } from '../vibefarsi/ToggleSwitch'
 
 type TemplateKey = 'otp' | 'two_factor' | 'order_complete' | 'renewal'
 
 export const SMSGatewayView: React.FC = () => {
+  const { success: notifySuccess, error: notifyError } = useNotification()
   const [settings, setSettings] = useState<SMSSettings | null>(null)
   const [loading, setLoading] = useState<boolean>(true)
   const [saving, setSaving] = useState<boolean>(false)
@@ -44,6 +44,9 @@ export const SMSGatewayView: React.FC = () => {
   const [templateOrderComplete, setTemplateOrderComplete] =
     useState<string>('100002')
   const [templateRenewal, setTemplateRenewal] = useState<string>('100003')
+  const [ticketSMSMode, setTicketSMSMode] = useState<
+    'default_on' | 'default_off' | 'disabled'
+  >('default_on')
 
   // Test Console state
   const [testMobile, setTestMobile] = useState<string>('')
@@ -62,11 +65,6 @@ export const SMSGatewayView: React.FC = () => {
   const [testParamDays, setTestParamDays] = useState<string>('۳')
   const [testParamLink, setTestParamLink] = useState<string>('anahix.ir/renew')
 
-  const [notification, setNotification] = useState<{
-    type: 'success' | 'error'
-    message: string
-  } | null>(null)
-
   const fetchSettings = async () => {
     setLoading(true)
     try {
@@ -79,11 +77,12 @@ export const SMSGatewayView: React.FC = () => {
       setTemplate2FA(data.template_2fa || '100001')
       setTemplateOrderComplete(data.template_order_complete || '100002')
       setTemplateRenewal(data.template_renewal || '100003')
+      setTicketSMSMode(data.ticket_sms_mode || 'default_on')
     } catch (err: any) {
-      setNotification({
-        type: 'error',
-        message: err.message || 'خطا در بارگذاری تنظیمات سامانه پیامک',
-      })
+      notifyError(
+        'خطا در بارگذاری',
+        err.message || 'خطا در بارگذاری تنظیمات سامانه پیامک',
+      )
     } finally {
       setLoading(false)
     }
@@ -96,7 +95,6 @@ export const SMSGatewayView: React.FC = () => {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
     setSaving(true)
-    setNotification(null)
 
     try {
       await api.updateSMSSettings({
@@ -108,18 +106,19 @@ export const SMSGatewayView: React.FC = () => {
         template_order_complete: templateOrderComplete.trim() || undefined,
         template_renewal: templateRenewal.trim() || undefined,
         is_sandbox: isSandbox,
+        ticket_sms_mode: ticketSMSMode,
       })
-      setNotification({
-        type: 'success',
-        message: 'تمامی تنظیمات وب‌سرویس و شناسه‌های الگو با موفقیت ذخیره شدند.',
-      })
+      notifySuccess(
+        'تنظیمات پیامک ذخیره شد',
+        'تمامی تنظیمات وب‌سرویس و شناسه‌های الگو با موفقیت ذخیره شدند.',
+      )
       setApiKey('')
       await fetchSettings()
     } catch (err: any) {
-      setNotification({
-        type: 'error',
-        message: err.message || 'خطا در ذخیره تنظیمات درگاه پیامک',
-      })
+      notifyError(
+        'خطا در ذخیره',
+        err.message || 'خطا در ذخیره تنظیمات درگاه پیامک',
+      )
     } finally {
       setSaving(false)
     }
@@ -128,15 +127,14 @@ export const SMSGatewayView: React.FC = () => {
   const handleSendTest = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!testMobile || testMobile.length < 11) {
-      setNotification({
-        type: 'error',
-        message: 'لطفاً یک شماره موبایل معتبر (۱۱ رقم) وارد کنید.',
-      })
+      notifyError(
+        'خطای اعتبارسنجی',
+        'لطفاً یک شماره موبایل معتبر (۱۱ رقم) وارد کنید.',
+      )
       return
     }
 
     setTesting(true)
-    setNotification(null)
     try {
       let params: Record<string, string> = {}
       let targetTid = 0
@@ -165,17 +163,16 @@ export const SMSGatewayView: React.FC = () => {
         targetTid,
         params,
       )
-      setNotification({
-        type: 'success',
-        message:
-          resp.message ||
+      notifySuccess(
+        'ارسال موفق پیامک تست',
+        resp.message ||
           `پیامک آزمایشی الگوی "${getTemplateTitle(selectedTestTemplate)}" با موفقیت ارسال شد.`,
-      })
+      )
     } catch (err: any) {
-      setNotification({
-        type: 'error',
-        message: err.message || 'ارسال پیامک آزمایشی با خطا مواجه شد.',
-      })
+      notifyError(
+        'خطا در ارسال تست',
+        err.message || 'ارسال پیامک آزمایشی با خطا مواجه شد.',
+      )
     } finally {
       setTesting(false)
     }
@@ -197,22 +194,22 @@ export const SMSGatewayView: React.FC = () => {
   return (
     <div className="space-y-6" dir="rtl">
       {/* Header Banner */}
-      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm">
+      <div className="rounded-surface border border-border/80 bg-card p-6 shadow-surface text-foreground">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold text-xl shadow-inner">
+            <div className="w-12 h-12 rounded-control bg-secondary text-brand flex items-center justify-center font-bold text-xl shadow-control border border-border/60 shrink-0">
               <Smartphone className="w-6 h-6" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-xl font-black text-slate-900 dark:text-white">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-xl font-black text-foreground">
                   سیستم الگوهای پیامک خدماتی (SMS.ir Pattern Manager)
                 </h2>
-                <span className="text-[10px] bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 font-bold px-2.5 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-900">
+                <span className="text-[10px] bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 font-bold px-2.5 py-0.5 rounded-control">
                   عبور تضمینی از بلک‌لیست
                 </span>
               </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
                 تنظیم شناسه‌های الگو (Template ID) برای رویدادهای OTP، اعلام ۲FA،
                 تحویل لایسنس و یادآور تمدید اشتراک با ارسال سریع زیر ۵ ثانیه
               </p>
@@ -224,10 +221,10 @@ export const SMSGatewayView: React.FC = () => {
               type="button"
               onClick={fetchSettings}
               disabled={loading}
-              className="px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5 transition"
+              className="h-9 px-3.5 rounded-control border border-border/60 bg-secondary hover:bg-muted text-xs font-bold text-foreground flex items-center gap-1.5 transition cursor-pointer shadow-xs duration-motion active:scale-[0.98]"
             >
               <RefreshCw
-                className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`}
+                className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-brand' : ''}`}
               />
               <span>بروزرسانی وضعیت</span>
             </button>
@@ -235,13 +232,13 @@ export const SMSGatewayView: React.FC = () => {
         </div>
 
         {/* Status Metrics Bar */}
-        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 mt-6 pt-5 border-t border-slate-100 dark:border-slate-800/80">
-          <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 flex items-center justify-between">
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 mt-6 pt-5 border-t border-border/60">
+          <div className="p-3.5 rounded-control bg-muted/20 border border-border/60 flex items-center justify-between shadow-xs">
             <div>
-              <div className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+              <div className="text-[11px] text-muted-foreground font-medium">
                 ارتباط با سرور SMS.ir
               </div>
-              <div className="text-sm font-bold text-slate-900 dark:text-white mt-0.5 flex items-center gap-1.5">
+              <div className="text-sm font-bold text-foreground mt-0.5 flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                 {settings?.api_key_mask
                   ? 'متصل به حساب اصلی'
@@ -251,16 +248,16 @@ export const SMSGatewayView: React.FC = () => {
             <ShieldCheck className="w-5 h-5 text-emerald-500" />
           </div>
 
-          <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 flex items-center justify-between">
+          <div className="p-3.5 rounded-control bg-muted/20 border border-border/60 flex items-center justify-between shadow-xs">
             <div>
-              <div className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+              <div className="text-[11px] text-muted-foreground font-medium">
                 مانده اعتبار ریالی
               </div>
-              <div className="text-sm font-black text-slate-900 dark:text-white mt-0.5 font-mono">
+              <div className="text-sm font-black text-foreground mt-0.5 font-mono font-latin">
                 {settings?.live_credit
                   ? settings.live_credit.toLocaleString('fa-IR')
                   : '۱,۰۰۰'}{' '}
-                <span className="text-[11px] font-sans font-normal text-slate-400">
+                <span className="text-[11px] font-sans font-normal text-muted-foreground">
                   ریال
                 </span>
               </div>
@@ -268,49 +265,31 @@ export const SMSGatewayView: React.FC = () => {
             <Coins className="w-5 h-5 text-amber-500" />
           </div>
 
-          <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 flex items-center justify-between">
+          <div className="p-3.5 rounded-control bg-muted/20 border border-border/60 flex items-center justify-between shadow-xs">
             <div>
-              <div className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+              <div className="text-[11px] text-muted-foreground font-medium">
                 الگوهای فعال رویدادها
               </div>
-              <div className="text-sm font-bold text-slate-900 dark:text-white mt-0.5 font-mono">
+              <div className="text-sm font-bold text-foreground mt-0.5 font-mono font-latin">
                 ۴ الگوی تایید سریع
               </div>
             </div>
-            <Sparkles className="w-5 h-5 text-purple-500" />
+            <Sparkles className="w-5 h-5 text-brand" />
           </div>
 
-          <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 flex items-center justify-between">
+          <div className="p-3.5 rounded-control bg-muted/20 border border-border/60 flex items-center justify-between shadow-xs">
             <div>
-              <div className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+              <div className="text-[11px] text-muted-foreground font-medium">
                 خطوط اختصاصی ارسال
               </div>
-              <div className="text-sm font-bold text-slate-900 dark:text-white mt-0.5 font-mono">
+              <div className="text-sm font-bold text-foreground mt-0.5 font-mono font-latin">
                 {settings?.lines?.length || 1} خط پیامکی
               </div>
             </div>
-            <Layers className="w-5 h-5 text-blue-500" />
+            <Layers className="w-5 h-5 text-brand" />
           </div>
         </div>
       </div>
-
-      {/* Feedback Notification */}
-      {notification && (
-        <div
-          className={`p-4 rounded-xl border flex items-center gap-3 text-xs font-semibold animate-in fade-in ${
-            notification.type === 'success'
-              ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300'
-              : 'bg-red-50 dark:bg-red-950/40 border-red-200 dark:border-red-800 text-red-700 dark:text-red-300'
-          }`}
-        >
-          {notification.type === 'success' ? (
-            <CheckCircle2 className="w-4 h-4 shrink-0" />
-          ) : (
-            <AlertCircle className="w-4 h-4 shrink-0" />
-          )}
-          <span>{notification.message}</span>
-        </div>
-      )}
 
       {/* Main Grid: Form & Live Test Console */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -318,43 +297,43 @@ export const SMSGatewayView: React.FC = () => {
         <div className="lg:col-span-2 space-y-6">
           <form onSubmit={handleSave} className="space-y-6">
             {/* 1. Core Event Templates Manager Card */}
-            <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm">
-              <div className="flex items-center justify-between mb-5 pb-3 border-b border-slate-100 dark:border-slate-800">
+            <div className="rounded-surface border border-border/80 bg-card p-6 shadow-surface space-y-5 text-foreground">
+              <div className="flex items-center justify-between pb-3 border-b border-border/60">
                 <div className="flex items-center gap-2">
-                  <Zap className="w-4 h-4 text-blue-600" />
-                  <h3 className="font-bold text-slate-900 dark:text-white text-sm">
+                  <Zap className="w-4 h-4 text-brand" />
+                  <h3 className="font-bold text-foreground text-sm">
                     شناسه‌های الگوی رویدادهای سیستمی (SMS.ir Template IDs)
                   </h3>
                 </div>
-                <span className="text-[11px] text-slate-400">
+                <span className="text-[11px] text-muted-foreground">
                   پیکربندی پترن‌های ارسال سریع
                 </span>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Template 1: OTP */}
-                <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800/80 bg-slate-50/70 dark:bg-slate-950/40 hover:border-blue-300 dark:hover:border-blue-800 transition">
-                  <div className="flex items-center justify-between mb-2">
+                <div className="p-4 rounded-surface border border-border/60 bg-muted/20 hover:border-brand/40 transition-all text-foreground shadow-xs space-y-2">
+                  <div className="flex items-center justify-between mb-1">
                     <div className="flex items-center gap-2">
-                      <span className="w-7 h-7 rounded-lg bg-blue-100 dark:bg-blue-950 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+                      <span className="w-7 h-7 rounded-control bg-brand/10 text-brand flex items-center justify-center">
                         <Key className="w-4 h-4" />
                       </span>
-                      <span className="text-xs font-bold text-slate-900 dark:text-white">
+                      <span className="text-xs font-bold text-foreground">
                         الگوی خوش‌آمدگویی و ورود OTP
                       </span>
                     </div>
-                    <span className="text-[10px] bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-300 px-2 py-0.5 rounded font-mono font-bold">
+                    <span className="text-[10px] bg-brand/10 text-brand border border-brand/20 px-2 py-0.5 rounded-control font-mono font-latin font-bold">
                       #Code#
                     </span>
                   </div>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-3 leading-relaxed">
+                  <p className="text-[11px] text-muted-foreground mb-2 leading-relaxed">
                     کد یکبار مصرف ۵ رقمی جهت ورود، ثبت‌نام و احراز هویت اولیه
                     مشتری با عبور از لیست سیاه مخابراتی
                   </p>
                   <div>
                     <label
                       htmlFor="template-otp-input"
-                      className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1"
+                      className="block text-[11px] font-bold text-foreground mb-1"
                     >
                       شناسه قالب (Template ID)
                     </label>
@@ -365,37 +344,37 @@ export const SMSGatewayView: React.FC = () => {
                       onChange={(e) => setTemplateOTP(e.target.value)}
                       placeholder="100000"
                       dir="ltr"
-                      className="w-full h-9 px-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full h-10 px-3.5 rounded-field border border-border/60 bg-card text-foreground text-xs font-mono font-latin outline-none focus:border-brand"
                     />
                   </div>
-                  <div className="mt-2.5 p-2 rounded bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800/60 text-[10px] text-slate-600 dark:text-slate-400 font-mono">
+                  <div className="mt-2.5 p-2 rounded-control bg-secondary/60 border border-border/40 text-[10px] text-muted-foreground font-mono font-latin">
                     کد ورود به آناهیکس: #Code#
                   </div>
                 </div>
 
                 {/* Template 2: 2FA Request */}
-                <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800/80 bg-slate-50/70 dark:bg-slate-950/40 hover:border-amber-300 dark:hover:border-amber-800 transition">
-                  <div className="flex items-center justify-between mb-2">
+                <div className="p-4 rounded-surface border border-border/60 bg-muted/20 hover:border-brand/40 transition-all text-foreground shadow-xs space-y-2">
+                  <div className="flex items-center justify-between mb-1">
                     <div className="flex items-center gap-2">
-                      <span className="w-7 h-7 rounded-lg bg-amber-100 dark:bg-amber-950 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+                      <span className="w-7 h-7 rounded-control bg-amber-500/10 text-amber-500 flex items-center justify-center">
                         <ShieldAlert className="w-4 h-4" />
                       </span>
-                      <span className="text-xs font-bold text-slate-900 dark:text-white">
+                      <span className="text-xs font-bold text-foreground">
                         الگوی اعلام درخواست کد ۲FA
                       </span>
                     </div>
-                    <span className="text-[10px] bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-300 px-2 py-0.5 rounded font-mono font-bold">
+                    <span className="text-[10px] bg-amber-500/10 text-amber-500 border border-amber-500/20 px-2 py-0.5 rounded-control font-mono font-latin font-bold">
                       #Order# #Prompt#
                     </span>
                   </div>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-3 leading-relaxed">
+                  <p className="text-[11px] text-muted-foreground mb-2 leading-relaxed">
                     اطلاع‌رسانی فوری هنگام درخواست اپراتور برای کد تایید دو
                     مرحله‌ای جهت فعال‌سازی روی اکانت شخصی
                   </p>
                   <div>
                     <label
                       htmlFor="template-2fa-input"
-                      className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1"
+                      className="block text-[11px] font-bold text-foreground mb-1"
                     >
                       شناسه قالب (Template ID)
                     </label>
@@ -406,37 +385,37 @@ export const SMSGatewayView: React.FC = () => {
                       onChange={(e) => setTemplate2FA(e.target.value)}
                       placeholder="100001"
                       dir="ltr"
-                      className="w-full h-9 px-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs font-mono focus:outline-none focus:ring-2 focus:ring-amber-500"
+                      className="w-full h-10 px-3.5 rounded-field border border-border/60 bg-card text-foreground text-xs font-mono font-latin outline-none focus:border-brand"
                     />
                   </div>
-                  <div className="mt-2.5 p-2 rounded bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800/60 text-[10px] text-slate-600 dark:text-slate-400 font-mono">
+                  <div className="mt-2.5 p-2 rounded-control bg-secondary/60 border border-border/40 text-[10px] text-muted-foreground font-mono font-latin">
                     نیاز به تایید ۲FA سفارش #Order#: #Prompt#
                   </div>
                 </div>
 
                 {/* Template 3: License Delivery / Order Completed */}
-                <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800/80 bg-slate-50/70 dark:bg-slate-950/40 hover:border-emerald-300 dark:hover:border-emerald-800 transition">
-                  <div className="flex items-center justify-between mb-2">
+                <div className="p-4 rounded-surface border border-border/60 bg-muted/20 hover:border-brand/40 transition-all text-foreground shadow-xs space-y-2">
+                  <div className="flex items-center justify-between mb-1">
                     <div className="flex items-center gap-2">
-                      <span className="w-7 h-7 rounded-lg bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                      <span className="w-7 h-7 rounded-control bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
                         <PackageCheck className="w-4 h-4" />
                       </span>
-                      <span className="text-xs font-bold text-slate-900 dark:text-white">
+                      <span className="text-xs font-bold text-foreground">
                         الگوی تحویل لایسنس و تکمیل سفارش
                       </span>
                     </div>
-                    <span className="text-[10px] bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-300 px-2 py-0.5 rounded font-mono font-bold">
+                    <span className="text-[10px] bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 px-2 py-0.5 rounded-control font-mono font-latin font-bold">
                       #Order# #License#
                     </span>
                   </div>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-3 leading-relaxed">
+                  <p className="text-[11px] text-muted-foreground mb-2 leading-relaxed">
                     ارسال کد لایسنس دیجیتال و اعلام اتمام موفق پردازش سفارش به
                     شماره همراه خریدار
                   </p>
                   <div>
                     <label
                       htmlFor="template-order-input"
-                      className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1"
+                      className="block text-[11px] font-bold text-foreground mb-1"
                     >
                       شناسه قالب (Template ID)
                     </label>
@@ -447,37 +426,37 @@ export const SMSGatewayView: React.FC = () => {
                       onChange={(e) => setTemplateOrderComplete(e.target.value)}
                       placeholder="100002"
                       dir="ltr"
-                      className="w-full h-9 px-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      className="w-full h-10 px-3.5 rounded-field border border-border/60 bg-card text-foreground text-xs font-mono font-latin outline-none focus:border-brand"
                     />
                   </div>
-                  <div className="mt-2.5 p-2 rounded bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800/60 text-[10px] text-slate-600 dark:text-slate-400 font-mono">
+                  <div className="mt-2.5 p-2 rounded-control bg-secondary/60 border border-border/40 text-[10px] text-muted-foreground font-mono font-latin">
                     سفارش #Order# تکمیل شد. لایسنس: #License#
                   </div>
                 </div>
 
                 {/* Template 4: Subscription Renewal Reminder */}
-                <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800/80 bg-slate-50/70 dark:bg-slate-950/40 hover:border-purple-300 dark:hover:border-purple-800 transition">
-                  <div className="flex items-center justify-between mb-2">
+                <div className="p-4 rounded-surface border border-border/60 bg-muted/20 hover:border-brand/40 transition-all text-foreground shadow-xs space-y-2">
+                  <div className="flex items-center justify-between mb-1">
                     <div className="flex items-center gap-2">
-                      <span className="w-7 h-7 rounded-lg bg-purple-100 dark:bg-purple-950 text-purple-600 dark:text-purple-400 flex items-center justify-center">
+                      <span className="w-7 h-7 rounded-control bg-brand/10 text-brand flex items-center justify-center">
                         <BellRing className="w-4 h-4" />
                       </span>
-                      <span className="text-xs font-bold text-slate-900 dark:text-white">
+                      <span className="text-xs font-bold text-foreground">
                         الگوی یادآور تمدید اشتراک
                       </span>
                     </div>
-                    <span className="text-[10px] bg-purple-50 text-purple-600 dark:bg-purple-900/30 dark:text-purple-300 px-2 py-0.5 rounded font-mono font-bold">
+                    <span className="text-[10px] bg-brand/10 text-brand border border-brand/20 px-2 py-0.5 rounded-control font-mono font-latin font-bold">
                       #Service# #Days# #Link#
                     </span>
                   </div>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-3 leading-relaxed">
+                  <p className="text-[11px] text-muted-foreground mb-2 leading-relaxed">
                     یادآوری قبل از به پایان رسیدن مهلت اشتراک و دعوت مشتری به
                     تمدید سرویس با لینک مستقیم
                   </p>
                   <div>
                     <label
                       htmlFor="template-renewal-input"
-                      className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1"
+                      className="block text-[11px] font-bold text-foreground mb-1"
                     >
                       شناسه قالب (Template ID)
                     </label>
@@ -488,10 +467,10 @@ export const SMSGatewayView: React.FC = () => {
                       onChange={(e) => setTemplateRenewal(e.target.value)}
                       placeholder="100003"
                       dir="ltr"
-                      className="w-full h-9 px-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs font-mono focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      className="w-full h-10 px-3.5 rounded-field border border-border/60 bg-card text-foreground text-xs font-mono font-latin outline-none focus:border-brand"
                     />
                   </div>
-                  <div className="mt-2.5 p-2 rounded bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800/60 text-[10px] text-slate-600 dark:text-slate-400 font-mono">
+                  <div className="mt-2.5 p-2 rounded-control bg-secondary/60 border border-border/40 text-[10px] text-muted-foreground font-mono font-latin">
                     اشتراک #Service# شما #Days# روز دیگر منقضی می‌شود. تمدید:
                     #Link#
                   </div>
@@ -499,21 +478,84 @@ export const SMSGatewayView: React.FC = () => {
               </div>
             </div>
 
-            {/* 2. API Credentials & Gateway Parameters */}
-            <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm">
-              <div className="flex items-center gap-2 mb-4 pb-3 border-b border-slate-100 dark:border-slate-800">
-                <Key className="w-4 h-4 text-blue-600" />
-                <h3 className="font-bold text-slate-900 dark:text-white text-sm">
+            {/* 2. Ticket Support SMS Notification Settings */}
+            <div className="rounded-surface border border-border/80 bg-card p-6 shadow-surface space-y-4 text-foreground">
+              <div className="flex items-center gap-2 pb-3 border-b border-border/60">
+                <BellRing className="w-4 h-4 text-brand" />
+                <h3 className="font-bold text-foreground text-sm">
+                  تنظیمات اطلاع‌رسانی پیامکی تیکت‌های پشتیبانی
+                </h3>
+              </div>
+
+              <div className="space-y-3">
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  تعیین رفتار پیش‌فرض تاگل اطلاع‌رسانی پیامک هنگام پاسخ به تیکت‌ها
+                  در پنل خریدار و میز ادمین:
+                </p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {[
+                    {
+                      id: 'default_on',
+                      label: 'پیش‌فرض فعال (Default ON)',
+                      desc: 'تاگل در پنل کاربر به طور پیش‌فرض روشن است اما کاربر می‌تواند خاموش کند',
+                    },
+                    {
+                      id: 'default_off',
+                      label: 'پیش‌فرض غیرفعال (Default OFF)',
+                      desc: 'تاگل به طور پیش‌فرض خاموش است و با تمایل کاربر فعال می‌شود',
+                    },
+                    {
+                      id: 'disabled',
+                      label: 'عدم نمایش و غیرفعال کامل (Disabled)',
+                      desc: 'سیستم پیامک تیکت کاملاً خاموش بوده و در پنل کاربر و تیکت‌ها نمایش داده نمی‌شود',
+                    },
+                  ].map((mode) => (
+                    <label
+                      key={mode.id}
+                      className={`p-3.5 rounded-control border flex flex-col justify-between gap-2 cursor-pointer transition select-none ${
+                        ticketSMSMode === mode.id
+                          ? 'border-brand bg-brand/10 shadow-xs'
+                          : 'border-border/60 bg-muted/20 hover:border-border'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          name="ticket_sms_mode"
+                          value={mode.id}
+                          checked={ticketSMSMode === mode.id}
+                          onChange={() => setTicketSMSMode(mode.id as any)}
+                          className="accent-brand cursor-pointer"
+                        />
+                        <span className="text-xs font-bold text-foreground">
+                          {mode.label}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground leading-relaxed pr-5">
+                        {mode.desc}
+                      </p>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* 3. API Credentials & Gateway Parameters */}
+            <div className="rounded-surface border border-border/80 bg-card p-6 shadow-surface space-y-4 text-foreground">
+              <div className="flex items-center gap-2 pb-3 border-b border-border/60">
+                <Key className="w-4 h-4 text-brand" />
+                <h3 className="font-bold text-foreground text-sm">
                   اتصال وب‌سرویس و شماره خطوط فرستنده (SMS.ir Credentials)
                 </h3>
               </div>
 
               <div className="space-y-4">
                 {/* API Key */}
-                <div>
+                <div className="space-y-1.5">
                   <label
                     htmlFor="sms-api-key-input"
-                    className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5"
+                    className="block text-xs font-bold text-foreground"
                   >
                     کلید وب‌سرویس سامانه پیامک (SMS.ir API Key)
                   </label>
@@ -529,12 +571,12 @@ export const SMSGatewayView: React.FC = () => {
                           : 'کلید API اختصاصی سامانه SMS.ir را وارد نمایید...'
                       }
                       dir="ltr"
-                      className="w-full h-10 px-3 pl-10 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white text-xs font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full h-10 px-3.5 pl-10 rounded-field border border-border/60 bg-muted/20 text-foreground text-xs font-mono font-latin outline-none focus:border-brand"
                     />
                     <button
                       type="button"
                       onClick={() => setShowApiKey(!showApiKey)}
-                      className="absolute left-3 top-2.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                      className="absolute left-3 top-2.5 text-muted-foreground hover:text-foreground cursor-pointer"
                     >
                       {showApiKey ? (
                         <EyeOff className="w-4 h-4" />
@@ -543,7 +585,7 @@ export const SMSGatewayView: React.FC = () => {
                       )}
                     </button>
                   </div>
-                  <p className="text-[11px] text-slate-400 mt-1">
+                  <p className="text-[11px] text-muted-foreground mt-1">
                     در پنل SMS.ir از بخش برنامه‌نویسان / کلیدهای وب‌سرویس، کلید
                     جدید ایجاد کرده و در این کادر قرار دهید.
                   </p>
@@ -551,10 +593,10 @@ export const SMSGatewayView: React.FC = () => {
 
                 {/* Line Number & Sandbox */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
+                  <div className="space-y-1.5">
                     <label
                       htmlFor="sms-line-number-input"
-                      className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5"
+                      className="block text-xs font-bold text-foreground"
                     >
                       شماره خط فرستنده (Line Number)
                     </label>
@@ -565,19 +607,19 @@ export const SMSGatewayView: React.FC = () => {
                       onChange={(e) => setLineNumber(e.target.value)}
                       placeholder="30004505000017"
                       dir="ltr"
-                      className="w-full h-10 px-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white text-xs font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full h-10 px-3.5 rounded-field border border-border/60 bg-muted/20 text-foreground text-xs font-mono font-latin outline-none focus:border-brand"
                     />
-                    <p className="text-[11px] text-slate-400 mt-1">
+                    <p className="text-[11px] text-muted-foreground mt-1">
                       شماره خط خدماتی ۳۰۰۰ جهت ارسال پیامک‌های عادی/پشتیبانی
                     </p>
                   </div>
 
-                  <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                  <div className="p-3.5 rounded-control bg-muted/20 border border-border/60 flex items-center justify-between">
                     <div>
-                      <div className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                      <div className="text-xs font-bold text-foreground">
                         محیط شبیه‌ساز (Sandbox)
                       </div>
-                      <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                      <div className="text-[11px] text-muted-foreground">
                         در صورت عدم وجود کلید واقعی، پیامک‌ها در لاگ سرور
                         شبیه‌سازی می‌شوند
                       </div>
@@ -585,20 +627,22 @@ export const SMSGatewayView: React.FC = () => {
                     <ToggleSwitch
                       checked={isSandbox}
                       onChange={setIsSandbox}
-                      variant="primary"
+                      size="sm"
                     />
                   </div>
                 </div>
               </div>
 
               {/* Submit Button */}
-              <div className="pt-5 flex justify-end">
+              <div className="pt-4 flex justify-end">
                 <button
                   type="submit"
                   disabled={saving}
-                  className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center gap-2 shadow-sm transition"
+                  className="h-10 px-6 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground text-xs font-black flex items-center gap-2 shadow-control transition-all cursor-pointer duration-motion active:scale-[0.98] disabled:opacity-50"
                 >
-                  {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+                  {saving && (
+                    <Loader2 className="w-4 h-4 animate-spin text-brand" />
+                  )}
                   <span>ذخیره تمامی تنظیمات و الگوها</span>
                 </button>
               </div>
@@ -608,25 +652,25 @@ export const SMSGatewayView: React.FC = () => {
 
         {/* Right Console: Live Pattern SMS Test Dispatcher (1 Col) */}
         <div className="space-y-6">
-          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm">
-            <div className="flex items-center gap-2 mb-4 pb-3 border-b border-slate-100 dark:border-slate-800">
-              <Send className="w-4 h-4 text-emerald-600" />
-              <h3 className="font-bold text-slate-900 dark:text-white text-sm">
+          <div className="rounded-surface border border-border/80 bg-card p-6 shadow-surface space-y-4 text-foreground">
+            <div className="flex items-center gap-2 pb-3 border-b border-border/60">
+              <Send className="w-4 h-4 text-emerald-500" />
+              <h3 className="font-bold text-foreground text-sm">
                 کنسول تست زنده ارسال الگوها
               </h3>
             </div>
 
-            <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
+            <p className="text-xs text-muted-foreground leading-relaxed">
               جهت ارزیابی صحت پیکربندی الگوها در SMS.ir و دریافت واقعی روی گوشی
               موبایل، الگوی مد نظر را انتخاب و تست نمایید.
             </p>
 
             <form onSubmit={handleSendTest} className="space-y-4">
               {/* Select Pattern */}
-              <div>
+              <div className="space-y-1.5">
                 <label
                   htmlFor="test-template-select"
-                  className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5"
+                  className="block text-xs font-bold text-foreground"
                 >
                   انتخاب الگوی تست
                 </label>
@@ -636,7 +680,7 @@ export const SMSGatewayView: React.FC = () => {
                   onChange={(e) =>
                     setSelectedTestTemplate(e.target.value as TemplateKey)
                   }
-                  className="w-full h-10 px-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full h-10 px-3 rounded-field border border-border/60 bg-muted/20 text-foreground text-xs font-bold outline-none focus:border-brand cursor-pointer"
                 >
                   <option value="otp">
                     ۱. الگوی خوش‌آمدگویی و ورود OTP (قالب #{templateOTP})
@@ -656,10 +700,10 @@ export const SMSGatewayView: React.FC = () => {
 
               {/* Dynamic Parameter Inputs based on chosen template */}
               {selectedTestTemplate === 'otp' && (
-                <div>
+                <div className="space-y-1.5">
                   <label
                     htmlFor="test-code-input"
-                    className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1"
+                    className="block text-[11px] font-bold text-foreground"
                   >
                     مقدار پارامتر #Code#
                   </label>
@@ -670,17 +714,17 @@ export const SMSGatewayView: React.FC = () => {
                     onChange={(e) => setTestParamCode(e.target.value)}
                     placeholder="12345"
                     dir="ltr"
-                    className="w-full h-9 px-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs font-mono"
+                    className="w-full h-10 px-3 rounded-field border border-border/60 bg-muted/20 text-foreground text-xs font-mono font-latin outline-none focus:border-brand"
                   />
                 </div>
               )}
 
               {selectedTestTemplate === 'two_factor' && (
-                <div className="space-y-2">
-                  <div>
+                <div className="space-y-3">
+                  <div className="space-y-1.5">
                     <label
                       htmlFor="test-order-2fa-input"
-                      className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1"
+                      className="block text-[11px] font-bold text-foreground"
                     >
                       مقدار پارامتر #Order#
                     </label>
@@ -691,13 +735,13 @@ export const SMSGatewayView: React.FC = () => {
                       onChange={(e) => setTestParamOrder(e.target.value)}
                       placeholder="ANX-9824"
                       dir="ltr"
-                      className="w-full h-9 px-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs font-mono"
+                      className="w-full h-10 px-3 rounded-field border border-border/60 bg-muted/20 text-foreground text-xs font-mono font-latin outline-none focus:border-brand"
                     />
                   </div>
-                  <div>
+                  <div className="space-y-1.5">
                     <label
                       htmlFor="test-prompt-input"
-                      className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1"
+                      className="block text-[11px] font-bold text-foreground"
                     >
                       مقدار پارامتر #Prompt#
                     </label>
@@ -707,18 +751,18 @@ export const SMSGatewayView: React.FC = () => {
                       value={testParamPrompt}
                       onChange={(e) => setTestParamPrompt(e.target.value)}
                       placeholder="لطفاً کد ۶ رقمی را وارد کنید"
-                      className="w-full h-9 px-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs"
+                      className="w-full h-10 px-3 rounded-field border border-border/60 bg-muted/20 text-foreground text-xs outline-none focus:border-brand"
                     />
                   </div>
                 </div>
               )}
 
               {selectedTestTemplate === 'order_complete' && (
-                <div className="space-y-2">
-                  <div>
+                <div className="space-y-3">
+                  <div className="space-y-1.5">
                     <label
                       htmlFor="test-order-complete-input"
-                      className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1"
+                      className="block text-[11px] font-bold text-foreground"
                     >
                       مقدار پارامتر #Order#
                     </label>
@@ -729,13 +773,13 @@ export const SMSGatewayView: React.FC = () => {
                       onChange={(e) => setTestParamOrder(e.target.value)}
                       placeholder="ANX-9824"
                       dir="ltr"
-                      className="w-full h-9 px-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs font-mono"
+                      className="w-full h-10 px-3 rounded-field border border-border/60 bg-muted/20 text-foreground text-xs font-mono font-latin outline-none focus:border-brand"
                     />
                   </div>
-                  <div>
+                  <div className="space-y-1.5">
                     <label
                       htmlFor="test-license-input"
-                      className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1"
+                      className="block text-[11px] font-bold text-foreground"
                     >
                       مقدار پارامتر #License#
                     </label>
@@ -746,18 +790,18 @@ export const SMSGatewayView: React.FC = () => {
                       onChange={(e) => setTestParamLicense(e.target.value)}
                       placeholder="ANHX-XXXX-YYYY"
                       dir="ltr"
-                      className="w-full h-9 px-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs font-mono"
+                      className="w-full h-10 px-3 rounded-field border border-border/60 bg-muted/20 text-foreground text-xs font-mono font-latin outline-none focus:border-brand"
                     />
                   </div>
                 </div>
               )}
 
               {selectedTestTemplate === 'renewal' && (
-                <div className="space-y-2">
-                  <div>
+                <div className="space-y-3">
+                  <div className="space-y-1.5">
                     <label
                       htmlFor="test-service-input"
-                      className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1"
+                      className="block text-[11px] font-bold text-foreground"
                     >
                       مقدار پارامتر #Service#
                     </label>
@@ -767,14 +811,14 @@ export const SMSGatewayView: React.FC = () => {
                       value={testParamService}
                       onChange={(e) => setTestParamService(e.target.value)}
                       placeholder="ChatGPT Plus 1M"
-                      className="w-full h-9 px-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs"
+                      className="w-full h-10 px-3 rounded-field border border-border/60 bg-muted/20 text-foreground text-xs outline-none focus:border-brand"
                     />
                   </div>
                   <div className="grid grid-cols-2 gap-2">
-                    <div>
+                    <div className="space-y-1.5">
                       <label
                         htmlFor="test-days-input"
-                        className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1"
+                        className="block text-[11px] font-bold text-foreground"
                       >
                         #Days# (روز)
                       </label>
@@ -784,13 +828,13 @@ export const SMSGatewayView: React.FC = () => {
                         value={testParamDays}
                         onChange={(e) => setTestParamDays(e.target.value)}
                         placeholder="۳"
-                        className="w-full h-9 px-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs text-center font-bold"
+                        className="w-full h-10 px-3 rounded-field border border-border/60 bg-muted/20 text-foreground text-xs text-center font-bold outline-none focus:border-brand"
                       />
                     </div>
-                    <div>
+                    <div className="space-y-1.5">
                       <label
                         htmlFor="test-link-input"
-                        className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1"
+                        className="block text-[11px] font-bold text-foreground"
                       >
                         #Link#
                       </label>
@@ -801,7 +845,7 @@ export const SMSGatewayView: React.FC = () => {
                         onChange={(e) => setTestParamLink(e.target.value)}
                         placeholder="anahix.ir/renew"
                         dir="ltr"
-                        className="w-full h-9 px-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs font-mono"
+                        className="w-full h-10 px-3 rounded-field border border-border/60 bg-muted/20 text-foreground text-xs font-mono font-latin outline-none focus:border-brand"
                       />
                     </div>
                   </div>
@@ -809,10 +853,10 @@ export const SMSGatewayView: React.FC = () => {
               )}
 
               {/* Mobile Input */}
-              <div>
+              <div className="space-y-1.5">
                 <label
                   htmlFor="test-sms-mobile-input"
-                  className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5"
+                  className="block text-xs font-bold text-foreground"
                 >
                   شماره همراه گیرنده تست (۱۱ رقم)
                 </label>
@@ -823,14 +867,14 @@ export const SMSGatewayView: React.FC = () => {
                   onChange={(e) => setTestMobile(e.target.value)}
                   placeholder="09121234567"
                   dir="ltr"
-                  className="w-full h-10 px-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white text-xs font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full h-10 px-3 rounded-field border border-border/60 bg-muted/20 text-foreground text-xs font-mono font-latin outline-none focus:border-brand"
                 />
               </div>
 
               <button
                 type="submit"
                 disabled={testing || !testMobile}
-                className="w-full h-10 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition"
+                className="w-full h-11 rounded-control bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-black flex items-center justify-center gap-2 shadow-control transition-all cursor-pointer duration-motion active:scale-[0.98]"
               >
                 {testing ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -843,22 +887,17 @@ export const SMSGatewayView: React.FC = () => {
           </div>
 
           {/* Quick Setup Guide Card */}
-          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/40 p-5">
-            <div className="flex items-center gap-2 text-xs font-bold text-slate-800 dark:text-slate-200 mb-2.5">
-              <HelpCircle className="w-4 h-4 text-blue-600" />
+          <div className="rounded-surface border border-border/60 bg-muted/20 p-5 space-y-3 text-foreground">
+            <div className="flex items-center gap-2 text-xs font-bold text-foreground">
+              <HelpCircle className="w-4 h-4 text-brand" />
               <span>راهنمای تایید قالب‌ها در پنل SMS.ir</span>
             </div>
 
-            <ol className="space-y-2 text-[11px] text-slate-600 dark:text-slate-400 list-decimal list-inside leading-relaxed">
+            <ol className="space-y-2 text-[11px] text-muted-foreground list-decimal list-inside leading-relaxed">
               <li>
                 در پنل SMS.ir به منوی{' '}
-                <strong className="text-slate-800 dark:text-slate-200">
-                  ارسال سریع (Verify)
-                </strong>{' '}
-                و سپس بخش{' '}
-                <strong className="text-slate-800 dark:text-slate-200">
-                  قالب‌ها
-                </strong>{' '}
+                <strong className="text-foreground">ارسال سریع (Verify)</strong>{' '}
+                و سپس بخش <strong className="text-foreground">قالب‌ها</strong>{' '}
                 مراجعه فرمایید.
               </li>
               <li>
@@ -867,7 +906,7 @@ export const SMSGatewayView: React.FC = () => {
               </li>
               <li>
                 پس از تایید،{' '}
-                <strong className="text-slate-900 dark:text-white font-mono">
+                <strong className="text-foreground font-mono font-latin">
                   Template ID
                 </strong>{' '}
                 عددی اختصاص یافته را در فیلدهای مربوطه ثبت و دکمه ذخیره را کلیک

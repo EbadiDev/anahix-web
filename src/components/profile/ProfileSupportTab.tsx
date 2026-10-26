@@ -24,6 +24,7 @@ import { createPortal } from 'react-dom'
 import { apiService } from '../../services/api'
 import type {
   Order,
+  ThemeSettings,
   TicketAttachment,
   TicketDetailResponse,
   TicketItem,
@@ -62,6 +63,52 @@ const PRIORITIES: { id: TicketPriorityType; label: string; color: string }[] = [
   { id: 'urgent', label: 'بحرانی / فوری', color: 'bg-rose-500' },
 ]
 
+function getAwaitingUserRemainingDays(dateStr?: string): {
+  days: number
+  hours: number
+  expired: boolean
+  text: string
+} {
+  if (!dateStr) return { days: 7, hours: 0, expired: false, text: '۷ روز' }
+  const replyTime = new Date(dateStr).getTime()
+  if (Number.isNaN(replyTime))
+    return { days: 7, hours: 0, expired: false, text: '۷ روز' }
+  const deadline = replyTime + 7 * 24 * 60 * 60 * 1000
+  const diff = deadline - Date.now()
+  if (diff <= 0)
+    return { days: 0, hours: 0, expired: true, text: 'مهلت پایان یافته' }
+  const days = Math.floor(diff / (24 * 60 * 60 * 1000))
+  const hours = Math.floor((diff % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000))
+  const text =
+    days > 0
+      ? `${toPersianDigits(days)} روز و ${toPersianDigits(hours)} ساعت`
+      : `${toPersianDigits(hours)} ساعت`
+  return { days, hours, expired: false, text }
+}
+
+function getResolvedRemainingDays(dateStr?: string): {
+  days: number
+  hours: number
+  expired: boolean
+  text: string
+} {
+  if (!dateStr) return { days: 3, hours: 0, expired: false, text: '۳ روز' }
+  const resolvedTime = new Date(dateStr).getTime()
+  if (Number.isNaN(resolvedTime))
+    return { days: 3, hours: 0, expired: false, text: '۳ روز' }
+  const deadline = resolvedTime + 3 * 24 * 60 * 60 * 1000
+  const diff = deadline - Date.now()
+  if (diff <= 0)
+    return { days: 0, hours: 0, expired: true, text: 'مهلت پایان یافته' }
+  const days = Math.floor(diff / (24 * 60 * 60 * 1000))
+  const hours = Math.floor((diff % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000))
+  const text =
+    days > 0
+      ? `${toPersianDigits(days)} روز و ${toPersianDigits(hours)} ساعت`
+      : `${toPersianDigits(hours)} ساعت`
+  return { days, hours, expired: false, text }
+}
+
 export const ProfileSupportTab: React.FC<ProfileSupportTabProps> = ({
   orders,
   virtualOrders,
@@ -93,6 +140,39 @@ export const ProfileSupportTab: React.FC<ProfileSupportTabProps> = ({
   const [closeTicketConfirm, setCloseTicketConfirm] = useState(false)
   const [closingTicketLoading, setClosingTicketLoading] = useState(false)
   const [replyNotifySMS, setReplyNotifySMS] = useState(true)
+
+  // System Theme & Notification Settings
+  const [themeSettings, setThemeSettings] = useState<ThemeSettings | null>(null)
+  const isSmsDisabled = themeSettings?.ticket_sms_mode === 'disabled'
+  const isEmailDisabled = themeSettings?.ticket_email_mode === 'disabled'
+
+  useEffect(() => {
+    apiService
+      .getThemeSettings()
+      .then((ts) => {
+        if (ts) {
+          setThemeSettings(ts)
+          // Handle SMS default mode
+          if (ts.ticket_sms_mode === 'disabled') {
+            setNewNotifySMS(false)
+            setReplyNotifySMS(false)
+          } else if (ts.ticket_sms_mode === 'default_off') {
+            setNewNotifySMS(false)
+          } else {
+            setNewNotifySMS(true)
+          }
+          // Handle Email default mode
+          if (ts.ticket_email_mode === 'disabled') {
+            setNewNotifyEmail(false)
+          } else if (ts.ticket_email_mode === 'default_off') {
+            setNewNotifyEmail(false)
+          } else {
+            setNewNotifyEmail(true)
+          }
+        }
+      })
+      .catch(() => {})
+  }, [])
 
   // Create new ticket modal state
   const [isCreateOpen, setIsCreateOpen] = useState(false)
@@ -155,6 +235,7 @@ export const ProfileSupportTab: React.FC<ProfileSupportTabProps> = ({
       try {
         const detail = await apiService.getTicketDetail(ticketId)
         setTicketDetail(detail)
+        setReplyNotifySMS(Boolean(detail.ticket.notify_via_sms))
         if (detail.ticket.satisfaction_rating) {
           setRatingVal(detail.ticket.satisfaction_rating)
           setRatingComment(detail.ticket.satisfaction_comment || '')
@@ -170,6 +251,26 @@ export const ProfileSupportTab: React.FC<ProfileSupportTabProps> = ({
     },
     [],
   )
+
+  const handleToggleReplyNotifySMS = async (val: boolean) => {
+    setReplyNotifySMS(val)
+    if (ticketDetail) {
+      setTicketDetail({
+        ...ticketDetail,
+        ticket: { ...ticketDetail.ticket, notify_via_sms: val },
+      })
+      setTickets((prev) =>
+        prev.map((t) =>
+          t.id === ticketDetail.ticket.id ? { ...t, notify_via_sms: val } : t,
+        ),
+      )
+      try {
+        await apiService.updateTicketNotifications(ticketDetail.ticket.id, val)
+      } catch (err) {
+        console.error('Failed to sync notification settings:', err)
+      }
+    }
+  }
 
   useEffect(() => {
     if (activeTicketId) {
@@ -379,31 +480,31 @@ export const ProfileSupportTab: React.FC<ProfileSupportTabProps> = ({
     switch (status) {
       case 'awaiting_admin':
         return (
-          <span className="bg-brand/10 text-brand border border-brand/30 rounded-control px-2.5 py-0.5 text-[11px] font-bold">
+          <span className="bg-brand/10 text-brand border border-brand/30 rounded-control px-2.5 py-0.5 text-[11px] font-bold whitespace-nowrap shrink-0">
             در انتظار پاسخ کارشناس
           </span>
         )
       case 'awaiting_user':
         return (
-          <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 rounded-control px-2.5 py-0.5 text-[11px] font-bold animate-pulse">
-            پاسخ کارشناس دریافت شد
+          <span className="bg-amber-500/10 text-amber-500 border border-amber-500/30 rounded-control px-2.5 py-0.5 text-[11px] font-bold whitespace-nowrap shrink-0">
+            در انتظار پاسخ شما
           </span>
         )
       case 'in_progress':
         return (
-          <span className="bg-secondary text-secondary-foreground border border-border/60 rounded-control px-2.5 py-0.5 text-[11px] font-bold">
+          <span className="bg-secondary text-secondary-foreground border border-border/60 rounded-control px-2.5 py-0.5 text-[11px] font-bold whitespace-nowrap shrink-0">
             در حال بررسی فنی
           </span>
         )
       case 'resolved':
         return (
-          <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 rounded-control px-2.5 py-0.5 text-[11px] font-bold">
+          <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 rounded-control px-2.5 py-0.5 text-[11px] font-bold whitespace-nowrap shrink-0">
             حل شده / پاسخ داده شده
           </span>
         )
       case 'closed':
         return (
-          <span className="bg-muted text-muted-foreground border border-border/40 rounded-control px-2.5 py-0.5 text-[11px] font-bold">
+          <span className="bg-muted text-muted-foreground border border-border/40 rounded-control px-2.5 py-0.5 text-[11px] font-bold whitespace-nowrap shrink-0">
             بسته شده
           </span>
         )
@@ -582,24 +683,24 @@ export const ProfileSupportTab: React.FC<ProfileSupportTabProps> = ({
             <div
               key={ticket.id}
               onClick={() => setActiveTicketId(ticket.id)}
-              className="p-5 rounded-surface border border-border/60 bg-card text-card-foreground shadow-surface hover:border-border duration-motion ease-motion transition-all cursor-pointer flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 group"
+              className="p-5 rounded-surface border border-border/60 bg-card text-card-foreground shadow-surface hover:border-border duration-motion ease-motion transition-all cursor-pointer flex flex-col md:flex-row items-start md:items-center justify-between gap-4 group"
             >
-              <div className="flex items-start gap-3.5">
+              <div className="flex items-start gap-3.5 flex-1 min-w-0">
                 <div className="w-11 h-11 rounded-control bg-secondary text-secondary-foreground border border-border/60 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform shadow-control">
                   <MessageSquare className="w-5 h-5 text-brand" />
                 </div>
 
-                <div className="space-y-1">
+                <div className="space-y-1 min-w-0 flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
                     <h4 className="text-xs sm:text-sm font-bold text-foreground group-hover:text-foreground/80 transition-colors">
                       {ticket.subject}
                     </h4>
-                    <span className="text-[11px] font-mono font-bold text-brand bg-brand/10 border border-brand/20 px-2 py-0.5 rounded-control">
+                    <span className="text-[11px] font-mono font-bold text-brand bg-brand/10 border border-brand/20 px-2 py-0.5 rounded-control shrink-0">
                       #{ticket.ticket_number}
                     </span>
-                    {ticket.notify_via_sms && (
+                    {!isSmsDisabled && ticket.notify_via_sms && (
                       <span
-                        className="inline-flex items-center gap-1 text-[10px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded-control"
+                        className="inline-flex items-center gap-1 text-[10px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded-control shrink-0 font-medium"
                         title="اطلاع‌رسانی پیامکی فعال است"
                       >
                         <Phone className="w-2.5 h-2.5" />
@@ -638,15 +739,45 @@ export const ProfileSupportTab: React.FC<ProfileSupportTabProps> = ({
                       </>
                     ) : null}
                   </div>
+
+                  {/* 7-Day Auto-close Notice if awaiting user */}
+                  {ticket.status === 'awaiting_user' && (
+                    <div className="pt-1 flex items-center gap-1.5 text-[11px] font-bold text-amber-500">
+                      <Clock className="w-3.5 h-3.5 text-amber-500 shrink-0 animate-pulse" />
+                      <span>
+                        مهلت پاسخ:{' '}
+                        {
+                          getAwaitingUserRemainingDays(
+                            ticket.last_reply_at || ticket.updated_at,
+                          ).text
+                        }{' '}
+                        تا بسته‌شدن خودکار
+                      </span>
+                    </div>
+                  )}
+
+                  {/* 3-Day Auto-close Notice if resolved */}
+                  {ticket.status === 'resolved' && (
+                    <div className="pt-1 flex items-center gap-1.5 text-[11px] font-bold text-emerald-500">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                      <span>
+                        حل شده • بسته‌شدن خودکار تا{' '}
+                        {getResolvedRemainingDays(ticket.updated_at).text} در
+                        صورت عدم ارسال پیام جدید
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
 
-              <div className="w-full sm:w-auto flex items-center justify-between sm:justify-end gap-3 pt-3 sm:pt-0 border-t sm:border-0 border-border/40">
-                {getStatusBadge(ticket.status)}
+              <div className="w-full md:w-auto flex items-center justify-between md:justify-end gap-2.5 pt-3 md:pt-0 border-t md:border-0 border-border/40 shrink-0">
+                <div className="shrink-0 whitespace-nowrap">
+                  {getStatusBadge(ticket.status)}
+                </div>
 
                 <button
                   type="button"
-                  className="h-8 text-xs rounded-control px-3.5 border border-border/60 bg-muted/30 hover:bg-muted text-foreground font-bold duration-motion ease-motion active:scale-[0.98] transition-colors"
+                  className="h-8 text-xs rounded-control px-3.5 border border-border/60 bg-muted/30 hover:bg-muted text-foreground font-bold duration-motion ease-motion active:scale-[0.98] transition-colors whitespace-nowrap shrink-0 cursor-pointer"
                 >
                   مشاهده گفتگو ({toPersianDigits(ticket.messages_count)})
                 </button>
@@ -713,7 +844,7 @@ export const ProfileSupportTab: React.FC<ProfileSupportTabProps> = ({
                           </span>
                         </>
                       )}
-                      {ticketDetail.ticket.notify_via_sms && (
+                      {!isSmsDisabled && ticketDetail.ticket.notify_via_sms && (
                         <>
                           <span>•</span>
                           <span className="text-emerald-400 flex items-center gap-1 font-medium">
@@ -746,15 +877,47 @@ export const ProfileSupportTab: React.FC<ProfileSupportTabProps> = ({
                       </button>
                     )}
 
-                    <button
-                      type="button"
+                    <ModalCloseButton
                       onClick={() => setActiveTicketId(null)}
-                      className="w-8 h-8 rounded-control bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors cursor-pointer"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
+                      size="sm"
+                    />
                   </div>
                 </div>
+
+                {/* 7-Day Auto-Close Countdown Banner inside Thread */}
+                {ticketDetail.ticket.status === 'awaiting_user' && (
+                  <div className="p-3 sm:px-4 bg-amber-500/10 border-b border-amber-500/30 flex items-center gap-2 text-xs text-amber-500 font-bold shrink-0">
+                    <Clock className="w-4 h-4 text-amber-500 shrink-0 animate-pulse" />
+                    <span>
+                      این تیکت در انتظار پاسخ شماست. در صورت عدم ارسال پاسخ،
+                      تیکت ظرف{' '}
+                      {
+                        getAwaitingUserRemainingDays(
+                          ticketDetail.ticket.last_reply_at ||
+                            ticketDetail.ticket.updated_at,
+                        ).text
+                      }{' '}
+                      دیگر به صورت خودکار توسط سیستم بسته خواهد شد.
+                    </span>
+                  </div>
+                )}
+
+                {/* 3-Day Auto-Close Countdown Banner inside Thread for Resolved Tickets */}
+                {ticketDetail.ticket.status === 'resolved' && (
+                  <div className="p-3 sm:px-4 bg-emerald-500/10 border-b border-emerald-500/30 flex items-center gap-2 text-xs text-emerald-600 dark:text-emerald-400 font-bold shrink-0">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                    <span>
+                      این تیکت حل شده است. در صورت نیاز به راهنمایی بیشتر
+                      می‌توانید پیام ارسال کنید تا مجدداً بررسی شود، در غیر این
+                      صورت تا{' '}
+                      {
+                        getResolvedRemainingDays(ticketDetail.ticket.updated_at)
+                          .text
+                      }{' '}
+                      دیگر به طور خودکار بسته خواهد شد.
+                    </span>
+                  </div>
+                )}
 
                 {/* Conversation Messages Container */}
                 <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4 bg-muted/20">
@@ -773,17 +936,17 @@ export const ProfileSupportTab: React.FC<ProfileSupportTabProps> = ({
                           className={`flex flex-col ${isUser ? 'items-start' : 'items-end'}`}
                         >
                           <div
-                            className={`max-w-[88%] sm:max-w-[80%] p-4 rounded-surface text-xs sm:text-sm leading-relaxed ${
+                            className={`max-w-[88%] sm:max-w-[80%] p-4 rounded-surface text-xs sm:text-sm leading-relaxed border ${
                               isUser
-                                ? 'bg-primary text-primary-foreground rounded-br-xs shadow-control'
-                                : 'bg-card text-foreground border border-border/60 rounded-bl-xs shadow-surface'
+                                ? 'bg-primary text-primary-foreground border-black/10 dark:border-white/15 rounded-br-xs shadow-control'
+                                : 'bg-card text-foreground border-border/80 rounded-bl-xs shadow-surface'
                             }`}
                           >
                             {/* Message Header */}
                             <div
                               className={`flex items-center justify-between gap-4 mb-2 pb-1.5 border-b text-[11px] font-mono font-latin ${
                                 isUser
-                                  ? 'border-primary-foreground/20 text-primary-foreground/80'
+                                  ? 'border-black/15 dark:border-white/15 text-primary-foreground/90'
                                   : 'border-border/60 text-muted-foreground'
                               }`}
                             >
@@ -792,9 +955,7 @@ export const ProfileSupportTab: React.FC<ProfileSupportTabProps> = ({
                                   <ShieldCheck className="w-3.5 h-3.5 text-brand shrink-0" />
                                 )}
                                 <span className="font-bold font-sans">
-                                  {isUser
-                                    ? 'شما (کاربر)'
-                                    : msg.sender_name || 'کارشناس رسمی آناهیکس'}
+                                  {isUser ? 'شما (کاربر)' : 'پشتیبانی آناهیکس'}
                                 </span>
                               </div>
                               <span className="text-[10px]">
@@ -1007,14 +1168,17 @@ export const ProfileSupportTab: React.FC<ProfileSupportTabProps> = ({
                       />
                     </button>
 
-                    <input
-                      type="text"
-                      placeholder="پاسخ خود را بنویسید (اسکرین‌شات را می‌توانید مستقیم Paste کنید)..."
+                    <textarea
+                      rows={1}
+                      placeholder="پاسخ خود را بنویسید (Shift+Enter سطر بعد، Enter ارسال سریع)..."
                       value={replyText}
                       onChange={(e) => setReplyText(e.target.value)}
-                      onKeyDown={(e) =>
-                        e.key === 'Enter' && !e.shiftKey && handleSendReply()
-                      }
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault()
+                          handleSendReply()
+                        }
+                      }}
                       onPaste={(e) =>
                         handlePasteImage(
                           e,
@@ -1023,7 +1187,7 @@ export const ProfileSupportTab: React.FC<ProfileSupportTabProps> = ({
                           setIsUploadingReplyAtt,
                         )
                       }
-                      className="h-10 text-xs sm:text-sm rounded-field flex-1 border border-border/60 bg-muted/20 px-3 text-foreground outline-none focus:border-brand transition-colors"
+                      className="min-h-[40px] max-h-32 py-2 text-xs sm:text-sm rounded-field flex-1 border border-border/60 bg-muted/20 px-3 text-foreground outline-none focus:border-brand transition-colors font-sans leading-relaxed resize-none"
                     />
 
                     <button
@@ -1042,15 +1206,17 @@ export const ProfileSupportTab: React.FC<ProfileSupportTabProps> = ({
 
                   {/* Preferences footer in reply box */}
                   <div className="flex items-center justify-between text-[11px] text-muted-foreground px-1 pt-1">
-                    <div className="flex items-center gap-2 select-none">
-                      <ToggleSwitch
-                        size="sm"
-                        checked={replyNotifySMS}
-                        onChange={setReplyNotifySMS}
-                        ariaLabel="ارسال پیامک با دریافت پاسخ جدید"
-                      />
-                      <span>ارسال پیامک با دریافت پاسخ جدید از پشتیبانی</span>
-                    </div>
+                    {!isSmsDisabled && (
+                      <div className="flex items-center gap-2 select-none">
+                        <ToggleSwitch
+                          size="sm"
+                          checked={replyNotifySMS}
+                          onChange={handleToggleReplyNotifySMS}
+                          ariaLabel="ارسال پیامک با دریافت پاسخ جدید"
+                        />
+                        <span>ارسال پیامک با دریافت پاسخ جدید از پشتیبانی</span>
+                      </div>
+                    )}
                     <span className="hidden sm:inline">
                       کلید Enter جهت ارسال سریع
                     </span>
@@ -1273,38 +1439,44 @@ export const ProfileSupportTab: React.FC<ProfileSupportTabProps> = ({
                   </div>
 
                   {/* Notification Toggles */}
-                  <div className="p-3.5 rounded-control bg-muted/20 border border-border/60 space-y-2">
-                    <span className="text-[11px] font-bold text-foreground block">
-                      تنظیمات اطلاع‌رسانی خودکار:
-                    </span>
+                  {(!isSmsDisabled || !isEmailDisabled) && (
+                    <div className="p-3.5 rounded-control bg-muted/20 border border-border/60 space-y-2">
+                      <span className="text-[11px] font-bold text-foreground block">
+                        تنظیمات اطلاع‌رسانی خودکار:
+                      </span>
 
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
-                      <div className="flex items-center gap-2 select-none">
-                        <ToggleSwitch
-                          size="sm"
-                          checked={newNotifySMS}
-                          onChange={setNewNotifySMS}
-                          ariaLabel="ارسال پیامک به محض پاسخ کارشناس"
-                        />
-                        <span className="text-foreground flex items-center gap-1 font-medium">
-                          <Phone className="w-3.5 h-3.5 text-emerald-400" />
-                          ارسال پیامک به محض پاسخ کارشناس پشتیبانی
-                        </span>
-                      </div>
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+                        {!isSmsDisabled && (
+                          <div className="flex items-center gap-2 select-none">
+                            <ToggleSwitch
+                              size="sm"
+                              checked={newNotifySMS}
+                              onChange={setNewNotifySMS}
+                              ariaLabel="ارسال پیامک به محض پاسخ کارشناس"
+                            />
+                            <span className="text-foreground flex items-center gap-1 font-medium">
+                              <Phone className="w-3.5 h-3.5 text-emerald-400" />
+                              ارسال پیامک به محض پاسخ کارشناس پشتیبانی
+                            </span>
+                          </div>
+                        )}
 
-                      <div className="flex items-center gap-2 select-none">
-                        <ToggleSwitch
-                          size="sm"
-                          checked={newNotifyEmail}
-                          onChange={setNewNotifyEmail}
-                          ariaLabel="ارسال ایمیل"
-                        />
-                        <span className="text-foreground font-medium">
-                          ارسال ایمیل
-                        </span>
+                        {!isEmailDisabled && (
+                          <div className="flex items-center gap-2 select-none">
+                            <ToggleSwitch
+                              size="sm"
+                              checked={newNotifyEmail}
+                              onChange={setNewNotifyEmail}
+                              ariaLabel="ارسال ایمیل"
+                            />
+                            <span className="text-foreground font-medium">
+                              ارسال ایمیل
+                            </span>
+                          </div>
+                        )}
                       </div>
                     </div>
-                  </div>
+                  )}
 
                   {/* Modal Buttons */}
                   <div className="pt-2 flex items-center justify-end gap-2.5">

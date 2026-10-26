@@ -39,13 +39,21 @@ export const BlogListPage: React.FC = () => {
   const [totalCount, setTotalCount] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
   const [isCartOpen, setIsCartOpen] = useState(false)
+  const [siteLogoUrl, setSiteLogoUrl] = useState<string>('')
 
-  // Load Categories on mount
+  // Load Categories & Theme Settings on mount
   useEffect(() => {
     api
       .getContentCategories('blog')
       .then((data) => setCategories(data))
       .catch((err) => console.error(err))
+
+    api
+      .getThemeSettings()
+      .then((st) => {
+        if (st?.site_logo_url) setSiteLogoUrl(st.site_logo_url)
+      })
+      .catch(() => {})
   }, [])
 
   // Fetch articles on filter change
@@ -219,6 +227,12 @@ export const BlogListPage: React.FC = () => {
                             src={featuredArticle.author_avatar}
                             alt={featuredArticle.author_name}
                             className="w-8 h-8 rounded-control object-cover border border-border/60"
+                          />
+                        ) : siteLogoUrl ? (
+                          <img
+                            src={siteLogoUrl}
+                            alt="لوگوی آناهیکس"
+                            className="w-8 h-8 rounded-control object-contain p-0.5 border border-border/60 bg-muted/20"
                           />
                         ) : (
                           <div className="w-8 h-8 rounded-control bg-secondary text-brand border border-border/60 flex items-center justify-center font-black text-xs">

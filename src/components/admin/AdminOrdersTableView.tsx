@@ -433,11 +433,14 @@ export const AdminOrdersTableView: React.FC = () => {
                           </td>
 
                           {/* Product Title */}
-                          <td className="py-3.5 px-4 text-center">
-                            <div className="font-bold text-foreground line-clamp-1">
+                          <td className="py-3.5 px-4 text-center max-w-[200px]">
+                            <div
+                              className="font-bold text-foreground truncate"
+                              title={ord.product_title || 'سفارش هوش مصنوعی'}
+                            >
                               {ord.product_title || 'سفارش هوش مصنوعی'}
                             </div>
-                            <div className="text-[10px] text-muted-foreground mt-0.5">
+                            <div className="text-[10px] text-muted-foreground mt-0.5 truncate">
                               شیوه تحویل:{' '}
                               <span className="font-semibold text-foreground">
                                 {ord.delivery_type}

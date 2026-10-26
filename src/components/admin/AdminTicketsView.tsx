@@ -1,12 +1,12 @@
 import {
   AlertCircle,
   Check,
+  CheckCircle2,
   Copy,
   Download,
   Eye,
   FileText,
   Image as ImageIcon,
-  LifeBuoy,
   Lock,
   Mail,
   MessageSquare,
@@ -14,6 +14,7 @@ import {
   Phone,
   RefreshCw,
   Send,
+  Settings,
   ShieldCheck,
   Sparkles,
   Star,
@@ -24,6 +25,10 @@ import type React from 'react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { apiService } from '../../services/api'
+import {
+  type CannedReply,
+  cannedRepliesService,
+} from '../../services/cannedRepliesService'
 import type {
   AdminTicketStats,
   TicketAttachment,
@@ -32,18 +37,19 @@ import type {
   TicketPriorityType,
   TicketStatusType,
 } from '../../types'
-import { Badge } from '../ui/badge'
+import { toPersianDigits } from '../../utils/formatters'
 import { Button } from '../ui/button'
-import { Input } from '../ui/input'
 import { ConfirmModal } from '../vibefarsi/ConfirmModal'
 import { ModalCloseButton } from '../vibefarsi/ModalCloseButton'
 import { useNotification } from '../vibefarsi/NotificationContext'
 import { SearchInput } from '../vibefarsi/SearchInput'
 import { ToggleSwitch } from '../vibefarsi/ToggleSwitch'
+import { AdminCannedRepliesView } from './AdminCannedRepliesView'
 
 interface AdminTicketsViewProps {
   adminUser?: any
   onUpdatePendingCount?: (count: number) => void
+  refreshTrigger?: number
 }
 
 const DEPARTMENTS = [
@@ -66,17 +72,10 @@ const PRIORITIES: { id: string; label: string; color: string }[] = [
   { id: 'urgent', label: 'بحرانی / فوری', color: 'bg-rose-500' },
 ]
 
-const CANNED_REPLIES = [
-  'کد لایسنس بررسی شد و مجددا فعال گردید. لطفاً مجدداً لاگین فرمایید.',
-  'لطفاً کش مرورگر را پاک نموده یا در پنجره ناشناس (Incognito) اقدام به لاگین نمایید.',
-  'زمان شماره مجازی به پایان رسیده بود و هزینه آن به طور کامل به موجودی کیف پول شما برگشت داده شد.',
-  'لطفاً اسکرین‌شات از خطای ظاهر شده در صفحه را برای بررسی فنی ارسال فرمایید.',
-  'درخواست شما به کارشناس فنی ارجاع شد و تا دقایقی دیگر فعال‌سازی نهایی خواهد شد.',
-]
-
 export const AdminTicketsView: React.FC<AdminTicketsViewProps> = ({
   adminUser: _adminUser,
   onUpdatePendingCount,
+  refreshTrigger,
 }) => {
   const { success: notifySuccess, error: notifyError } = useNotification()
   const [tickets, setTickets] = useState<TicketItem[]>([])
@@ -88,8 +87,19 @@ export const AdminTicketsView: React.FC<AdminTicketsViewProps> = ({
     resolved: 0,
     closed: 0,
   })
+
+  const [cannedList, setCannedList] = useState<CannedReply[]>([])
+  const [isCannedModalOpen, setIsCannedModalOpen] = useState(false)
+
+  useEffect(() => {
+    setCannedList(cannedRepliesService.getAll())
+    const handler = () => setCannedList(cannedRepliesService.getAll())
+    window.addEventListener('anahix:canned-replies-updated', handler)
+    return () =>
+      window.removeEventListener('anahix:canned-replies-updated', handler)
+  }, [])
   const [loading, setLoading] = useState<boolean>(true)
-  const [refreshing, setRefreshing] = useState<boolean>(false)
+  const [_refreshing, setRefreshing] = useState<boolean>(false)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
   // Filters & Search
@@ -108,8 +118,6 @@ export const AdminTicketsView: React.FC<AdminTicketsViewProps> = ({
   // Reply Form State
   const [replyText, setReplyText] = useState('')
   const [isInternalNote, setIsInternalNote] = useState(false)
-  const [targetStatus, setTargetStatus] =
-    useState<TicketStatusType>('awaiting_user')
   const [notifySMS, setNotifySMS] = useState(true)
   const [notifyEmail, setNotifyEmail] = useState(true)
   const [replyAttachments, setReplyAttachments] = useState<TicketAttachment[]>(
@@ -187,6 +195,12 @@ export const AdminTicketsView: React.FC<AdminTicketsViewProps> = ({
     fetchTickets()
   }, [fetchTickets])
 
+  useEffect(() => {
+    if (refreshTrigger) {
+      fetchTickets(true)
+    }
+  }, [refreshTrigger, fetchTickets])
+
   // Polling every 15 seconds
   useEffect(() => {
     const timer = setInterval(() => {
@@ -202,11 +216,6 @@ export const AdminTicketsView: React.FC<AdminTicketsViewProps> = ({
       try {
         const detail = await apiService.getAdminTicketDetail(ticketId)
         setTicketDetail(detail)
-        if (detail.ticket.status === 'awaiting_admin') {
-          setTargetStatus('awaiting_user')
-        } else {
-          setTargetStatus(detail.ticket.status)
-        }
       } catch (err: any) {
         console.error('Error fetching admin ticket detail:', err)
       } finally {
@@ -276,7 +285,11 @@ export const AdminTicketsView: React.FC<AdminTicketsViewProps> = ({
         message: replyText.trim() || 'ارسال فایل پیوست',
         is_internal: isInternalNote,
         attachments: replyAttachments,
-        status: isInternalNote ? undefined : targetStatus,
+        status: isInternalNote
+          ? undefined
+          : ticketDetail?.ticket.status === 'awaiting_admin'
+            ? 'awaiting_user'
+            : undefined,
         notify_sms: isInternalNote ? false : notifySMS,
         notify_email: isInternalNote ? false : notifyEmail,
       })
@@ -400,33 +413,33 @@ export const AdminTicketsView: React.FC<AdminTicketsViewProps> = ({
     switch (status) {
       case 'awaiting_admin':
         return (
-          <Badge className="bg-rose-500/15 text-rose-700 dark:text-rose-400 border border-rose-500/30 text-[11px] font-bold animate-pulse">
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-control bg-rose-500/15 text-rose-500 border border-rose-500/30 text-[11px] font-bold animate-pulse whitespace-nowrap shrink-0">
             در انتظار پاسخ ادمین
-          </Badge>
+          </span>
         )
       case 'awaiting_user':
         return (
-          <Badge className="bg-blue-500/15 text-blue-700 dark:text-blue-400 border border-blue-500/30 text-[11px] font-bold">
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-control bg-blue-500/15 text-blue-500 border border-blue-500/30 text-[11px] font-bold whitespace-nowrap shrink-0">
             در انتظار پاسخ کاربر
-          </Badge>
+          </span>
         )
       case 'in_progress':
         return (
-          <Badge className="bg-purple-500/15 text-purple-700 dark:text-purple-400 border border-purple-500/30 text-[11px] font-bold">
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-control bg-purple-500/15 text-purple-500 border border-purple-500/30 text-[11px] font-bold whitespace-nowrap shrink-0">
             در حال بررسی فنی
-          </Badge>
+          </span>
         )
       case 'resolved':
         return (
-          <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 text-[11px] font-bold">
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-control bg-emerald-500/15 text-emerald-500 border border-emerald-500/30 text-[11px] font-bold whitespace-nowrap shrink-0">
             حل شده / پاسخ داده شده
-          </Badge>
+          </span>
         )
       case 'closed':
         return (
-          <Badge className="bg-slate-500/15 text-slate-700 dark:text-slate-400 border border-slate-500/30 text-[11px] font-medium">
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-control bg-muted text-muted-foreground border border-border/40 text-[11px] font-bold whitespace-nowrap shrink-0">
             بسته شده
-          </Badge>
+          </span>
         )
     }
   }
@@ -462,46 +475,7 @@ export const AdminTicketsView: React.FC<AdminTicketsViewProps> = ({
   }
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300" dir="rtl">
-      {/* 1. Header Banner */}
-      <div className="rounded-3xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-xs flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-blue-600 text-white flex items-center justify-center shadow-lg shadow-blue-500/20">
-              <LifeBuoy className="w-6 h-6" />
-            </div>
-            <div>
-              <h2 className="text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
-                میزکار هوشمند تیکت‌ها و پشتیبانی (Operator Desk)
-                {stats.awaiting_admin > 0 && (
-                  <span className="px-2.5 py-0.5 text-xs font-black rounded-full bg-rose-500 text-white animate-pulse">
-                    {stats.awaiting_admin} تیکت جدید
-                  </span>
-                )}
-              </h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                پاسخگویی بلادرنگ • ارسال خودکار پیامک SMS.ir به کاربر • یادداشت
-                محرمانه اپراتور • اتصال به لایسنس و سفارش‌ها
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 self-stretch lg:self-auto">
-          <Button
-            onClick={() => fetchTickets()}
-            variant="outline"
-            disabled={refreshing}
-            className="h-10 px-4 rounded-xl border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:text-blue-600 text-xs font-bold flex items-center gap-2"
-          >
-            <RefreshCw
-              className={`w-4 h-4 ${refreshing ? 'animate-spin text-blue-600' : ''}`}
-            />
-            تازه‌سازی لیست
-          </Button>
-        </div>
-      </div>
-
+    <div className="space-y-6">
       {/* 2. Statistical KPI Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         <div
@@ -642,34 +616,52 @@ export const AdminTicketsView: React.FC<AdminTicketsViewProps> = ({
 
       {/* 4. Tickets Table & Listing */}
       {loading ? (
-        <div className="p-16 rounded-3xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 text-center space-y-3">
-          <RefreshCw className="w-8 h-8 text-blue-600 animate-spin mx-auto" />
-          <p className="text-xs text-slate-500 font-medium">
+        <div className="p-16 rounded-surface border border-border/80 bg-card text-center space-y-3 shadow-surface">
+          <RefreshCw className="w-8 h-8 text-brand animate-spin mx-auto" />
+          <p className="text-xs text-muted-foreground font-bold">
             در حال واکشی اطلاعات تیکت‌ها از سرور...
           </p>
         </div>
       ) : errorMsg ? (
-        <div className="p-8 rounded-2xl border border-rose-200 dark:border-rose-900/50 bg-rose-50 dark:bg-rose-950/20 text-center space-y-2">
-          <AlertCircle className="w-8 h-8 text-rose-500 mx-auto" />
-          <p className="text-xs text-rose-600 font-bold">{errorMsg}</p>
-          <Button
+        <div className="p-8 rounded-surface border border-destructive/30 bg-destructive/10 text-center space-y-3">
+          <AlertCircle className="w-8 h-8 text-destructive mx-auto" />
+          <p className="text-xs text-destructive font-bold">{errorMsg}</p>
+          <button
+            type="button"
             onClick={() => fetchTickets()}
-            size="sm"
-            variant="outline"
-            className="text-xs rounded-xl"
+            className="h-9 px-4 rounded-control border border-border/60 bg-card hover:bg-muted text-foreground text-xs font-bold transition-all shadow-xs cursor-pointer"
           >
             تلاش مجدد
-          </Button>
+          </button>
         </div>
       ) : tickets.length === 0 ? (
-        <div className="p-16 rounded-3xl border border-dashed border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-center space-y-2">
-          <MessageSquare className="w-10 h-10 text-slate-300 dark:text-slate-700 mx-auto" />
-          <h4 className="text-sm font-bold text-slate-700 dark:text-slate-300">
+        <div className="p-16 rounded-surface border border-border/80 bg-card text-center space-y-3 shadow-surface">
+          <div className="w-12 h-12 rounded-control bg-secondary text-brand border border-border/60 flex items-center justify-center mx-auto shadow-xs">
+            <MessageSquare className="w-6 h-6 text-brand" />
+          </div>
+          <h4 className="text-sm font-black text-foreground">
             تیکتی با فیلترهای انتخابی یافت نشد
           </h4>
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-muted-foreground max-w-sm mx-auto">
             تمامی تیکت‌های این بخش پاسخ داده شده‌اند یا موردی ثبت نشده است.
           </p>
+          {(statusFilter !== 'all' ||
+            departmentFilter !== 'all' ||
+            priorityFilter !== 'all' ||
+            searchQuery) && (
+            <button
+              type="button"
+              onClick={() => {
+                setStatusFilter('all')
+                setDepartmentFilter('all')
+                setPriorityFilter('all')
+                setSearchQuery('')
+              }}
+              className="h-8 px-3.5 rounded-control border border-border/60 bg-secondary hover:bg-muted text-foreground text-xs font-bold transition-all shadow-xs cursor-pointer mt-2"
+            >
+              پاکسازی فیلترها
+            </button>
+          )}
         </div>
       ) : (
         <div className="rounded-surface border border-border/80 bg-card shadow-surface overflow-hidden">
@@ -678,9 +670,7 @@ export const AdminTicketsView: React.FC<AdminTicketsViewProps> = ({
               <thead className="bg-muted/40 text-muted-foreground font-semibold border-b border-border/60 select-none">
                 <tr>
                   <th className="py-3.5 px-4 text-center">شناسه و اولویت</th>
-                  <th className="py-3.5 px-4 text-right pr-6">
-                    موضوع و دپارتمان
-                  </th>
+                  <th className="py-3.5 px-4 text-center">موضوع و دپارتمان</th>
                   <th className="py-3.5 px-4 text-center">کاربر / مشتری</th>
                   <th className="py-3.5 px-4 text-center">سفارش مرتبط</th>
                   <th className="py-3.5 px-4 text-center">وضعیت</th>
@@ -702,11 +692,19 @@ export const AdminTicketsView: React.FC<AdminTicketsViewProps> = ({
                       </div>
                     </td>
 
-                    <td className="py-3.5 px-4 text-right pr-6">
-                      <div className="font-bold text-foreground max-w-xs truncate group-hover:text-brand transition-colors">
+                    <td className="py-3.5 px-4 text-center max-w-[200px] sm:max-w-xs">
+                      <div
+                        className="font-bold text-foreground truncate group-hover:text-brand transition-colors text-center"
+                        title={t.subject}
+                      >
                         {t.subject}
                       </div>
-                      <div className="text-[11px] text-muted-foreground mt-0.5">
+                      <div
+                        className="text-[11px] text-muted-foreground mt-0.5 truncate text-center"
+                        title={
+                          DEPARTMENTS.find((d) => d.id === t.department)?.label
+                        }
+                      >
                         دپارتمان:{' '}
                         {DEPARTMENTS.find(
                           (d) => d.id === t.department,
@@ -714,17 +712,80 @@ export const AdminTicketsView: React.FC<AdminTicketsViewProps> = ({
                       </div>
                     </td>
 
-                    <td className="py-3.5 px-4 text-center">
-                      <div className="font-medium text-foreground">
-                        {t.customer_name || 'کاربر'}
-                      </div>
-                      <div className="font-mono font-latin text-[11px] text-muted-foreground mt-0.5 flex items-center justify-center gap-1">
-                        <Phone className="w-3 h-3 text-emerald-500" />
-                        {t.customer_phone}
+                    <td className="py-3.5 px-4 text-center max-w-[140px]">
+                      <div className="relative inline-block group/user">
+                        <div className="font-bold text-foreground truncate cursor-pointer hover:text-brand transition-colors text-xs flex items-center justify-center gap-1.5 py-1">
+                          <span>{t.customer_name || 'کاربر بدون نام'}</span>
+                        </div>
+                        {/* VibeFarsi Interactive Tooltip on Hover */}
+                        <div className="absolute top-full left-1/2 -translate-x-1/2 pt-1 hidden group-hover/user:block z-50 animate-in fade-in zoom-in-95 duration-150">
+                          <div className="w-64 p-3 rounded-surface bg-card border border-border/80 shadow-overlay text-right space-y-2 select-text pointer-events-auto">
+                            <div className="font-bold text-foreground border-b border-border/40 pb-1.5 flex items-center justify-between text-xs">
+                              <span>اطلاعات تماس کاربر</span>
+                              <User className="w-3.5 h-3.5 text-brand" />
+                            </div>
+                            <div className="flex items-center justify-between gap-2 p-1.5 rounded-control bg-secondary/50 border border-border/40 text-xs">
+                              <div className="flex items-center gap-1.5 font-mono font-latin font-bold text-foreground">
+                                <Phone className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                                <span>{t.customer_phone || '—'}</span>
+                              </div>
+                              {t.customer_phone && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    navigator.clipboard.writeText(
+                                      t.customer_phone,
+                                    )
+                                    notifySuccess(
+                                      'کپی شد',
+                                      'شماره موبایل در کلیپ‌بورد کپی شد',
+                                    )
+                                  }}
+                                  className="p-1 rounded-control hover:bg-muted text-muted-foreground hover:text-foreground cursor-pointer transition shrink-0"
+                                  title="کپی شماره موبایل"
+                                >
+                                  <Copy className="w-3 h-3" />
+                                </button>
+                              )}
+                            </div>
+                            <div className="flex items-center justify-between gap-2 p-1.5 rounded-control bg-secondary/50 border border-border/40 text-xs">
+                              <div className="flex items-center gap-1.5 font-mono font-latin text-foreground truncate min-w-0 flex-1">
+                                <Mail className="w-3.5 h-3.5 text-brand shrink-0" />
+                                <span
+                                  className="truncate"
+                                  title={t.customer_email || 'ایمیل ثبت نشده'}
+                                >
+                                  {t.customer_email || 'ایمیل ثبت نشده'}
+                                </span>
+                              </div>
+                              {t.customer_email && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    navigator.clipboard.writeText(
+                                      t.customer_email,
+                                    )
+                                    notifySuccess(
+                                      'کپی شد',
+                                      'ایمیل در کلیپ‌بورد کپی شد',
+                                    )
+                                  }}
+                                  className="p-1 rounded-control hover:bg-muted text-muted-foreground hover:text-foreground cursor-pointer transition shrink-0"
+                                  title="کپی ایمیل"
+                                >
+                                  <Copy className="w-3 h-3" />
+                                </button>
+                              )}
+                            </div>
+                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-card" />
+                          </div>
+                        </div>
                       </div>
                     </td>
 
-                    <td className="py-3.5 px-4 text-center">
+                    <td className="py-3.5 px-4 text-center max-w-[130px]">
                       {t.related_order_no ? (
                         <div
                           onClick={(e) => {
@@ -733,14 +794,16 @@ export const AdminTicketsView: React.FC<AdminTicketsViewProps> = ({
                               handleCopy(t.related_order_no, t.id)
                             }
                           }}
-                          className="inline-flex items-center gap-1 font-mono font-latin text-[11px] font-bold text-brand bg-brand/10 border border-brand/20 px-2 py-0.5 rounded-control hover:bg-brand/20 transition-colors cursor-pointer"
-                          title="کلیک جهت کپی شماره سفارش"
+                          className="inline-flex items-center gap-1 font-mono font-latin text-[11px] font-bold text-brand bg-brand/10 border border-brand/20 px-2 py-0.5 rounded-control hover:bg-brand/20 transition-colors cursor-pointer max-w-[125px] whitespace-nowrap shadow-xs"
+                          title={`شماره سفارش: #${t.related_order_no} (کلیک جهت کپی)`}
                         >
-                          <span>#{t.related_order_no}</span>
+                          <span className="truncate">
+                            #{t.related_order_no}
+                          </span>
                           {copiedOrderId === t.id ? (
-                            <Check className="w-3 h-3 text-emerald-500" />
+                            <Check className="w-3 h-3 text-emerald-500 shrink-0" />
                           ) : (
-                            <Copy className="w-3 h-3 opacity-60" />
+                            <Copy className="w-3 h-3 opacity-60 shrink-0" />
                           )}
                         </div>
                       ) : (
@@ -750,7 +813,7 @@ export const AdminTicketsView: React.FC<AdminTicketsViewProps> = ({
                       )}
                     </td>
 
-                    <td className="py-3.5 px-4 text-center">
+                    <td className="py-3.5 px-4 text-center whitespace-nowrap min-w-[140px]">
                       {getStatusBadge(t.status)}
                     </td>
 
@@ -816,47 +879,38 @@ export const AdminTicketsView: React.FC<AdminTicketsViewProps> = ({
             dir="rtl"
           >
             <div className="min-h-full w-full flex items-start sm:items-center justify-center">
-              <div className="w-full max-w-4xl my-auto bg-card text-card-foreground rounded-surface border border-border/80 shadow-overlay overflow-hidden flex flex-col h-[92vh] max-h-[850px] animate-in zoom-in-95">
+              <div className="w-full max-w-4xl my-auto bg-card text-card-foreground rounded-surface border border-border/80 shadow-overlay overflow-hidden flex flex-col h-[92vh] max-h-[850px] animate-in zoom-in-95 duration-200">
                 {/* Modal Header */}
-                <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div className="p-4 sm:p-5 border-b border-border/60 bg-muted/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shrink-0">
                   <div className="min-w-0 space-y-1">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="text-base font-bold text-slate-900 dark:text-white truncate">
+                      <h3 className="text-base font-black text-foreground truncate">
                         {ticketDetail.ticket.subject}
                       </h3>
-                      <span className="text-xs font-mono font-bold text-blue-600 bg-blue-50 dark:bg-blue-950 px-2 py-0.5 rounded-md">
+                      <span className="text-xs font-mono font-latin font-bold text-brand bg-brand/10 border border-brand/20 px-2 py-0.5 rounded-control">
                         #{ticketDetail.ticket.ticket_number}
                       </span>
                       {getStatusBadge(ticketDetail.ticket.status)}
                       {getPriorityBadge(ticketDetail.ticket.priority)}
                     </div>
 
-                    <div className="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400 flex-wrap">
-                      <span className="font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1">
-                        <User className="w-3.5 h-3.5 text-blue-500" />
+                    <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
+                      <span className="font-bold text-foreground flex items-center gap-1">
+                        <User className="w-3.5 h-3.5 text-brand" />
                         {ticketDetail.ticket.customer_name} (
                         {ticketDetail.ticket.customer_phone})
                       </span>
                       {ticketDetail.ticket.customer_email && (
-                        <span className="flex items-center gap-1 font-mono">
-                          <Mail className="w-3.5 h-3.5" />
+                        <span className="flex items-center gap-1 font-mono font-latin">
+                          <Mail className="w-3.5 h-3.5 text-brand" />
                           {ticketDetail.ticket.customer_email}
                         </span>
                       )}
                       {ticketDetail.ticket.related_order_no && (
-                        <span className="text-purple-600 dark:text-purple-400 font-mono font-bold">
+                        <span className="text-brand font-mono font-latin font-bold bg-brand/10 border border-brand/20 px-2 py-0.2 rounded-control">
                           سفارش مرتبط: #{ticketDetail.ticket.related_order_no}
                         </span>
                       )}
-                      {ticketDetail.ticket.satisfaction_rating ? (
-                        <span className="inline-flex items-center gap-1 text-amber-500 font-bold bg-amber-50 dark:bg-amber-950/60 px-2 py-0.5 rounded-md">
-                          <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
-                          رضایت کاربر: {ticketDetail.ticket.satisfaction_rating}
-                          /۵
-                          {ticketDetail.ticket.satisfaction_comment &&
-                            ` (${ticketDetail.ticket.satisfaction_comment})`}
-                        </span>
-                      ) : null}
                     </div>
                   </div>
 
@@ -870,7 +924,7 @@ export const AdminTicketsView: React.FC<AdminTicketsViewProps> = ({
                           e.target.value as TicketStatusType,
                         )
                       }
-                      className="h-8 px-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-200 text-xs font-bold"
+                      className="h-8 px-2.5 rounded-field border border-border/60 bg-muted/20 text-foreground text-xs font-bold outline-none focus:border-brand cursor-pointer"
                     >
                       <option value="awaiting_admin">در انتظار ادمین</option>
                       <option value="awaiting_user">در انتظار کاربر</option>
@@ -887,7 +941,7 @@ export const AdminTicketsView: React.FC<AdminTicketsViewProps> = ({
                           e.target.value as TicketPriorityType,
                         )
                       }
-                      className="h-8 px-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-200 text-xs"
+                      className="h-8 px-2.5 rounded-field border border-border/60 bg-muted/20 text-foreground text-xs font-bold outline-none focus:border-brand cursor-pointer"
                     >
                       <option value="low">کم</option>
                       <option value="medium">متوسط</option>
@@ -902,11 +956,55 @@ export const AdminTicketsView: React.FC<AdminTicketsViewProps> = ({
                   </div>
                 </div>
 
+                {/* Customer Satisfaction Rating & Feedback Banner */}
+                {Boolean(
+                  ticketDetail.ticket.satisfaction_rating &&
+                    ticketDetail.ticket.satisfaction_rating > 0,
+                ) && (
+                  <div className="p-3.5 sm:p-4 bg-amber-500/10 border-b border-amber-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs shrink-0 shadow-xs">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                        <span className="font-bold text-foreground text-sm">
+                          نظر و امتیاز ثبت‌شده برای این تیکت (
+                          {toPersianDigits(
+                            ticketDetail.ticket.satisfaction_rating ?? 0,
+                          )}{' '}
+                          از ۵ ستاره)
+                        </span>
+                      </div>
+                      {ticketDetail.ticket.satisfaction_comment && (
+                        <p className="text-foreground/90 text-xs font-sans pr-6">
+                          <span className="font-bold text-amber-500 ml-1">
+                            توضیحات و بازخورد کاربر:
+                          </span>
+                          «{ticketDetail.ticket.satisfaction_comment}»
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1 text-amber-400 bg-card px-2.5 py-1 rounded-control border border-border/40 shrink-0">
+                      {[1, 2, 3, 4, 5].map((s) => (
+                        <Star
+                          key={s}
+                          className={`w-3.5 h-3.5 ${
+                            s <= (ticketDetail.ticket.satisfaction_rating ?? 0)
+                              ? 'fill-amber-400 text-amber-400'
+                              : 'text-muted-foreground/30'
+                          }`}
+                        />
+                      ))}
+                      <span className="font-mono font-latin font-bold text-xs text-foreground mr-1">
+                        {ticketDetail.ticket.satisfaction_rating}/5
+                      </span>
+                    </div>
+                  </div>
+                )}
+
                 {/* Conversation History */}
-                <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4 bg-slate-50/70 dark:bg-slate-950/70">
+                <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4 bg-muted/20">
                   {loadingDetail ? (
-                    <div className="py-16 text-center text-xs text-slate-400">
-                      <RefreshCw className="w-6 h-6 text-blue-600 animate-spin mx-auto mb-2" />
+                    <div className="py-16 text-center text-xs text-muted-foreground">
+                      <RefreshCw className="w-6 h-6 text-brand animate-spin mx-auto mb-2" />
                       در حال واکشی پیام‌ها...
                     </div>
                   ) : (
@@ -927,45 +1025,47 @@ export const AdminTicketsView: React.FC<AdminTicketsViewProps> = ({
                         >
                           {isInternal ? (
                             /* Internal Operator Note Box */
-                            <div className="w-full max-w-xl p-3.5 rounded-2xl bg-amber-50/90 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800/60 shadow-xs text-xs space-y-1">
-                              <div className="flex items-center justify-between text-amber-800 dark:text-amber-300 font-bold text-[11px]">
+                            <div className="w-full max-w-xl p-3.5 rounded-surface bg-amber-500/10 border border-amber-500/30 shadow-surface text-xs space-y-1">
+                              <div className="flex items-center justify-between text-amber-500 font-bold text-[11px]">
                                 <span className="flex items-center gap-1.5">
                                   <Lock className="w-3.5 h-3.5" />
-                                  {msg.sender_name} (محرمانه / غیرقابل دیدن توسط
-                                  کاربر)
+                                  <span>
+                                    یادداشت محرمانه پرسنل پشتیبانی (غیرقابل
+                                    مشاهده توسط خریدار)
+                                  </span>
                                 </span>
-                                <span className="font-mono text-[10px]">
+                                <span className="font-mono font-latin text-[10px]">
                                   {formatPersianDate(msg.created_at)}
                                 </span>
                               </div>
-                              <p className="text-amber-950 dark:text-amber-100 leading-relaxed font-sans">
+                              <p className="text-foreground leading-relaxed font-sans">
                                 {msg.message}
                               </p>
                             </div>
                           ) : (
                             /* Standard Chat Bubble */
                             <div
-                              className={`max-w-[85%] sm:max-w-[75%] p-4 rounded-2xl text-xs sm:text-sm leading-relaxed ${
+                              className={`max-w-[85%] sm:max-w-[75%] p-4 rounded-surface text-xs sm:text-sm leading-relaxed border ${
                                 isUser
-                                  ? 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-700 rounded-bl-xs shadow-xs'
-                                  : 'bg-blue-600 text-white rounded-br-xs shadow-md shadow-blue-500/10'
+                                  ? 'bg-card text-foreground border-border/80 rounded-bl-xs shadow-surface'
+                                  : 'bg-primary text-primary-foreground border-black/10 dark:border-white/15 rounded-br-xs shadow-control'
                               }`}
                             >
                               <div
-                                className={`flex items-center justify-between gap-4 mb-2 pb-1.5 border-b text-[11px] font-mono ${
+                                className={`flex items-center justify-between gap-4 mb-2 pb-1.5 border-b text-[11px] font-mono font-latin ${
                                   isUser
-                                    ? 'border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400'
-                                    : 'border-blue-500/40 text-blue-100'
+                                    ? 'border-border/60 text-muted-foreground'
+                                    : 'border-black/15 dark:border-white/15 text-primary-foreground/90'
                                 }`}
                               >
                                 <div className="flex items-center gap-1.5">
                                   {!isUser && (
-                                    <ShieldCheck className="w-3.5 h-3.5 text-blue-200" />
+                                    <ShieldCheck className="w-3.5 h-3.5 text-primary-foreground shrink-0" />
                                   )}
                                   <span className="font-bold font-sans">
                                     {isUser
                                       ? `کاربر (${ticketDetail.ticket.customer_name})`
-                                      : msg.sender_name}
+                                      : 'پشتیبانی آناهیکس'}
                                   </span>
                                 </div>
                                 <span className="text-[10px]">
@@ -980,7 +1080,7 @@ export const AdminTicketsView: React.FC<AdminTicketsViewProps> = ({
                               {/* Attachments rendering */}
                               {msg.attachments &&
                                 msg.attachments.length > 0 && (
-                                  <div className="mt-3 pt-2.5 border-t border-slate-200/50 dark:border-slate-700/50 space-y-2">
+                                  <div className="mt-3 pt-2.5 border-t border-border/40 space-y-2">
                                     <span className="text-[10px] font-bold block opacity-75">
                                       پیوست‌ها ({msg.attachments.length}):
                                     </span>
@@ -995,14 +1095,14 @@ export const AdminTicketsView: React.FC<AdminTicketsViewProps> = ({
                                               onClick={() =>
                                                 setZoomImage(att.file_url)
                                               }
-                                              className="cursor-pointer overflow-hidden rounded-xl border border-slate-200/60 dark:border-slate-700 bg-slate-950/10 relative w-24 h-24 sm:w-28 sm:h-28"
+                                              className="cursor-pointer overflow-hidden rounded-control border border-border/60 bg-muted/40 relative w-24 h-24 sm:w-28 sm:h-28 shadow-xs"
                                             >
                                               <img
                                                 src={att.file_url}
                                                 alt={att.file_name}
                                                 className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                                               />
-                                              <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
+                                              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
                                                 <Eye className="w-4 h-4" />
                                               </div>
                                             </div>
@@ -1011,7 +1111,7 @@ export const AdminTicketsView: React.FC<AdminTicketsViewProps> = ({
                                               href={att.file_url}
                                               target="_blank"
                                               rel="noreferrer"
-                                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white/10 text-[11px] font-mono hover:bg-white/20 transition-colors"
+                                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-control border border-border/60 bg-secondary text-foreground text-[11px] font-mono hover:bg-muted transition-colors shadow-xs"
                                             >
                                               <Download className="w-3.5 h-3.5" />
                                               <span className="truncate max-w-[120px]">
@@ -1034,58 +1134,71 @@ export const AdminTicketsView: React.FC<AdminTicketsViewProps> = ({
                 </div>
 
                 {/* Canned Quick Replies Palette */}
-                <div className="px-4 py-2 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 flex items-center gap-2 overflow-x-auto text-[11px]">
-                  <span className="font-bold text-slate-500 whitespace-nowrap flex items-center gap-1">
-                    <Sparkles className="w-3 h-3 text-amber-500" />
-                    پاسخ‌های آماده:
-                  </span>
-                  {CANNED_REPLIES.map((canned) => (
-                    <button
-                      key={canned}
-                      type="button"
-                      onClick={() => setReplyText(canned)}
-                      className="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:text-blue-600 hover:border-blue-300 dark:hover:border-blue-700 whitespace-nowrap transition-colors"
-                    >
-                      {canned.substring(0, 32)}...
-                    </button>
-                  ))}
+                <div className="px-4 py-2 border-t border-border/60 bg-muted/30 flex items-center justify-between gap-2 overflow-x-auto text-[11px] scrollbar-none">
+                  <div className="flex items-center gap-2 overflow-x-auto scrollbar-none py-0.5">
+                    <span className="font-bold text-muted-foreground whitespace-nowrap flex items-center gap-1 shrink-0">
+                      <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                      <span>پاسخ‌های آماده:</span>
+                    </span>
+                    {cannedList.map((canned) => (
+                      <button
+                        key={canned.id}
+                        type="button"
+                        onClick={() => setReplyText(canned.text)}
+                        className="px-2.5 py-1 rounded-control bg-secondary hover:bg-muted text-foreground border border-border/60 text-xs font-medium whitespace-nowrap transition-colors cursor-pointer shadow-xs shrink-0"
+                        title={canned.text}
+                      >
+                        {canned.title || canned.text.substring(0, 32)}
+                      </button>
+                    ))}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsCannedModalOpen(true)}
+                    className="px-2.5 py-1 rounded-control bg-brand/10 hover:bg-brand/20 text-brand border border-brand/20 text-xs font-bold whitespace-nowrap transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs shrink-0"
+                    title="مدیریت و افزودن پاسخ‌های آماده"
+                  >
+                    <Settings className="w-3.5 h-3.5" />
+                    <span>مدیریت پاسخ‌ها</span>
+                  </button>
                 </div>
 
                 {/* Operator Reply & Action Box */}
-                <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-3">
+                <div className="p-4 border-t border-border/60 bg-card space-y-3 shrink-0">
                   {/* Mode Switch & Settings */}
                   <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs">
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
                         onClick={() => setIsInternalNote(false)}
-                        className={`px-3 py-1.5 rounded-xl font-bold transition-all flex items-center gap-1.5 ${
+                        className={`h-8 px-3.5 rounded-control font-black text-xs transition-all flex items-center gap-1.5 shadow-control cursor-pointer duration-motion active:scale-[0.98] ${
                           !isInternalNote
-                            ? 'bg-blue-600 text-white shadow-xs'
-                            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-secondary text-muted-foreground border border-border/60 hover:text-foreground'
                         }`}
                       >
                         <Send className="w-3.5 h-3.5" />
-                        پاسخ رسمی به کاربر
+                        <span>پاسخ رسمی به کاربر</span>
                       </button>
 
                       <button
                         type="button"
                         onClick={() => setIsInternalNote(true)}
-                        className={`px-3 py-1.5 rounded-xl font-bold transition-all flex items-center gap-1.5 ${
+                        className={`h-8 px-3.5 rounded-control font-black text-xs transition-all flex items-center gap-1.5 shadow-control cursor-pointer duration-motion active:scale-[0.98] ${
                           isInternalNote
-                            ? 'bg-amber-500 text-white shadow-xs'
-                            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                            ? 'bg-amber-500 text-white'
+                            : 'bg-secondary text-muted-foreground border border-border/60 hover:text-foreground'
                         }`}
                       >
                         <Lock className="w-3.5 h-3.5" />
-                        یادداشت محرمانه اپراتور
+                        <span>یادداشت محرمانه اپراتور</span>
                       </button>
                     </div>
 
                     {!isInternalNote && (
                       <div className="flex items-center gap-4 text-[11px] text-muted-foreground">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 select-none">
                           <ToggleSwitch
                             size="sm"
                             checked={notifySMS}
@@ -1097,7 +1210,7 @@ export const AdminTicketsView: React.FC<AdminTicketsViewProps> = ({
                           </span>
                         </div>
 
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 select-none">
                           <ToggleSwitch
                             size="sm"
                             checked={notifyEmail}
@@ -1117,10 +1230,10 @@ export const AdminTicketsView: React.FC<AdminTicketsViewProps> = ({
                       {replyAttachments.map((att, idx) => (
                         <div
                           key={att.id}
-                          className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 text-[11px] text-blue-700 dark:text-blue-300 font-mono"
+                          className="flex items-center gap-1.5 px-2.5 py-1 rounded-control bg-secondary text-foreground border border-border/60 text-[11px] font-mono font-latin shadow-xs"
                         >
                           {att.is_image ? (
-                            <ImageIcon className="w-3 h-3 text-blue-500" />
+                            <ImageIcon className="w-3 h-3 text-brand" />
                           ) : (
                             <FileText className="w-3 h-3" />
                           )}
@@ -1134,7 +1247,7 @@ export const AdminTicketsView: React.FC<AdminTicketsViewProps> = ({
                                 replyAttachments.filter((_, i) => i !== idx),
                               )
                             }
-                            className="text-slate-400 hover:text-rose-500 mr-1"
+                            className="text-muted-foreground hover:text-rose-500 mr-1 cursor-pointer"
                           >
                             ✕
                           </button>
@@ -1143,82 +1256,77 @@ export const AdminTicketsView: React.FC<AdminTicketsViewProps> = ({
                     </div>
                   )}
 
-                  {/* Input Area */}
-                  <div className="flex items-center gap-2">
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      className="hidden"
-                      accept="image/*,.pdf,.zip,.log,.txt"
-                      onChange={(e) => {
-                        const f = e.target.files?.[0]
-                        if (f) handleUploadFile(f)
-                      }}
-                    />
-
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      disabled={isUploadingAtt}
-                      onClick={() => fileInputRef.current?.click()}
-                      className="h-10 px-3 rounded-xl border-slate-200 dark:border-slate-800 text-slate-500 hover:text-blue-600 text-xs shrink-0"
-                      title="پیوست تصویر، راهنما یا لایسنس"
-                    >
-                      <Paperclip
-                        className={`w-4 h-4 ${isUploadingAtt ? 'animate-pulse text-blue-600' : ''}`}
-                      />
-                    </Button>
-
-                    <Input
-                      type="text"
+                  {/* Multiline Textarea Input Area */}
+                  <div className="space-y-2">
+                    <textarea
+                      rows={2}
                       placeholder={
                         isInternalNote
-                          ? 'یادداشت داخلی اپراتورها را بنویسید (فقط پرسنل پشتیبانی می‌بینند)...'
-                          : 'پاسخ رسمی به خریدار را بنویسید (اسکرین‌شات را مستقیماً Paste کنید)...'
+                          ? 'یادداشت داخلی اپراتورها را بنویسید (Shift+Enter سطر بعد، Enter ثبت یادداشت)...'
+                          : 'پاسخ رسمی به خریدار را بنویسید (Shift+Enter سطر بعد، Enter ارسال پیام)...'
                       }
                       value={replyText}
                       onChange={(e) => setReplyText(e.target.value)}
-                      onKeyDown={(e) =>
-                        e.key === 'Enter' && !e.shiftKey && handleSendReply()
-                      }
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault()
+                          handleSendReply()
+                        }
+                      }}
                       onPaste={handlePasteImage}
-                      className="h-10 text-xs rounded-xl flex-1 border-slate-200 dark:border-slate-800"
+                      className="w-full p-2.5 rounded-field border border-border/60 bg-muted/20 text-xs text-foreground focus:outline-none focus:border-brand font-sans leading-relaxed resize-none"
                     />
 
-                    {!isInternalNote && (
-                      <select
-                        value={targetStatus}
-                        onChange={(e) =>
-                          setTargetStatus(e.target.value as TicketStatusType)
-                        }
-                        className="h-10 px-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-200 text-xs shrink-0 font-medium"
-                        title="وضعیت تیکت پس از ارسال این پاسخ"
-                      >
-                        <option value="awaiting_user">
-                          در انتظار پاسخ کاربر
-                        </option>
-                        <option value="resolved">حل شده و خاتمه یافته</option>
-                        <option value="in_progress">در حال بررسی فنی</option>
-                        <option value="closed">بستن نهایی تیکت</option>
-                      </select>
-                    )}
+                    <div className="flex items-center justify-between gap-2 pt-1">
+                      <div>
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          className="hidden"
+                          accept="image/*,.pdf,.zip,.log,.txt"
+                          onChange={(e) => {
+                            const f = e.target.files?.[0]
+                            if (f) handleUploadFile(f)
+                          }}
+                        />
 
-                    <Button
-                      onClick={handleSendReply}
-                      disabled={
-                        sendingReply ||
-                        (!replyText.trim() && replyAttachments.length === 0)
-                      }
-                      className={`h-10 px-5 rounded-xl font-bold text-xs shrink-0 active:scale-98 transition-all ${
-                        isInternalNote
-                          ? 'bg-amber-500 hover:bg-amber-600 text-white'
-                          : 'bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-600/20'
-                      }`}
-                    >
-                      <Send className="w-4 h-4 ml-1.5" />
-                      {isInternalNote ? 'ثبت یادداشت' : 'ارسال پاسخ'}
-                    </Button>
+                        <button
+                          type="button"
+                          disabled={isUploadingAtt}
+                          onClick={() => fileInputRef.current?.click()}
+                          className="h-9 px-3 rounded-control border border-border/60 bg-secondary hover:bg-muted text-foreground text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs disabled:opacity-50"
+                          title="پیوست تصویر، راهنما یا لایسنس"
+                        >
+                          <Paperclip
+                            className={`w-3.5 h-3.5 ${isUploadingAtt ? 'animate-pulse text-brand' : ''}`}
+                          />
+                          <span>پیوست فایل</span>
+                        </button>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={handleSendReply}
+                        disabled={
+                          sendingReply ||
+                          (!replyText.trim() && replyAttachments.length === 0)
+                        }
+                        className={`h-9 px-5 rounded-control font-black text-xs shrink-0 duration-motion active:scale-[0.98] transition-all flex items-center gap-2 cursor-pointer shadow-control disabled:opacity-50 ${
+                          isInternalNote
+                            ? 'bg-amber-500 hover:bg-amber-600 text-white'
+                            : 'bg-primary hover:bg-primary-hover text-primary-foreground'
+                        }`}
+                      >
+                        {sendingReply ? (
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <Send className="w-3.5 h-3.5" />
+                        )}
+                        <span>
+                          {isInternalNote ? 'ثبت یادداشت' : 'ارسال پاسخ رسمی'}
+                        </span>
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1280,6 +1388,40 @@ export const AdminTicketsView: React.FC<AdminTicketsViewProps> = ({
           })
         }
       />
+      {/* Canned Replies Modal inside Ticket Workbench */}
+      {isCannedModalOpen &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[2147483645] overflow-y-auto bg-black/80 backdrop-blur-md p-3 sm:p-6 animate-in fade-in"
+            dir="rtl"
+          >
+            <div className="min-h-full w-full flex items-center justify-center">
+              <div className="w-full max-w-3xl bg-card rounded-surface border border-border/80 shadow-overlay p-6 space-y-4 animate-in zoom-in-95 duration-200">
+                <div className="flex items-center justify-between border-b border-border/60 pb-3">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-brand" />
+                    <h3 className="text-base font-black text-foreground">
+                      مدیریت و انتخاب پاسخ‌های آماده (Canned Responses)
+                    </h3>
+                  </div>
+                  <ModalCloseButton
+                    onClick={() => setIsCannedModalOpen(false)}
+                    size="sm"
+                  />
+                </div>
+
+                <AdminCannedRepliesView
+                  isModalMode={true}
+                  onSelectReply={(text) => {
+                    setReplyText(text)
+                    setIsCannedModalOpen(false)
+                  }}
+                />
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
     </div>
   )
 }

@@ -1101,6 +1101,7 @@ export const apiService = {
     template_order_complete?: string
     template_renewal?: string
     is_sandbox?: boolean
+    ticket_sms_mode?: string
   }): Promise<void> {
     const token = this.getAdminToken()
     const res = await fetch('/api/v1/admin/settings/sms', {
@@ -1878,6 +1879,26 @@ export const apiService = {
       return json.data
     }
     throw new Error(json.msg || 'خطا در بستن تیکت')
+  },
+
+  async updateTicketNotifications(
+    ticketId: string,
+    notifyViaSMS: boolean,
+  ): Promise<{ updated: boolean }> {
+    const token = this.getCustomerToken()
+    const res = await fetch(`/api/v1/tickets/${ticketId}/notifications`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ notify_via_sms: notifyViaSMS }),
+    })
+    const json = await res.json()
+    if (res.ok && json.code === 200) {
+      return json.data
+    }
+    throw new Error(json.msg || 'خطا در به‌روزرسانی تنظیمات اعلان پیامک')
   },
 
   async rateTicket(

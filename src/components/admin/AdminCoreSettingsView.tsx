@@ -1,4 +1,5 @@
 import {
+  BellRing,
   Check,
   ChevronDown,
   ChevronUp,
@@ -44,6 +45,7 @@ export type SettingsSubTab =
   | 'sms'
   | 'gateways'
   | 'auth'
+  | 'notifications'
   | 'audit-logs'
 
 interface SubMenuItem {
@@ -134,6 +136,14 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
     },
   ])
 
+  // Notification Channels state
+  const [ticketSMSMode, setTicketSMSMode] = useState<
+    'default_on' | 'default_off' | 'disabled'
+  >('default_on')
+  const [ticketEmailMode, setTicketEmailMode] = useState<
+    'default_on' | 'default_off' | 'disabled'
+  >('default_on')
+  const [savingNotifSettings, setSavingNotifSettings] = useState(false)
   // Footer Quick Links state
   const [footerLinks, setFooterLinks] = useState<FooterMenuItem[]>([
     { id: '1', title: 'کاتالوگ اشتراک‌ها', link: '#products-catalog' },
@@ -184,6 +194,9 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
             }
           } catch {}
         }
+
+        if (s.ticket_sms_mode) setTicketSMSMode(s.ticket_sms_mode)
+        if (s.ticket_email_mode) setTicketEmailMode(s.ticket_email_mode)
 
         if (s.footer_menu_json) {
           try {
@@ -277,6 +290,29 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
     }
   }
 
+  const handleSaveNotificationSettings = async () => {
+    setSavingNotifSettings(true)
+    try {
+      const payload: Partial<ThemeSettings> = {
+        ticket_sms_mode: ticketSMSMode,
+        ticket_email_mode: ticketEmailMode,
+      }
+      await api.updateAdminThemeSettings(payload)
+      setThemeSettings((prev) => ({ ...prev, ...payload }))
+      window.dispatchEvent(
+        new CustomEvent('anahix:theme:updated', { detail: payload }),
+      )
+      notifySuccess(
+        'تنظیمات اعلان‌ها ذخیره شد',
+        'پیکربندی کانال‌های پیامک و ایمیل تیکت‌های پشتیبانی با موفقیت اعمال گردید.',
+      )
+    } catch (err: any) {
+      notifyError('خطا در ذخیره تنظیمات اعلان‌ها', err.message)
+    } finally {
+      setSavingNotifSettings(false)
+    }
+  }
+
   const subTabs = [
     {
       id: 'branding-seo' as const,
@@ -312,6 +348,11 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
       id: 'auth' as const,
       label: 'روش‌های ورود و ثبت‌نام (Multi-Auth)',
       icon: KeyRound,
+    },
+    {
+      id: 'notifications' as const,
+      label: 'اعلان‌های پیامکی و ایمیلی تیکت‌ها',
+      icon: BellRing,
     },
     {
       id: 'audit-logs' as const,
@@ -1745,6 +1786,162 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
                 </div>
                 <div className="text-[10px] font-bold text-brand">
                   SMS Gateway OTP
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAB CONTENT: TICKET NOTIFICATION CHANNELS */}
+      {activeSubTab === 'notifications' && (
+        <div className="space-y-6 animate-in fade-in duration-200">
+          <div className="rounded-surface border border-border/80 bg-card p-6 shadow-surface space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/60 pb-4">
+              <div>
+                <h3 className="text-base font-black text-foreground flex items-center gap-2">
+                  <BellRing className="w-5 h-5 text-brand" />
+                  <span>
+                    کانال‌های اطلاع‌رسانی تیکت‌ها و پشتیبانی (SMS & Email)
+                  </span>
+                </h3>
+                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                  تعیین نحوه ارسال پیامک و ایمیل خودکار به خریداران هنگام
+                  پاسخ‌گویی اپراتور و مدیریت نمایش تاگل‌ها در پنل کاربری
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleSaveNotificationSettings}
+                disabled={savingNotifSettings}
+                className="h-10 px-5 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs shadow-control transition flex items-center gap-2 cursor-pointer duration-motion active:scale-[0.98] disabled:opacity-50"
+              >
+                {savingNotifSettings ? (
+                  <RefreshCw className="w-4 h-4 animate-spin text-brand" />
+                ) : (
+                  <Save className="w-4 h-4" />
+                )}
+                <span>ذخیره تنظیمات کانال‌ها</span>
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Channel 1: SMS Notifications */}
+              <div className="p-5 rounded-surface border border-border/80 bg-muted/20 space-y-4">
+                <div className="flex items-center gap-2 border-b border-border/40 pb-2">
+                  <Smartphone className="w-4 h-4 text-emerald-500" />
+                  <span className="font-black text-sm text-foreground">
+                    کانال پیامک (SMS.ir Gateway)
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  رفتار تاگل دریافت پیامک در فرم ایجاد تیکت و پنجره چت مشتری:
+                </p>
+
+                <div className="space-y-2.5">
+                  {[
+                    {
+                      id: 'default_on',
+                      label: 'پیش‌فرض فعال (Default ON)',
+                      desc: 'تاگل پیامک به صورت پیش‌فرض روشن است اما کاربر می‌تواند آن را خاموش کند',
+                    },
+                    {
+                      id: 'default_off',
+                      label: 'پیش‌فرض غیرفعال (Default OFF)',
+                      desc: 'تاگل پیامک به صورت پیش‌فرض خاموش است و با تمایل کاربر روشن می‌شود',
+                    },
+                    {
+                      id: 'disabled',
+                      label: 'عدم نمایش و غیرفعال کامل (Disabled)',
+                      desc: 'پیامک تیکت کاملاً خاموش بوده و هیچ تاگل یا گزینه‌ای به کاربر نمایش داده نمی‌شود',
+                    },
+                  ].map((opt) => (
+                    <label
+                      key={opt.id}
+                      className={`p-3 rounded-control border flex items-start gap-2.5 cursor-pointer transition select-none ${
+                        ticketSMSMode === opt.id
+                          ? 'border-brand bg-brand/10 shadow-xs'
+                          : 'border-border/60 bg-card hover:border-border'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="ticket_sms_setting"
+                        value={opt.id}
+                        checked={ticketSMSMode === opt.id}
+                        onChange={() => setTicketSMSMode(opt.id as any)}
+                        className="mt-0.5 accent-brand cursor-pointer"
+                      />
+                      <div className="space-y-0.5">
+                        <span className="text-xs font-bold text-foreground block">
+                          {opt.label}
+                        </span>
+                        <span className="text-[11px] text-muted-foreground block leading-relaxed">
+                          {opt.desc}
+                        </span>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Channel 2: Email Notifications */}
+              <div className="p-5 rounded-surface border border-border/80 bg-muted/20 space-y-4">
+                <div className="flex items-center gap-2 border-b border-border/40 pb-2">
+                  <Globe className="w-4 h-4 text-blue-500" />
+                  <span className="font-black text-sm text-foreground">
+                    کانال ایمیل (Email Notification)
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  رفتار تاگل دریافت ایمیل در فرم ایجاد تیکت و پنجره چت مشتری:
+                </p>
+
+                <div className="space-y-2.5">
+                  {[
+                    {
+                      id: 'default_on',
+                      label: 'پیش‌فرض فعال (Default ON)',
+                      desc: 'تاگل ایمیل به صورت پیش‌فرض روشن است اما کاربر می‌تواند آن را خاموش کند',
+                    },
+                    {
+                      id: 'default_off',
+                      label: 'پیش‌فرض غیرفعال (Default OFF)',
+                      desc: 'تاگل ایمیل به صورت پیش‌فرض خاموش است و با تمایل کاربر روشن می‌شود',
+                    },
+                    {
+                      id: 'disabled',
+                      label: 'عدم نمایش و غیرفعال کامل (Disabled)',
+                      desc: 'ایمیل تیکت کاملاً خاموش بوده و هیچ گزینه‌ای به کاربر نمایش داده نمی‌شود',
+                    },
+                  ].map((opt) => (
+                    <label
+                      key={opt.id}
+                      className={`p-3 rounded-control border flex items-start gap-2.5 cursor-pointer transition select-none ${
+                        ticketEmailMode === opt.id
+                          ? 'border-brand bg-brand/10 shadow-xs'
+                          : 'border-border/60 bg-card hover:border-border'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="ticket_email_setting"
+                        value={opt.id}
+                        checked={ticketEmailMode === opt.id}
+                        onChange={() => setTicketEmailMode(opt.id as any)}
+                        className="mt-0.5 accent-brand cursor-pointer"
+                      />
+                      <div className="space-y-0.5">
+                        <span className="text-xs font-bold text-foreground block">
+                          {opt.label}
+                        </span>
+                        <span className="text-[11px] text-muted-foreground block leading-relaxed">
+                          {opt.desc}
+                        </span>
+                      </div>
+                    </label>
+                  ))}
                 </div>
               </div>
             </div>

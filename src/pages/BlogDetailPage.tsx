@@ -42,6 +42,16 @@ export const BlogDetailPage: React.FC = () => {
   const [commentText, setCommentText] = useState('')
   const [commentSubmitting, setCommentSubmitting] = useState(false)
   const [commentSuccess, setCommentSuccess] = useState(false)
+  const [siteLogoUrl, setSiteLogoUrl] = useState<string>('')
+
+  useEffect(() => {
+    api
+      .getThemeSettings()
+      .then((st) => {
+        if (st?.site_logo_url) setSiteLogoUrl(st.site_logo_url)
+      })
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
     if (!slug) return
@@ -210,6 +220,12 @@ export const BlogDetailPage: React.FC = () => {
                     src={article.author_avatar}
                     alt={article.author_name}
                     className="w-10 h-10 rounded-full object-cover border border-border shadow-xs"
+                  />
+                ) : siteLogoUrl ? (
+                  <img
+                    src={siteLogoUrl}
+                    alt="لوگوی آناهیکس"
+                    className="w-10 h-10 rounded-full object-contain p-1 border border-border/80 bg-muted/20 shadow-xs"
                   />
                 ) : (
                   <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-sm">

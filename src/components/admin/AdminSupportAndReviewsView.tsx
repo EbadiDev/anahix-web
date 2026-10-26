@@ -1,4 +1,4 @@
-import { Headphones, LifeBuoy, MessageSquare } from 'lucide-react'
+import { Headphones, LifeBuoy, MessageSquare, RefreshCw } from 'lucide-react'
 import type React from 'react'
 import { useState } from 'react'
 import type { AdminReviewStats } from '../../types'
@@ -24,6 +24,7 @@ export const AdminSupportAndReviewsView: React.FC<
   const [activeTab, setActiveTab] = useState<'tickets' | 'reviews'>(initialTab)
   const [ticketsPending, setTicketsPending] = useState<number>(0)
   const [reviewsPending, setReviewsPending] = useState<number>(0)
+  const [refreshTrigger, setRefreshTrigger] = useState<number>(0)
 
   const handleTicketsCount = (count: number) => {
     setTicketsPending(count)
@@ -43,6 +44,16 @@ export const AdminSupportAndReviewsView: React.FC<
         title="مرکز پشتیبانی، تیکت‌ها و نظرات خریداران"
         subtitle="میز کار متمرکز پاسخگویی به درخواست‌های پشتیبانی کاربران، پیگیری مکاتبات آنلاین و بررسی و انتشار نظرات و امتیازات محصولات"
         badgeText="پشتیبانی و ارتباط با مشتریان"
+        actions={
+          <button
+            type="button"
+            onClick={() => setRefreshTrigger((prev) => prev + 1)}
+            className="h-9 px-4 rounded-control bg-secondary text-secondary-foreground border border-border/60 hover:bg-muted text-xs font-bold transition-all shadow-control flex items-center gap-2 cursor-pointer duration-motion active:scale-[0.98]"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            <span>تازه‌سازی لیست</span>
+          </button>
+        }
       />
 
       {/* Modern Subtabs Navigation */}
@@ -101,11 +112,15 @@ export const AdminSupportAndReviewsView: React.FC<
         <AdminTicketsView
           adminUser={adminUser}
           onUpdatePendingCount={handleTicketsCount}
+          refreshTrigger={refreshTrigger}
         />
       )}
 
       {activeTab === 'reviews' && (
-        <AdminReviewsView onStatsUpdated={handleReviewsStats} />
+        <AdminReviewsView
+          onStatsUpdated={handleReviewsStats}
+          refreshTrigger={refreshTrigger}
+        />
       )}
     </div>
   )

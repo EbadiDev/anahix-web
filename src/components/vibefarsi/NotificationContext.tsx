@@ -139,7 +139,7 @@ const NotificationContainer: React.FC<{
   return (
     <div
       dir="rtl"
-      className="fixed top-4 right-4 z-50 flex flex-col gap-2.5 max-w-sm w-full pointer-events-none p-2 sm:p-0"
+      className="fixed top-4 right-4 z-[2147483647] flex flex-col gap-2.5 max-w-sm w-full pointer-events-none p-2 sm:p-0"
     >
       {notifications.map((item) => (
         <ToastItem

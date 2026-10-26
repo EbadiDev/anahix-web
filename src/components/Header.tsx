@@ -749,9 +749,9 @@ export const Header: React.FC<HeaderProps> = ({
                       <Link
                         to="/profile"
                         onClick={() => setUserDropdownOpen(false)}
-                        className="flex items-center gap-2 px-2.5 py-1.5 rounded-control text-xs font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-500/10 transition-colors text-right group"
+                        className="flex items-center gap-2 px-2.5 py-1.5 rounded-control text-xs font-bold text-amber-500 dark:text-amber-400 hover:bg-amber-500/10 transition-colors text-right group"
                       >
-                        <User className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400 transition-transform group-hover:scale-110" />
+                        <User className="h-3.5 w-3.5 text-amber-500 dark:text-amber-400 transition-transform group-hover:scale-110" />
                         <span>حساب کاربری</span>
                       </Link>
 
@@ -801,9 +801,9 @@ export const Header: React.FC<HeaderProps> = ({
                             <Link
                               to="/"
                               onClick={() => setUserDropdownOpen(false)}
-                              className="flex items-center gap-2 px-2.5 py-1.5 rounded-control text-xs font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-500/10 transition-colors text-right"
+                              className="flex items-center gap-2 px-2.5 py-1.5 rounded-control text-xs font-bold text-amber-500 dark:text-amber-400 hover:bg-amber-500/10 transition-colors text-right"
                             >
-                              <Store className="h-3.5 w-3.5" />
+                              <Store className="h-3.5 w-3.5 text-amber-500 dark:text-amber-400" />
                               <span>بازگشت به فروشگاه</span>
                             </Link>
                           ) : (

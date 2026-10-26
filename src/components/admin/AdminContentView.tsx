@@ -7,8 +7,10 @@ import {
   ExternalLink,
   Eye,
   FileText,
+  Heart,
   HelpCircle,
   Layers,
+  Loader2,
   MessageSquare,
   Plus,
   RefreshCw,
@@ -17,6 +19,8 @@ import {
   ThumbsDown,
   ThumbsUp,
   Trash2,
+  Upload,
+  User,
   X,
 } from 'lucide-react'
 import type React from 'react'
@@ -49,7 +53,11 @@ type ContentSubTab =
   | 'comments'
 
 export const AdminContentView: React.FC = () => {
-  const { success: notifySuccess, error: notifyError } = useNotification()
+  const {
+    success: notifySuccess,
+    error: notifyError,
+    info: notifyInfo,
+  } = useNotification()
   const [activeSubTab, setActiveSubTab] = useState<ContentSubTab>('articles')
   const [categories, setCategories] = useState<ContentCategory[]>([])
   const [services, setServices] = useState<ServiceTarget[]>([])
@@ -102,6 +110,12 @@ export const AdminContentView: React.FC = () => {
   })
   const [tagInput, setTagInput] = useState('')
 
+  // Upload & Branding states
+  const [siteLogoUrl, setSiteLogoUrl] = useState<string>('')
+  const [isUploadingAuthorAvatar, setIsUploadingAuthorAvatar] = useState(false)
+  const [isUploadingCoverImage, setIsUploadingCoverImage] = useState(false)
+  const [isUploadingGuideAvatar, setIsUploadingGuideAvatar] = useState(false)
+
   // Guides state
   const [guides, setGuides] = useState<HelpGuideListItem[]>([])
   const [guideSearch, setGuideSearch] = useState('')
@@ -119,6 +133,9 @@ export const AdminContentView: React.FC = () => {
     icon: 'AlertTriangle',
     difficulty: 'ساده',
     service_target: 'general',
+    author_name: 'تیم پشتیبانی و فنی آناهیکس',
+    author_role: 'کارشناس رفع تحریم و شبکه',
+    author_avatar: '',
     reading_time_minutes: 3,
     sort_order: 1,
     is_featured: false,
@@ -137,6 +154,9 @@ export const AdminContentView: React.FC = () => {
   const [commentReplyMap, setCommentReplyMap] = useState<
     Record<string, string>
   >({})
+  const [commentStatusFilter, setCommentStatusFilter] = useState('')
+  const [commentArticleFilter, setCommentArticleFilter] = useState('')
+  const [commentSearch, setCommentSearch] = useState('')
 
   // Category Modal state
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false)
@@ -171,12 +191,55 @@ export const AdminContentView: React.FC = () => {
     }
   }
 
+  // Author & Cover Media Uploader
+  const handleUploadAuthorAvatar = async (file: File, isGuide = false) => {
+    if (isGuide) setIsUploadingGuideAvatar(true)
+    else setIsUploadingAuthorAvatar(true)
+    try {
+      const resp = await api.uploadMedia(file)
+      if (resp?.file_url) {
+        if (isGuide) {
+          setGuideForm((prev) => ({ ...prev, author_avatar: resp.file_url }))
+        } else {
+          setArticleForm((prev) => ({ ...prev, author_avatar: resp.file_url }))
+        }
+        notifySuccess('آپلود موفق تصویر', 'تصویر نویسنده با موفقیت بارگذاری شد')
+      }
+    } catch (err: any) {
+      notifyError('خطا در آپلود تصویر', err.message || 'مشکل در ارتباط با سرور')
+    } finally {
+      if (isGuide) setIsUploadingGuideAvatar(false)
+      else setIsUploadingAuthorAvatar(false)
+    }
+  }
+
+  const handleUploadCoverImage = async (file: File) => {
+    setIsUploadingCoverImage(true)
+    try {
+      const resp = await api.uploadMedia(file)
+      if (resp?.file_url) {
+        setArticleForm((prev) => ({ ...prev, cover_image: resp.file_url }))
+        notifySuccess('آپلود موفق تصویر', 'تصویر شاخص با موفقیت بارگذاری شد')
+      }
+    } catch (err: any) {
+      notifyError('خطا در آپلود تصویر', err.message || 'مشکل در ارتباط با سرور')
+    } finally {
+      setIsUploadingCoverImage(false)
+    }
+  }
+
   // Load Categories & Products on mount
   useEffect(() => {
     loadCategories()
     loadProducts()
     loadServices()
     loadTemplates()
+    api
+      .getThemeSettings()
+      .then((st) => {
+        if (st?.site_logo_url) setSiteLogoUrl(st.site_logo_url)
+      })
+      .catch(() => {})
   }, [])
 
   // Load active tab data
@@ -192,7 +255,14 @@ export const AdminContentView: React.FC = () => {
     } else if (activeSubTab === 'comments') {
       loadComments()
     }
-  }, [activeSubTab, articleCategory, guideCategory, guideServiceTarget])
+  }, [
+    activeSubTab,
+    articleCategory,
+    guideCategory,
+    guideServiceTarget,
+    commentStatusFilter,
+    commentArticleFilter,
+  ])
 
   const loadServices = async () => {
     try {
@@ -266,7 +336,10 @@ export const AdminContentView: React.FC = () => {
   const loadComments = async () => {
     setIsLoading(true)
     try {
-      const data = await api.getAdminArticleComments()
+      const data = await api.getAdminArticleComments(
+        commentArticleFilter || undefined,
+        commentStatusFilter || undefined,
+      )
       setComments(data)
     } catch (e: any) {
       showToast(e.message || 'خطا در بارگذاری نظرات', 'error')
@@ -406,6 +479,9 @@ export const AdminContentView: React.FC = () => {
       icon: 'AlertTriangle',
       difficulty: 'ساده',
       service_target: 'general',
+      author_name: 'تیم پشتیبانی و فنی آناهیکس',
+      author_role: 'کارشناس رفع تحریم و شبکه',
+      author_avatar: '',
       reading_time_minutes: 3,
       sort_order: 1,
       is_featured: false,
@@ -436,6 +512,9 @@ export const AdminContentView: React.FC = () => {
         icon: detail.icon,
         difficulty: detail.difficulty,
         service_target: detail.service_target,
+        author_name: detail.author_name || 'تیم پشتیبانی و فنی آناهیکس',
+        author_role: detail.author_role || 'کارشناس رفع تحریم و شبکه',
+        author_avatar: detail.author_avatar || '',
         reading_time_minutes: detail.reading_time_minutes,
         sort_order: (detail as any).sort_order || 1,
         is_featured: detail.is_featured,
@@ -665,7 +744,7 @@ export const AdminContentView: React.FC = () => {
               <button
                 type="button"
                 onClick={handleOpenNewArticle}
-                className="flex items-center gap-1.5 px-4 py-2 bg-primary text-primary-foreground text-xs font-semibold rounded-xl hover:opacity-90 transition-opacity shadow-sm"
+                className="h-9 sm:h-10 px-4 sm:px-5 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs duration-motion active:scale-[0.98] shadow-control flex items-center justify-center gap-2 cursor-pointer"
               >
                 <Plus className="h-4 w-4" />
                 <span>مقاله جدید</span>
@@ -676,7 +755,7 @@ export const AdminContentView: React.FC = () => {
               <button
                 type="button"
                 onClick={handleOpenNewGuide}
-                className="flex items-center gap-1.5 px-4 py-2 bg-primary text-primary-foreground text-xs font-semibold rounded-xl hover:opacity-90 transition-opacity shadow-sm"
+                className="h-9 sm:h-10 px-4 sm:px-5 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs duration-motion active:scale-[0.98] shadow-control flex items-center justify-center gap-2 cursor-pointer"
               >
                 <Plus className="h-4 w-4" />
                 <span>راهنمای جدید</span>
@@ -698,7 +777,7 @@ export const AdminContentView: React.FC = () => {
                   })
                   setIsCategoryModalOpen(true)
                 }}
-                className="flex items-center gap-1.5 px-4 py-2 bg-primary text-primary-foreground text-xs font-semibold rounded-xl hover:opacity-90 transition-opacity shadow-sm"
+                className="h-9 sm:h-10 px-4 sm:px-5 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs duration-motion active:scale-[0.98] shadow-control flex items-center justify-center gap-2 cursor-pointer"
               >
                 <Plus className="h-4 w-4" />
                 <span>دسته جدید</span>
@@ -721,7 +800,7 @@ export const AdminContentView: React.FC = () => {
                   })
                   setIsTemplateModalOpen(true)
                 }}
-                className="flex items-center gap-1.5 px-4 py-2 bg-primary text-primary-foreground text-xs font-semibold rounded-xl hover:opacity-90 transition-opacity shadow-sm"
+                className="h-9 sm:h-10 px-4 sm:px-5 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs duration-motion active:scale-[0.98] shadow-control flex items-center justify-center gap-2 cursor-pointer"
               >
                 <Plus className="h-4 w-4" />
                 <span>قالب نگارش جدید</span>
@@ -843,7 +922,7 @@ export const AdminContentView: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setIsEditingArticle(false)}
-                    className="px-3.5 py-1.5 text-xs text-muted-foreground hover:bg-muted rounded-xl transition-colors"
+                    className="h-9 sm:h-10 px-3.5 sm:px-4 rounded-control border border-border/60 bg-secondary/80 hover:bg-muted text-foreground font-bold text-xs shadow-control duration-motion active:scale-[0.98] cursor-pointer flex items-center justify-center"
                   >
                     انصراف
                   </button>
@@ -851,7 +930,7 @@ export const AdminContentView: React.FC = () => {
                     type="button"
                     onClick={handleSaveArticle}
                     disabled={isLoading}
-                    className="px-5 py-2 bg-primary text-primary-foreground text-xs font-semibold rounded-xl hover:opacity-90 disabled:opacity-50 transition-opacity flex items-center gap-1.5 shadow-sm"
+                    className="h-9 sm:h-10 px-4 sm:px-5 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs duration-motion active:scale-[0.98] shadow-control flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                   >
                     <Check className="h-4 w-4" />
                     <span>
@@ -864,50 +943,59 @@ export const AdminContentView: React.FC = () => {
               {/* Basic Fields */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-foreground block">
+                  <label className="text-xs font-bold text-foreground block">
                     عنوان مقاله (H1) *
                   </label>
                   <input
                     type="text"
                     value={articleForm.title}
                     onChange={(e) =>
-                      setArticleForm({ ...articleForm, title: e.target.value })
+                      setArticleForm((prev) => ({
+                        ...prev,
+                        title: e.target.value,
+                      }))
                     }
                     placeholder="مثلاً: راهنمای خرید جمینای ادونسد در ایران بدون ریسک"
-                    className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm focus:outline-hidden focus:ring-2 focus:ring-primary/40 font-medium"
+                    className="w-full h-10 px-3.5 rounded-field bg-muted/20 border border-border/60 text-foreground text-xs outline-none focus:border-brand focus:ring-1 focus:ring-brand/30 transition-all font-sans font-medium"
                   />
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-foreground block">
+                  <label className="text-xs font-bold text-foreground block">
                     پیوند یکتا (Slug برای URL سئو) *
                   </label>
                   <input
                     type="text"
                     value={articleForm.slug}
                     onChange={(e) =>
-                      setArticleForm({ ...articleForm, slug: e.target.value })
+                      setArticleForm((prev) => ({
+                        ...prev,
+                        slug: e.target.value,
+                      }))
                     }
                     placeholder="how-to-buy-gemini-advanced"
                     dir="ltr"
-                    className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm focus:outline-hidden focus:ring-2 focus:ring-primary/40 text-left font-mono"
+                    className="w-full h-10 px-3.5 rounded-field bg-muted/20 border border-border/60 text-foreground text-xs outline-none focus:border-brand focus:ring-1 focus:ring-brand/30 transition-all text-left font-mono font-latin"
                   />
                 </div>
               </div>
 
               {/* Excerpt */}
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-foreground block">
+                <label className="text-xs font-bold text-foreground block">
                   خلاصه مقاله (برای کارت‌ها و متا دیسکریپشن گوگل)
                 </label>
                 <textarea
                   rows={2}
                   value={articleForm.excerpt}
                   onChange={(e) =>
-                    setArticleForm({ ...articleForm, excerpt: e.target.value })
+                    setArticleForm((prev) => ({
+                      ...prev,
+                      excerpt: e.target.value,
+                    }))
                   }
                   placeholder="توضیح دو یا سه جمله‌ای ترغیب‌کننده برای سرچ گوگل..."
-                  className="w-full rounded-xl border border-border bg-background p-3 text-sm focus:outline-hidden focus:ring-2 focus:ring-primary/40 leading-relaxed"
+                  className="w-full p-3.5 rounded-field bg-muted/20 border border-border/60 text-foreground text-xs outline-none focus:border-brand focus:ring-1 focus:ring-brand/30 transition-all font-sans leading-relaxed"
                 />
               </div>
 
@@ -916,17 +1004,18 @@ export const AdminContentView: React.FC = () => {
                 <RichContentEditor
                   value={articleForm.content}
                   onChange={(val) =>
-                    setArticleForm({ ...articleForm, content: val })
+                    setArticleForm((prev) => ({ ...prev, content: val }))
                   }
                   onReadingTimeChange={(rt) =>
-                    setArticleForm({
-                      ...articleForm,
-                      reading_time_minutes: rt,
-                    })
+                    setArticleForm((prev) =>
+                      prev.reading_time_minutes === rt
+                        ? prev
+                        : { ...prev, reading_time_minutes: rt },
+                    )
                   }
                   contentType="blog"
                   label="محتوای متنی مقاله (Markdown حرفه‌ای)"
-                  minHeight="480px"
+                  minHeight="520px"
                 />
               </div>
 
@@ -934,7 +1023,7 @@ export const AdminContentView: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t border-border">
                 {/* Category Selection */}
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-foreground block">
+                  <label className="text-xs font-bold text-foreground block">
                     دسته‌بندی مقاله
                   </label>
                   <select
@@ -943,13 +1032,13 @@ export const AdminContentView: React.FC = () => {
                       const sel = categories.find(
                         (c) => c.slug === e.target.value,
                       )
-                      setArticleForm({
-                        ...articleForm,
+                      setArticleForm((prev) => ({
+                        ...prev,
                         category_slug: e.target.value,
                         category_name: sel?.name || '',
-                      })
+                      }))
                     }}
-                    className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs focus:outline-hidden focus:ring-2 focus:ring-primary/40"
+                    className="w-full h-10 px-3.5 rounded-field bg-muted/20 border border-border/60 text-foreground text-xs outline-none focus:border-brand focus:ring-1 focus:ring-brand/30 transition-all font-sans cursor-pointer"
                   >
                     {categories
                       .filter((c) => c.type === 'blog')
@@ -961,31 +1050,75 @@ export const AdminContentView: React.FC = () => {
                   </select>
                 </div>
 
-                {/* Cover Image URL */}
+                {/* Cover Image URL & Direct Upload with Live Preview */}
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-foreground block">
-                    آدرس تصویر شاخص (Cover Image)
-                  </label>
-                  <input
-                    type="text"
-                    value={articleForm.cover_image}
-                    onChange={(e) =>
-                      setArticleForm({
-                        ...articleForm,
-                        cover_image: e.target.value,
-                      })
-                    }
-                    placeholder="https://..."
-                    dir="ltr"
-                    className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs focus:outline-hidden focus:ring-2 focus:ring-primary/40 font-mono text-left"
-                  />
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-semibold text-foreground block">
+                      تصویر شاخص مقاله (Cover Image)
+                    </label>
+                    <label className="text-[11px] font-bold text-brand hover:underline cursor-pointer flex items-center gap-1">
+                      <Upload className="w-3 h-3" />
+                      <span>
+                        {isUploadingCoverImage
+                          ? 'در حال آپلود...'
+                          : 'آپلود مستقیم فایل'}
+                      </span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        disabled={isUploadingCoverImage}
+                        onChange={(e) => {
+                          const f = e.target.files?.[0]
+                          if (f) handleUploadCoverImage(f)
+                        }}
+                      />
+                    </label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {articleForm.cover_image && (
+                      <div className="relative w-12 h-10 rounded-xl overflow-hidden border border-border/80 bg-muted/40 shrink-0 shadow-xs group">
+                        <img
+                          src={articleForm.cover_image}
+                          alt="تصویر شاخص"
+                          className="w-full h-full object-cover"
+                        />
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setArticleForm({
+                              ...articleForm,
+                              cover_image: '',
+                            })
+                          }
+                          className="absolute inset-0 bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                          title="حذف تصویر شاخص"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    )}
+                    <input
+                      type="text"
+                      value={articleForm.cover_image}
+                      onChange={(e) =>
+                        setArticleForm({
+                          ...articleForm,
+                          cover_image: e.target.value,
+                        })
+                      }
+                      placeholder="https://... یا آپلود مستقیم از دکمه بالا"
+                      dir="ltr"
+                      className="flex-1 rounded-xl border border-border bg-background px-3 py-2 text-xs focus:outline-hidden focus:ring-2 focus:ring-primary/40 font-mono text-left font-latin"
+                    />
+                  </div>
                 </div>
 
                 {/* Related Product CTA Integration */}
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-foreground flex items-center justify-between">
+                  <label className="text-xs font-bold text-foreground flex items-center justify-between">
                     <span>محصول مرتبط جهت خرید (CTA)</span>
-                    <Sparkles className="h-3 w-3 text-blue-600" />
+                    <Sparkles className="h-3 w-3 text-blue-500" />
                   </label>
                   <select
                     value={articleForm.related_product_id}
@@ -993,15 +1126,15 @@ export const AdminContentView: React.FC = () => {
                       const p = products.find(
                         (prod) => String(prod.id) === e.target.value,
                       )
-                      setArticleForm({
-                        ...articleForm,
+                      setArticleForm((prev) => ({
+                        ...prev,
                         related_product_id: e.target.value,
                         related_product_title: p?.title_fa || '',
                         related_product_slug: p?.slug || '',
                         related_product_price: p?.price_toman || 0,
-                      })
+                      }))
                     }}
-                    className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs focus:outline-hidden focus:ring-2 focus:ring-primary/40"
+                    className="w-full h-10 px-3.5 rounded-field bg-muted/20 border border-border/60 text-foreground text-xs outline-none focus:border-brand focus:ring-1 focus:ring-brand/30 transition-all font-sans cursor-pointer"
                   >
                     <option value="">بدون اتصال به محصول</option>
                     {products.map((p) => (
@@ -1010,6 +1143,135 @@ export const AdminContentView: React.FC = () => {
                       </option>
                     ))}
                   </select>
+                </div>
+              </div>
+
+              {/* Author Profile Information Card with Direct Upload & Site Logo Fallback */}
+              <div className="rounded-2xl border border-border/80 bg-muted/20 p-4 sm:p-5 space-y-4">
+                <div className="flex items-center justify-between border-b border-border/60 pb-3">
+                  <div className="flex items-center gap-2">
+                    <User className="h-4 w-4 text-brand" />
+                    <span className="text-xs font-bold text-foreground">
+                      مشخصات و تصویر نویسنده مقاله
+                    </span>
+                  </div>
+                  <span className="text-[11px] text-muted-foreground font-medium">
+                    {articleForm.author_avatar
+                      ? 'تصویر اختصاصی تنظیم شده'
+                      : 'پیش‌فرض: لوگوی سایت از تنظیمات ادمین'}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+                  {/* Author Avatar Preview & Upload Action */}
+                  <div className="flex items-center gap-3">
+                    <div className="relative w-14 h-14 rounded-full border-2 border-border/80 overflow-hidden bg-card flex items-center justify-center shrink-0 shadow-sm">
+                      {articleForm.author_avatar ? (
+                        <img
+                          src={articleForm.author_avatar}
+                          alt={articleForm.author_name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : siteLogoUrl ? (
+                        <img
+                          src={siteLogoUrl}
+                          alt="لوگوی پیش‌فرض سایت"
+                          className="w-full h-full object-contain p-1.5"
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-brand/10 text-brand flex items-center justify-center font-bold text-base">
+                          {articleForm.author_name?.[0] || 'A'}
+                        </div>
+                      )}
+                      {isUploadingAuthorAvatar && (
+                        <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                          <Loader2 className="w-5 h-5 animate-spin text-white" />
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="space-y-1.5 flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <label className="h-8 px-3 rounded-xl bg-secondary hover:bg-muted border border-border/60 text-foreground font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-xs transition-all active:scale-[0.98]">
+                          <Upload className="w-3.5 h-3.5 text-brand" />
+                          <span>
+                            {articleForm.author_avatar
+                              ? 'تغییر تصویر'
+                              : 'آپلود تصویر پروفایل'}
+                          </span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            disabled={isUploadingAuthorAvatar}
+                            onChange={(e) => {
+                              const f = e.target.files?.[0]
+                              if (f) handleUploadAuthorAvatar(f, false)
+                            }}
+                          />
+                        </label>
+
+                        {articleForm.author_avatar && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setArticleForm({
+                                ...articleForm,
+                                author_avatar: '',
+                              })
+                            }
+                            className="h-8 px-2.5 rounded-xl text-xs font-bold text-destructive hover:bg-destructive/10 border border-destructive/20 cursor-pointer transition-all active:scale-[0.98]"
+                            title="بازنشانی به لوگوی پیش‌فرض سایت"
+                          >
+                            لوگوی سایت
+                          </button>
+                        )}
+                      </div>
+                      <p className="text-[10px] text-muted-foreground truncate">
+                        {articleForm.author_avatar
+                          ? 'تصویر اختصاصی نویسنده فعال است'
+                          : 'در صورت عدم آپلود، لوگوی سایت به عنوان پیش‌فرض قرار می‌گیرد'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Author Name */}
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-foreground block">
+                      نام و نام‌خانوادگی نویسنده *
+                    </label>
+                    <input
+                      type="text"
+                      value={articleForm.author_name}
+                      onChange={(e) =>
+                        setArticleForm({
+                          ...articleForm,
+                          author_name: e.target.value,
+                        })
+                      }
+                      placeholder="تحریریه آناهیکس"
+                      className="w-full h-10 px-3 rounded-xl border border-border/60 bg-background text-foreground text-xs outline-none focus:border-brand"
+                    />
+                  </div>
+
+                  {/* Author Role */}
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-foreground block">
+                      سمت و تخصص نویسنده
+                    </label>
+                    <input
+                      type="text"
+                      value={articleForm.author_role}
+                      onChange={(e) =>
+                        setArticleForm({
+                          ...articleForm,
+                          author_role: e.target.value,
+                        })
+                      }
+                      placeholder="کارشناس هوش مصنوعی و امنیت"
+                      className="w-full h-10 px-3 rounded-xl border border-border/60 bg-background text-foreground text-xs outline-none focus:border-brand"
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -1082,19 +1344,30 @@ export const AdminContentView: React.FC = () => {
               </div>
 
               {/* Visibility & Featured Toggles */}
-              <div className="flex items-center gap-6 pt-3 border-t border-border">
+              <div className="flex flex-wrap items-center gap-6 pt-3 border-t border-border/60">
                 <div className="flex items-center gap-2.5">
                   <ToggleSwitch
                     size="sm"
                     checked={Boolean(articleForm.is_published)}
-                    onChange={(checked) =>
-                      setArticleForm({
-                        ...articleForm,
+                    onChange={(checked) => {
+                      setArticleForm((prev) => ({
+                        ...prev,
                         is_published: checked,
-                      })
-                    }
+                      }))
+                      if (checked) {
+                        notifySuccess(
+                          'وضعیت انتشار عمومی',
+                          'مقاله در وضعیت انتشار عمومی تنظیم شد و پس از ذخیره برای کاربران و موتورهای جستجو در دسترس خواهد بود.',
+                        )
+                      } else {
+                        notifyInfo(
+                          'حالت پیش‌نویس',
+                          'مقاله به حالت پیش‌نویس تغییر یافت و تنها در پنل مدیریت قابل مشاهده است.',
+                        )
+                      }
+                    }}
                   />
-                  <span className="text-xs font-medium text-foreground">
+                  <span className="text-xs font-bold text-foreground">
                     انتشار عمومی (در دسترس کاربران و موتورهای جستجو)
                   </span>
                 </div>
@@ -1103,14 +1376,25 @@ export const AdminContentView: React.FC = () => {
                   <ToggleSwitch
                     size="sm"
                     checked={Boolean(articleForm.is_featured)}
-                    onChange={(checked) =>
-                      setArticleForm({
-                        ...articleForm,
+                    onChange={(checked) => {
+                      setArticleForm((prev) => ({
+                        ...prev,
                         is_featured: checked,
-                      })
-                    }
+                      }))
+                      if (checked) {
+                        notifySuccess(
+                          'پین مقاله ویژه',
+                          'مقاله با موفقیت به عنوان مقاله ویژه در صفحه اصلی وبلاگ پین شد.',
+                        )
+                      } else {
+                        notifyInfo(
+                          'حذف از مقالات ویژه',
+                          'مقاله از حالت پین ویژه خارج گردید.',
+                        )
+                      }
+                    }}
                   />
-                  <span className="text-xs font-medium text-foreground">
+                  <span className="text-xs font-bold text-foreground">
                     پین کردن به عنوان مقاله ویژه صفحه اصلی وبلاگ
                   </span>
                 </div>
@@ -1164,14 +1448,24 @@ export const AdminContentView: React.FC = () => {
                   <table className="w-full text-center text-xs">
                     <thead>
                       <tr className="border-b border-border bg-muted/40 text-muted-foreground font-semibold select-none">
-                        <th className="p-3.5 text-right pr-6">
+                        <th className="p-3.5 text-center whitespace-nowrap">
                           تصویر و عنوان مقاله
                         </th>
-                        <th className="p-3.5 text-center">دسته‌بندی</th>
-                        <th className="p-3.5 text-center">زمان مطالعه</th>
-                        <th className="p-3.5 text-center">بازدید</th>
-                        <th className="p-3.5 text-center">وضعیت</th>
-                        <th className="p-3.5 text-center">عملیات</th>
+                        <th className="p-3.5 text-center whitespace-nowrap">
+                          دسته‌بندی
+                        </th>
+                        <th className="p-3.5 text-center whitespace-nowrap">
+                          نویسنده
+                        </th>
+                        <th className="p-3.5 text-center whitespace-nowrap">
+                          آمار و تعامل
+                        </th>
+                        <th className="p-3.5 text-center whitespace-nowrap">
+                          وضعیت
+                        </th>
+                        <th className="p-3.5 text-center whitespace-nowrap">
+                          عملیات
+                        </th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border/60">
@@ -1180,87 +1474,148 @@ export const AdminContentView: React.FC = () => {
                           key={art.id}
                           className="hover:bg-muted/30 transition-colors"
                         >
-                          <td className="p-3.5 text-right pr-6">
-                            <div className="flex items-center gap-3">
+                          <td className="p-3.5 text-center max-w-[340px]">
+                            <div className="flex items-center justify-center gap-3">
                               <img
                                 src={
                                   art.cover_image ||
                                   'https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&w=120&q=80'
                                 }
                                 alt={art.title}
-                                className="w-12 h-10 object-cover rounded-lg border border-border shrink-0"
+                                className="w-12 h-10 object-cover rounded-xl border border-border/80 shrink-0 shadow-xs"
                               />
-                              <div className="space-y-0.5">
-                                <div className="font-bold text-foreground line-clamp-1 flex items-center gap-1.5">
-                                  <span>{art.title}</span>
+                              <div className="space-y-0.5 min-w-0 text-right flex-1">
+                                <div className="flex items-center gap-1.5">
+                                  <span
+                                    className="font-bold text-foreground text-xs sm:text-sm truncate block"
+                                    title={art.title}
+                                  >
+                                    {art.title}
+                                  </span>
                                   {art.is_featured && (
-                                    <span className="text-[10px] bg-amber-500/10 text-amber-600 dark:text-amber-400 px-1.5 py-0.2 rounded-full font-semibold">
+                                    <span className="text-[10px] bg-amber-500/10 text-amber-500 border border-amber-500/30 px-1.5 py-0.2 rounded-full font-bold shrink-0 whitespace-nowrap">
                                       ویژه
                                     </span>
                                   )}
                                 </div>
-                                <span className="text-[11px] text-muted-foreground font-mono block dir-ltr text-right">
+                                <span className="text-[11px] text-muted-foreground font-mono font-latin block dir-ltr text-right truncate">
                                   /blog/{art.slug}
                                 </span>
                               </div>
                             </div>
                           </td>
-                          <td className="p-3.5 text-center">
-                            <span className="bg-blue-500/10 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded-md font-medium text-[11px]">
+                          <td className="p-3.5 text-center whitespace-nowrap">
+                            <span
+                              className="bg-blue-500/10 text-blue-600 dark:text-blue-400 px-2.5 py-1 rounded-control font-bold text-[11px] whitespace-nowrap truncate max-w-[130px] inline-block shadow-xs"
+                              title={art.category_name}
+                            >
                               {art.category_name}
                             </span>
                           </td>
-                          <td className="p-3.5 text-center">
-                            <span className="inline-flex items-center justify-center gap-1 text-muted-foreground">
-                              <Clock className="h-3 w-3 text-blue-500" />
-                              <span>{art.reading_time_minutes} دقیقه</span>
-                            </span>
+                          <td className="p-3.5 text-center whitespace-nowrap">
+                            <div className="flex flex-col items-center justify-center gap-1.5 min-w-[70px]">
+                              {art.author_avatar ? (
+                                <img
+                                  src={art.author_avatar}
+                                  alt={art.author_name}
+                                  className="w-9 h-9 rounded-full object-cover border-2 border-border/80 shadow-xs shrink-0"
+                                />
+                              ) : siteLogoUrl ? (
+                                <img
+                                  src={siteLogoUrl}
+                                  alt="لوگو"
+                                  className="w-9 h-9 rounded-full object-contain p-1 border-2 border-border/80 bg-muted/20 shadow-xs shrink-0"
+                                />
+                              ) : (
+                                <div className="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold shrink-0">
+                                  {art.author_name?.[0] || 'A'}
+                                </div>
+                              )}
+                              <span
+                                className="text-[11px] font-bold text-foreground truncate max-w-[85px] block whitespace-nowrap text-center"
+                                title={art.author_name}
+                              >
+                                {art.author_name}
+                              </span>
+                            </div>
                           </td>
-                          <td className="p-3.5 text-center font-mono font-latin">
-                            <span className="inline-flex items-center justify-center gap-1 text-muted-foreground font-medium">
-                              <Eye className="h-3 w-3" />
-                              <span>{art.view_count.toLocaleString()}</span>
-                            </span>
+                          <td className="p-3.5 text-center whitespace-nowrap">
+                            <div className="flex flex-col items-center justify-center gap-1 text-xs">
+                              {/* Reading Time */}
+                              <div
+                                className="inline-flex items-center gap-1 text-muted-foreground text-[11px] whitespace-nowrap cursor-default"
+                                title={`زمان تخمینی مطالعه: ${art.reading_time_minutes} دقیقه`}
+                              >
+                                <Clock className="h-3 w-3 text-blue-500 shrink-0" />
+                                <span>{art.reading_time_minutes} دقیقه</span>
+                              </div>
+
+                              {/* Views */}
+                              <div
+                                className="inline-flex items-center gap-1.5 text-muted-foreground font-mono font-latin text-[11px] hover:text-foreground transition-colors cursor-default"
+                                title={`تعداد کل بازدیدها: ${art.view_count.toLocaleString()} بار`}
+                              >
+                                <Eye className="h-3 w-3 text-slate-400 shrink-0" />
+                                <span>{art.view_count.toLocaleString()}</span>
+                                <span className="text-[10px] text-muted-foreground/80 font-sans">
+                                  بازدید
+                                </span>
+                              </div>
+
+                              {/* Likes */}
+                              <div
+                                className="inline-flex items-center gap-1.5 text-rose-500 font-mono font-latin text-[11px] hover:text-rose-600 transition-colors cursor-default"
+                                title={`تعداد پسندیدن و لایک: ${(art.like_count || 0).toLocaleString()} کاربر`}
+                              >
+                                <Heart className="h-3 w-3 fill-rose-500 text-rose-500 shrink-0" />
+                                <span>
+                                  {(art.like_count || 0).toLocaleString()}
+                                </span>
+                                <span className="text-[10px] text-rose-500/80 font-sans">
+                                  پسندیدن
+                                </span>
+                              </div>
+                            </div>
                           </td>
-                          <td className="p-3.5 text-center">
+                          <td className="p-3.5 text-center whitespace-nowrap">
                             {art.is_published ? (
-                              <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-semibold text-[11px]">
-                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-emerald-500/10 text-emerald-500 border border-emerald-500/30 whitespace-nowrap shadow-xs">
+                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
                                 منتشر شده
                               </span>
                             ) : (
-                              <span className="inline-flex items-center gap-1 text-muted-foreground font-medium text-[11px]">
+                              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-medium bg-muted text-muted-foreground border border-border/60 whitespace-nowrap shadow-xs">
                                 <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
                                 پیش‌نویس
                               </span>
                             )}
                           </td>
-                          <td className="p-3.5 text-center">
+                          <td className="p-3.5 text-center whitespace-nowrap">
                             <div className="flex items-center justify-center gap-1.5">
                               <a
                                 href={`/blog/${art.slug}`}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="p-1.5 text-muted-foreground hover:text-blue-600 rounded-lg hover:bg-muted transition-colors"
-                                title="مشاهده عمومی"
+                                className="p-1.5 rounded-control border border-border/60 bg-secondary hover:bg-muted text-foreground hover:text-blue-500 transition-colors cursor-pointer shadow-control"
+                                title="مشاهده عمومی در سایت"
                               >
-                                <ExternalLink className="h-4 w-4" />
+                                <ExternalLink className="w-3.5 h-3.5 text-blue-500" />
                               </a>
                               <button
                                 type="button"
                                 onClick={() => handleEditArticle(art.id)}
-                                className="p-1.5 text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted transition-colors"
+                                className="p-1.5 rounded-control border border-border/60 bg-secondary hover:bg-muted text-foreground hover:text-brand transition-colors cursor-pointer shadow-control"
                                 title="ویرایش مقاله"
                               >
-                                <Edit2 className="h-4 w-4" />
+                                <Edit2 className="w-3.5 h-3.5 text-brand" />
                               </button>
                               <button
                                 type="button"
                                 onClick={() => handleDeleteArticle(art.id)}
-                                className="p-1.5 text-muted-foreground hover:text-rose-500 rounded-lg hover:bg-muted transition-colors"
+                                className="p-1.5 rounded-control border border-destructive/20 text-destructive hover:bg-destructive/10 transition-colors cursor-pointer shadow-control"
                                 title="حذف مقاله"
                               >
-                                <Trash2 className="h-4 w-4" />
+                                <Trash2 className="w-3.5 h-3.5" />
                               </button>
                             </div>
                           </td>
@@ -1312,7 +1667,7 @@ export const AdminContentView: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setIsEditingGuide(false)}
-                    className="px-3.5 py-1.5 text-xs text-muted-foreground hover:bg-muted rounded-xl transition-colors"
+                    className="h-9 sm:h-10 px-3.5 sm:px-4 rounded-control border border-border/60 bg-secondary/80 hover:bg-muted text-foreground font-bold text-xs shadow-control duration-motion active:scale-[0.98] cursor-pointer flex items-center justify-center"
                   >
                     انصراف
                   </button>
@@ -1320,7 +1675,7 @@ export const AdminContentView: React.FC = () => {
                     type="button"
                     onClick={handleSaveGuide}
                     disabled={isLoading}
-                    className="px-5 py-2 bg-primary text-primary-foreground text-xs font-semibold rounded-xl hover:opacity-90 disabled:opacity-50 transition-opacity flex items-center gap-1.5 shadow-sm"
+                    className="h-9 sm:h-10 px-4 sm:px-5 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs duration-motion active:scale-[0.98] shadow-control flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                   >
                     <Check className="h-4 w-4" />
                     <span>
@@ -1333,50 +1688,59 @@ export const AdminContentView: React.FC = () => {
               {/* Basic Fields */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-foreground block">
+                  <label className="text-xs font-bold text-foreground block">
                     عنوان راهنما *
                   </label>
                   <input
                     type="text"
                     value={guideForm.title}
                     onChange={(e) =>
-                      setGuideForm({ ...guideForm, title: e.target.value })
+                      setGuideForm((prev) => ({
+                        ...prev,
+                        title: e.target.value,
+                      }))
                     }
                     placeholder="مثلاً: حل مشکل عدم دریافت پیامک در شماره‌های ۵SIM"
-                    className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm focus:outline-hidden focus:ring-2 focus:ring-primary/40 font-medium"
+                    className="w-full h-10 px-3.5 rounded-field bg-muted/20 border border-border/60 text-foreground text-xs outline-none focus:border-brand focus:ring-1 focus:ring-brand/30 transition-all font-sans font-medium"
                   />
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-foreground block">
+                  <label className="text-xs font-bold text-foreground block">
                     پیوند یکتا (Slug) *
                   </label>
                   <input
                     type="text"
                     value={guideForm.slug}
                     onChange={(e) =>
-                      setGuideForm({ ...guideForm, slug: e.target.value })
+                      setGuideForm((prev) => ({
+                        ...prev,
+                        slug: e.target.value,
+                      }))
                     }
                     placeholder="fix-5sim-sms-delivery"
                     dir="ltr"
-                    className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm focus:outline-hidden focus:ring-2 focus:ring-primary/40 font-mono text-left"
+                    className="w-full h-10 px-3.5 rounded-field bg-muted/20 border border-border/60 text-foreground text-xs outline-none focus:border-brand focus:ring-1 focus:ring-brand/30 transition-all text-left font-mono font-latin"
                   />
                 </div>
               </div>
 
               {/* Excerpt */}
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-foreground block">
+                <label className="text-xs font-bold text-foreground block">
                   خلاصه راهنما
                 </label>
                 <textarea
                   rows={2}
                   value={guideForm.excerpt}
                   onChange={(e) =>
-                    setGuideForm({ ...guideForm, excerpt: e.target.value })
+                    setGuideForm((prev) => ({
+                      ...prev,
+                      excerpt: e.target.value,
+                    }))
                   }
                   placeholder="توضیح کوتاه درباره این راهنما..."
-                  className="w-full rounded-xl border border-border bg-background p-3 text-sm focus:outline-hidden focus:ring-2 focus:ring-primary/40"
+                  className="w-full p-3.5 rounded-field bg-muted/20 border border-border/60 text-foreground text-xs outline-none focus:border-brand focus:ring-1 focus:ring-brand/30 transition-all font-sans leading-relaxed"
                 />
               </div>
 
@@ -1385,21 +1749,25 @@ export const AdminContentView: React.FC = () => {
                 <RichContentEditor
                   value={guideForm.content}
                   onChange={(val) =>
-                    setGuideForm({ ...guideForm, content: val })
+                    setGuideForm((prev) => ({ ...prev, content: val }))
                   }
                   onReadingTimeChange={(rt) =>
-                    setGuideForm({ ...guideForm, reading_time_minutes: rt })
+                    setGuideForm((prev) =>
+                      prev.reading_time_minutes === rt
+                        ? prev
+                        : { ...prev, reading_time_minutes: rt },
+                    )
                   }
                   contentType="help"
                   label="محتوای متنی راهنما و راه‌حل گام‌به‌گام"
-                  minHeight="480px"
+                  minHeight="520px"
                 />
               </div>
 
               {/* Service & Category Configurations */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pt-4 border-t border-border">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pt-4 border-t border-border/60">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-foreground block">
+                  <label className="text-xs font-bold text-foreground block">
                     دسته‌بندی راهنما
                   </label>
                   <select
@@ -1408,13 +1776,13 @@ export const AdminContentView: React.FC = () => {
                       const sel = categories.find(
                         (c) => c.slug === e.target.value,
                       )
-                      setGuideForm({
-                        ...guideForm,
+                      setGuideForm((prev) => ({
+                        ...prev,
                         category_slug: e.target.value,
                         category_name: sel?.name || '',
-                      })
+                      }))
                     }}
-                    className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs focus:outline-hidden"
+                    className="w-full h-10 px-3.5 rounded-field bg-muted/20 border border-border/60 text-foreground text-xs outline-none focus:border-brand focus:ring-1 focus:ring-brand/30 transition-all font-sans cursor-pointer"
                   >
                     {categories
                       .filter((c) => c.type === 'help')
@@ -1427,18 +1795,18 @@ export const AdminContentView: React.FC = () => {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-foreground block">
+                  <label className="text-xs font-bold text-foreground block">
                     سرویس مقصد (Target)
                   </label>
                   <select
                     value={guideForm.service_target}
                     onChange={(e) =>
-                      setGuideForm({
-                        ...guideForm,
+                      setGuideForm((prev) => ({
+                        ...prev,
                         service_target: e.target.value,
-                      })
+                      }))
                     }
-                    className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs focus:outline-hidden"
+                    className="w-full h-10 px-3.5 rounded-field bg-muted/20 border border-border/60 text-foreground text-xs outline-none focus:border-brand focus:ring-1 focus:ring-brand/30 transition-all font-sans cursor-pointer"
                   >
                     {services.map((s) => (
                       <option key={s.id} value={s.key}>
@@ -1452,18 +1820,18 @@ export const AdminContentView: React.FC = () => {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-foreground block">
+                  <label className="text-xs font-bold text-foreground block">
                     سطح دشواری
                   </label>
                   <select
                     value={guideForm.difficulty}
                     onChange={(e) =>
-                      setGuideForm({
-                        ...guideForm,
+                      setGuideForm((prev) => ({
+                        ...prev,
                         difficulty: e.target.value,
-                      })
+                      }))
                     }
-                    className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs focus:outline-hidden"
+                    className="w-full h-10 px-3.5 rounded-field bg-muted/20 border border-border/60 text-foreground text-xs outline-none focus:border-brand focus:ring-1 focus:ring-brand/30 transition-all font-sans cursor-pointer"
                   >
                     <option value="ساده">ساده (مبتدی)</option>
                     <option value="متوسط">متوسط</option>
@@ -1472,7 +1840,7 @@ export const AdminContentView: React.FC = () => {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-foreground block">
+                  <label className="text-xs font-bold text-foreground block">
                     محصول مرتبط فروشگاه (CTA)
                   </label>
                   <select
@@ -1481,15 +1849,15 @@ export const AdminContentView: React.FC = () => {
                       const p = products.find(
                         (prod) => String(prod.id) === e.target.value,
                       )
-                      setGuideForm({
-                        ...guideForm,
+                      setGuideForm((prev) => ({
+                        ...prev,
                         related_product_id: e.target.value,
                         related_product_title: p?.title_fa || '',
                         related_product_slug: p?.slug || '',
                         related_product_price: p?.price_toman || 0,
-                      })
+                      }))
                     }}
-                    className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs focus:outline-hidden"
+                    className="w-full h-10 px-3.5 rounded-field bg-muted/20 border border-border/60 text-foreground text-xs outline-none focus:border-brand focus:ring-1 focus:ring-brand/30 transition-all font-sans cursor-pointer"
                   >
                     <option value="">بدون اتصال به محصول</option>
                     {products.map((p) => (
@@ -1498,6 +1866,192 @@ export const AdminContentView: React.FC = () => {
                       </option>
                     ))}
                   </select>
+                </div>
+              </div>
+
+              {/* Author Profile Information Card with Direct Upload & Site Logo Fallback */}
+              <div className="rounded-2xl border border-border/80 bg-muted/20 p-4 sm:p-5 space-y-4">
+                <div className="flex items-center justify-between border-b border-border/60 pb-3">
+                  <div className="flex items-center gap-2">
+                    <User className="h-4 w-4 text-brand" />
+                    <span className="text-xs font-bold text-foreground">
+                      مشخصات و تصویر نویسنده راهنما
+                    </span>
+                  </div>
+                  <span className="text-[11px] text-muted-foreground font-medium">
+                    {guideForm.author_avatar
+                      ? 'تصویر اختصاصی تنظیم شده'
+                      : 'پیش‌فرض: لوگوی سایت از تنظیمات ادمین'}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+                  {/* Author Avatar Preview & Upload Action */}
+                  <div className="flex items-center gap-3">
+                    <div className="relative w-14 h-14 rounded-full border-2 border-border/80 overflow-hidden bg-card flex items-center justify-center shrink-0 shadow-sm">
+                      {guideForm.author_avatar ? (
+                        <img
+                          src={guideForm.author_avatar}
+                          alt={guideForm.author_name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : siteLogoUrl ? (
+                        <img
+                          src={siteLogoUrl}
+                          alt="لوگوی پیش‌فرض سایت"
+                          className="w-full h-full object-contain p-1.5"
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-brand/10 text-brand flex items-center justify-center font-bold text-base">
+                          {guideForm.author_name?.[0] || 'A'}
+                        </div>
+                      )}
+                      {isUploadingGuideAvatar && (
+                        <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                          <Loader2 className="w-5 h-5 animate-spin text-white" />
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="space-y-1.5 flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <label className="h-8 px-3 rounded-xl bg-secondary hover:bg-muted border border-border/60 text-foreground font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-xs transition-all active:scale-[0.98]">
+                          <Upload className="w-3.5 h-3.5 text-brand" />
+                          <span>
+                            {guideForm.author_avatar
+                              ? 'تغییر تصویر'
+                              : 'آپلود تصویر پروفایل'}
+                          </span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            disabled={isUploadingGuideAvatar}
+                            onChange={(e) => {
+                              const f = e.target.files?.[0]
+                              if (f) handleUploadAuthorAvatar(f, true)
+                            }}
+                          />
+                        </label>
+
+                        {guideForm.author_avatar && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setGuideForm({
+                                ...guideForm,
+                                author_avatar: '',
+                              })
+                            }
+                            className="h-8 px-2.5 rounded-xl text-xs font-bold text-destructive hover:bg-destructive/10 border border-destructive/20 cursor-pointer transition-all active:scale-[0.98]"
+                            title="بازنشانی به لوگوی پیش‌فرض سایت"
+                          >
+                            لوگوی سایت
+                          </button>
+                        )}
+                      </div>
+                      <p className="text-[10px] text-muted-foreground truncate">
+                        {guideForm.author_avatar
+                          ? 'تصویر اختصاصی نویسنده فعال است'
+                          : 'در صورت عدم آپلود، لوگوی سایت به عنوان پیش‌فرض قرار می‌گیرد'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Author Name */}
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-foreground block">
+                      نام نویسنده / تیم پشتیبان *
+                    </label>
+                    <input
+                      type="text"
+                      value={guideForm.author_name}
+                      onChange={(e) =>
+                        setGuideForm({
+                          ...guideForm,
+                          author_name: e.target.value,
+                        })
+                      }
+                      placeholder="تیم پشتیبانی و فنی آناهیکس"
+                      className="w-full h-10 px-3 rounded-xl border border-border/60 bg-background text-foreground text-xs outline-none focus:border-brand"
+                    />
+                  </div>
+
+                  {/* Author Role */}
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-foreground block">
+                      سمت یا دپارتمان پشتیبانی
+                    </label>
+                    <input
+                      type="text"
+                      value={guideForm.author_role}
+                      onChange={(e) =>
+                        setGuideForm((prev) => ({
+                          ...prev,
+                          author_role: e.target.value,
+                        }))
+                      }
+                      placeholder="کارشناس رفع تحریم و شبکه"
+                      className="w-full h-10 px-3 rounded-xl border border-border/60 bg-background text-foreground text-xs outline-none focus:border-brand"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Visibility & Featured Toggles */}
+              <div className="flex flex-wrap items-center gap-6 pt-3 border-t border-border/60">
+                <div className="flex items-center gap-2.5">
+                  <ToggleSwitch
+                    size="sm"
+                    checked={Boolean(guideForm.is_published)}
+                    onChange={(checked) => {
+                      setGuideForm((prev) => ({
+                        ...prev,
+                        is_published: checked,
+                      }))
+                      if (checked) {
+                        notifySuccess(
+                          'وضعیت انتشار عمومی',
+                          'راهنما در وضعیت انتشار عمومی تنظیم شد و برای تمامی کاربران قابل مشاهده خواهد بود.',
+                        )
+                      } else {
+                        notifyInfo(
+                          'حالت پیش‌نویس',
+                          'راهنما به حالت پیش‌نویس تغییر یافت و از دید عموم مخفی شد.',
+                        )
+                      }
+                    }}
+                  />
+                  <span className="text-xs font-bold text-foreground">
+                    انتشار عمومی در پایگاه دانش
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2.5">
+                  <ToggleSwitch
+                    size="sm"
+                    checked={Boolean(guideForm.is_featured)}
+                    onChange={(checked) => {
+                      setGuideForm((prev) => ({
+                        ...prev,
+                        is_featured: checked,
+                      }))
+                      if (checked) {
+                        notifySuccess(
+                          'پین راهنمای ویژه',
+                          'راهنما با موفقیت به عنوان راهنمای برگزیده پایگاه دانش پین شد.',
+                        )
+                      } else {
+                        notifyInfo(
+                          'حذف از برگزیده‌ها',
+                          'راهنما از حالت برگزیده خارج گردید.',
+                        )
+                      }
+                    }}
+                  />
+                  <span className="text-xs font-bold text-foreground">
+                    پین کردن به عنوان راهنمای برگزیده صفحه اصلی پایگاه دانش
+                  </span>
                 </div>
               </div>
             </div>
@@ -1552,14 +2106,24 @@ export const AdminContentView: React.FC = () => {
                   <table className="w-full text-center text-xs">
                     <thead>
                       <tr className="border-b border-border bg-muted/40 text-muted-foreground font-semibold select-none">
-                        <th className="p-3.5 text-right pr-6">عنوان راهنما</th>
-                        <th className="p-3.5 text-center">سرویس هدف</th>
-                        <th className="p-3.5 text-center">دشواری</th>
-                        <th className="p-3.5 text-center">
+                        <th className="p-3.5 text-center whitespace-nowrap">
+                          عنوان راهنما
+                        </th>
+                        <th className="p-3.5 text-center whitespace-nowrap">
+                          سرویس هدف
+                        </th>
+                        <th className="p-3.5 text-center whitespace-nowrap">
+                          دشواری
+                        </th>
+                        <th className="p-3.5 text-center whitespace-nowrap">
                           بازخورد مفید (👍 / 👎)
                         </th>
-                        <th className="p-3.5 text-center">بازدید</th>
-                        <th className="p-3.5 text-center">عملیات</th>
+                        <th className="p-3.5 text-center whitespace-nowrap">
+                          بازدید
+                        </th>
+                        <th className="p-3.5 text-center whitespace-nowrap">
+                          عملیات
+                        </th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border/60">
@@ -1568,69 +2132,90 @@ export const AdminContentView: React.FC = () => {
                           key={g.id}
                           className="hover:bg-muted/30 transition-colors"
                         >
-                          <td className="p-3.5 text-right pr-6">
-                            <div className="space-y-0.5">
-                              <span className="font-bold text-foreground block">
+                          <td className="p-3.5 text-center max-w-[340px]">
+                            <div className="space-y-0.5 min-w-0 text-center">
+                              <span
+                                className="font-bold text-foreground text-xs sm:text-sm truncate block text-center"
+                                title={g.title}
+                              >
                                 {g.title}
                               </span>
-                              <span className="text-[11px] text-muted-foreground font-mono dir-ltr text-right block">
+                              <span className="text-[11px] text-muted-foreground font-mono font-latin dir-ltr text-center block truncate">
                                 /help/{g.slug}
                               </span>
                             </div>
                           </td>
-                          <td className="p-3.5 text-center">
-                            <span className="bg-muted px-2 py-0.5 rounded-md text-[11px] font-semibold text-foreground font-latin">
+                          <td className="p-3.5 text-center whitespace-nowrap">
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-[11px] font-bold text-foreground font-latin bg-secondary border border-border/60 shadow-xs">
                               {g.service_target.toUpperCase()}
                             </span>
                           </td>
-                          <td className="p-3.5 text-center">
-                            <span className="text-muted-foreground">
+                          <td className="p-3.5 text-center whitespace-nowrap">
+                            <span
+                              className={`inline-flex items-center px-2.5 py-0.5 rounded-md text-[11px] font-semibold whitespace-nowrap ${
+                                g.difficulty === 'پیشرفته'
+                                  ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20'
+                                  : g.difficulty === 'متوسط'
+                                    ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20'
+                                    : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                              }`}
+                            >
                               {g.difficulty}
                             </span>
                           </td>
-                          <td className="p-3.5 text-center font-mono font-latin">
-                            <div className="inline-flex items-center justify-center gap-3 text-[11px]">
-                              <span className="text-emerald-600 font-semibold flex items-center gap-1">
-                                <ThumbsUp className="h-3 w-3" />
-                                {g.helpful_yes}
+                          <td className="p-3.5 text-center font-mono font-latin whitespace-nowrap">
+                            <div className="inline-flex items-center justify-center gap-3 text-xs">
+                              <span
+                                className="text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1 cursor-default"
+                                title={`تعداد کاربران راضی: ${g.helpful_yes.toLocaleString()} نفر`}
+                              >
+                                <ThumbsUp className="h-3.5 w-3.5" />
+                                {g.helpful_yes.toLocaleString()}
                               </span>
-                              <span className="text-rose-500 font-semibold flex items-center gap-1">
-                                <ThumbsDown className="h-3 w-3" />
-                                {g.helpful_no}
+                              <span
+                                className="text-rose-500 font-bold flex items-center gap-1 cursor-default"
+                                title={`تعداد کاربران ناراضی: ${g.helpful_no.toLocaleString()} نفر`}
+                              >
+                                <ThumbsDown className="h-3.5 w-3.5" />
+                                {g.helpful_no.toLocaleString()}
                               </span>
                             </div>
                           </td>
-                          <td className="p-3.5 text-center font-mono font-latin">
-                            <span className="text-muted-foreground">
-                              {g.view_count.toLocaleString()}
+                          <td className="p-3.5 text-center font-mono font-latin whitespace-nowrap">
+                            <span
+                              className="inline-flex items-center justify-center gap-1 text-muted-foreground font-medium text-xs cursor-default"
+                              title={`تعداد کل بازدیدها: ${g.view_count.toLocaleString()} بار`}
+                            >
+                              <Eye className="h-3.5 w-3.5 text-muted-foreground/70" />
+                              <span>{g.view_count.toLocaleString()}</span>
                             </span>
                           </td>
-                          <td className="p-3.5 text-center">
+                          <td className="p-3.5 text-center whitespace-nowrap">
                             <div className="flex items-center justify-center gap-1.5">
                               <a
                                 href={`/help/${g.slug}`}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="p-1.5 text-muted-foreground hover:text-blue-600 rounded-lg hover:bg-muted"
-                                title="مشاهده"
+                                className="p-1.5 rounded-control border border-border/60 bg-secondary hover:bg-muted text-foreground hover:text-blue-500 transition-colors cursor-pointer shadow-control"
+                                title="مشاهده زنده راهنما"
                               >
-                                <ExternalLink className="h-4 w-4" />
+                                <ExternalLink className="w-3.5 h-3.5 text-blue-500" />
                               </a>
                               <button
                                 type="button"
                                 onClick={() => handleEditGuide(g.id)}
-                                className="p-1.5 text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted"
-                                title="ویرایش"
+                                className="p-1.5 rounded-control border border-border/60 bg-secondary hover:bg-muted text-foreground hover:text-brand transition-colors cursor-pointer shadow-control"
+                                title="ویرایش راهنما"
                               >
-                                <Edit2 className="h-4 w-4" />
+                                <Edit2 className="w-3.5 h-3.5 text-brand" />
                               </button>
                               <button
                                 type="button"
                                 onClick={() => handleDeleteGuide(g.id)}
-                                className="p-1.5 text-muted-foreground hover:text-rose-500 rounded-lg hover:bg-muted"
-                                title="حذف"
+                                className="p-1.5 rounded-control border border-destructive/20 text-destructive hover:bg-destructive/10 transition-colors cursor-pointer shadow-control"
+                                title="حذف راهنما"
                               >
-                                <Trash2 className="h-4 w-4" />
+                                <Trash2 className="w-3.5 h-3.5" />
                               </button>
                             </div>
                           </td>
@@ -1683,7 +2268,7 @@ export const AdminContentView: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1.5 shrink-0">
                   <button
                     type="button"
                     onClick={() => {
@@ -1698,16 +2283,18 @@ export const AdminContentView: React.FC = () => {
                       })
                       setIsCategoryModalOpen(true)
                     }}
-                    className="p-1.5 text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted"
+                    className="p-1.5 rounded-control border border-border/60 bg-secondary hover:bg-muted text-foreground hover:text-brand transition-colors cursor-pointer shadow-control"
+                    title="ویرایش دسته‌بندی"
                   >
-                    <Edit2 className="h-4 w-4" />
+                    <Edit2 className="w-3.5 h-3.5 text-brand" />
                   </button>
                   <button
                     type="button"
                     onClick={() => handleDeleteCategory(cat.id)}
-                    className="p-1.5 text-muted-foreground hover:text-rose-500 rounded-lg hover:bg-muted"
+                    className="p-1.5 rounded-control border border-destructive/20 text-destructive hover:bg-destructive/10 transition-colors cursor-pointer shadow-control"
+                    title="حذف دسته‌بندی"
                   >
-                    <Trash2 className="h-4 w-4" />
+                    <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </div>
               </div>
@@ -1719,123 +2306,214 @@ export const AdminContentView: React.FC = () => {
       {/* ----------------- SUB-TAB 4: COMMENTS ----------------- */}
       {activeSubTab === 'comments' && (
         <div className="space-y-4">
+          {/* Comments Filter & Search Toolbar */}
+          <div className="bg-card border border-border rounded-xl p-3 flex flex-wrap items-center justify-between gap-3 shadow-xs">
+            <div className="flex-1 min-w-[240px]">
+              <SearchInput
+                value={commentSearch}
+                onChange={setCommentSearch}
+                onSearch={() => loadComments()}
+                placeholder="جستجو در متن دیدگاه، نام یا ایمیل کاربر..."
+                debounceMs={300}
+              />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <select
+                value={commentStatusFilter}
+                onChange={(e) => setCommentStatusFilter(e.target.value)}
+                className="h-10 px-3.5 rounded-field bg-muted/20 border border-border/60 text-foreground text-xs outline-none focus:border-brand focus:ring-1 focus:ring-brand/30 transition-all font-sans cursor-pointer"
+              >
+                <option value="">همه وضعیت‌ها</option>
+                <option value="pending">در انتظار بررسی</option>
+                <option value="approved">تایید شده</option>
+                <option value="rejected">رد شده</option>
+              </select>
+
+              <select
+                value={commentArticleFilter}
+                onChange={(e) => setCommentArticleFilter(e.target.value)}
+                className="h-10 px-3.5 rounded-field bg-muted/20 border border-border/60 text-foreground text-xs outline-none focus:border-brand focus:ring-1 focus:ring-brand/30 transition-all font-sans cursor-pointer max-w-[220px]"
+              >
+                <option value="">همه مقالات</option>
+                {articles.map((art) => (
+                  <option key={art.id} value={art.id}>
+                    {art.title}
+                  </option>
+                ))}
+              </select>
+
+              <button
+                type="button"
+                onClick={loadComments}
+                className="p-2 text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted transition-colors cursor-pointer"
+                title="تازه‌سازی دیدگاه‌ها"
+              >
+                <RefreshCw className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+
           <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
             <div className="divide-y divide-border/60">
-              {comments.map((c) => (
-                <div key={c.id} className="p-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-sm text-foreground">
-                        {c.author_name}
-                      </span>
-                      <span
-                        className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${
-                          c.status === 'approved'
-                            ? 'bg-emerald-500/10 text-emerald-600'
+              {comments
+                .filter((c) => {
+                  if (!commentSearch.trim()) return true
+                  const q = commentSearch.trim().toLowerCase()
+                  return (
+                    c.content.toLowerCase().includes(q) ||
+                    c.author_name.toLowerCase().includes(q) ||
+                    Boolean(c.email?.toLowerCase().includes(q)) ||
+                    Boolean(c.article_title?.toLowerCase().includes(q))
+                  )
+                })
+                .map((c) => (
+                  <div key={c.id} className="p-4 space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 pb-3">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs shrink-0">
+                          {c.author_name?.[0] || 'U'}
+                        </div>
+                        <div>
+                          <span className="font-bold text-xs sm:text-sm text-foreground block">
+                            {c.author_name}
+                          </span>
+                          {c.email && (
+                            <span className="text-[11px] text-muted-foreground font-mono font-latin dir-ltr block text-right">
+                              {c.email}
+                            </span>
+                          )}
+                        </div>
+                        <span
+                          className={`text-[10px] px-2.5 py-0.5 rounded-full font-bold ${
+                            c.status === 'approved'
+                              ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/30'
+                              : c.status === 'rejected'
+                                ? 'bg-rose-500/10 text-rose-500 border border-rose-500/30'
+                                : 'bg-amber-500/10 text-amber-500 border border-amber-500/30'
+                          }`}
+                        >
+                          {c.status === 'approved'
+                            ? 'تایید شده'
                             : c.status === 'rejected'
-                              ? 'bg-rose-500/10 text-rose-500'
-                              : 'bg-amber-500/10 text-amber-600'
-                        }`}
-                      >
-                        {c.status === 'approved'
-                          ? 'تایید شده'
-                          : c.status === 'rejected'
-                            ? 'رد شده'
-                            : 'در انتظار بررسی'}
-                      </span>
+                              ? 'رد شده'
+                              : 'در انتظار بررسی'}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        {c.article_slug ? (
+                          <a
+                            href={`/blog/${c.article_slug}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-control bg-blue-500/10 text-blue-500 hover:text-blue-600 border border-blue-500/20 text-xs font-bold transition-all shadow-xs"
+                            title="مشاهده مقاله در سایت"
+                          >
+                            <BookOpen className="w-3.5 h-3.5" />
+                            <span className="truncate max-w-[180px] sm:max-w-[240px]">
+                              {c.article_title || c.article_slug}
+                            </span>
+                            <ExternalLink className="w-3 h-3 opacity-70" />
+                          </a>
+                        ) : (
+                          <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-md">
+                            مقاله وبلاگ
+                          </span>
+                        )}
+                        <span className="text-xs text-muted-foreground font-mono font-latin">
+                          {new Date(c.created_at).toLocaleDateString('fa-IR')}
+                        </span>
+                      </div>
                     </div>
-                    <span className="text-xs text-muted-foreground">
-                      {new Date(c.created_at).toLocaleDateString('fa-IR')}
-                    </span>
-                  </div>
 
-                  <p className="text-xs md:text-sm text-slate-700 dark:text-slate-300 leading-relaxed bg-muted/30 p-3 rounded-xl border border-border/50">
-                    {c.content}
-                  </p>
+                    <p className="text-xs md:text-sm text-slate-700 dark:text-slate-300 leading-relaxed bg-muted/30 p-3 rounded-xl border border-border/50">
+                      {c.content}
+                    </p>
 
-                  {/* Admin Reply Section */}
-                  {c.admin_reply && (
-                    <div className="mr-4 p-3 rounded-xl bg-blue-50/50 dark:bg-blue-950/20 border-r-2 border-primary text-xs space-y-1">
-                      <span className="font-semibold text-primary block">
-                        پاسخ مدیریت:
-                      </span>
-                      <p className="text-slate-600 dark:text-slate-300">
-                        {c.admin_reply}
-                      </p>
-                    </div>
-                  )}
+                    {/* Admin Reply Section */}
+                    {c.admin_reply && (
+                      <div className="mr-4 p-3 rounded-xl bg-blue-50/50 dark:bg-blue-950/20 border-r-2 border-primary text-xs space-y-1">
+                        <span className="font-semibold text-primary block">
+                          پاسخ مدیریت:
+                        </span>
+                        <p className="text-slate-600 dark:text-slate-300">
+                          {c.admin_reply}
+                        </p>
+                      </div>
+                    )}
 
-                  {/* Comment Action Buttons */}
-                  <div className="flex items-center justify-between gap-2 pt-1">
-                    <div className="flex items-center gap-1.5">
-                      {c.status !== 'approved' && (
+                    {/* Comment Action Buttons */}
+                    <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+                      <div className="flex items-center gap-2">
+                        {c.status !== 'approved' && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleUpdateCommentStatus(c.id, 'approved')
+                            }
+                            className="h-8 px-3 rounded-control bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-500 border border-emerald-500/30 text-xs font-bold transition-all cursor-pointer duration-motion active:scale-[0.98]"
+                          >
+                            تایید دیدگاه
+                          </button>
+                        )}
+                        {c.status !== 'rejected' && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleUpdateCommentStatus(c.id, 'rejected')
+                            }
+                            className="h-8 px-3 rounded-control bg-amber-500/15 hover:bg-amber-500/25 text-amber-500 border border-amber-500/30 text-xs font-bold transition-all cursor-pointer duration-motion active:scale-[0.98]"
+                          >
+                            رد دیدگاه
+                          </button>
+                        )}
                         <button
                           type="button"
-                          onClick={() =>
-                            handleUpdateCommentStatus(c.id, 'approved')
-                          }
-                          className="px-3 py-1 bg-emerald-600 text-white rounded-lg text-xs font-medium hover:bg-emerald-700"
+                          onClick={() => handleDeleteComment(c.id)}
+                          className="h-8 px-3 rounded-control text-destructive hover:bg-destructive/10 border border-destructive/20 text-xs font-bold transition-all cursor-pointer duration-motion active:scale-[0.98]"
                         >
-                          تایید دیدگاه
+                          حذف
                         </button>
-                      )}
-                      {c.status !== 'rejected' && (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            handleUpdateCommentStatus(c.id, 'rejected')
-                          }
-                          className="px-3 py-1 bg-muted hover:bg-rose-500 hover:text-white rounded-lg text-xs font-medium transition-colors"
-                        >
-                          رد دیدگاه
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteComment(c.id)}
-                        className="px-3 py-1 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-lg text-xs font-medium"
-                      >
-                        حذف
-                      </button>
-                    </div>
+                      </div>
 
-                    {/* Inline Reply Input */}
-                    <div className="flex items-center gap-1.5 flex-1 max-w-md">
-                      <input
-                        type="text"
-                        value={commentReplyMap[c.id] || ''}
-                        onChange={(e) =>
-                          setCommentReplyMap({
-                            ...commentReplyMap,
-                            [c.id]: e.target.value,
-                          })
-                        }
-                        placeholder="ثبت پاسخ به این نظر..."
-                        className="flex-1 rounded-lg border border-border bg-background px-2.5 py-1 text-xs focus:outline-hidden"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (commentReplyMap[c.id]) {
-                            handleUpdateCommentStatus(
-                              c.id,
-                              'approved',
-                              commentReplyMap[c.id],
-                            )
+                      {/* Inline Reply Input */}
+                      <div className="flex items-center gap-1.5 flex-1 max-w-md">
+                        <input
+                          type="text"
+                          value={commentReplyMap[c.id] || ''}
+                          onChange={(e) =>
                             setCommentReplyMap({
                               ...commentReplyMap,
-                              [c.id]: '',
+                              [c.id]: e.target.value,
                             })
                           }
-                        }}
-                        className="px-3 py-1 bg-primary text-primary-foreground text-xs font-semibold rounded-lg hover:opacity-90"
-                      >
-                        ارسال پاسخ
-                      </button>
+                          placeholder="ثبت پاسخ به این نظر..."
+                          className="flex-1 h-9 rounded-field border border-border/60 bg-background px-3 text-xs outline-none focus:border-brand"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (commentReplyMap[c.id]) {
+                              handleUpdateCommentStatus(
+                                c.id,
+                                'approved',
+                                commentReplyMap[c.id],
+                              )
+                              setCommentReplyMap({
+                                ...commentReplyMap,
+                                [c.id]: '',
+                              })
+                            }
+                          }}
+                          className="h-9 px-4 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground text-xs font-black shadow-control cursor-pointer duration-motion active:scale-[0.98]"
+                        >
+                          ارسال پاسخ
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))}
 
               {comments.length === 0 && (
                 <div className="p-8 text-center text-muted-foreground text-xs">
@@ -1885,7 +2563,7 @@ export const AdminContentView: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-1 shrink-0">
+                  <div className="flex items-center gap-1.5 shrink-0">
                     <button
                       type="button"
                       onClick={() => {
@@ -1901,18 +2579,18 @@ export const AdminContentView: React.FC = () => {
                         })
                         setIsTemplateModalOpen(true)
                       }}
-                      className="p-1.5 text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted"
+                      className="p-1.5 rounded-control border border-border/60 bg-secondary hover:bg-muted text-foreground hover:text-brand transition-colors cursor-pointer shadow-control"
                       title="ویرایش قالب"
                     >
-                      <Edit2 className="h-4 w-4" />
+                      <Edit2 className="w-3.5 h-3.5 text-brand" />
                     </button>
                     <button
                       type="button"
                       onClick={() => handleDeleteTemplate(tmpl.id)}
-                      className="p-1.5 text-muted-foreground hover:text-rose-500 rounded-lg hover:bg-muted"
+                      className="p-1.5 rounded-control border border-destructive/20 text-destructive hover:bg-destructive/10 transition-colors cursor-pointer shadow-control"
                       title="حذف قالب"
                     >
-                      <Trash2 className="h-4 w-4" />
+                      <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </div>
@@ -2059,18 +2737,11 @@ export const AdminContentView: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="flex items-center justify-end gap-2 pt-3 border-t border-border/60">
-                  <button
-                    type="button"
-                    onClick={() => setIsCategoryModalOpen(false)}
-                    className="h-9 px-4 rounded-control border border-border/60 text-xs font-bold text-muted-foreground hover:text-foreground hover:bg-muted cursor-pointer duration-motion active:scale-[0.98]"
-                  >
-                    انصراف
-                  </button>
+                <div className="pt-3 border-t border-border/60">
                   <button
                     type="button"
                     onClick={handleSaveCategory}
-                    className="h-9 px-5 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground text-xs font-black shadow-control cursor-pointer duration-motion active:scale-[0.98]"
+                    className="h-11 w-full rounded-control bg-primary hover:bg-primary-hover text-primary-foreground text-xs font-black shadow-control cursor-pointer duration-motion active:scale-[0.98]"
                   >
                     ذخیره دسته‌بندی
                   </button>
@@ -2099,7 +2770,7 @@ export const AdminContentView: React.FC = () => {
             dir="rtl"
           >
             <div className="min-h-full w-full flex items-start sm:items-center justify-center">
-              <div className="w-full max-w-2xl my-auto bg-card border border-border/80 rounded-surface p-6 shadow-overlay text-right space-y-4 animate-in zoom-in-95 text-foreground">
+              <div className="w-full max-w-4xl my-auto bg-card border border-border/80 rounded-surface p-6 shadow-overlay text-right space-y-4 animate-in zoom-in-95 text-foreground">
                 <div className="flex items-center justify-between pb-3 border-b border-border/60">
                   <h3 className="font-black text-base text-foreground">
                     {templateForm.id
@@ -2214,36 +2885,32 @@ export const AdminContentView: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="text-xs font-bold text-foreground block mb-1">
-                      متن و ساختار قالب (Markdown استاندارد) *
+                    <label className="text-xs font-bold text-foreground block mb-2">
+                      محتوا و ساختار قالب نگارش (ویرایشگر پیشرفته با پیش‌نمایش
+                      زنده) *
                     </label>
-                    <textarea
-                      rows={8}
+                    <RichContentEditor
                       value={templateForm.template_content}
-                      onChange={(e) =>
+                      onChange={(val) =>
                         setTemplateForm({
                           ...templateForm,
-                          template_content: e.target.value,
+                          template_content: val,
                         })
                       }
-                      placeholder="## عنوان بخش اول&#10;&#10;متن پیش‌فرض قالب..."
-                      className="w-full p-3 rounded-field border border-border/60 bg-muted/20 font-mono text-xs text-foreground outline-none focus:border-brand leading-relaxed font-latin"
+                      contentType={
+                        templateForm.type === 'help' ? 'help' : 'blog'
+                      }
+                      label="ویرایشگر ساختار قالب"
+                      minHeight="350px"
                     />
                   </div>
                 </div>
 
-                <div className="flex items-center justify-end gap-2 pt-3 border-t border-border/60">
-                  <button
-                    type="button"
-                    onClick={() => setIsTemplateModalOpen(false)}
-                    className="h-9 px-4 rounded-control border border-border/60 text-xs font-bold text-muted-foreground hover:text-foreground hover:bg-muted cursor-pointer duration-motion active:scale-[0.98]"
-                  >
-                    انصراف
-                  </button>
+                <div className="pt-3 border-t border-border/60">
                   <button
                     type="button"
                     onClick={handleSaveTemplate}
-                    className="h-9 px-5 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground text-xs font-black shadow-control cursor-pointer duration-motion active:scale-[0.98]"
+                    className="h-11 w-full rounded-control bg-primary hover:bg-primary-hover text-primary-foreground text-xs font-black shadow-control cursor-pointer duration-motion active:scale-[0.98]"
                   >
                     ذخیره قالب
                   </button>

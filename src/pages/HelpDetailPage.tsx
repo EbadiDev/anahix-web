@@ -41,6 +41,16 @@ export const HelpDetailPage: React.FC = () => {
   })
   const [feedbackMsg, setFeedbackMsg] = useState('')
   const [voting, setVoting] = useState(false)
+  const [siteLogoUrl, setSiteLogoUrl] = useState<string>('')
+
+  useEffect(() => {
+    api
+      .getThemeSettings()
+      .then((st) => {
+        if (st?.site_logo_url) setSiteLogoUrl(st.site_logo_url)
+      })
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
     if (!slug) return
@@ -183,13 +193,35 @@ export const HelpDetailPage: React.FC = () => {
             </span>
           </nav>
 
-          <div className="flex flex-wrap items-center gap-2 text-xs">
+          <div className="flex flex-wrap items-center gap-3 text-xs">
             <span className="px-3 py-1 rounded-control bg-brand/10 text-brand font-bold">
               {guide.category_name}
             </span>
             <span className="bg-muted px-2.5 py-0.5 rounded-control font-medium text-foreground text-[11px]">
               سطح: {guide.difficulty}
             </span>
+            <div className="flex items-center gap-2 pr-1 border-r border-border/60">
+              {guide.author_avatar ? (
+                <img
+                  src={guide.author_avatar}
+                  alt={guide.author_name || 'نویسنده'}
+                  className="w-6 h-6 rounded-full object-cover border border-border/80"
+                />
+              ) : siteLogoUrl ? (
+                <img
+                  src={siteLogoUrl}
+                  alt="لوگوی آناهیکس"
+                  className="w-6 h-6 rounded-full object-contain p-0.5 border border-border/80 bg-muted/20"
+                />
+              ) : (
+                <div className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-bold">
+                  {(guide.author_name || 'ت')[0]}
+                </div>
+              )}
+              <span className="font-bold text-foreground text-xs">
+                {guide.author_name || 'تیم پشتیبانی و فنی آناهیکس'}
+              </span>
+            </div>
             <span className="flex items-center gap-1 text-muted-foreground">
               <Clock className="h-3.5 w-3.5 text-brand" />
               <span>

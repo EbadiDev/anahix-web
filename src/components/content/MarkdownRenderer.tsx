@@ -51,8 +51,16 @@ interface Block {
     | 'table'
     | 'hr'
     | 'image'
+    | 'video'
+    | 'columns'
+    | 'checklist'
+    | 'accordion'
   content?: string
+  summary?: string
   items?: string[]
+  columns?: string[]
+  colCount?: number
+  checklistItems?: { checked: boolean; text: string }[]
   lang?: string
   rows?: string[][]
   headers?: string[]
@@ -225,6 +233,82 @@ function parseMarkdownBlocks(raw: string): Block[] {
       continue
     }
 
+    // Multi-column blocks: :::columns-2, :::columns-3, :::grid-2, :::grid-3
+    if (trimmed.startsWith(':::columns') || trimmed.startsWith(':::grid')) {
+      const colMatch = trimmed.match(/:::(?:columns|grid)-([234])/)
+      const colCount = colMatch ? Number(colMatch[1]) : 2
+      const colLines: string[] = []
+      i++
+      while (i < lines.length && lines[i].trim() !== ':::') {
+        colLines.push(lines[i])
+        i++
+      }
+      if (i < lines.length && lines[i].trim() === ':::') {
+        i++ // skip closing :::
+      }
+      const rawCols = colLines.join('\n').split(/:::col\s*\n?/)
+      const cols = rawCols
+        .filter((c) => c.trim().length > 0)
+        .map((c) => c.trim())
+      blocks.push({
+        id: `columns-${blocks.length}`,
+        type: 'columns',
+        columns: cols,
+        colCount,
+      })
+      continue
+    }
+
+    // Accordion: <details> ... <summary> ... </summary> ... </details>
+    if (trimmed.startsWith('<details>')) {
+      const detailsLines: string[] = []
+      i++
+      while (i < lines.length && !lines[i].trim().startsWith('</details>')) {
+        detailsLines.push(lines[i])
+        i++
+      }
+      if (i < lines.length && lines[i].trim().startsWith('</details>')) {
+        i++ // skip closing </details>
+      }
+      const fullDetails = detailsLines.join('\n')
+      const summaryMatch = fullDetails.match(/<summary>(.*?)<\/summary>/i)
+      const summary = summaryMatch
+        ? summaryMatch[1].trim()
+        : 'مشاهده توضیحات بیشتر'
+      const content = fullDetails.replace(/<summary>.*?<\/summary>/i, '').trim()
+      blocks.push({
+        id: `accordion-${blocks.length}`,
+        type: 'accordion',
+        summary,
+        content,
+      })
+      continue
+    }
+
+    // Checklist / Task list: - [x] or - [ ]
+    if (/^[-*•]\s+\[([ xX])\]\s+/.test(trimmed)) {
+      const checklistItems: { checked: boolean; text: string }[] = []
+      while (
+        i < lines.length &&
+        /^[-*•]\s+\[([ xX])\]\s+/.test(lines[i].trim())
+      ) {
+        const m = lines[i].trim().match(/^[-*•]\s+\[([ xX])\]\s+(.*)$/)
+        if (m) {
+          checklistItems.push({
+            checked: m[1].toLowerCase() === 'x',
+            text: m[2],
+          })
+        }
+        i++
+      }
+      blocks.push({
+        id: `checklist-${blocks.length}`,
+        type: 'checklist',
+        checklistItems,
+      })
+      continue
+    }
+
     // Unordered List - or *
     if (
       trimmed.startsWith('- ') ||
@@ -256,15 +340,43 @@ function parseMarkdownBlocks(raw: string): Block[] {
       continue
     }
 
-    // Standalone Image ![alt](url)
+    // Standalone Video @[video:alt](url) or ![video:alt](url)
+    const vidPrefixMatch =
+      trimmed.match(/^@\[(video:)?(.*?)\]\((.*?)\)$/) ||
+      trimmed.match(/^!\[(video:)(.*?)\]\((.*?)\)$/)
+    if (vidPrefixMatch) {
+      blocks.push({
+        id: `video-${blocks.length}`,
+        type: 'video',
+        alt: vidPrefixMatch[2],
+        src: vidPrefixMatch[3],
+      })
+      i++
+      continue
+    }
+
+    // Standalone Image or Video ![alt](url)
     const imgMatch = trimmed.match(/^!\[(.*?)\]\((.*?)\)$/)
     if (imgMatch) {
-      blocks.push({
-        id: `img-${blocks.length}`,
-        type: 'image',
-        alt: imgMatch[1],
-        src: imgMatch[2],
-      })
+      const src = imgMatch[2]
+      const isVideoFile =
+        /\.(mp4|webm|mov|ogg|m4v)(\?.*)?$/i.test(src) ||
+        imgMatch[1].startsWith('video:')
+      if (isVideoFile) {
+        blocks.push({
+          id: `video-${blocks.length}`,
+          type: 'video',
+          alt: imgMatch[1].replace(/^video:\s*/, ''),
+          src: src,
+        })
+      } else {
+        blocks.push({
+          id: `img-${blocks.length}`,
+          type: 'image',
+          alt: imgMatch[1],
+          src: src,
+        })
+      }
       i++
       continue
     }
@@ -520,6 +632,91 @@ const BlockRenderer: React.FC<{ block: Block }> = ({ block }) => {
           </table>
         </div>
       )
+    case 'video':
+      return (
+        <figure className="my-6 space-y-2">
+          <div className="rounded-2xl border border-border/80 bg-slate-950 overflow-hidden shadow-surface relative">
+            <video
+              controls
+              preload="metadata"
+              className="w-full max-h-[500px] rounded-2xl bg-black"
+              src={block.src}
+            >
+              <track kind="captions" />
+              مرورگر شما از پخش ویدیو پشتیبانی نمی‌کند.
+            </video>
+          </div>
+          {block.alt && (
+            <figcaption className="text-center text-xs text-muted-foreground">
+              {block.alt}
+            </figcaption>
+          )}
+        </figure>
+      )
+    case 'checklist':
+      return (
+        <div className="space-y-2.5 my-4 p-4 rounded-surface border border-border/60 bg-muted/20">
+          {block.checklistItems?.map((item) => (
+            <div
+              key={`${block.id}-item-${item.text}`}
+              className="flex items-start gap-2.5 text-xs sm:text-sm"
+            >
+              <div
+                className={`mt-0.5 w-4 h-4 rounded-md flex items-center justify-center shrink-0 border ${
+                  item.checked
+                    ? 'bg-emerald-500 border-emerald-500 text-white'
+                    : 'border-border/80 bg-background text-transparent'
+                }`}
+              >
+                <Check className="w-3 h-3 stroke-[3]" />
+              </div>
+              <span
+                className={`${
+                  item.checked
+                    ? 'text-muted-foreground line-through decoration-muted-foreground/50'
+                    : 'text-foreground font-medium'
+                } leading-relaxed`}
+              >
+                {renderInlineMarkdown(item.text)}
+              </span>
+            </div>
+          ))}
+        </div>
+      )
+    case 'columns': {
+      const colsClass =
+        block.colCount === 3
+          ? 'grid-cols-1 md:grid-cols-3'
+          : block.colCount === 4
+            ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4'
+            : 'grid-cols-1 md:grid-cols-2'
+      return (
+        <div className={`grid ${colsClass} gap-4 my-6`}>
+          {block.columns?.map((colText) => (
+            <div
+              key={`${block.id}-col-${colText.slice(0, 30)}`}
+              className="p-4 sm:p-5 rounded-surface border border-border/60 bg-muted/20 hover:border-brand/40 transition-colors space-y-3"
+            >
+              <MarkdownRenderer content={colText} />
+            </div>
+          ))}
+        </div>
+      )
+    }
+    case 'accordion':
+      return (
+        <details className="my-4 rounded-surface border border-border/80 bg-muted/20 overflow-hidden group">
+          <summary className="p-4 cursor-pointer font-bold text-xs sm:text-sm text-foreground flex items-center justify-between select-none hover:bg-muted/40 transition-colors">
+            <span>{renderInlineMarkdown(block.summary || '')}</span>
+            <span className="text-muted-foreground group-open:rotate-180 transition-transform">
+              ▼
+            </span>
+          </summary>
+          <div className="p-4 pt-0 text-xs sm:text-sm text-muted-foreground leading-relaxed border-t border-border/40">
+            <MarkdownRenderer content={block.content || ''} />
+          </div>
+        </details>
+      )
     case 'image':
       return (
         <figure className="my-6">
@@ -628,8 +825,68 @@ function renderInlineMarkdown(text: string): React.ReactNode {
       continue
     }
 
-    // 5. Normal character accumulation until next token
-    const nextSpecial = remaining.search(/(\*\*|\*|`|\[)/)
+    // 5. Strikethrough ~~text~~
+    const strikeMatch = remaining.match(/^~~(.*?)~~/)
+    if (strikeMatch) {
+      parts.push(
+        <del
+          key={`inline-${keyIdx++}`}
+          className="line-through text-muted-foreground/80 decoration-muted-foreground/60"
+        >
+          {strikeMatch[1]}
+        </del>,
+      )
+      remaining = remaining.slice(strikeMatch[0].length)
+      continue
+    }
+
+    // 6. Highlight ==text==
+    const highlightMatch = remaining.match(/^==(.*?)==/)
+    if (highlightMatch) {
+      parts.push(
+        <mark
+          key={`inline-${keyIdx++}`}
+          className="px-1.5 py-0.5 rounded-md bg-amber-500/20 text-amber-500 font-bold"
+        >
+          {highlightMatch[1]}
+        </mark>,
+      )
+      remaining = remaining.slice(highlightMatch[0].length)
+      continue
+    }
+
+    // 7. Underline <u>text</u>
+    const underlineMatch = remaining.match(/^<u>(.*?)<\/u>/i)
+    if (underlineMatch) {
+      parts.push(
+        <span
+          key={`inline-${keyIdx++}`}
+          className="underline underline-offset-4 decoration-primary"
+        >
+          {underlineMatch[1]}
+        </span>,
+      )
+      remaining = remaining.slice(underlineMatch[0].length)
+      continue
+    }
+
+    // 8. Keyboard <kbd>key</kbd>
+    const kbdMatch = remaining.match(/^<kbd>(.*?)<\/kbd>/i)
+    if (kbdMatch) {
+      parts.push(
+        <kbd
+          key={`inline-${keyIdx++}`}
+          className="px-1.5 py-0.5 rounded-md bg-muted border border-border/80 text-[11px] font-mono shadow-xs text-foreground font-latin mx-0.5"
+        >
+          {kbdMatch[1]}
+        </kbd>,
+      )
+      remaining = remaining.slice(kbdMatch[0].length)
+      continue
+    }
+
+    // 9. Normal character accumulation until next token
+    const nextSpecial = remaining.search(/(\*\*|\*|`|\[|~~|==|<u>|<kbd>)/i)
     if (nextSpecial === -1) {
       parts.push(remaining)
       break
