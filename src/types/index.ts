@@ -96,6 +96,12 @@ export interface Product {
   badges_json?: string
   group_tag?: string
   group_title_fa?: string
+  pre_purchase_notice?: string
+  pre_purchase_notice_mode?: 'none' | 'inline' | 'modal_confirm' | 'both'
+  pre_purchase_snooze_days?: number
+  stock_display_mode?: 'show_exact' | 'show_status_only' | 'hide'
+  is_out_of_stock?: boolean
+  available_stock?: number
   plans?: ProductPlan[]
   comparison_table?: ProductComparison
   activation_guide?: ActivationStep[]
@@ -148,6 +154,19 @@ export interface AdminProduct {
   group_tag: string
   group_title_fa?: string
   delivery_strategy?: string
+  external_provider?: string
+  external_product_id?: number
+  external_product_id_str?: string
+  required_customer_input?: string
+  delivered_payload_type?: string
+  pre_purchase_notice?: string
+  pre_purchase_notice_mode?: 'none' | 'inline' | 'modal_confirm' | 'both'
+  pre_purchase_snooze_days?: number
+  stock_display_mode?: 'show_exact' | 'show_status_only' | 'hide'
+  parent_category_slug?: string
+  category_slug?: string
+  show_sales_count?: boolean
+  show_progress?: boolean
   available_stock?: number
   meta_title?: string
   meta_description?: string
@@ -361,6 +380,52 @@ export interface ProviderCatalogItem {
   unlimited: boolean
   is_linked: boolean
   linked_products?: string[]
+}
+
+export interface BotProviderSetting {
+  key: string
+  name_fa: string
+  enabled: boolean
+  has_api_key: boolean
+  api_key_masked: string
+  base_url: string
+  margin_percent: number
+  balance_usd: number
+  balance_toman: number
+  status_message: string
+  is_connected: boolean
+}
+
+export interface BotCatalogProduct {
+  id: string
+  numeric_id?: number
+  name: string
+  description?: string
+  price_usd: number
+  price_toman: number
+  stock: number
+  in_stock: boolean
+  unlimited: boolean
+  emoji?: string
+  provider_key: string
+  provider_name_fa: string
+  required_input: string
+  delivered_payload_type: string
+  is_linked: boolean
+  linked_products?: string[]
+}
+
+export interface StoreCategory {
+  id: string
+  parent_id?: string
+  title_fa: string
+  title_en?: string
+  slug: string
+  description?: string
+  icon_url?: string
+  sort_order: number
+  is_active: boolean
+  children?: StoreCategory[]
 }
 
 export type TransactionType =

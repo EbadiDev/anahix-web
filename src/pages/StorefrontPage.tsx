@@ -18,10 +18,11 @@ import {
 } from 'lucide-react'
 import type React from 'react'
 import { useEffect, useRef, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { BrandIcons } from '../components/BrandIcons'
 import { CartDrawer } from '../components/CartDrawer'
 import { Header } from '../components/Header'
+import { OrderSuccessModal } from '../components/OrderSuccessModal'
 import { ProductCard } from '../components/ProductCard'
 import { Accordion } from '../components/vibefarsi/Accordion'
 import { Alert } from '../components/vibefarsi/Alert'
@@ -61,8 +62,8 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
   onOrderCreated,
   setBalance,
 }) => {
-  const navigate = useNavigate()
   const cart = useCart()
+  const [successOrderModal, setSuccessOrderModal] = useState<Order | null>(null)
   const [customer, setCustomer] = useState<CustomerProfile | null>(null)
   const [themeSettings, setThemeSettings] = useState<ThemeSettings | null>(null)
   const [products, setProducts] = useState<Product[]>([])
@@ -223,7 +224,7 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
     }
 
     onOrderCreated(newOrder)
-    navigate(`/track?order_no=${encodeURIComponent(newOrder.order_no)}`)
+    setSuccessOrderModal(newOrder)
   }
 
   const filteredProducts = products
@@ -1218,6 +1219,13 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
         customer={customer}
         payments={payments}
         onSubmit={handleCartCheckoutSubmit}
+      />
+
+      {/* Post-Purchase Order Success & Fulfillment Modal */}
+      <OrderSuccessModal
+        isOpen={Boolean(successOrderModal)}
+        order={successOrderModal}
+        onClose={() => setSuccessOrderModal(null)}
       />
     </div>
   )

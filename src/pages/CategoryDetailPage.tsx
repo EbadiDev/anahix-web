@@ -10,6 +10,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
 import { CartDrawer } from '../components/CartDrawer'
 import { Header } from '../components/Header'
+import { OrderSuccessModal } from '../components/OrderSuccessModal'
 import { ProductCard } from '../components/ProductCard'
 import { Breadcrumb } from '../components/vibefarsi/Breadcrumb'
 import { RangeSlider } from '../components/vibefarsi/RangeSlider'
@@ -30,6 +31,7 @@ export const CategoryDetailPage: React.FC = () => {
   const [subcategories, setSubcategories] = useState<ContentCategory[]>([])
   const [selectedSubcategory, setSelectedSubcategory] = useState<string>('all')
   const [products, setProducts] = useState<Product[]>([])
+  const [successOrderModal, setSuccessOrderModal] = useState<Order | null>(null)
   const [loading, setLoading] = useState(true)
   const [isCartOpen, setIsCartOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -534,7 +536,15 @@ export const CategoryDetailPage: React.FC = () => {
           setIsCartOpen(false)
           const newOrder = await apiService.createOrder(data)
           setOrders((prev) => [newOrder, ...prev])
+          setSuccessOrderModal(newOrder)
         }}
+      />
+
+      {/* Post-Purchase Order Success & Fulfillment Modal */}
+      <OrderSuccessModal
+        isOpen={Boolean(successOrderModal)}
+        order={successOrderModal}
+        onClose={() => setSuccessOrderModal(null)}
       />
     </div>
   )

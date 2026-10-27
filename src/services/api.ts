@@ -22,6 +22,8 @@ import type {
   ArticleListItem,
   BannerItem,
   BillingSettings,
+  BotCatalogProduct,
+  BotProviderSetting,
   ContentCategory,
   ContentListResponse,
   ContentTemplate,
@@ -56,6 +58,7 @@ import type {
   SendOTPResponse,
   ServiceTarget,
   SMSSettings,
+  StoreCategory,
   SubmitReviewRequest,
   SubmitReviewResponse,
   ThemeSettings,
@@ -888,6 +891,169 @@ export const apiService = {
     const json = await res.json()
     if (!res.ok || json.code !== 200) {
       throw new Error(json.msg || 'خطا در اتصال محصول به انبار تحویل آنی')
+    }
+    return json.data
+  },
+
+  async retryOrderBotFulfillment(orderId: string): Promise<any> {
+    const token = this.getAdminToken()
+    const res = await fetch(
+      `/api/v1/admin/orders/${encodeURIComponent(orderId)}/retry-bot`,
+      {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      },
+    )
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'خطا در صدور مجدد از ربات')
+    }
+    return json.data
+  },
+
+  // Multi-Bot Upstream Provider Engine API
+  async getBotProviderSettings(): Promise<BotProviderSetting[]> {
+    const token = this.getAdminToken()
+    const res = await fetch('/api/v1/admin/providers/settings', {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (res.ok) {
+      const json = await res.json()
+      return json.data || []
+    }
+    throw new Error('خطا در دریافت وضعیت ربات‌های تامین‌کننده')
+  },
+
+  async updateBotProviderSettings(payload: {
+    key: string
+    enabled?: boolean
+    api_key?: string
+    base_url?: string
+    margin_percent?: number
+  }): Promise<any> {
+    const token = this.getAdminToken()
+    const res = await fetch('/api/v1/admin/providers/settings', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(payload),
+    })
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'خطا در ذخیره تنظیمات ربات')
+    }
+    return json.data
+  },
+
+  async getBotCatalog(
+    provider: string,
+    forceRefresh = false,
+  ): Promise<BotCatalogProduct[]> {
+    const token = this.getAdminToken()
+    const res = await fetch(
+      `/api/v1/admin/providers/catalog?provider=${encodeURIComponent(provider)}${forceRefresh ? '&refresh=true' : ''}`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      },
+    )
+    if (res.ok) {
+      const json = await res.json()
+      return json.data || []
+    }
+    const json = await res.json().catch(() => null)
+    throw new Error(json?.msg || 'خطا در دریافت کاتالوگ ربات')
+  },
+
+  async importBotProduct(payload: any): Promise<AdminProduct> {
+    const token = this.getAdminToken()
+    const res = await fetch('/api/v1/admin/providers/import', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(payload),
+    })
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'خطا در ثبت محصول از ربات')
+    }
+    return json.data
+  },
+
+  // Hierarchical Store Categories API
+  async getStoreCategories(): Promise<StoreCategory[]> {
+    const res = await fetch('/api/v1/store/categories')
+    if (res.ok) {
+      const json = await res.json()
+      return json.data || []
+    }
+    return []
+  },
+
+  async adminGetStoreCategories(): Promise<StoreCategory[]> {
+    const token = this.getAdminToken()
+    const res = await fetch('/api/v1/admin/store/categories', {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (res.ok) {
+      const json = await res.json()
+      return json.data || []
+    }
+    throw new Error('خطا در دریافت دسته‌بندی‌های فروشگاه')
+  },
+
+  async adminCreateStoreCategory(payload: any): Promise<any> {
+    const token = this.getAdminToken()
+    const res = await fetch('/api/v1/admin/store/categories', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(payload),
+    })
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'خطا در ایجاد دسته‌بندی')
+    }
+    return json.data
+  },
+
+  async adminUpdateStoreCategory(id: string, payload: any): Promise<any> {
+    const token = this.getAdminToken()
+    const res = await fetch(
+      `/api/v1/admin/store/categories/${encodeURIComponent(id)}`,
+      {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      },
+    )
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'خطا در به‌روزرسانی دسته‌بندی')
+    }
+    return json.data
+  },
+
+  async adminDeleteStoreCategory(id: string): Promise<any> {
+    const token = this.getAdminToken()
+    const res = await fetch(
+      `/api/v1/admin/store/categories/${encodeURIComponent(id)}`,
+      {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      },
+    )
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'خطا در حذف دسته‌بندی')
     }
     return json.data
   },

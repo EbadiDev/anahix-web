@@ -1,5 +1,6 @@
 import {
   AlertCircle,
+  Bot,
   Calendar,
   CheckCircle2,
   ChevronDown,
@@ -21,8 +22,10 @@ import {
   Search,
   Sparkles,
   Table,
+  Tag,
   Trash2,
   Upload,
+  Zap,
 } from 'lucide-react'
 import type React from 'react'
 import { useEffect, useState } from 'react'
@@ -40,11 +43,30 @@ import { ModalCloseButton } from '../vibefarsi/ModalCloseButton'
 import { SearchInput } from '../vibefarsi/SearchInput'
 import { ToggleSwitch } from '../vibefarsi/ToggleSwitch'
 import { AdminHeaderBanner } from './AdminHeaderBanner'
+import { FetchBotModal } from './FetchBotModal'
 
-export const AdminInventoryView: React.FC = () => {
+interface AdminInventoryViewProps {
+  defaultSubTab?: 'catalog' | 'inventory'
+  hideHeaderTabs?: boolean
+  onOpenFetchBotModal?: () => void
+}
+
+export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
+  defaultSubTab = 'catalog',
+  hideHeaderTabs = false,
+  onOpenFetchBotModal,
+}) => {
   const [activeSubtab, setActiveSubtab] = useState<'catalog' | 'inventory'>(
-    'catalog',
+    defaultSubTab,
   )
+  const [localFetchBotOpen, setLocalFetchBotOpen] = useState(false)
+
+  useEffect(() => {
+    if (defaultSubTab) {
+      setActiveSubtab(defaultSubTab)
+    }
+  }, [defaultSubTab])
+
   const [stats, setStats] = useState<InventoryStats | null>(null)
   const [items, setItems] = useState<InventoryItem[]>([])
   const [adminProducts, setAdminProducts] = useState<AdminProduct[]>([])
@@ -66,9 +88,17 @@ export const AdminInventoryView: React.FC = () => {
   const [productSubmitting, setProductSubmitting] = useState(false)
   const [productFormError, setProductFormError] = useState('')
 
-  // Product Form fields
+  // Product Form fields (9 Comprehensive Tabs)
   const [productModalTab, setProductModalTab] = useState<
-    'general' | 'seo' | 'plans' | 'comparison' | 'guide' | 'faq'
+    | 'general'
+    | 'delivery'
+    | 'plans'
+    | 'notice'
+    | 'features'
+    | 'comparison'
+    | 'guide'
+    | 'faq'
+    | 'seo'
   >('general')
   const [pTitleFA, setPTitleFA] = useState('')
   const [pTitleEN, setPTitleEN] = useState('')
@@ -89,6 +119,24 @@ export const AdminInventoryView: React.FC = () => {
   const [pInstructions, setPInstructions] = useState('')
   const [pIsActive, setPIsActive] = useState(true)
   const [pDeliveryStrategy, setPDeliveryStrategy] = useState('manual_operator')
+
+  // Upstream Bot & Multi-Delivery fields
+  const [pExternalProvider, setPExternalProvider] = useState('manual_vault')
+  const [pExternalProductIDStr, setPExternalProductIDStr] = useState('')
+  const [pRequiredCustomerInput, setPRequiredCustomerInput] = useState('none')
+  const [pDeliveredPayloadType, setPDeliveredPayloadType] =
+    useState('license_code')
+  const [pPrePurchaseNotice, setPPrePurchaseNotice] = useState('')
+  const [pPrePurchaseNoticeMode, setPPrePurchaseNoticeMode] = useState<
+    'none' | 'inline' | 'modal_confirm' | 'both'
+  >('none')
+  const [pPrePurchaseSnoozeDays, setPPrePurchaseSnoozeDays] = useState(7)
+  const [pStockDisplayMode, setPStockDisplayMode] = useState<
+    'show_exact' | 'show_status_only' | 'hide'
+  >('show_exact')
+  const [pShowProgress, setPShowProgress] = useState(true)
+  const [pShowSalesCount, setPShowSalesCount] = useState(true)
+  const [pLiveUSDTRate, setPLiveUSDTRate] = useState(98500)
 
   // Product Image & Merchandising Enhancements
   const [pImageURL, setPImageURL] = useState('')
@@ -144,12 +192,16 @@ export const AdminInventoryView: React.FC = () => {
   const loadData = async () => {
     setLoading(true)
     try {
-      const [statsData, adminProdsData] = await Promise.all([
+      const [statsData, adminProdsData, deliverySettings] = await Promise.all([
         apiService.getInventoryStats().catch(() => null),
         apiService.adminListProducts().catch(() => []),
+        apiService.getInstantDeliverySettings().catch(() => null),
       ])
       if (statsData) setStats(statsData)
       setAdminProducts(adminProdsData)
+      if (deliverySettings?.effective_usd_rate) {
+        setPLiveUSDTRate(deliverySettings.effective_usd_rate)
+      }
 
       // Fetch items
       const itemsRes = await apiService
@@ -210,6 +262,16 @@ export const AdminInventoryView: React.FC = () => {
     setPGuideJSON('')
     setPFaqJSON('')
     setPFeaturesText('')
+    setPExternalProvider('manual_vault')
+    setPExternalProductIDStr('')
+    setPRequiredCustomerInput('none')
+    setPDeliveredPayloadType('license_code')
+    setPPrePurchaseNotice('')
+    setPPrePurchaseNoticeMode('none')
+    setPPrePurchaseSnoozeDays(7)
+    setPStockDisplayMode('show_exact')
+    setPShowProgress(true)
+    setPShowSalesCount(true)
     setPImageURL('')
     setPIconURL('')
     setPIsFlashSale(false)
@@ -246,6 +308,19 @@ export const AdminInventoryView: React.FC = () => {
     setPInstructions(p.instructions || '')
     setPIsActive(p.is_active !== false)
     setPDeliveryStrategy(p.delivery_strategy || 'manual_operator')
+    setPExternalProvider(p.external_provider || 'manual_vault')
+    setPExternalProductIDStr(
+      p.external_product_id_str ||
+        (p.external_product_id ? String(p.external_product_id) : ''),
+    )
+    setPRequiredCustomerInput(p.required_customer_input || 'none')
+    setPDeliveredPayloadType(p.delivered_payload_type || 'license_code')
+    setPPrePurchaseNotice(p.pre_purchase_notice || '')
+    setPPrePurchaseNoticeMode(p.pre_purchase_notice_mode || 'none')
+    setPPrePurchaseSnoozeDays(p.pre_purchase_snooze_days || 7)
+    setPStockDisplayMode(p.stock_display_mode || 'show_exact')
+    setPShowProgress(p.show_progress !== false)
+    setPShowSalesCount(p.show_sales_count !== false)
     setPImageURL(p.image_url || '')
     setPIconURL(p.icon_url || '')
     setPIsFlashSale(p.is_flash_sale || false)
@@ -444,6 +519,16 @@ export const AdminInventoryView: React.FC = () => {
       rating_average: pShowRating ? Number(pRatingAverage) || 5.0 : 0,
       is_best_seller: pIsBestSeller,
       is_featured: pIsFeatured,
+      external_provider: pExternalProvider,
+      external_product_id_str: pExternalProductIDStr,
+      required_customer_input: pRequiredCustomerInput,
+      delivered_payload_type: pDeliveredPayloadType,
+      pre_purchase_notice: pPrePurchaseNotice,
+      pre_purchase_notice_mode: pPrePurchaseNoticeMode,
+      pre_purchase_snooze_days: pPrePurchaseSnoozeDays,
+      stock_display_mode: pStockDisplayMode,
+      show_sales_count: pShowSalesCount,
+      show_progress: pShowProgress,
       plans_json: finalPlansJSON || undefined,
       comparison_json: pComparisonJSON.trim() || undefined,
       guide_json: pGuideJSON.trim() || undefined,
@@ -1025,42 +1110,46 @@ export const AdminInventoryView: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Top Header & Subtabs */}
-      <AdminHeaderBanner
-        icon={Package}
-        title="محصولات و انبار لایسنس‌ها"
-        subtitle="کاتالوگ، موجودی انبار لایسنس‌ها و قیمت‌گذاری محصولات"
-        badgeText="کاتالوگ و انبارداری"
-      />
+      {/* Top Header & Subtabs (only shown when standalone, hidden in AdminOperationsCenterView) */}
+      {!hideHeaderTabs && (
+        <>
+          <AdminHeaderBanner
+            icon={Package}
+            title="محصولات و انبار لایسنس‌ها"
+            subtitle="کاتالوگ، موجودی انبار لایسنس‌ها و قیمت‌گذاری محصولات"
+            badgeText="کاتالوگ و انبارداری"
+          />
 
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/80 pb-4">
-        <div className="flex items-center gap-1.5 bg-muted/40 p-1 rounded-surface border border-border/60 overflow-x-auto scrollbar-none">
-          <button
-            type="button"
-            onClick={() => setActiveSubtab('catalog')}
-            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-control text-xs duration-motion ease-motion transition-all cursor-pointer ${
-              activeSubtab === 'catalog'
-                ? 'bg-primary text-primary-foreground font-black shadow-control'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            <Package className="h-3.5 w-3.5" />
-            <span>کاتالوگ محصولات ({adminProducts.length})</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveSubtab('inventory')}
-            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-control text-xs duration-motion ease-motion transition-all cursor-pointer ${
-              activeSubtab === 'inventory'
-                ? 'bg-primary text-primary-foreground font-black shadow-control'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            <Key className="h-3.5 w-3.5" />
-            <span>موجودی لایسنس و کلیدها</span>
-          </button>
-        </div>
-      </div>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/80 pb-4">
+            <div className="flex items-center gap-1.5 bg-muted/40 p-1 rounded-surface border border-border/60 overflow-x-auto scrollbar-none">
+              <button
+                type="button"
+                onClick={() => setActiveSubtab('catalog')}
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-control text-xs duration-motion ease-motion transition-all cursor-pointer ${
+                  activeSubtab === 'catalog'
+                    ? 'bg-primary text-primary-foreground font-black shadow-control'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <Package className="h-3.5 w-3.5" />
+                <span>کاتالوگ محصولات ({adminProducts.length})</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveSubtab('inventory')}
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-control text-xs duration-motion ease-motion transition-all cursor-pointer ${
+                  activeSubtab === 'inventory'
+                    ? 'bg-primary text-primary-foreground font-black shadow-control'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <Key className="h-3.5 w-3.5" />
+                <span>موجودی لایسنس و کلیدها</span>
+              </button>
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Metrics Row for Catalog */}
       {activeSubtab === 'catalog' && (
@@ -1212,15 +1301,33 @@ export const AdminInventoryView: React.FC = () => {
               </button>
             </div>
 
-            {/* Create Product Button: Graphite technical minimal - Primary white button */}
-            <button
-              type="button"
-              onClick={openCreateProductModal}
-              className="h-9 px-4 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground text-xs font-black duration-motion ease-motion active:scale-[0.98] shadow-control transition-all flex items-center gap-1.5 cursor-pointer"
-            >
-              <Plus className="h-4 w-4" />
-              <span>ایجاد محصول جدید</span>
-            </button>
+            {/* Action Buttons: Fetch from Bots & Manual Creation */}
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  if (onOpenFetchBotModal) {
+                    onOpenFetchBotModal()
+                  } else {
+                    setLocalFetchBotOpen(true)
+                  }
+                }}
+                className="h-9 px-3.5 rounded-control border border-brand/40 bg-brand/10 hover:bg-brand/20 text-brand text-xs font-black duration-motion ease-motion active:scale-[0.98] shadow-control transition-all flex items-center gap-1.5 cursor-pointer"
+                title="دریافت و ایمپورت مستقیم از کاتالوگ ربات‌ها"
+              >
+                <Bot className="h-4 w-4" />
+                <span>دریافت هوشمند از ربات‌ها</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={openCreateProductModal}
+                className="h-9 px-4 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground text-xs font-black duration-motion ease-motion active:scale-[0.98] shadow-control transition-all flex items-center gap-1.5 cursor-pointer"
+              >
+                <Plus className="h-4 w-4" />
+                <span>ایجاد محصول دستی</span>
+              </button>
+            </div>
           </div>
 
           {/* Products Table */}
@@ -1683,79 +1790,117 @@ export const AdminInventoryView: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Navigation Tabs for PDP Configuration */}
+                  {/* Navigation Tabs for PDP Configuration - 9 Comprehensive Standard Tabs */}
                   <div className="flex items-center gap-1.5 p-1 bg-muted/40 rounded-surface border border-border/60 overflow-x-auto pt-1 scrollbar-none">
                     <button
                       type="button"
                       onClick={() => setProductModalTab('general')}
-                      className={`px-3.5 py-1.5 rounded-control text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer duration-motion active:scale-[0.98] ${
+                      className={`px-3 py-1.5 rounded-control text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer duration-motion active:scale-[0.98] ${
                         productModalTab === 'general'
                           ? 'bg-primary text-primary-foreground font-black shadow-control'
                           : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
                       }`}
                     >
                       <Package className="h-3.5 w-3.5" />
-                      <span>مشخصات پایه و فروش</span>
+                      <span>۱. مشخصات پایه و فروش</span>
                     </button>
                     <button
                       type="button"
-                      onClick={() => setProductModalTab('seo')}
-                      className={`px-3.5 py-1.5 rounded-control text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer duration-motion active:scale-[0.98] ${
-                        productModalTab === 'seo'
+                      onClick={() => setProductModalTab('delivery')}
+                      className={`px-3 py-1.5 rounded-control text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer duration-motion active:scale-[0.98] ${
+                        productModalTab === 'delivery'
                           ? 'bg-primary text-primary-foreground font-black shadow-control'
                           : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
                       }`}
                     >
-                      <Globe className="h-3.5 w-3.5" />
-                      <span>سئو و شبکه‌های اجتماعی</span>
+                      <Zap className="h-3.5 w-3.5" />
+                      <span>۲. شیوه تحویل و اتصال به ربات</span>
                     </button>
                     <button
                       type="button"
                       onClick={() => setProductModalTab('plans')}
-                      className={`px-3.5 py-1.5 rounded-control text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer duration-motion active:scale-[0.98] ${
+                      className={`px-3 py-1.5 rounded-control text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer duration-motion active:scale-[0.98] ${
                         productModalTab === 'plans'
                           ? 'bg-primary text-primary-foreground font-black shadow-control'
                           : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
                       }`}
                     >
                       <Calendar className="h-3.5 w-3.5" />
-                      <span>پلن‌ها و دوره‌ها ({pPlans.length || 'پیش‌فرض'})</span>
+                      <span>
+                        ۳. پلن‌ها و دوره‌ها ({pPlans.length || 'پیش‌فرض'})
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setProductModalTab('notice')}
+                      className={`px-3 py-1.5 rounded-control text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer duration-motion active:scale-[0.98] ${
+                        productModalTab === 'notice'
+                          ? 'bg-primary text-primary-foreground font-black shadow-control'
+                          : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+                      }`}
+                    >
+                      <HelpCircle className="h-3.5 w-3.5" />
+                      <span>۴. نکات مهم قبل از خرید</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setProductModalTab('features')}
+                      className={`px-3 py-1.5 rounded-control text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer duration-motion active:scale-[0.98] ${
+                        productModalTab === 'features'
+                          ? 'bg-primary text-primary-foreground font-black shadow-control'
+                          : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+                      }`}
+                    >
+                      <Tag className="h-3.5 w-3.5" />
+                      <span>۵. ویژگی‌های فنی</span>
                     </button>
                     <button
                       type="button"
                       onClick={() => setProductModalTab('comparison')}
-                      className={`px-3.5 py-1.5 rounded-control text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer duration-motion active:scale-[0.98] ${
+                      className={`px-3 py-1.5 rounded-control text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer duration-motion active:scale-[0.98] ${
                         productModalTab === 'comparison'
                           ? 'bg-primary text-primary-foreground font-black shadow-control'
                           : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
                       }`}
                     >
                       <Table className="h-3.5 w-3.5" />
-                      <span>جدول مقایسه</span>
+                      <span>۶. جدول مقایسه</span>
                     </button>
                     <button
                       type="button"
                       onClick={() => setProductModalTab('guide')}
-                      className={`px-3.5 py-1.5 rounded-control text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer duration-motion active:scale-[0.98] ${
+                      className={`px-3 py-1.5 rounded-control text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer duration-motion active:scale-[0.98] ${
                         productModalTab === 'guide'
                           ? 'bg-primary text-primary-foreground font-black shadow-control'
                           : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
                       }`}
                     >
                       <Sparkles className="h-3.5 w-3.5" />
-                      <span>راهنمای فعال‌سازی</span>
+                      <span>۷. راهنمای فعال‌سازی</span>
                     </button>
                     <button
                       type="button"
                       onClick={() => setProductModalTab('faq')}
-                      className={`px-3.5 py-1.5 rounded-control text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer duration-motion active:scale-[0.98] ${
+                      className={`px-3 py-1.5 rounded-control text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer duration-motion active:scale-[0.98] ${
                         productModalTab === 'faq'
                           ? 'bg-primary text-primary-foreground font-black shadow-control'
                           : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
                       }`}
                     >
                       <HelpCircle className="h-3.5 w-3.5" />
-                      <span>سوالات متداول (FAQ)</span>
+                      <span>۸. سوالات متداول (FAQ)</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setProductModalTab('seo')}
+                      className={`px-3 py-1.5 rounded-control text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer duration-motion active:scale-[0.98] ${
+                        productModalTab === 'seo'
+                          ? 'bg-primary text-primary-foreground font-black shadow-control'
+                          : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+                      }`}
+                    >
+                      <Globe className="h-3.5 w-3.5" />
+                      <span>۹. سئو و متادیتا</span>
                     </button>
                   </div>
                 </div>
@@ -1858,7 +2003,7 @@ export const AdminInventoryView: React.FC = () => {
                         </div>
                       </div>
 
-                      {/* Category & Delivery Type */}
+                      {/* Category & Group Tag */}
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
                           <label
@@ -1898,195 +2043,140 @@ export const AdminInventoryView: React.FC = () => {
                         </div>
                         <div>
                           <label
-                            htmlFor="p-delivery-type"
+                            htmlFor="p-group-title"
                             className="font-bold text-foreground block mb-1"
                           >
-                            شیوه تحویل محصول
+                            عنوان نمایشی گروه (Group Title)
                           </label>
-                          <select
-                            id="p-delivery-type"
-                            value={pDeliveryType}
-                            onChange={(e) =>
-                              setPDeliveryType(e.target.value as any)
-                            }
+                          <input
+                            id="p-group-title"
+                            type="text"
+                            placeholder="مثال: اکوسیستم گوگل و جمینای"
+                            value={pGroupTitleFA}
+                            onChange={(e) => setPGroupTitleFA(e.target.value)}
                             className="w-full h-9 px-3 rounded-xl border border-border bg-background focus:outline-none focus:ring-1 focus:ring-blue-500"
-                          >
-                            <option value="instant">
-                              تحویل آنی خودکار (تخصیص کلید از انبار یا وب‌هوک)
-                            </option>
-                            <option value="manual_timed">
-                              تحویل دستی اپراتور (صف کاری / تبادل کد ۲FA)
-                            </option>
-                          </select>
+                          />
                         </div>
                       </div>
 
-                      {/* Prices: Toman & USD */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div>
-                          <label
-                            htmlFor="p-price-toman"
-                            className="font-bold text-foreground block mb-1"
-                          >
-                            قیمت پیش‌فرض فروش (تومان){' '}
-                            <span className="text-rose-500">*</span>
-                          </label>
-                          <input
-                            id="p-price-toman"
-                            type="number"
-                            min={1000}
-                            step={1000}
-                            required
-                            value={pPriceToman}
-                            onChange={(e) =>
-                              setPPriceToman(Number(e.target.value))
-                            }
-                            className="w-full h-9 px-3 rounded-xl border border-border bg-background focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono"
-                          />
-                          <span className="text-[10px] text-muted-foreground mt-0.5 block">
-                            {pPriceToman > 0
-                              ? `${Number(pPriceToman).toLocaleString('fa-IR')} تومان`
-                              : ''}
+                      {/* 5-Way SwapWallet Reactive Pricing Calculator */}
+                      <div className="p-4 rounded-2xl border border-brand/30 bg-brand/5 space-y-3">
+                        <div className="flex items-center justify-between border-b border-brand/20 pb-2">
+                          <span className="text-xs font-black text-brand flex items-center gap-1.5">
+                            <Sparkles className="w-4 h-4" />
+                            ماشین‌حساب قیمت‌گذاری هوشمند متصل به SwapWallet
+                          </span>
+                          <span className="text-[11px] font-mono font-latin text-muted-foreground">
+                            نرخ زنده تتر:{' '}
+                            {pLiveUSDTRate.toLocaleString('fa-IR')} تومان
                           </span>
                         </div>
-                        <div>
-                          <label
-                            htmlFor="p-base-usd"
-                            className="font-bold text-foreground block mb-1"
-                          >
-                            قیمت تمام‌شده دلاری (USD)
-                          </label>
-                          <input
-                            id="p-base-usd"
-                            type="number"
-                            min={0}
-                            step={0.01}
-                            value={pBaseCostUSD}
-                            onChange={(e) =>
-                              setPBaseCostUSD(Number(e.target.value))
-                            }
-                            className="w-full h-9 px-3 rounded-xl border border-border bg-background focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono"
-                          />
-                          <span className="text-[10px] text-muted-foreground mt-0.5 block">
-                            هزینه خرید یا تأمین از پرووایدر
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 text-right">
+                          <div className="space-y-1">
+                            <label className="text-[11px] font-bold text-muted-foreground block">
+                              خرید دلاری ($):
+                            </label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={pBaseCostUSD}
+                              onChange={(e) => {
+                                const cost = Number(e.target.value) || 0
+                                setPBaseCostUSD(cost)
+                                const sellToman =
+                                  Math.ceil(
+                                    (cost * 1.25 * pLiveUSDTRate) / 500,
+                                  ) * 500
+                                setPPriceToman(sellToman)
+                              }}
+                              className="w-full h-9 px-2.5 text-xs rounded-xl border border-border/60 bg-background text-foreground font-mono font-latin outline-none focus:border-brand"
+                            />
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="text-[11px] font-bold text-muted-foreground block">
+                              درصد سود (%):
+                            </label>
+                            <input
+                              type="number"
+                              step="1"
+                              min="0"
+                              value={
+                                pBaseCostUSD > 0
+                                  ? Math.round(
+                                      ((pPriceToman / pLiveUSDTRate -
+                                        pBaseCostUSD) /
+                                        pBaseCostUSD) *
+                                        100,
+                                    )
+                                  : 25
+                              }
+                              onChange={(e) => {
+                                const m = Number(e.target.value) || 0
+                                const sellUSD = pBaseCostUSD * (1.0 + m / 100.0)
+                                const sellToman =
+                                  Math.ceil((sellUSD * pLiveUSDTRate) / 500) *
+                                  500
+                                setPPriceToman(sellToman)
+                              }}
+                              className="w-full h-9 px-2.5 text-xs rounded-xl border border-border/60 bg-background text-foreground font-mono font-latin outline-none focus:border-brand"
+                            />
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="text-[11px] font-bold text-muted-foreground block">
+                              فروش دلاری ($):
+                            </label>
+                            <div className="h-9 px-2.5 text-xs rounded-xl border border-border/40 bg-muted/40 text-muted-foreground flex items-center font-mono font-latin">
+                              ${(pPriceToman / pLiveUSDTRate).toFixed(2)}
+                            </div>
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="text-[11px] font-bold text-muted-foreground block">
+                              تمام‌شده تومانی:
+                            </label>
+                            <div className="h-9 px-2.5 text-xs rounded-xl border border-border/40 bg-muted/40 text-muted-foreground flex items-center font-mono font-latin">
+                              {Math.round(
+                                pBaseCostUSD * pLiveUSDTRate,
+                              ).toLocaleString('fa-IR')}
+                            </div>
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="text-[11px] font-black text-brand block">
+                              قیمت فروش تومانی *:
+                            </label>
+                            <input
+                              type="number"
+                              step="500"
+                              min="0"
+                              required
+                              value={pPriceToman}
+                              onChange={(e) =>
+                                setPPriceToman(Number(e.target.value) || 0)
+                              }
+                              className="w-full h-9 px-2.5 text-xs font-bold rounded-xl border-2 border-brand bg-background text-foreground font-mono font-latin outline-none focus:ring-2 focus:ring-brand/30"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="text-[11px] text-muted-foreground flex items-center justify-between pt-0.5">
+                          <span>سود تخمینی هر فروش:</span>
+                          <span className="font-mono font-latin font-bold text-emerald-400">
+                            +
+                            {(
+                              pPriceToman -
+                              Math.round(pBaseCostUSD * pLiveUSDTRate)
+                            ).toLocaleString('fa-IR')}{' '}
+                            تومان
                           </span>
                         </div>
                       </div>
 
-                      {/* SLA Min/Max & SLA Text */}
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                        <div>
-                          <label
-                            htmlFor="p-sla-min"
-                            className="font-bold text-foreground block mb-1"
-                          >
-                            حداقل زمان SLA (دقیقه)
-                          </label>
-                          <input
-                            id="p-sla-min"
-                            type="number"
-                            min={1}
-                            value={pSLAMin}
-                            onChange={(e) => setPSLAMin(Number(e.target.value))}
-                            className="w-full h-9 px-3 rounded-xl border border-border bg-background focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono"
-                          />
-                        </div>
-                        <div>
-                          <label
-                            htmlFor="p-sla-max"
-                            className="font-bold text-foreground block mb-1"
-                          >
-                            حداکثر زمان SLA (دقیقه)
-                          </label>
-                          <input
-                            id="p-sla-max"
-                            type="number"
-                            min={1}
-                            value={pSLAMax}
-                            onChange={(e) => setPSLAMax(Number(e.target.value))}
-                            className="w-full h-9 px-3 rounded-xl border border-border bg-background focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono"
-                          />
-                        </div>
-                        <div>
-                          <label
-                            htmlFor="p-sla-text"
-                            className="font-bold text-foreground block mb-1"
-                          >
-                            متن نمایشی زمان تحویل
-                          </label>
-                          <input
-                            id="p-sla-text"
-                            type="text"
-                            placeholder="مثال: ۱۰ الی ۳۰ دقیقه"
-                            value={pSLAText}
-                            onChange={(e) => setPSLAText(e.target.value)}
-                            className="w-full h-9 px-3 rounded-xl border border-border bg-background focus:outline-none focus:ring-1 focus:ring-blue-500"
-                          />
-                        </div>
-                      </div>
-
-                      {/* Operating Hours & Delivery Strategy */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div>
-                          <label
-                            htmlFor="p-operating-hours"
-                            className="font-bold text-foreground block mb-1"
-                          >
-                            ساعات کاری اپراتور
-                          </label>
-                          <input
-                            id="p-operating-hours"
-                            type="text"
-                            placeholder="مثال: ۹:۰۰ تا ۲۴:۰۰"
-                            value={pOperatingHours}
-                            onChange={(e) => setPOperatingHours(e.target.value)}
-                            className="w-full h-9 px-3 rounded-xl border border-border bg-background focus:outline-none focus:ring-1 focus:ring-blue-500"
-                          />
-                        </div>
-                        <div>
-                          <label
-                            htmlFor="p-strategy"
-                            className="font-bold text-foreground block mb-1"
-                          >
-                            استراتژی تأمین سفارش
-                          </label>
-                          <select
-                            id="p-strategy"
-                            value={pDeliveryStrategy}
-                            onChange={(e) =>
-                              setPDeliveryStrategy(e.target.value)
-                            }
-                            className="w-full h-9 px-3 rounded-xl border border-border bg-background focus:outline-none focus:ring-1 focus:ring-blue-500"
-                          >
-                            <option value="manual_operator">
-                              میز کار اپراتور انسانی (Desk)
-                            </option>
-                            <option value="third_party_instant">
-                              تأمین آنی از InsightX Store
-                            </option>
-                          </select>
-                        </div>
-                      </div>
-
-                      {/* Features List */}
-                      <div>
-                        <label
-                          htmlFor="p-features-text"
-                          className="font-bold text-foreground block mb-1"
-                        >
-                          ویژگی‌های برجسته محصول (هر ویژگی در یک سطر)
-                        </label>
-                        <textarea
-                          id="p-features-text"
-                          rows={3}
-                          placeholder="دسترسی نامحدود به GPT-4o&#10;ضمانت ۳۰ روزه عدم قطعی&#10;فعال‌سازی قانونی با کارت بین‌المللی"
-                          value={pFeaturesText}
-                          onChange={(e) => setPFeaturesText(e.target.value)}
-                          className="w-full p-3 rounded-xl border border-border bg-background focus:outline-none focus:ring-1 focus:ring-blue-500 leading-relaxed font-mono text-xs resize-none"
-                        />
-                      </div>
-
-                      {/* Description & Instructions */}
+                      {/* Description & Overview */}
                       <div>
                         <label
                           htmlFor="p-desc"
@@ -2096,27 +2186,10 @@ export const AdminInventoryView: React.FC = () => {
                         </label>
                         <textarea
                           id="p-desc"
-                          rows={2}
+                          rows={3}
                           placeholder="توضیحات تکمیلی محصول که در صفحه فروشگاه نمایش داده می‌شود..."
                           value={pDescription}
                           onChange={(e) => setPDescription(e.target.value)}
-                          className="w-full p-3 rounded-xl border border-border bg-background focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none"
-                        />
-                      </div>
-
-                      <div>
-                        <label
-                          htmlFor="p-instructions"
-                          className="font-bold text-foreground block mb-1"
-                        >
-                          راهنمای تحویل برای خریدار
-                        </label>
-                        <textarea
-                          id="p-instructions"
-                          rows={2}
-                          placeholder="راهنمای فعال‌سازی یا اتصال که پس از خرید به کاربر نشان داده می‌شود..."
-                          value={pInstructions}
-                          onChange={(e) => setPInstructions(e.target.value)}
                           className="w-full p-3 rounded-xl border border-border bg-background focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none"
                         />
                       </div>
@@ -2424,7 +2497,339 @@ export const AdminInventoryView: React.FC = () => {
                     </div>
                   )}
 
-                  {/* TAB 2: SEO & METADATA */}
+                  {/* TAB 2: DELIVERY & UPSTREAM BOT ROUTING */}
+                  {productModalTab === 'delivery' && (
+                    <div className="space-y-4">
+                      <div className="p-3.5 rounded-surface bg-brand/5 border border-brand/20 flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-2">
+                          <Zap className="w-4 h-4 text-brand" />
+                          <span className="font-bold text-foreground">
+                            تنظیمات هوشمند نحوه تحویل و اتصال به ربات‌های
+                            تامین‌کننده
+                          </span>
+                        </div>
+                        <span className="text-[11px] text-muted-foreground">
+                          مشتری به هیچ عنوان نام یا منبع ربات را مشاهده نخواهد
+                          کرد
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-1 text-right">
+                          <label className="font-bold text-foreground block">
+                            استراتژی کلان تحویل:
+                          </label>
+                          <select
+                            value={pDeliveryStrategy}
+                            onChange={(e) =>
+                              setPDeliveryStrategy(e.target.value)
+                            }
+                            className="w-full h-10 px-3 text-xs rounded-control border border-border/60 bg-card text-foreground outline-none focus:border-brand cursor-pointer"
+                          >
+                            <option value="third_party_instant">
+                              ⚡ تحویل آنی و خودکار از ربات (Instant via Bot)
+                            </option>
+                            <option value="local_inventory">
+                              🔑 تحویل آنی از انبار لایسنس محلی آناهیکس (Local
+                              Vault)
+                            </option>
+                            <option value="manual_operator">
+                              🔷 تحویل دستی در صف اپراتور (Mode C / Operator
+                              Desk)
+                            </option>
+                          </select>
+                        </div>
+
+                        <div className="space-y-1 text-right">
+                          <label className="font-bold text-foreground block">
+                            ربات تامین‌کننده بالادستی:
+                          </label>
+                          <select
+                            value={pExternalProvider}
+                            onChange={(e) =>
+                              setPExternalProvider(e.target.value)
+                            }
+                            className="w-full h-10 px-3 text-xs rounded-control border border-border/60 bg-card text-foreground outline-none focus:border-brand cursor-pointer font-mono font-latin"
+                          >
+                            <option value="manual_vault">
+                              انبار محلی آناهیکس (بدون ربات)
+                            </option>
+                            <option value="insightx">
+                              اینسایت استور (@insightXpro_bot)
+                            </option>
+                            <option value="stackvault">
+                              استک‌ولت (@stackvault_bot)
+                            </option>
+                            <option value="paglu">
+                              لوت پاگلو (@Paglu_Shopp_Bot)
+                            </option>
+                            <option value="jero">
+                              جرو اکانتس (@JeroAccountsBot)
+                            </option>
+                            <option value="supreme">
+                              سوپریم لیدر شاپ (@SupremeLeaderShopBot)
+                            </option>
+                          </select>
+                        </div>
+
+                        <div className="space-y-1 text-right">
+                          <label className="font-bold text-foreground block">
+                            شناسه محصول در ربات (External Product ID):
+                          </label>
+                          <input
+                            type="text"
+                            value={pExternalProductIDStr}
+                            onChange={(e) =>
+                              setPExternalProductIDStr(e.target.value)
+                            }
+                            placeholder="مثال: 14 یا ps_1024 یا Paglu_1"
+                            className="w-full h-10 px-3 text-xs rounded-field border border-border/60 bg-muted/20 text-foreground font-mono font-latin outline-none focus:border-brand"
+                          />
+                        </div>
+
+                        <div className="space-y-1 text-right">
+                          <label className="font-bold text-foreground block">
+                            اطلاعات مورد نیاز از خریدار حین سفارش:
+                          </label>
+                          <select
+                            value={pRequiredCustomerInput}
+                            onChange={(e) =>
+                              setPRequiredCustomerInput(e.target.value)
+                            }
+                            className="w-full h-10 px-3 text-xs rounded-control border border-border/60 bg-card text-foreground outline-none focus:border-brand cursor-pointer"
+                          >
+                            <option value="none">
+                              بدون نیاز به ورودی (خرید مستقیم لایسنس/لینک)
+                            </option>
+                            <option value="account_creds">
+                              ایمیل و رمز عبور کاربر (ارتقای Mode C با AES-256)
+                            </option>
+                            <option value="telegram_username">
+                              آیدی تلگرام (@username جهت استارز و پرمیوم)
+                            </option>
+                            <option value="wordpress_admin">
+                              مشخصات ادمین وردپرس (نصب خودکار المنتور/رنک‌مث)
+                            </option>
+                            <option value="custom_links">
+                              لینک فایل‌های درخواستی (دانلود خودکار UI8)
+                            </option>
+                          </select>
+                        </div>
+
+                        <div className="space-y-1 text-right">
+                          <label className="font-bold text-foreground block">
+                            نوع دیتای تحویل‌داده‌شده به خریدار:
+                          </label>
+                          <select
+                            value={pDeliveredPayloadType}
+                            onChange={(e) =>
+                              setPDeliveredPayloadType(e.target.value)
+                            }
+                            className="w-full h-10 px-3 text-xs rounded-control border border-border/60 bg-card text-foreground outline-none focus:border-brand cursor-pointer"
+                          >
+                            <option value="license_code">
+                              کد لایسنس یا ووچر متنی
+                            </option>
+                            <option value="activation_link">
+                              لینک فعال‌سازی یا دعوت خانواده
+                            </option>
+                            <option value="credentials_pair">
+                              اکانت آماده (ایمیل و کلمه عبور)
+                            </option>
+                            <option value="direct_service">
+                              اعمال مستقیم روی حساب/آیدی کاربر
+                            </option>
+                            <option value="files_or_downloads">
+                              لینک دانلود فایل‌ها
+                            </option>
+                          </select>
+                        </div>
+
+                        <div className="space-y-1 text-right">
+                          <label className="font-bold text-foreground block">
+                            شیوه نمایش موجودی به خریداران:
+                          </label>
+                          <select
+                            value={pStockDisplayMode}
+                            onChange={(e: any) =>
+                              setPStockDisplayMode(e.target.value)
+                            }
+                            className="w-full h-10 px-3 text-xs rounded-control border border-border/60 bg-card text-foreground outline-none focus:border-brand cursor-pointer"
+                          >
+                            <option value="show_exact">
+                              نمایش عدد دقیق موجودی (مثلاً ۴ عدد در انبار)
+                            </option>
+                            <option value="show_status_only">
+                              فقط نمایش وضعیت (موجود در انبار / محدود)
+                            </option>
+                            <option value="hide">عدم نمایش موجودی</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      {/* SLA Timings */}
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t border-border/60 text-right">
+                        <div>
+                          <label className="font-bold text-foreground block mb-1">
+                            حداقل زمان SLA (دقیقه)
+                          </label>
+                          <input
+                            type="number"
+                            min={0}
+                            value={pSLAMin}
+                            onChange={(e) => setPSLAMin(Number(e.target.value))}
+                            className="w-full h-9 px-3 rounded-control border border-border/60 bg-muted/20 text-xs font-mono font-latin outline-none focus:border-brand"
+                          />
+                        </div>
+                        <div>
+                          <label className="font-bold text-foreground block mb-1">
+                            حداکثر زمان SLA (دقیقه)
+                          </label>
+                          <input
+                            type="number"
+                            min={0}
+                            value={pSLAMax}
+                            onChange={(e) => setPSLAMax(Number(e.target.value))}
+                            className="w-full h-9 px-3 rounded-control border border-border/60 bg-muted/20 text-xs font-mono font-latin outline-none focus:border-brand"
+                          />
+                        </div>
+                        <div>
+                          <label className="font-bold text-foreground block mb-1">
+                            متن نمایشی زمان تحویل
+                          </label>
+                          <input
+                            type="text"
+                            value={pSLAText}
+                            onChange={(e) => setPSLAText(e.target.value)}
+                            placeholder="مثال: تحویل آنی ۰ ثانیه"
+                            className="w-full h-9 px-3 rounded-control border border-border/60 bg-muted/20 text-xs outline-none focus:border-brand"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Operating Hours & Customer Delivery Instructions */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3 border-t border-border/60 text-right">
+                        <div>
+                          <label className="font-bold text-foreground block mb-1">
+                            ساعات کاری اپراتور
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="مثال: ۹:۰۰ تا ۲۴:۰۰"
+                            value={pOperatingHours}
+                            onChange={(e) => setPOperatingHours(e.target.value)}
+                            className="w-full h-9 px-3 rounded-control border border-border/60 bg-muted/20 text-xs outline-none focus:border-brand"
+                          />
+                        </div>
+                        <div>
+                          <label className="font-bold text-foreground block mb-1">
+                            راهنمای تحویل برای خریدار
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="پیام یا لینک راهنمای فعال‌سازی پس از خرید..."
+                            value={pInstructions}
+                            onChange={(e) => setPInstructions(e.target.value)}
+                            className="w-full h-9 px-3 rounded-control border border-border/60 bg-muted/20 text-xs outline-none focus:border-brand"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* TAB: PRE-PURCHASE NOTICE & RICH EDITOR */}
+                  {productModalTab === 'notice' && (
+                    <div className="space-y-4 text-right">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-surface bg-muted/20 border border-border/60">
+                        <div>
+                          <h4 className="text-xs sm:text-sm font-black text-foreground flex items-center gap-1.5">
+                            <HelpCircle className="w-4 h-4 text-brand" />
+                            نکات مهم و شرایط فعال‌سازی قبل از خرید (Pre-Purchase
+                            Notice)
+                          </h4>
+                          <p className="text-[11px] text-muted-foreground mt-0.5">
+                            اطلاعات یا هشدارهایی که خریدار باید قبل از پرداخت یا
+                            افزودن به سبد مطالعه و تایید نماید
+                          </p>
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[11px] text-muted-foreground font-bold">
+                              شیوه نمایش:
+                            </span>
+                            <select
+                              value={pPrePurchaseNoticeMode}
+                              onChange={(e: any) =>
+                                setPPrePurchaseNoticeMode(e.target.value)
+                              }
+                              className="h-8 px-2.5 text-xs rounded-control border border-border/60 bg-card text-foreground outline-none cursor-pointer"
+                            >
+                              <option value="none">بدون اعلان</option>
+                              <option value="inline">
+                                کادر متالیک درون‌صفحه‌ای
+                              </option>
+                              <option value="modal_confirm">
+                                مدال پاپ‌آپ قبل از سبد خرید
+                              </option>
+                              <option value="both">هر دو حالت</option>
+                            </select>
+                          </div>
+
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[11px] text-muted-foreground font-bold">
+                              عدم نمایش مجدد:
+                            </span>
+                            <select
+                              value={pPrePurchaseSnoozeDays}
+                              onChange={(e) =>
+                                setPPrePurchaseSnoozeDays(
+                                  Number(e.target.value),
+                                )
+                              }
+                              className="h-8 px-2.5 text-xs rounded-control border border-border/60 bg-card text-foreground outline-none cursor-pointer"
+                            >
+                              <option value={0}>فقط همین سشن</option>
+                              <option value={1}>تا ۲۴ ساعت</option>
+                              <option value={7}>تا ۷ روز</option>
+                              <option value={30}>تا ۳۰ روز</option>
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="border border-border/60 rounded-surface overflow-hidden bg-card">
+                        <RichContentEditor
+                          value={pPrePurchaseNotice}
+                          onChange={setPPrePurchaseNotice}
+                          minHeight="240px"
+                          placeholder="نکات مهم قبل از خرید، شرایط گارانتی و ضوابط فعال‌سازی را در این کادر بنویسید..."
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* TAB: TECHNICAL FEATURES */}
+                  {productModalTab === 'features' && (
+                    <div className="space-y-4 text-right">
+                      <div>
+                        <label className="font-bold text-foreground block mb-1">
+                          ویژگی‌ها و مشخصات برجسته محصول (هر ویژگی در یک سطر)
+                        </label>
+                        <p className="text-[11px] text-muted-foreground mb-2">
+                          این ویژگی‌ها به صورت لیست گلوله‌ای همراه با تیک در صفحه
+                          محصول نمایش داده می‌شوند
+                        </p>
+                        <textarea
+                          rows={6}
+                          placeholder="دسترسی نامحدود به GPT-4o و Claude 3.5 Sonnet&#10;ضمانت ۳۰ روزه عدم قطعی و تعویض رایگان&#10;فعال‌سازی قانونی بدون نیاز به تغییر آی‌پی"
+                          value={pFeaturesText}
+                          onChange={(e) => setPFeaturesText(e.target.value)}
+                          className="w-full p-3 rounded-surface border border-border/60 bg-muted/20 text-xs text-foreground font-mono leading-relaxed outline-none focus:border-brand resize-none"
+                        />
+                      </div>
+                    </div>
+                  )}
                   {productModalTab === 'seo' && (
                     <div className="space-y-4">
                       <div className="flex items-center justify-between p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400">
@@ -3208,6 +3613,13 @@ export const AdminInventoryView: React.FC = () => {
           </div>,
           document.body,
         )}
+
+      {/* Fetch from Bot Modal (Direct from Catalog Toolbar) */}
+      <FetchBotModal
+        isOpen={localFetchBotOpen}
+        onClose={() => setLocalFetchBotOpen(false)}
+        onProductImported={() => loadData()}
+      />
     </div>
   )
 }

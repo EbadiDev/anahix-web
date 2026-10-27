@@ -1,5 +1,7 @@
 import {
   Check,
+  ChevronLeft,
+  ChevronRight,
   Clock,
   Eye,
   FileText,
@@ -8,6 +10,7 @@ import {
   Sparkles,
   Star,
   X,
+  Zap,
 } from 'lucide-react'
 import type React from 'react'
 import { useMemo, useState } from 'react'
@@ -28,10 +31,11 @@ interface ProfileOrdersTabProps {
 
 type OrderFilterType =
   | 'all'
+  | 'instant_licenses'
+  | 'in_queue'
   | 'digital_products'
   | 'virtual_numbers'
   | 'completed'
-  | 'processing'
 
 export const ProfileOrdersTab: React.FC<ProfileOrdersTabProps> = ({
   orders,
@@ -45,7 +49,8 @@ export const ProfileOrdersTab: React.FC<ProfileOrdersTabProps> = ({
   const [copiedKey, setCopiedKey] = useState('')
   const [reviewOrder, setReviewOrder] = useState<Order | null>(null)
   const [invoiceOrder, setInvoiceOrder] = useState<Order | null>(null)
-  const [visibleOrdersCount, setVisibleOrdersCount] = useState<number>(6)
+  const [currentPage, setCurrentPage] = useState<number>(1)
+  const pageSize = 6
 
   // Map unified list
   const unifiedItems = useMemo(() => {
@@ -114,6 +119,18 @@ export const ProfileOrdersTab: React.FC<ProfileOrdersTabProps> = ({
   const filteredItems = useMemo(() => {
     return unifiedItems.filter((item) => {
       // Type and status filtering
+      if (activeFilter === 'instant_licenses') {
+        if (item.type !== 'digital_product') return false
+        if (item.status !== 'COMPLETED') return false
+      }
+      if (activeFilter === 'in_queue') {
+        if (
+          item.status !== 'PENDING' &&
+          item.status !== 'OPERATOR_QUEUE' &&
+          item.status !== 'PROCESSING'
+        )
+          return false
+      }
       if (
         activeFilter === 'digital_products' &&
         item.type !== 'digital_product'
@@ -126,13 +143,6 @@ export const ProfileOrdersTab: React.FC<ProfileOrdersTabProps> = ({
         item.status !== 'COMPLETED' &&
         item.status !== 'FINISHED' &&
         item.status !== 'RECEIVED'
-      )
-        return false
-      if (
-        activeFilter === 'processing' &&
-        item.status !== 'PENDING' &&
-        item.status !== 'OPERATOR_QUEUE' &&
-        item.status !== 'ALLOCATING_INVENTORY'
       )
         return false
 
@@ -148,6 +158,12 @@ export const ProfileOrdersTab: React.FC<ProfileOrdersTabProps> = ({
       return true
     })
   }, [unifiedItems, activeFilter, searchQuery])
+
+  const totalPages = Math.ceil(filteredItems.length / pageSize) || 1
+  const paginatedItems = useMemo(() => {
+    const start = (currentPage - 1) * pageSize
+    return filteredItems.slice(start, start + pageSize)
+  }, [filteredItems, currentPage, pageSize])
 
   const copyToClipboard = (text: string, key: string, label?: string) => {
     navigator.clipboard.writeText(text)
@@ -186,7 +202,10 @@ export const ProfileOrdersTab: React.FC<ProfileOrdersTabProps> = ({
         <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-border/40">
           <button
             type="button"
-            onClick={() => setActiveFilter('all')}
+            onClick={() => {
+              setActiveFilter('all')
+              setCurrentPage(1)
+            }}
             className={`text-xs px-3 py-1.5 rounded-control font-bold duration-motion ease-motion transition-all cursor-pointer ${
               activeFilter === 'all'
                 ? 'bg-primary text-primary-foreground font-black shadow-control'
@@ -198,7 +217,42 @@ export const ProfileOrdersTab: React.FC<ProfileOrdersTabProps> = ({
 
           <button
             type="button"
-            onClick={() => setActiveFilter('digital_products')}
+            onClick={() => {
+              setActiveFilter('instant_licenses')
+              setCurrentPage(1)
+            }}
+            className={`text-xs px-3 py-1.5 rounded-control font-bold duration-motion ease-motion transition-all cursor-pointer flex items-center gap-1.5 ${
+              activeFilter === 'instant_licenses'
+                ? 'bg-primary text-primary-foreground font-black shadow-control'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+            }`}
+          >
+            <Zap className="w-3.5 h-3.5" />
+            <span>لایسنس‌های تحویل آنی</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setActiveFilter('in_queue')
+              setCurrentPage(1)
+            }}
+            className={`text-xs px-3 py-1.5 rounded-control font-bold duration-motion ease-motion transition-all cursor-pointer flex items-center gap-1.5 ${
+              activeFilter === 'in_queue'
+                ? 'bg-primary text-primary-foreground font-black shadow-control'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+            }`}
+          >
+            <Clock className="w-3.5 h-3.5 text-amber-500" />
+            <span>در صف بررسی اپراتور</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setActiveFilter('digital_products')
+              setCurrentPage(1)
+            }}
             className={`text-xs px-3 py-1.5 rounded-control font-bold duration-motion ease-motion transition-all cursor-pointer ${
               activeFilter === 'digital_products'
                 ? 'bg-primary text-primary-foreground font-black shadow-control'
@@ -210,7 +264,10 @@ export const ProfileOrdersTab: React.FC<ProfileOrdersTabProps> = ({
 
           <button
             type="button"
-            onClick={() => setActiveFilter('virtual_numbers')}
+            onClick={() => {
+              setActiveFilter('virtual_numbers')
+              setCurrentPage(1)
+            }}
             className={`text-xs px-3 py-1.5 rounded-control font-bold duration-motion ease-motion transition-all cursor-pointer ${
               activeFilter === 'virtual_numbers'
                 ? 'bg-primary text-primary-foreground font-black shadow-control'
@@ -222,7 +279,10 @@ export const ProfileOrdersTab: React.FC<ProfileOrdersTabProps> = ({
 
           <button
             type="button"
-            onClick={() => setActiveFilter('completed')}
+            onClick={() => {
+              setActiveFilter('completed')
+              setCurrentPage(1)
+            }}
             className={`text-xs px-3 py-1.5 rounded-control font-bold duration-motion ease-motion transition-all cursor-pointer ${
               activeFilter === 'completed'
                 ? 'bg-primary text-primary-foreground font-black shadow-control'
@@ -230,18 +290,6 @@ export const ProfileOrdersTab: React.FC<ProfileOrdersTabProps> = ({
             }`}
           >
             تکمیل شده
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveFilter('processing')}
-            className={`text-xs px-3 py-1.5 rounded-control font-bold duration-motion ease-motion transition-all cursor-pointer ${
-              activeFilter === 'processing'
-                ? 'bg-primary text-primary-foreground font-black shadow-control'
-                : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-            }`}
-          >
-            در حال پردازش
           </button>
         </div>
       </div>
@@ -278,7 +326,7 @@ export const ProfileOrdersTab: React.FC<ProfileOrdersTabProps> = ({
             </div>
           </div>
         ) : (
-          filteredItems.slice(0, visibleOrdersCount).map((item) => (
+          paginatedItems.map((item) => (
             <div
               key={item.id}
               className="p-4 rounded-surface border border-border/60 bg-card text-card-foreground shadow-surface hover:border-border duration-motion ease-motion transition-all flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
@@ -361,23 +409,50 @@ export const ProfileOrdersTab: React.FC<ProfileOrdersTabProps> = ({
           ))
         )}
 
-        {/* Load More Orders Button */}
-        {visibleOrdersCount < filteredItems.length && (
-          <div className="pt-3 text-center">
-            <button
-              type="button"
-              onClick={() => setVisibleOrdersCount((prev) => prev + 6)}
-              className="h-10 px-5 rounded-control border border-border/60 bg-card hover:bg-muted text-foreground font-black text-xs duration-motion ease-motion active:scale-[0.98] shadow-control cursor-pointer inline-flex items-center gap-2"
-            >
-              <span>بارگذاری سفارش‌های بیشتر</span>
-              <span className="text-[11px] text-muted-foreground font-latin">
-                (نمایش{' '}
-                {toPersianDigits(
-                  Math.min(visibleOrdersCount, filteredItems.length),
-                )}{' '}
-                از {toPersianDigits(filteredItems.length)})
-              </span>
-            </button>
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between p-3.5 bg-card rounded-surface border border-border/80 shadow-surface text-xs">
+            <span className="text-muted-foreground">
+              صفحه {toPersianDigits(currentPage)} از{' '}
+              {toPersianDigits(totalPages)} (مجموع{' '}
+              {toPersianDigits(filteredItems.length)} سفارش)
+            </span>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                disabled={currentPage <= 1}
+                onClick={() => setCurrentPage((p) => p - 1)}
+                className="p-1.5 rounded-control border border-border/60 hover:bg-muted text-muted-foreground hover:text-foreground disabled:opacity-30 cursor-pointer"
+                title="صفحه قبلی"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                (pNum) => (
+                  <button
+                    key={`page-btn-${pNum}`}
+                    type="button"
+                    onClick={() => setCurrentPage(pNum)}
+                    className={`w-7 h-7 rounded-control font-bold font-latin cursor-pointer transition-colors ${
+                      currentPage === pNum
+                        ? 'bg-primary text-primary-foreground font-black'
+                        : 'hover:bg-muted text-muted-foreground'
+                    }`}
+                  >
+                    {toPersianDigits(pNum)}
+                  </button>
+                ),
+              )}
+              <button
+                type="button"
+                disabled={currentPage >= totalPages}
+                onClick={() => setCurrentPage((p) => p + 1)}
+                className="p-1.5 rounded-control border border-border/60 hover:bg-muted text-muted-foreground hover:text-foreground disabled:opacity-30 cursor-pointer"
+                title="صفحه بعدی"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         )}
       </div>

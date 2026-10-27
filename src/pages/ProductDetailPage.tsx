@@ -1,4 +1,5 @@
 import {
+  AlertCircle,
   ArrowLeft,
   ArrowRight,
   Calendar,
@@ -23,7 +24,7 @@ import {
 } from 'lucide-react'
 import type React from 'react'
 import { useEffect, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import { AuthModal } from '../components/AuthModal'
 import {
   ClaudeIcon,
@@ -34,6 +35,8 @@ import {
 import { CartDrawer } from '../components/CartDrawer'
 import { MarkdownRenderer } from '../components/content/MarkdownRenderer'
 import { Header } from '../components/Header'
+import { OrderSuccessModal } from '../components/OrderSuccessModal'
+import { PrePurchaseNoticeModal } from '../components/PrePurchaseNoticeModal'
 import { ProductReviewsSection } from '../components/reviews/ProductReviewsSection'
 import { TelegramIcon } from '../components/SocialIcons'
 import { Badge } from '../components/ui/badge'
@@ -69,7 +72,6 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
   setBalance,
 }) => {
   const { slug } = useParams<{ slug: string }>()
-  const navigate = useNavigate()
   const cart = useCart()
 
   const [product, setProduct] = useState<ProductDetail | null>(null)
@@ -83,6 +85,11 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
   const [isCartOpen, setIsCartOpen] = useState(false)
   const [addedToast, setAddedToast] = useState(false)
   const [isAuthOpen, setIsAuthOpen] = useState(false)
+  const [successOrderModal, setSuccessOrderModal] = useState<Order | null>(null)
+  const [isNoticeModalOpen, setIsNoticeModalOpen] = useState(false)
+  const [_pendingNoticeAction, setPendingNoticeAction] = useState<
+    'buy' | 'add' | null
+  >(null)
   const { warning } = useNotification()
 
   // DNS copy feedback
@@ -213,12 +220,47 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
     }
   }
 
+  const isOutOfStock =
+    product?.is_out_of_stock ||
+    (product?.available_stock !== undefined &&
+      product.available_stock <= 0 &&
+      product.delivery_type === 'instant')
+
+  const shouldShowNoticeModal = () => {
+    if (!product?.pre_purchase_notice) return false
+    if (
+      product.pre_purchase_notice_mode !== 'modal_confirm' &&
+      product.pre_purchase_notice_mode !== 'both'
+    )
+      return false
+    try {
+      const snoozeExpiry = localStorage.getItem(
+        `anahix_notice_snooze_${product.id}`,
+      )
+      if (snoozeExpiry && Number(snoozeExpiry) > Date.now()) return false
+      if (sessionStorage.getItem(`anahix_notice_snooze_${product.id}`))
+        return false
+    } catch {}
+    return true
+  }
+
   // Handle Add to Cart
   const handleAddToCart = () => {
+    if (!product || isOutOfStock) return
+    if (shouldShowNoticeModal()) {
+      setPendingNoticeAction('add')
+      setIsNoticeModalOpen(true)
+      return
+    }
+    executeAddToCart()
+  }
+
+  const executeAddToCart = () => {
     if (!product) return
     cartStore.addItem(product, 1, selectedPlan || undefined)
     setAddedToast(true)
     setTimeout(() => setAddedToast(false), 3000)
+    setIsNoticeModalOpen(false)
   }
 
   // Handle in-place quantity changes
@@ -233,7 +275,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
 
   // Handle Instant Buy (Add and open cart drawer)
   const handleInstantBuy = () => {
-    if (!product) return
+    if (!product || isOutOfStock) return
     if (!apiService.isCustomerLoggedIn()) {
       warning(
         'نیاز به ورود به حساب کاربری',
@@ -242,8 +284,19 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
       setIsAuthOpen(true)
       return
     }
+    if (shouldShowNoticeModal()) {
+      setPendingNoticeAction('buy')
+      setIsNoticeModalOpen(true)
+      return
+    }
+    executeInstantBuy()
+  }
+
+  const executeInstantBuy = () => {
+    if (!product) return
     cartStore.addItem(product, 1, selectedPlan || undefined)
     setIsCartOpen(true)
+    setIsNoticeModalOpen(false)
   }
 
   // Handle checkout submission inside cart
@@ -289,7 +342,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
     }
 
     onOrderCreated(newOrder)
-    navigate(`/track?order_no=${encodeURIComponent(newOrder.order_no)}`)
+    setSuccessOrderModal(newOrder)
   }
 
   // Copy DNS to clipboard helper
@@ -632,7 +685,46 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
 
                 {/* Actions: In-Place Quantity Counter or Buy Buttons (Graphite System) */}
                 <div className="space-y-2 pt-1">
+                  {/* Inline Pre-Purchase Notice */}
+                  {product.pre_purchase_notice &&
+                    (product.pre_purchase_notice_mode === 'inline' ||
+                      product.pre_purchase_notice_mode === 'both') && (
+                      <div className="p-3.5 rounded-surface border border-amber-500/30 bg-amber-500/5 space-y-2 text-right mb-3">
+                        <div className="flex items-center gap-1.5 text-amber-500 font-bold text-xs">
+                          <AlertCircle className="w-4 h-4 shrink-0" />
+                          <span>نکات مهم قبل از خرید و شرایط فعال‌سازی:</span>
+                        </div>
+                        <div className="text-xs text-muted-foreground leading-relaxed">
+                          <MarkdownRenderer
+                            content={product.pre_purchase_notice}
+                          />
+                        </div>
+                      </div>
+                    )}
+
                   {(() => {
+                    if (isOutOfStock) {
+                      return (
+                        <div className="p-4 rounded-surface border border-rose-500/30 bg-rose-500/5 text-center space-y-2.5">
+                          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-control bg-rose-500/10 text-rose-500 font-bold text-xs">
+                            <Package className="w-3.5 h-3.5" />
+                            <span>در حال حاضر ناموجود</span>
+                          </div>
+                          <p className="text-xs text-muted-foreground leading-relaxed">
+                            متاسفانه موجودی این سرویس موقتاً به اتمام رسیده است.
+                            به محض شارژ مجدد در دسترس قرار خواهد گرفت.
+                          </p>
+                          <button
+                            type="button"
+                            disabled
+                            className="w-full h-11 rounded-control bg-muted text-muted-foreground border border-border/60 font-black text-xs cursor-not-allowed opacity-60"
+                          >
+                            اتمام موجودی در انبار
+                          </button>
+                        </div>
+                      )
+                    }
+
                     const currentCartItem = cart.items.find(
                       (item) =>
                         String(item.product.id) === String(product.id) &&
@@ -1080,6 +1172,24 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
         customer={customer}
         payments={payments}
         onSubmit={handleCartCheckoutSubmit}
+      />
+
+      {/* Pre-Purchase Notice Modal */}
+      {isNoticeModalOpen && product && (
+        <PrePurchaseNoticeModal
+          isOpen={isNoticeModalOpen}
+          product={product}
+          plan={selectedPlan}
+          onConfirm={executeInstantBuy}
+          onClose={() => setIsNoticeModalOpen(false)}
+        />
+      )}
+
+      {/* Post-Purchase Order Success & Fulfillment Modal */}
+      <OrderSuccessModal
+        isOpen={Boolean(successOrderModal)}
+        order={successOrderModal}
+        onClose={() => setSuccessOrderModal(null)}
       />
 
       {/* Customer Auth Modal for Gated Instant Buy Action */}

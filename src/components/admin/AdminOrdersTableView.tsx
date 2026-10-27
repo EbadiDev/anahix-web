@@ -440,11 +440,21 @@ export const AdminOrdersTableView: React.FC = () => {
                             >
                               {ord.product_title || 'سفارش هوش مصنوعی'}
                             </div>
-                            <div className="text-[10px] text-muted-foreground mt-0.5 truncate">
-                              شیوه تحویل:{' '}
-                              <span className="font-semibold text-foreground">
-                                {ord.delivery_type}
-                              </span>
+                            <div className="text-[10px] text-muted-foreground mt-0.5 truncate flex items-center justify-center gap-1">
+                              {ord.items?.[0]?.external_provider ? (
+                                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-control bg-brand/10 text-brand font-bold text-[9px] font-latin">
+                                  🤖 {ord.items[0].external_provider}
+                                </span>
+                              ) : ord.delivery_type === 'instant' ? (
+                                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-control bg-emerald-500/10 text-emerald-400 font-bold text-[9px]">
+                                  ⚡ آنی
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-control bg-amber-500/10 text-amber-500 font-bold text-[9px]">
+                                  🔷 اپراتور
+                                </span>
+                              )}
+                              <span>{ord.delivery_type}</span>
                             </div>
                           </td>
 

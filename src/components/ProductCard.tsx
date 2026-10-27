@@ -5,6 +5,7 @@ import {
   Clock,
   Flame,
   KeyRound,
+  Package,
   ShoppingCart,
   Sparkles,
   Star,
@@ -16,8 +17,9 @@ import type React from 'react'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { cartStore, useCart } from '../lib/cartStore'
-import type { Product } from '../types'
+import type { Product, ProductPlan } from '../types'
 import { ClaudeIcon, CursorIcon, GeminiIcon, OpenAIIcon } from './BrandIcons'
+import { PrePurchaseNoticeModal } from './PrePurchaseNoticeModal'
 import { useNotification } from './vibefarsi/NotificationContext'
 import { QuantitySelector } from './vibefarsi/QuantitySelector'
 
@@ -38,10 +40,27 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   const { cartAdded } = useNotification()
   const { items } = useCart()
 
-  // Find quantity of this product (base item without specific variant plan) in cart
-  const cartItem = items.find(
-    (item) => String(item.product.id) === String(product.id) && !item.plan,
-  )
+  // Plans & Durations selection state
+  const plans = product.plans || []
+  const [selectedPlan, setSelectedPlan] = useState<ProductPlan | null>(() => {
+    return plans.find((p) => p.is_default) || plans[0] || null
+  })
+  const [isNoticeOpen, setIsNoticeOpen] = useState(false)
+
+  // Out of Stock detection
+  const isOutOfStock =
+    product.is_out_of_stock ||
+    (product.available_stock !== undefined &&
+      product.available_stock <= 0 &&
+      product.delivery_type === 'instant')
+
+  // Find quantity of this product (matching selected plan if any) in cart
+  const cartItem = items.find((item) => {
+    const isSameProduct = String(item.product.id) === String(product.id)
+    if (!isSameProduct) return false
+    if (!selectedPlan && !item.plan) return true
+    return item.plan?.id === selectedPlan?.id
+  })
   const currentQuantity = cartItem ? cartItem.quantity : 0
 
   // Determine Brand Details & Default Graphic Cover
@@ -129,14 +148,19 @@ export const ProductCard: React.FC<ProductCardProps> = ({
       !isFlashSaleExpired,
   )
 
-  // Effective price & discount logic
-  const effectivePrice = isFlashSaleActive
-    ? (product.flash_sale_price_toman as number)
-    : product.price_toman
+  // Effective price & discount logic (dynamically responsive to selected plan)
+  const effectivePrice = selectedPlan
+    ? selectedPlan.price_toman
+    : isFlashSaleActive
+      ? (product.flash_sale_price_toman as number)
+      : product.price_toman
 
-  const originalPrice = isFlashSaleActive
-    ? product.price_toman
-    : Math.round((product.price_toman * 1.18) / 10000) * 10000
+  const originalPrice = selectedPlan
+    ? selectedPlan.original_price_toman ||
+      Math.round((selectedPlan.price_toman * 1.15) / 1000) * 1000
+    : isFlashSaleActive
+      ? product.price_toman
+      : Math.round((product.price_toman * 1.18) / 10000) * 10000
 
   const discountPercent =
     originalPrice > effectivePrice
@@ -176,23 +200,62 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   }, [hasTimedDiscount, targetExpiry])
 
   const handleAddToCart = () => {
-    cartStore.addItem({
-      ...product,
-      price_toman: effectivePrice,
-    })
+    if (isOutOfStock) return
+
+    // Pre-Purchase Notice interceptor check
+    if (
+      product.pre_purchase_notice &&
+      (product.pre_purchase_notice_mode === 'modal_confirm' ||
+        product.pre_purchase_notice_mode === 'both')
+    ) {
+      let isSnoozed = false
+      try {
+        const snoozeExpiry = localStorage.getItem(
+          `anahix_notice_snooze_${product.id}`,
+        )
+        if (snoozeExpiry && Number(snoozeExpiry) > Date.now()) {
+          isSnoozed = true
+        } else if (
+          sessionStorage.getItem(`anahix_notice_snooze_${product.id}`)
+        ) {
+          isSnoozed = true
+        }
+      } catch {}
+
+      if (!isSnoozed) {
+        setIsNoticeOpen(true)
+        return
+      }
+    }
+
+    executeAddToCart()
+  }
+
+  const executeAddToCart = () => {
+    cartStore.addItem(
+      {
+        ...product,
+        price_toman: effectivePrice,
+      },
+      1,
+      selectedPlan || undefined,
+    )
     cartAdded(
-      product.title_fa,
+      selectedPlan
+        ? `${product.title_fa} (${selectedPlan.title})`
+        : product.title_fa,
       `سرویس به ارزش ${toPersianDigits(effectivePrice.toLocaleString())} تومان به سبد خرید اضافه شد.`,
       product.image_url,
     )
+    setIsNoticeOpen(false)
     onSelect(product)
   }
 
   const handleQuantityChange = (newQty: number) => {
     if (newQty <= 0) {
-      cartStore.removeItem(product.id)
+      cartStore.removeItem(product.id, selectedPlan?.id)
     } else {
-      cartStore.updateQuantity(product.id, newQty)
+      cartStore.updateQuantity(product.id, newQty, selectedPlan?.id)
     }
   }
 
@@ -377,6 +440,33 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 
       {/* Card Footer: Pricing and Actions (Unified Graphite Standard) */}
       <div className="p-4 sm:p-5 pt-0 space-y-3">
+        {/* Plans & Durations Fast Selector */}
+        {plans.length > 1 && (
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none pt-1">
+            {plans.map((pl) => {
+              const isSelected = selectedPlan?.id === pl.id
+              return (
+                <button
+                  key={pl.id}
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    setSelectedPlan(pl)
+                  }}
+                  className={`px-2.5 py-1 rounded-control text-[11px] font-bold transition-all whitespace-nowrap cursor-pointer duration-motion active:scale-[0.98] ${
+                    isSelected
+                      ? 'bg-primary text-primary-foreground font-black shadow-control'
+                      : 'bg-muted/30 hover:bg-muted text-muted-foreground hover:text-foreground border border-border/60'
+                  }`}
+                >
+                  {pl.title}
+                </button>
+              )
+            })}
+          </div>
+        )}
+
         {/* Pricing Row (Unified Graphite Typography & Contrast - Image 2 Fix) */}
         <div className="flex items-baseline justify-between pt-2.5 border-t border-border/60">
           <span className="text-xs text-muted-foreground font-bold">
@@ -402,7 +492,17 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         {/* Action Buttons Stacked Vertically */}
         <div className="space-y-2">
           {/* Primary Action Button: Add to Cart or Quantity Selector */}
-          {currentQuantity > 0 ? (
+          {isOutOfStock ? (
+            <button
+              type="button"
+              disabled
+              className="w-full h-10 rounded-control bg-muted text-muted-foreground border border-border/60 font-black text-xs shadow-xs flex items-center justify-center gap-2 cursor-not-allowed opacity-75"
+              title="اتمام موجودی در انبار"
+            >
+              <Package className="h-4 w-4" />
+              <span>ناموجود در انبار</span>
+            </button>
+          ) : currentQuantity > 0 ? (
             <QuantitySelector
               value={currentQuantity}
               onChange={handleQuantityChange}
@@ -432,6 +532,17 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           </Link>
         </div>
       </div>
+
+      {/* Pre-Purchase Notice Modal */}
+      {isNoticeOpen && (
+        <PrePurchaseNoticeModal
+          isOpen={isNoticeOpen}
+          product={product}
+          plan={selectedPlan}
+          onConfirm={executeAddToCart}
+          onClose={() => setIsNoticeOpen(false)}
+        />
+      )}
     </div>
   )
 }
