@@ -27,7 +27,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Link, useLocation } from 'react-router-dom'
 import { useCart } from '../lib/cartStore'
-import { api } from '../services/api'
+import { api, apiService } from '../services/api'
 import type {
   ContentCategory,
   CustomerLoyaltyProfile,
@@ -35,7 +35,7 @@ import type {
   CustomerProfile,
   ThemeSettings,
 } from '../types'
-import { formatDisplayPhone } from '../utils/formatters'
+import { formatDisplayPhone, formatToman } from '../utils/formatters'
 import { AuthModal } from './AuthModal'
 import { ThemeToggle } from './ThemeToggle'
 import { HolidayThemeBanner } from './vibefarsi/HolidayThemeBanner'
@@ -89,6 +89,7 @@ export const Header: React.FC<HeaderProps> = ({
 
   const [notifDropdownOpen, setNotifDropdownOpen] = useState(false)
   const [inAppNotifs, setInAppNotifs] = useState<CustomerNotificationItem[]>([])
+  const [systemAnnouncements, setSystemAnnouncements] = useState<any[]>([])
   const [unreadNotifCount, setUnreadNotifCount] = useState<number>(0)
   const [loyaltyProfile, setLoyaltyProfile] =
     useState<CustomerLoyaltyProfile | null>(null)
@@ -142,6 +143,13 @@ export const Header: React.FC<HeaderProps> = ({
         .then(setLoyaltyProfile)
         .catch(() => {})
     }
+
+    apiService
+      .getAnnouncements()
+      .then((list: any[]) => {
+        setSystemAnnouncements(list || [])
+      })
+      .catch(() => {})
 
     const handleThemeSync = (e: any) => {
       if (e.detail) {
@@ -534,6 +542,17 @@ export const Header: React.FC<HeaderProps> = ({
                                 : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
                             }`}
                           >
+                            {item.icon_url && (
+                              <img
+                                src={item.icon_url}
+                                alt=""
+                                className="w-3.5 h-3.5 object-contain shrink-0 brightness-90 dark:brightness-100"
+                                onError={(e) => {
+                                  ;(e.target as HTMLElement).style.display =
+                                    'none'
+                                }}
+                              />
+                            )}
                             <span>{item.title}</span>
                             {item.badge && (
                               <span className="px-1.5 py-0.2 rounded-full text-[9px] bg-blue-600 text-white font-bold font-latin">
@@ -552,11 +571,25 @@ export const Header: React.FC<HeaderProps> = ({
                                   to={sub.link}
                                   className="block p-2 rounded-control hover:bg-accent text-right transition-colors"
                                 >
-                                  <div className="text-xs font-bold text-foreground">
-                                    {sub.title}
+                                  <div className="flex items-center gap-2">
+                                    {sub.icon_url && (
+                                      <img
+                                        src={sub.icon_url}
+                                        alt=""
+                                        className="w-4 h-4 object-contain rounded-xs shrink-0 brightness-90 dark:brightness-100"
+                                        onError={(e) => {
+                                          ;(
+                                            e.target as HTMLElement
+                                          ).style.display = 'none'
+                                        }}
+                                      />
+                                    )}
+                                    <div className="text-xs font-bold text-foreground">
+                                      {sub.title}
+                                    </div>
                                   </div>
                                   {sub.desc && (
-                                    <div className="text-[10px] text-muted-foreground mt-0.5 truncate">
+                                    <div className="text-[10px] text-muted-foreground mt-0.5 truncate pr-6">
                                       {sub.desc}
                                     </div>
                                   )}
@@ -578,6 +611,16 @@ export const Header: React.FC<HeaderProps> = ({
                             : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
                         }`}
                       >
+                        {item.icon_url && (
+                          <img
+                            src={item.icon_url}
+                            alt=""
+                            className="w-3.5 h-3.5 object-contain shrink-0 brightness-90 dark:brightness-100"
+                            onError={(e) => {
+                              ;(e.target as HTMLElement).style.display = 'none'
+                            }}
+                          />
+                        )}
                         <span>{item.title}</span>
                         {item.badge && (
                           <span className="px-1.5 py-0.2 rounded-full text-[9px] bg-blue-600 text-white font-bold font-latin">
@@ -670,8 +713,8 @@ export const Header: React.FC<HeaderProps> = ({
                   {/* Integrated Wallet Balance - shown on xl: wide screens only */}
                   <div className="hidden xl:flex items-center gap-1.5 text-right font-medium shrink-0">
                     <Wallet className="h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground transition-colors" />
-                    <span className="text-xs font-bold text-foreground font-latin">
-                      {toPersianDigits(effectiveBalance.toLocaleString())}
+                    <span className="text-xs font-bold text-foreground font-sans">
+                      {formatToman(effectiveBalance)}
                     </span>
                     <span className="text-[10px] text-muted-foreground font-sans">
                       تومان
@@ -701,9 +744,8 @@ export const Header: React.FC<HeaderProps> = ({
                         <span className="text-muted-foreground text-[11px]">
                           موجودی کیف پول:
                         </span>
-                        <span className="font-bold text-amber-500 font-latin">
-                          {toPersianDigits(effectiveBalance.toLocaleString())}{' '}
-                          تومان
+                        <span className="font-bold text-amber-500 font-sans">
+                          {formatToman(effectiveBalance)} تومان
                         </span>
                       </div>
                     </div>
@@ -851,28 +893,25 @@ export const Header: React.FC<HeaderProps> = ({
               <div className="relative max-[424px]:hidden" ref={notifMenuRef}>
                 <button
                   type="button"
-                  onClick={() => {
-                    if (!customer) {
-                      setAuthModalMode('login')
-                      setIsAuthOpen(true)
-                    } else {
-                      setNotifDropdownOpen((prev) => !prev)
-                    }
-                  }}
+                  onClick={() => setNotifDropdownOpen((prev) => !prev)}
                   className="relative h-8 w-8 sm:h-9 sm:w-9 rounded-control border border-border/60 bg-card hover:bg-muted text-foreground transition shadow-control flex items-center justify-center group duration-motion ease-motion active:scale-[0.98] cursor-pointer shrink-0"
                   title="اعلان‌ها و اطلاعیه‌ها"
                   aria-label="اعلان‌ها و اطلاعیه‌ها"
                 >
                   <Bell className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
-                  {unreadNotifCount > 0 && (
+                  {(unreadNotifCount > 0 || systemAnnouncements.length > 0) && (
                     <span className="absolute -top-1 -right-1 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-control bg-brand text-brand-foreground text-[10px] font-black shadow-control animate-pulse">
-                      {toPersianDigits(unreadNotifCount)}
+                      {toPersianDigits(
+                        unreadNotifCount > 0
+                          ? unreadNotifCount
+                          : systemAnnouncements.length,
+                      )}
                     </span>
                   )}
                 </button>
 
                 {/* Notifications Dropdown Modal / Flyout */}
-                {notifDropdownOpen && customer && (
+                {notifDropdownOpen && (
                   <div
                     dir="rtl"
                     className="absolute left-0 mt-2 w-80 sm:w-96 rounded-surface border border-border bg-popover text-popover-foreground shadow-2xl z-[100] p-3 space-y-2 animate-in fade-in zoom-in-95 duration-motion ease-motion"
@@ -882,16 +921,20 @@ export const Header: React.FC<HeaderProps> = ({
                       <div className="flex items-center gap-1.5">
                         <Bell className="w-4 h-4 text-brand" />
                         <span className="text-xs font-black text-foreground">
-                          اعلان‌ها و پیام‌ها
+                          اعلان‌ها و اطلاعیه‌ها
                         </span>
-                        {unreadNotifCount > 0 && (
+                        {(unreadNotifCount > 0 ||
+                          systemAnnouncements.length > 0) && (
                           <span className="text-[10px] px-1.5 py-0.2 rounded-control bg-brand/10 text-brand font-bold border border-brand/20">
-                            {toPersianDigits(unreadNotifCount)} جدید
+                            {toPersianDigits(
+                              unreadNotifCount + systemAnnouncements.length,
+                            )}{' '}
+                            پیام
                           </span>
                         )}
                       </div>
 
-                      {unreadNotifCount > 0 && (
+                      {customer && unreadNotifCount > 0 && (
                         <button
                           type="button"
                           onClick={async () => {
@@ -907,6 +950,35 @@ export const Header: React.FC<HeaderProps> = ({
                         </button>
                       )}
                     </div>
+
+                    {/* System Broadcast Announcements */}
+                    {systemAnnouncements.length > 0 && (
+                      <div className="space-y-1.5 pb-2 border-b border-border/40">
+                        <span className="text-[10px] font-bold text-muted-foreground block px-1">
+                          اطلاعیه‌های سراسری سایت:
+                        </span>
+                        {systemAnnouncements.slice(0, 2).map((sa) => (
+                          <div
+                            key={sa.id}
+                            className="p-2.5 rounded-control bg-brand/5 border border-brand/20 space-y-1 text-right"
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="font-bold text-xs text-foreground truncate">
+                                {sa.title}
+                              </span>
+                              <span className="text-[9px] px-1.5 py-0.2 rounded-control bg-brand/10 text-brand font-bold">
+                                {sa.severity === 'discount'
+                                  ? 'تخفیف'
+                                  : 'اطلاعیه'}
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed">
+                              {sa.content}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
 
                     {/* Notification Items List - Only display unread, clean empty state when read */}
                     <div className="max-h-72 overflow-y-auto space-y-1.5 pr-0.5">
@@ -1078,10 +1150,8 @@ export const Header: React.FC<HeaderProps> = ({
                           {customer.full_name ||
                             formatDisplayPhone(customer.phone, customer.email)}
                         </h4>
-                        <p className="text-[11px] text-muted-foreground mt-0.5 font-latin">
-                          موجودی:{' '}
-                          {toPersianDigits(effectiveBalance.toLocaleString())}{' '}
-                          تومان
+                        <p className="text-[11px] text-muted-foreground mt-0.5 font-sans">
+                          موجودی: {formatToman(effectiveBalance)} تومان
                         </p>
                       </div>
                     </div>

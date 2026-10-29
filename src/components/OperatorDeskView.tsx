@@ -12,6 +12,7 @@ import {
 import type React from 'react'
 import { useState } from 'react'
 import type { Order } from '../types'
+import { formatToman } from '../utils/formatters'
 import { OfficialInvoiceModal } from './invoice/OfficialInvoiceModal'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
@@ -115,9 +116,9 @@ export const OperatorDeskView: React.FC<OperatorDeskViewProps> = ({
                     </div>
                   </div>
 
-                  <div className="text-left font-latin" dir="ltr">
-                    <div className="text-base font-bold text-foreground">
-                      {order.amount_toman.toLocaleString('fa-IR')} تومان
+                  <div className="text-left font-sans">
+                    <div className="text-base font-bold text-foreground font-sans">
+                      {formatToman(order.amount_toman)} تومان
                     </div>
                     <div className="text-[11px] text-muted-foreground">
                       درگاه: {order.payment_platform}

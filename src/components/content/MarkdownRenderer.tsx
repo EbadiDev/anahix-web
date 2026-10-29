@@ -601,12 +601,12 @@ const BlockRenderer: React.FC<{ block: Block }> = ({ block }) => {
       )
     case 'table':
       return (
-        <div className="overflow-x-auto my-5 rounded-xl border border-border shadow-sm">
-          <table className="w-full border-collapse text-right text-xs md:text-sm">
+        <div className="overflow-x-auto my-5 rounded-surface border border-border/80 shadow-surface bg-card">
+          <table className="w-full border-collapse text-center text-xs md:text-sm">
             <thead>
-              <tr className="border-b border-border bg-muted/60 text-muted-foreground font-semibold">
+              <tr className="border-b border-border/60 bg-muted/40 text-muted-foreground font-bold">
                 {block.headers?.map((h) => (
-                  <th key={h} className="p-3 text-right">
+                  <th key={h} className="p-3.5 text-center">
                     {renderInlineMarkdown(h)}
                   </th>
                 ))}
@@ -616,12 +616,12 @@ const BlockRenderer: React.FC<{ block: Block }> = ({ block }) => {
               {block.rows?.map((row) => (
                 <tr
                   key={row.join('|')}
-                  className="hover:bg-muted/30 transition-colors odd:bg-card even:bg-muted/10"
+                  className="hover:bg-muted/30 transition-colors odd:bg-card even:bg-muted/10 text-center"
                 >
                   {row.map((cell) => (
                     <td
                       key={cell}
-                      className="p-3 text-slate-700 dark:text-slate-300"
+                      className="p-3.5 text-foreground text-center"
                     >
                       {renderInlineMarkdown(cell)}
                     </td>

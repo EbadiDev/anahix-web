@@ -6,6 +6,7 @@ import {
   Coins,
   Copy,
   CreditCard,
+  Edit2,
   Eye,
   EyeOff,
   FolderPlus,
@@ -21,15 +22,30 @@ import {
   RefreshCw,
   Save,
   Settings,
-  ShieldCheck,
   Smartphone,
   Sparkles,
   Trash2,
+  Upload,
 } from 'lucide-react'
 import type React from 'react'
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { api, apiService } from '../../services/api'
-import type { PaymentGateway, ThemeSettings } from '../../types'
+import type {
+  PaymentGateway,
+  SystemAnnouncement,
+  ThemeSettings,
+} from '../../types'
+import { getSiteBrandName } from '../../utils/brand'
+import { toPersianDigits } from '../../utils/formatters'
+import {
+  getGatewayDisplay,
+  registerPaymentGateways,
+} from '../../utils/paymentIcons'
+import { RichContentEditor } from '../content/RichContentEditor'
+import { ConfirmModal } from '../vibefarsi/ConfirmModal'
+import { LoadingState } from '../vibefarsi/LoadingState'
+import { ModalCloseButton } from '../vibefarsi/ModalCloseButton'
 import { useNotification } from '../vibefarsi/NotificationContext'
 import { ToggleSwitch } from '../vibefarsi/ToggleSwitch'
 import { AdminActionLogView } from './AdminActionLogView'
@@ -53,12 +69,14 @@ interface SubMenuItem {
   title: string
   link: string
   desc?: string
+  icon_url?: string
 }
 
 interface HeaderMenuItem {
   id: string
   title: string
   link: string
+  icon_url?: string
   badge?: string
   is_active: boolean
   children?: SubMenuItem[]
@@ -79,6 +97,12 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
 }) => {
   const [activeSubTab, setActiveSubTab] =
     useState<SettingsSubTab>(initialSubTab)
+
+  useEffect(() => {
+    if (initialSubTab) {
+      setActiveSubTab(initialSubTab)
+    }
+  }, [initialSubTab])
   const { success: notifySuccess, error: notifyError } = useNotification()
 
   // General theme / branding / SEO / apikeys state
@@ -89,6 +113,54 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
   // Payment Gateways state
   const [payments, setPayments] = useState<PaymentGateway[]>([])
   const [loadingPayments, setLoadingPayments] = useState(false)
+  const [updatingPaymentId, setUpdatingPaymentId] = useState<number | null>(
+    null,
+  )
+
+  // SwapWallet / Exchange Rate state
+  const [exchangeRateSettings, setExchangeRateSettings] = useState<{
+    rate_priority: 'manual' | 'swapwallet'
+    usd_rate: number
+    margin_percent: number
+    live_usd_rate: number
+    effective_usd_rate: number
+    active_rate_source: string
+  }>({
+    rate_priority: 'manual',
+    usd_rate: 98500,
+    margin_percent: 25,
+    live_usd_rate: 98500,
+    effective_usd_rate: 98500,
+    active_rate_source: 'manual',
+  })
+  const [_loadingExchangeRate, setLoadingExchangeRate] = useState(false)
+  const [savingExchangeRate, setSavingExchangeRate] = useState(false)
+
+  // Uploading state
+  const [uploadingFavicon, setUploadingFavicon] = useState(false)
+  const [uploadingLogo, setUploadingLogo] = useState(false)
+
+  // System Announcements State
+  const [announcements, setAnnouncements] = useState<SystemAnnouncement[]>([])
+  const [loadingAnnounce, setLoadingAnnounce] = useState(false)
+  const [isAnnounceModalOpen, setIsAnnounceModalOpen] = useState(false)
+  const [editingAnnounce, setEditingAnnounce] =
+    useState<SystemAnnouncement | null>(null)
+  const [announceTitle, setAnnounceTitle] = useState('')
+  const [announceContent, setAnnounceContent] = useState('')
+  const [announceImage, setAnnounceImage] = useState('')
+  const [announceTargetPages, setAnnounceTargetPages] = useState('all')
+  const [announceDisplayType, setAnnounceDisplayType] = useState<
+    'bell_only' | 'popup_first_load' | 'banner_top' | 'bell_and_popup'
+  >('bell_and_popup')
+  const [announceSeverity, setAnnounceSeverity] = useState<
+    'info' | 'discount' | 'warning' | 'success'
+  >('info')
+  const [announceExpiresAt, setAnnounceExpiresAt] = useState('')
+  const [announceIsActive, setAnnounceIsActive] = useState(true)
+  const [savingAnnounce, setSavingAnnounce] = useState(false)
+  const [uploadingAnnounceImage, setUploadingAnnounceImage] = useState(false)
+  const [deleteAnnounceId, setDeleteAnnounceId] = useState<string | null>(null)
 
   // Multi-Auth System Settings state
   const [authSettings, setAuthSettings] = useState({
@@ -216,7 +288,7 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
   const loadPayments = async () => {
     setLoadingPayments(true)
     try {
-      const list = await apiService.getPayments()
+      const list = await apiService.adminListPayments()
       setPayments(list)
     } catch {
     } finally {
@@ -224,9 +296,278 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
     }
   }
 
+  const loadExchangeRateSettings = async () => {
+    setLoadingExchangeRate(true)
+    try {
+      const vnSettings = await apiService
+        .getVirtualNumberSettings()
+        .catch(() => null)
+      if (vnSettings) {
+        setExchangeRateSettings({
+          rate_priority: (vnSettings.rate_priority as any) || 'manual',
+          usd_rate: vnSettings.usd_rate || 98500,
+          margin_percent: vnSettings.margin_percent || 25,
+          live_usd_rate: vnSettings.live_usd_rate || 98500,
+          effective_usd_rate: vnSettings.effective_usd_rate || 98500,
+          active_rate_source: vnSettings.active_rate_source || 'manual',
+        })
+      }
+    } finally {
+      setLoadingExchangeRate(false)
+    }
+  }
+
+  const handleSaveExchangeRate = async () => {
+    setSavingExchangeRate(true)
+    try {
+      await apiService.updateVirtualNumberSettings({
+        rate_priority: exchangeRateSettings.rate_priority,
+        usd_rate: Number(exchangeRateSettings.usd_rate),
+        margin_percent: Number(exchangeRateSettings.margin_percent),
+      })
+      notifySuccess(
+        'تنظیمات نرخ ارز ذخیره شد',
+        'تنظیمات SwapWallet و نرخ تبدیل تتر با موفقیت ثبت شد.',
+      )
+      loadExchangeRateSettings()
+    } catch (err: any) {
+      notifyError('خطا در ذخیره نرخ ارز', err.message)
+    } finally {
+      setSavingExchangeRate(false)
+    }
+  }
+
+  const handleUploadFavicon = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadingFavicon(true)
+    try {
+      const res = await apiService.uploadMedia(file)
+      if (res.file_url) {
+        setThemeSettings((prev) => ({
+          ...prev,
+          site_favicon_url: res.file_url,
+        }))
+        notifySuccess('فاوآیکون آپلود شد', 'فاوآیکون جدید ثبت گردید.')
+      }
+    } catch (err: any) {
+      notifyError('خطا در آپلود', err.message)
+    } finally {
+      setUploadingFavicon(false)
+    }
+  }
+
+  const handleUploadLogo = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadingLogo(true)
+    try {
+      const res = await apiService.uploadMedia(file)
+      if (res.file_url) {
+        setThemeSettings((prev) => ({ ...prev, site_logo_url: res.file_url }))
+        notifySuccess('لوگو آپلود شد', 'لوگوی جدید ثبت گردید.')
+      }
+    } catch (err: any) {
+      notifyError('خطا در آپلود', err.message)
+    } finally {
+      setUploadingLogo(false)
+    }
+  }
+
+  const handleUploadMenuIcon = async (
+    idx: number,
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    try {
+      const res = await apiService.uploadMedia(file)
+      if (res.file_url) {
+        setHeaderMenus((prev) =>
+          prev.map((m, i) =>
+            i === idx ? { ...m, icon_url: res.file_url } : m,
+          ),
+        )
+        notifySuccess('آیکون منو آپلود شد', 'آیکون با موفقیت ثبت شد.')
+      }
+    } catch (err: any) {
+      notifyError('خطا در آپلود آیکون', err.message)
+    }
+  }
+
+  const handleUploadSubmenuIcon = async (
+    menuIdx: number,
+    subIdx: number,
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    try {
+      const res = await apiService.uploadMedia(file)
+      if (res.file_url) {
+        setHeaderMenus((prev) =>
+          prev.map((m, i) =>
+            i === menuIdx
+              ? {
+                  ...m,
+                  children: (m.children || []).map((c, ci) =>
+                    ci === subIdx ? { ...c, icon_url: res.file_url } : c,
+                  ),
+                }
+              : m,
+          ),
+        )
+        notifySuccess('آیکون زیرمنو آپلود شد', 'آیکون با موفقیت ثبت شد.')
+      }
+    } catch (err: any) {
+      notifyError('خطا در آپلود آیکون زیرمنو', err.message)
+    }
+  }
+
+  const handleUploadPaymentIcon = async (
+    paymentId: number,
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    try {
+      const res = await apiService.uploadMedia(file)
+      if (res.file_url) {
+        setPayments((prev) =>
+          prev.map((p) =>
+            p.id === paymentId ? { ...p, icon_url: res.file_url } : p,
+          ),
+        )
+        const target = payments.find((p) => p.id === paymentId)
+        if (target) {
+          registerPaymentGateways([
+            {
+              platform: target.platform,
+              icon_url: res.file_url,
+              name: target.name,
+            },
+          ])
+        }
+        await apiService.adminUpdatePayment(paymentId, { icon: res.file_url })
+        notifySuccess(
+          'آیکون درگاه ذخیره شد',
+          'آیکون با موفقیت در دیتابیس ثبت شد.',
+        )
+      }
+    } catch (err: any) {
+      notifyError('خطا در آپلود آیکون درگاه', err.message)
+    }
+  }
+
+  const loadAnnouncements = async () => {
+    setLoadingAnnounce(true)
+    try {
+      const list = await apiService.adminListAnnouncements()
+      setAnnouncements(list)
+    } finally {
+      setLoadingAnnounce(false)
+    }
+  }
+
+  const handleOpenCreateAnnounce = () => {
+    setEditingAnnounce(null)
+    setAnnounceTitle('')
+    setAnnounceContent('')
+    setAnnounceImage('')
+    setAnnounceTargetPages('all')
+    setAnnounceDisplayType('bell_and_popup')
+    setAnnounceSeverity('info')
+    setAnnounceExpiresAt('')
+    setAnnounceIsActive(true)
+    setIsAnnounceModalOpen(true)
+  }
+
+  const handleOpenEditAnnounce = (item: SystemAnnouncement) => {
+    setEditingAnnounce(item)
+    setAnnounceTitle(item.title)
+    setAnnounceContent(item.content)
+    setAnnounceImage(item.image_url || '')
+    setAnnounceTargetPages(item.target_pages || 'all')
+    setAnnounceDisplayType(item.display_type || 'bell_and_popup')
+    setAnnounceSeverity(item.severity || 'info')
+    setAnnounceExpiresAt(item.expires_at ? item.expires_at.slice(0, 16) : '')
+    setAnnounceIsActive(item.is_active)
+    setIsAnnounceModalOpen(true)
+  }
+
+  const handleSaveAnnouncement = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!announceTitle.trim() || !announceContent.trim()) return
+
+    setSavingAnnounce(true)
+    try {
+      const payload: Partial<SystemAnnouncement> = {
+        title: announceTitle.trim(),
+        content: announceContent.trim(),
+        image_url: announceImage.trim() || undefined,
+        target_pages: announceTargetPages,
+        display_type: announceDisplayType,
+        severity: announceSeverity,
+        is_active: announceIsActive,
+        expires_at: announceExpiresAt
+          ? new Date(announceExpiresAt).toISOString()
+          : undefined,
+      }
+
+      if (editingAnnounce) {
+        await apiService.adminUpdateAnnouncement(editingAnnounce.id, payload)
+        notifySuccess('اعلان به‌روزرسانی شد', 'تغییرات اعلان با موفقیت ثبت شد.')
+      } else {
+        await apiService.adminCreateAnnouncement(payload)
+        notifySuccess('اعلان ثبت شد', 'اعلان جدید در سیستم ثبت گردید.')
+      }
+      setIsAnnounceModalOpen(false)
+      loadAnnouncements()
+    } catch (err: any) {
+      notifyError('خطا در ذخیره اعلان', err.message)
+    } finally {
+      setSavingAnnounce(false)
+    }
+  }
+
+  const handleDeleteAnnouncement = async () => {
+    if (!deleteAnnounceId) return
+    try {
+      await apiService.adminDeleteAnnouncement(deleteAnnounceId)
+      notifySuccess('اعلان حذف شد', 'اعلان مورد نظر با موفقیت حذف گردید.')
+      setDeleteAnnounceId(null)
+      loadAnnouncements()
+    } catch (err: any) {
+      notifyError('خطا در حذف اعلان', err.message)
+    }
+  }
+
+  const handleUploadAnnounceImage = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadingAnnounceImage(true)
+    try {
+      const res = await apiService.uploadMedia(file)
+      if (res.file_url) {
+        setAnnounceImage(res.file_url)
+        notifySuccess('تصویر آپلود شد', 'تصویر بنر اعلان با موفقیت ذخیره شد.')
+      }
+    } catch (err: any) {
+      notifyError('خطا در آپلود تصویر', err.message)
+    } finally {
+      setUploadingAnnounceImage(false)
+    }
+  }
+
   useEffect(() => {
     loadThemeSettings()
     loadPayments()
+    loadExchangeRateSettings()
+    loadAnnouncements()
   }, [])
 
   const handleSaveThemeField = async (payload: Partial<ThemeSettings>) => {
@@ -351,7 +692,7 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
     },
     {
       id: 'notifications' as const,
-      label: 'اعلان‌های پیامکی و ایمیلی تیکت‌ها',
+      label: 'مدیریت اعلان‌ها و پیام‌های سراسری (Announcements)',
       icon: BellRing,
     },
     {
@@ -365,10 +706,22 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
     <div className="space-y-6 animate-in fade-in duration-300 pb-12" dir="rtl">
       {/* Top Banner Header */}
       <AdminHeaderBanner
-        icon={Settings}
-        title="تنظیمات و پیکربندی سیستم"
-        subtitle="مدیریت متمرکز هویت برند، فاوآیکون، سئو، منوهای سایت، کلیدهای وب‌سرویس، فاکتور رسمی، درگاه‌های پرداخت و احراز هویت"
-        badgeText="پیکربندی هسته سیستم"
+        icon={activeSubTab === 'notifications' ? BellRing : Settings}
+        title={
+          activeSubTab === 'notifications'
+            ? 'مدیریت اعلان‌ها و پیام‌های سراسری'
+            : 'تنظیمات و پیکربندی سیستم'
+        }
+        subtitle={
+          activeSubTab === 'notifications'
+            ? 'ارسال پیام‌های بازشو (پاپ‌آپ) در لود اول، بنرهای اعلان بالای سایت و اطلاعیه‌های زنگوله هدر و پنل کاربری'
+            : 'مدیریت متمرکز هویت برند، فاوآیکون، سئو، منوهای سایت، کلیدهای وب‌سرویس، فاکتور رسمی، درگاه‌های پرداخت و احراز هویت'
+        }
+        badgeText={
+          activeSubTab === 'notifications'
+            ? 'سیستم هوشمند اعلان‌ها'
+            : 'پیکربندی هسته سیستم'
+        }
       />
 
       {/* Modern Subtabs Navigation */}
@@ -469,6 +822,19 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
                     placeholder="/favicon.svg یا https://..."
                     className="flex-1 h-10 px-3.5 rounded-field border border-border/60 bg-card text-xs text-foreground focus:outline-none focus:border-brand font-mono font-latin dir-ltr text-left"
                   />
+                  <label className="h-10 px-3.5 rounded-field bg-secondary hover:bg-muted text-foreground border border-border/60 text-xs font-bold flex items-center gap-1.5 cursor-pointer shrink-0 shadow-xs duration-motion active:scale-[0.98]">
+                    <Upload className="w-3.5 h-3.5 text-brand" />
+                    <span>
+                      {uploadingFavicon ? 'در حال آپلود...' : 'آپلود فایل'}
+                    </span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleUploadFavicon}
+                      disabled={uploadingFavicon}
+                      className="hidden"
+                    />
+                  </label>
                 </div>
                 <p className="text-[11px] text-muted-foreground leading-relaxed">
                   این آیکون در نوار زبانه (Tab) مرورگر خریداران و بوک‌مارک‌ها
@@ -516,10 +882,23 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
                     placeholder="/images/logo.png یا https://..."
                     className="flex-1 h-10 px-3.5 rounded-field border border-border/60 bg-card text-xs text-foreground focus:outline-none focus:border-brand font-mono font-latin dir-ltr text-left"
                   />
+                  <label className="h-10 px-3.5 rounded-field bg-secondary hover:bg-muted text-foreground border border-border/60 text-xs font-bold flex items-center gap-1.5 cursor-pointer shrink-0 shadow-xs duration-motion active:scale-[0.98]">
+                    <Upload className="w-3.5 h-3.5 text-brand" />
+                    <span>
+                      {uploadingLogo ? 'در حال آپلود...' : 'آپلود لوگو'}
+                    </span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleUploadLogo}
+                      disabled={uploadingLogo}
+                      className="hidden"
+                    />
+                  </label>
                 </div>
                 <p className="text-[11px] text-muted-foreground leading-relaxed">
-                  در صورت خالی بودن، لوگوی متنی استاندارد آناهیکس نمایش داده
-                  خواهد شد.
+                  در صورت خالی بودن، لوگوی متنی استاندارد {getSiteBrandName()}{' '}
+                  نمایش داده خواهد شد.
                 </p>
               </div>
             </div>
@@ -784,7 +1163,7 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
                           {idx + 1}
                         </div>
 
-                        <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-2 w-full">
+                        <div className="flex-1 grid grid-cols-1 sm:grid-cols-4 gap-2 w-full">
                           <input
                             type="text"
                             value={item.title}
@@ -830,6 +1209,42 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
                             placeholder="بج اختیاری (مثلاً: جدید)"
                             className="h-9 px-3 rounded-field border border-border/60 bg-card text-xs text-foreground focus:outline-none focus:border-brand"
                           />
+                          <div className="flex items-center gap-1.5">
+                            {item.icon_url && (
+                              <img
+                                src={item.icon_url}
+                                alt=""
+                                className="w-6 h-6 object-contain rounded-control border border-border/60 p-0.5 bg-card shrink-0 brightness-90 dark:brightness-100"
+                              />
+                            )}
+                            <input
+                              type="text"
+                              value={item.icon_url || ''}
+                              onChange={(e) =>
+                                setHeaderMenus((prev) =>
+                                  prev.map((m, i) =>
+                                    i === idx
+                                      ? { ...m, icon_url: e.target.value }
+                                      : m,
+                                  ),
+                                )
+                              }
+                              placeholder="آدرس آیکون"
+                              className="h-9 px-2 rounded-field border border-border/60 bg-card text-xs font-mono font-latin dir-ltr text-left text-foreground focus:outline-none focus:border-brand flex-1"
+                            />
+                            <label
+                              className="h-9 px-2 rounded-field bg-secondary hover:bg-muted text-foreground border border-border/60 text-xs font-bold flex items-center gap-1 cursor-pointer shrink-0"
+                              title="آپلود آیکون منو"
+                            >
+                              <Upload className="w-3.5 h-3.5 text-brand" />
+                              <input
+                                type="file"
+                                accept="image/*"
+                                onChange={(e) => handleUploadMenuIcon(idx, e)}
+                                className="hidden"
+                              />
+                            </label>
+                          </div>
                         </div>
 
                         <div className="flex items-center gap-2.5 shrink-0">
@@ -1086,6 +1501,30 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
                                     placeholder="توضیح کوتاه (اختیاری)"
                                     className="h-8 px-2.5 rounded-field border border-border/60 bg-muted/20 text-xs text-foreground focus:outline-none focus:border-brand flex-1 w-full"
                                   />
+                                  <div className="flex items-center gap-1 shrink-0">
+                                    {sub.icon_url && (
+                                      <img
+                                        src={sub.icon_url}
+                                        alt=""
+                                        className="w-5 h-5 object-contain rounded-xs border border-border/60 p-0.5 bg-card shrink-0 brightness-90 dark:brightness-100"
+                                      />
+                                    )}
+                                    <label
+                                      className="h-8 px-2 rounded-field bg-secondary hover:bg-muted text-foreground border border-border/60 text-[11px] font-bold flex items-center gap-1 cursor-pointer shrink-0"
+                                      title="آپلود آیکون زیرمنو"
+                                    >
+                                      <Upload className="w-3 h-3 text-brand" />
+                                      <span>آیکون</span>
+                                      <input
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={(e) =>
+                                          handleUploadSubmenuIcon(idx, sIdx, e)
+                                        }
+                                        className="hidden"
+                                      />
+                                    </label>
+                                  </div>
                                   <button
                                     type="button"
                                     onClick={() =>
@@ -1515,15 +1954,206 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
       {/* TAB CONTENT 5: PAYMENT GATEWAYS & SYSTEM PARAMETERS */}
       {activeSubTab === 'gateways' && (
         <div className="space-y-6 animate-in fade-in duration-200">
+          {/* 1. Global Exchange Rate & SwapWallet Engine Panel */}
+          <div className="rounded-surface border border-border/80 bg-card p-6 shadow-surface space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/60 pb-4">
+              <div>
+                <h3 className="text-sm font-black text-foreground flex items-center gap-2">
+                  <Coins className="w-4 h-4 text-brand" />
+                  <span>
+                    موتور نرخ ارز زنده تتر SwapWallet و اولویت قیمت‌گذاری سراسری
+                  </span>
+                </h3>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  تنظیم اولویت استعلام نرخ ارز دلاری و تومانی محصولات و شماره‌های
+                  مجازی
+                </p>
+              </div>
+
+              {exchangeRateSettings.live_usd_rate ? (
+                <div className="flex items-center gap-1.5 px-3 py-1 rounded-control text-xs font-mono font-latin bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-xs self-start sm:self-auto">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <span>
+                    نرخ زنده تتر SwapWallet:{' '}
+                    {toPersianDigits(
+                      exchangeRateSettings.live_usd_rate.toLocaleString(
+                        'fa-IR',
+                      ),
+                    )}{' '}
+                    تومان
+                  </span>
+                </div>
+              ) : null}
+            </div>
+
+            {/* Priority Option Selector Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <button
+                type="button"
+                onClick={() =>
+                  setExchangeRateSettings((prev) => ({
+                    ...prev,
+                    rate_priority: 'manual',
+                  }))
+                }
+                className={`p-4 rounded-surface border text-right transition-all flex flex-col justify-between cursor-pointer ${
+                  exchangeRateSettings.rate_priority === 'manual'
+                    ? 'border-brand bg-brand/10 ring-2 ring-brand/30 shadow-surface'
+                    : 'border-border/60 hover:border-border bg-muted/20'
+                }`}
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-control flex items-center justify-center bg-primary text-primary-foreground shadow-control">
+                      <Coins className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h5 className="font-bold text-xs text-foreground">
+                        اولویت ۱: نرخ دستی ثابت
+                      </h5>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                        کنترل ۱۰۰٪ دستی بر مبنای نرخ اعلامی شما
+                      </p>
+                    </div>
+                  </div>
+                  {exchangeRateSettings.rate_priority === 'manual' && (
+                    <span className="text-[10px] font-black text-brand">
+                      فعال ✓
+                    </span>
+                  )}
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() =>
+                  setExchangeRateSettings((prev) => ({
+                    ...prev,
+                    rate_priority: 'swapwallet',
+                  }))
+                }
+                className={`p-4 rounded-surface border text-right transition-all flex flex-col justify-between cursor-pointer ${
+                  exchangeRateSettings.rate_priority === 'swapwallet'
+                    ? 'border-brand bg-brand/10 ring-2 ring-brand/30 shadow-surface'
+                    : 'border-border/60 hover:border-border bg-muted/20'
+                }`}
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-control flex items-center justify-center bg-emerald-600 text-white shadow-control">
+                      <RefreshCw className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h5 className="font-bold text-xs text-foreground">
+                        اولویت ۲: مبدل زنده تتر SwapWallet
+                      </h5>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                        استعلام لحظه‌ای بازار (فال‌بک خودکار به نرخ دستی در صورت
+                        قطعی)
+                      </p>
+                    </div>
+                  </div>
+                  {exchangeRateSettings.rate_priority === 'swapwallet' && (
+                    <span className="text-[10px] font-black text-emerald-400">
+                      فعال ✓
+                    </span>
+                  )}
+                </div>
+              </button>
+            </div>
+
+            {/* Inputs: USD Rate & Global Margin */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
+              <div className="space-y-1.5 text-right">
+                <label className="text-xs font-bold text-foreground block">
+                  نرخ مبنای دستی دلار / تتر (تومان):
+                </label>
+                <input
+                  type="number"
+                  step="any"
+                  value={exchangeRateSettings.usd_rate}
+                  onChange={(e) =>
+                    setExchangeRateSettings((prev) => ({
+                      ...prev,
+                      usd_rate: Number(e.target.value) || 0,
+                    }))
+                  }
+                  className="w-full h-10 px-3.5 rounded-field border border-border/60 bg-muted/20 text-xs font-mono font-latin outline-none focus:border-brand"
+                />
+              </div>
+
+              <div className="space-y-1.5 text-right">
+                <label className="text-xs font-bold text-foreground block">
+                  مارجین سود پیش‌فرض (%):
+                </label>
+                <input
+                  type="number"
+                  step="0.5"
+                  value={exchangeRateSettings.margin_percent}
+                  onChange={(e) =>
+                    setExchangeRateSettings((prev) => ({
+                      ...prev,
+                      margin_percent: parseFloat(e.target.value) || 0,
+                    }))
+                  }
+                  className="w-full h-10 px-3.5 rounded-field border border-border/60 bg-muted/20 text-xs font-mono font-latin outline-none focus:border-brand"
+                />
+              </div>
+
+              <div className="space-y-1.5 text-right">
+                <label className="text-xs font-bold text-foreground block">
+                  نرخ موثر اعمالی در سایت:
+                </label>
+                <div className="h-10 px-3.5 rounded-field border border-border/40 bg-muted/40 text-foreground text-xs flex items-center justify-between font-mono font-latin font-bold">
+                  <span>
+                    {toPersianDigits(
+                      (exchangeRateSettings.rate_priority === 'swapwallet' &&
+                      exchangeRateSettings.live_usd_rate
+                        ? exchangeRateSettings.live_usd_rate
+                        : exchangeRateSettings.usd_rate
+                      ).toLocaleString('fa-IR'),
+                    )}{' '}
+                    تومان
+                  </span>
+                  <span className="text-[10px] text-muted-foreground font-sans">
+                    (
+                    {exchangeRateSettings.rate_priority === 'swapwallet'
+                      ? 'SwapWallet Live'
+                      : 'دستی'}
+                    )
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-2 border-t border-border/60">
+              <button
+                type="button"
+                onClick={handleSaveExchangeRate}
+                disabled={savingExchangeRate}
+                className="h-9 px-5 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs shadow-control flex items-center gap-1.5 cursor-pointer duration-motion active:scale-[0.98] disabled:opacity-50"
+              >
+                {savingExchangeRate ? (
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Save className="w-3.5 h-3.5" />
+                )}
+                <span>ذخیره تنظیمات نرخ ارز و SwapWallet</span>
+              </button>
+            </div>
+          </div>
+
+          {/* 2. Payment Gateways Desk */}
           <div className="rounded-surface border border-border/80 bg-card p-6 shadow-surface space-y-6">
             <div className="flex items-center justify-between border-b border-border/60 pb-4">
               <div>
                 <h3 className="text-sm font-black text-foreground flex items-center gap-2">
                   <CreditCard className="w-4 h-4 text-brand" />
-                  <span>درگاه‌های پرداخت فعال سیستم (ذخیره شده در دیتابیس)</span>
+                  <span>درگاه‌های پرداخت فعال سیستم (پردازش و تسویه)</span>
                 </h3>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  تمام تراکنش‌های فروشگاه از طریق این درگاه‌ها پردازش می‌شوند.
+                  مدیریت عناوین، آیکون‌ها و وضعیت فعال‌سازی درگاه‌های پرداخت آنلاین
+                  و بانکی
                 </p>
               </div>
               <button
@@ -1539,104 +2169,144 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
               </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
-              {/* Balance Gateway */}
-              <div className="p-4 rounded-surface border border-border/60 bg-muted/20 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Coins className="w-4 h-4 text-emerald-500" />
-                    <span className="font-bold text-foreground">
-                      کیف پول آناهیکس (Balance)
-                    </span>
-                  </div>
-                  <span className="px-2 py-0.5 rounded-control text-[10px] font-bold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
-                    پیش‌فرض
-                  </span>
-                </div>
-                <p className="text-muted-foreground text-[11px] leading-relaxed">
-                  پرداخت سریع درون‌برنامه‌ای با کارمزد ۰٪ و تحویل فوق‌سریع کمتر از
-                  ۱ ثانیه.
-                </p>
-                <div className="pt-2 border-t border-border/40 flex items-center justify-between text-[11px] text-muted-foreground">
-                  <span>شناسه فنی:</span>
-                  <span className="font-mono font-bold text-foreground font-latin">
-                    balance (-1)
-                  </span>
-                </div>
-              </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+              {payments.map((p) => {
+                const gw = getGatewayDisplay(p.platform, p.icon_url)
+                return (
+                  <div
+                    key={p.id}
+                    className="p-4 rounded-surface border border-border/60 bg-muted/20 space-y-3.5 text-right flex flex-col justify-between"
+                  >
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between pb-2 border-b border-border/40">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-9 h-9 rounded-control bg-card border border-border/60 flex items-center justify-center p-1 shrink-0 shadow-xs">
+                            {gw.icon}
+                          </div>
+                          <div>
+                            <span className="font-bold text-foreground text-xs block">
+                              {p.name}
+                            </span>
+                            <span className="text-[10px] text-muted-foreground font-mono font-latin">
+                              پلتفرم: {p.platform}
+                            </span>
+                          </div>
+                        </div>
 
-              {/* Online Gateway (ZarinPal / Shaparak) */}
-              <div className="p-4 rounded-surface border border-border/60 bg-muted/20 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <CreditCard className="w-4 h-4 text-brand" />
-                    <span className="font-bold text-foreground">
-                      درگاه بانکی شتاب / شاپرک
-                    </span>
-                  </div>
-                  <span className="px-2 py-0.5 rounded-control text-[10px] font-bold bg-brand/10 text-brand border border-brand/20">
-                    فعال
-                  </span>
-                </div>
-                <p className="text-muted-foreground text-[11px] leading-relaxed">
-                  اتصال به سوئیچ رسمی شاپرک از طریق زرین‌پال و تمامی کارت‌های
-                  بانکی عضو شبکه شتاب.
-                </p>
-                <div className="pt-2 border-t border-border/40 flex items-center justify-between text-[11px] text-muted-foreground">
-                  <span>وضعیت اتصال:</span>
-                  <span className="font-bold text-emerald-500">
-                    برخط و آماده دریافت
-                  </span>
-                </div>
-              </div>
+                        <span
+                          className={`px-2 py-0.5 rounded-control text-[10px] font-bold border ${gw.badgeClass}`}
+                        >
+                          {p.is_default ? 'پیش‌فرض' : 'فعال'}
+                        </span>
+                      </div>
 
-              {/* Smart Card to Card */}
-              <div className="p-4 rounded-surface border border-border/60 bg-muted/20 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <ShieldCheck className="w-4 h-4 text-amber-500" />
-                    <span className="font-bold text-foreground">
-                      کارت به کارت هوشمند
-                    </span>
-                  </div>
-                  <span className="px-2 py-0.5 rounded-control text-[10px] font-bold bg-amber-500/10 text-amber-500 border border-amber-500/20">
-                    پشتیبان
-                  </span>
-                </div>
-                <p className="text-muted-foreground text-[11px] leading-relaxed">
-                  انتقال کارت به کارت بانکی، پایا و ساتنا با ثبت شماره پیگیری و
-                  تایید سیستمی فاکتور.
-                </p>
-                <div className="pt-2 border-t border-border/40 flex items-center justify-between text-[11px] text-muted-foreground">
-                  <span>تایید سفارش:</span>
-                  <span className="font-bold text-foreground">
-                    خودکار / اپراتوری
-                  </span>
-                </div>
-              </div>
-            </div>
+                      {/* Title & Icon Input with Upload Button */}
+                      <div className="space-y-2">
+                        <div>
+                          <label className="text-[11px] font-bold text-muted-foreground block mb-1">
+                            نام نمایشی درگاه:
+                          </label>
+                          <input
+                            type="text"
+                            value={p.name}
+                            onChange={(e) =>
+                              setPayments((prev) =>
+                                prev.map((item) =>
+                                  item.id === p.id
+                                    ? { ...item, name: e.target.value }
+                                    : item,
+                                ),
+                              )
+                            }
+                            className="w-full h-8 px-2.5 text-xs rounded-control border border-border/60 bg-card text-foreground outline-none focus:border-brand"
+                          />
+                        </div>
 
-            {payments.length > 0 && (
-              <div className="mt-4 pt-4 border-t border-border/60">
-                <span className="text-[11px] font-bold text-muted-foreground block mb-2">
-                  درگاه‌های بارگذاری شده از پایگاه‌داده:
-                </span>
-                <div className="flex items-center gap-2 flex-wrap">
-                  {payments.map((p) => (
-                    <span
-                      key={p.id}
-                      className="px-2.5 py-1 rounded-control bg-secondary text-foreground text-xs font-bold border border-border/60 flex items-center gap-1.5"
-                    >
-                      <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                      {p.name}
-                      <span className="text-[10px] text-muted-foreground font-latin">
-                        ({p.platform})
+                        <div>
+                          <label className="text-[11px] font-bold text-muted-foreground block mb-1">
+                            آیکون اختصاصی درگاه (تصویر یا آدرس SVG/PNG):
+                          </label>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="text"
+                              value={p.icon_url || ''}
+                              onChange={(e) =>
+                                setPayments((prev) =>
+                                  prev.map((item) =>
+                                    item.id === p.id
+                                      ? { ...item, icon_url: e.target.value }
+                                      : item,
+                                  ),
+                                )
+                              }
+                              placeholder="/icons/gateway.svg یا https://..."
+                              className="flex-1 h-8 px-2.5 text-xs rounded-control border border-border/60 bg-card text-foreground font-mono font-latin dir-ltr text-left outline-none focus:border-brand"
+                            />
+                            <label
+                              className="h-8 px-2.5 rounded-control bg-secondary hover:bg-muted text-foreground border border-border/60 text-xs font-bold flex items-center gap-1 cursor-pointer shrink-0 shadow-xs"
+                              title="آپلود تصویر آیکون"
+                            >
+                              <Upload className="w-3 h-3 text-brand" />
+                              <span>آپلود</span>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                onChange={(e) =>
+                                  handleUploadPaymentIcon(p.id, e)
+                                }
+                                className="hidden"
+                              />
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="pt-2 border-t border-border/40 flex items-center justify-between">
+                      <span className="text-[11px] text-muted-foreground font-latin">
+                        کارمزد: {p.fee_percentage}%
                       </span>
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
+                      <button
+                        type="button"
+                        disabled={updatingPaymentId === p.id}
+                        onClick={async () => {
+                          setUpdatingPaymentId(p.id)
+                          try {
+                            registerPaymentGateways([
+                              {
+                                platform: p.platform,
+                                icon_url: p.icon_url,
+                                name: p.name,
+                              },
+                            ])
+                            await apiService.adminUpdatePayment(p.id, {
+                              name_fa: p.name,
+                              icon: p.icon_url,
+                            })
+                            notifySuccess(
+                              'درگاه ذخیره شد',
+                              `تنظیمات ${p.name} با موفقیت ثبت شد.`,
+                            )
+                          } catch (err: any) {
+                            notifyError('خطا در ذخیره', err.message)
+                          } finally {
+                            setUpdatingPaymentId(null)
+                          }
+                        }}
+                        className="h-8 px-3 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground text-xs font-black shadow-control flex items-center gap-1 cursor-pointer duration-motion active:scale-[0.98]"
+                      >
+                        {updatingPaymentId === p.id ? (
+                          <RefreshCw className="w-3 h-3 animate-spin" />
+                        ) : (
+                          <Check className="w-3 h-3" />
+                        )}
+                        <span>ذخیره درگاه</span>
+                      </button>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
           </div>
         </div>
       )}
@@ -1793,21 +2463,209 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
         </div>
       )}
 
-      {/* TAB CONTENT: TICKET NOTIFICATION CHANNELS */}
+      {/* TAB CONTENT: NOTIFICATIONS & ANNOUNCEMENTS */}
       {activeSubTab === 'notifications' && (
         <div className="space-y-6 animate-in fade-in duration-200">
+          {/* SECTION 1: BROADCAST ANNOUNCEMENTS & FIRST-LOAD POPUPS */}
           <div className="rounded-surface border border-border/80 bg-card p-6 shadow-surface space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/60 pb-4">
               <div>
                 <h3 className="text-base font-black text-foreground flex items-center gap-2">
                   <BellRing className="w-5 h-5 text-brand" />
                   <span>
-                    کانال‌های اطلاع‌رسانی تیکت‌ها و پشتیبانی (SMS & Email)
+                    مدیریت اعلان‌ها، پاپ‌آپ‌های بازشو و پیام‌های سراسری (Broadcast
+                    Announcements)
                   </span>
                 </h3>
                 <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                  تعیین نحوه ارسال پیامک و ایمیل خودکار به خریداران هنگام
-                  پاسخ‌گویی اپراتور و مدیریت نمایش تاگل‌ها در پنل کاربری
+                  ارسال پیام‌های بازشو در اولین ورود به صفحات خاص، اطلاعیه‌های
+                  تخفیف و اخبار در منوی زنگوله هدر و پنل کاربری
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  type="button"
+                  onClick={handleOpenCreateAnnounce}
+                  className="h-10 px-5 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs shadow-control flex items-center gap-2 cursor-pointer duration-motion active:scale-[0.98]"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>ایجاد اعلان جدید</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={loadAnnouncements}
+                  disabled={loadingAnnounce}
+                  className="p-2 rounded-control border border-border/60 bg-secondary hover:bg-muted text-foreground transition shadow-control cursor-pointer"
+                  title="تازه‌سازی لیست"
+                >
+                  <RefreshCw
+                    className={`w-4 h-4 ${loadingAnnounce ? 'animate-spin text-brand' : ''}`}
+                  />
+                </button>
+              </div>
+            </div>
+
+            {loadingAnnounce ? (
+              <LoadingState message="در حال بارگذاری اعلان‌های سراسری سیستم..." />
+            ) : announcements.length === 0 ? (
+              <div className="py-12 text-center text-muted-foreground bg-muted/10 rounded-surface border border-dashed border-border/60 space-y-2">
+                <BellRing className="w-8 h-8 text-muted-foreground/50 mx-auto" />
+                <p className="text-xs font-bold text-foreground">
+                  هنوز اعلانی ثبت نشده است
+                </p>
+                <p className="text-[11px] text-muted-foreground">
+                  با زدن دکمه «ایجاد اعلان جدید»، اطلاعیه یا پاپ‌آپ سراسری ایجاد
+                  فرمایید.
+                </p>
+              </div>
+            ) : (
+              <div className="rounded-surface border border-border/80 overflow-hidden shadow-surface">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-center text-xs">
+                    <thead>
+                      <tr className="border-b border-border/60 bg-muted/40 text-muted-foreground font-bold select-none">
+                        <th className="p-3.5 text-center">تصویر</th>
+                        <th className="p-3.5 text-center">عنوان اعلان</th>
+                        <th className="p-3.5 text-center">صفحات هدف</th>
+                        <th className="p-3.5 text-center">نوع نمایش</th>
+                        <th className="p-3.5 text-center">درجه فوریت</th>
+                        <th className="p-3.5 text-center">وضعیت</th>
+                        <th className="p-3.5 text-center">تاریخ انقضا</th>
+                        <th className="p-3.5 text-center">عملیات</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border/60">
+                      {announcements.map((a) => (
+                        <tr
+                          key={a.id}
+                          className="hover:bg-muted/20 transition-colors"
+                        >
+                          <td className="p-3 text-center">
+                            {a.image_url ? (
+                              <img
+                                src={a.image_url}
+                                alt=""
+                                className="w-10 h-10 object-cover rounded-control border border-border/60 mx-auto"
+                              />
+                            ) : (
+                              <span className="text-[10px] text-muted-foreground">
+                                بدون عکس
+                              </span>
+                            )}
+                          </td>
+                          <td className="p-3 text-center font-bold text-foreground">
+                            <div>{a.title}</div>
+                            <div className="text-[10px] text-muted-foreground font-normal line-clamp-1 max-w-[200px] mx-auto mt-0.5">
+                              {a.content}
+                            </div>
+                          </td>
+                          <td className="p-3 text-center font-latin text-[11px]">
+                            {a.target_pages === 'all'
+                              ? '🌐 تمام صفحات'
+                              : a.target_pages}
+                          </td>
+                          <td className="p-3 text-center">
+                            <span className="px-2 py-0.5 rounded-control text-[10px] font-bold bg-secondary text-secondary-foreground border border-border/40">
+                              {a.display_type === 'bell_only'
+                                ? 'زنگوله هدر'
+                                : a.display_type === 'popup_first_load'
+                                  ? 'پاپ‌آپ لود اول'
+                                  : a.display_type === 'banner_top'
+                                    ? 'بنر بالای صفحه'
+                                    : 'زنگوله + پاپ‌آپ'}
+                            </span>
+                          </td>
+                          <td className="p-3 text-center">
+                            <span
+                              className={`px-2 py-0.5 rounded-control text-[10px] font-bold border ${
+                                a.severity === 'discount'
+                                  ? 'bg-rose-500/10 text-rose-500 border-rose-500/20'
+                                  : a.severity === 'warning'
+                                    ? 'bg-amber-500/10 text-amber-500 border-amber-500/20'
+                                    : a.severity === 'success'
+                                      ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                                      : 'bg-brand/10 text-brand border-brand/20'
+                              }`}
+                            >
+                              {a.severity === 'discount'
+                                ? '🔥 تخفیف'
+                                : a.severity === 'warning'
+                                  ? '⚠️ هشدار'
+                                  : a.severity === 'success'
+                                    ? '✅ بروزرسانی'
+                                    : '📢 اطلاعیه'}
+                            </span>
+                          </td>
+                          <td className="p-3 text-center">
+                            <ToggleSwitch
+                              checked={a.is_active}
+                              onChange={async (val) => {
+                                setAnnouncements((prev) =>
+                                  prev.map((item) =>
+                                    item.id === a.id
+                                      ? { ...item, is_active: val }
+                                      : item,
+                                  ),
+                                )
+                                await apiService.adminUpdateAnnouncement(a.id, {
+                                  is_active: val,
+                                })
+                              }}
+                              size="sm"
+                            />
+                          </td>
+                          <td className="p-3 text-center text-muted-foreground font-latin text-[11px]">
+                            {a.expires_at
+                              ? new Date(a.expires_at).toLocaleDateString(
+                                  'fa-IR',
+                                )
+                              : 'نامحدود'}
+                          </td>
+                          <td className="p-3 text-center">
+                            <div className="flex items-center justify-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => handleOpenEditAnnounce(a)}
+                                className="p-1.5 rounded-control border border-border/60 bg-secondary hover:bg-muted text-foreground hover:text-brand transition shadow-xs cursor-pointer"
+                                title="ویرایش اعلان"
+                              >
+                                <Edit2 className="w-3.5 h-3.5 text-brand" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setDeleteAnnounceId(a.id)}
+                                className="p-1.5 rounded-control border border-destructive/20 text-destructive hover:bg-destructive/10 transition shadow-xs cursor-pointer"
+                                title="حذف اعلان"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* SECTION 2: TICKET NOTIFICATION CHANNELS (SMS.ir) */}
+          <div className="rounded-surface border border-border/80 bg-card p-6 shadow-surface space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/60 pb-4">
+              <div>
+                <h3 className="text-base font-black text-foreground flex items-center gap-2">
+                  <Smartphone className="w-5 h-5 text-emerald-500" />
+                  <span>
+                    کانال‌های اطلاع‌رسانی پیامکی تیکت‌ها و پشتیبانی (SMS.ir
+                    Gateway)
+                  </span>
+                </h3>
+                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                  تعیین نحوه ارسال پیامک خودکار به خریداران هنگام پاسخ‌گویی
+                  اپراتور
                 </p>
               </div>
 
@@ -1822,132 +2680,279 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
                 ) : (
                   <Save className="w-4 h-4" />
                 )}
-                <span>ذخیره تنظیمات کانال‌ها</span>
+                <span>ذخیره تنظیمات پیامک تیکت</span>
               </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Channel 1: SMS Notifications */}
-              <div className="p-5 rounded-surface border border-border/80 bg-muted/20 space-y-4">
-                <div className="flex items-center gap-2 border-b border-border/40 pb-2">
-                  <Smartphone className="w-4 h-4 text-emerald-500" />
-                  <span className="font-black text-sm text-foreground">
-                    کانال پیامک (SMS.ir Gateway)
-                  </span>
-                </div>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  رفتار تاگل دریافت پیامک در فرم ایجاد تیکت و پنجره چت مشتری:
-                </p>
-
-                <div className="space-y-2.5">
-                  {[
-                    {
-                      id: 'default_on',
-                      label: 'پیش‌فرض فعال (Default ON)',
-                      desc: 'تاگل پیامک به صورت پیش‌فرض روشن است اما کاربر می‌تواند آن را خاموش کند',
-                    },
-                    {
-                      id: 'default_off',
-                      label: 'پیش‌فرض غیرفعال (Default OFF)',
-                      desc: 'تاگل پیامک به صورت پیش‌فرض خاموش است و با تمایل کاربر روشن می‌شود',
-                    },
-                    {
-                      id: 'disabled',
-                      label: 'عدم نمایش و غیرفعال کامل (Disabled)',
-                      desc: 'پیامک تیکت کاملاً خاموش بوده و هیچ تاگل یا گزینه‌ای به کاربر نمایش داده نمی‌شود',
-                    },
-                  ].map((opt) => (
-                    <label
-                      key={opt.id}
-                      className={`p-3 rounded-control border flex items-start gap-2.5 cursor-pointer transition select-none ${
-                        ticketSMSMode === opt.id
-                          ? 'border-brand bg-brand/10 shadow-xs'
-                          : 'border-border/60 bg-card hover:border-border'
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="ticket_sms_setting"
-                        value={opt.id}
-                        checked={ticketSMSMode === opt.id}
-                        onChange={() => setTicketSMSMode(opt.id as any)}
-                        className="mt-0.5 accent-brand cursor-pointer"
-                      />
-                      <div className="space-y-0.5">
-                        <span className="text-xs font-bold text-foreground block">
-                          {opt.label}
-                        </span>
-                        <span className="text-[11px] text-muted-foreground block leading-relaxed">
-                          {opt.desc}
-                        </span>
-                      </div>
-                    </label>
-                  ))}
-                </div>
+            <div className="p-5 rounded-surface border border-border/80 bg-muted/20 space-y-4 max-w-2xl text-right">
+              <div className="flex items-center gap-2 border-b border-border/40 pb-2">
+                <Smartphone className="w-4 h-4 text-emerald-500" />
+                <span className="font-black text-sm text-foreground">
+                  پیامک خدماتی تیکت‌ها (SMS.ir)
+                </span>
               </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                رفتار تاگل دریافت پیامک در فرم ایجاد تیکت و پنجره چت مشتری:
+              </p>
 
-              {/* Channel 2: Email Notifications */}
-              <div className="p-5 rounded-surface border border-border/80 bg-muted/20 space-y-4">
-                <div className="flex items-center gap-2 border-b border-border/40 pb-2">
-                  <Globe className="w-4 h-4 text-blue-500" />
-                  <span className="font-black text-sm text-foreground">
-                    کانال ایمیل (Email Notification)
-                  </span>
-                </div>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  رفتار تاگل دریافت ایمیل در فرم ایجاد تیکت و پنجره چت مشتری:
-                </p>
-
-                <div className="space-y-2.5">
-                  {[
-                    {
-                      id: 'default_on',
-                      label: 'پیش‌فرض فعال (Default ON)',
-                      desc: 'تاگل ایمیل به صورت پیش‌فرض روشن است اما کاربر می‌تواند آن را خاموش کند',
-                    },
-                    {
-                      id: 'default_off',
-                      label: 'پیش‌فرض غیرفعال (Default OFF)',
-                      desc: 'تاگل ایمیل به صورت پیش‌فرض خاموش است و با تمایل کاربر روشن می‌شود',
-                    },
-                    {
-                      id: 'disabled',
-                      label: 'عدم نمایش و غیرفعال کامل (Disabled)',
-                      desc: 'ایمیل تیکت کاملاً خاموش بوده و هیچ گزینه‌ای به کاربر نمایش داده نمی‌شود',
-                    },
-                  ].map((opt) => (
-                    <label
-                      key={opt.id}
-                      className={`p-3 rounded-control border flex items-start gap-2.5 cursor-pointer transition select-none ${
-                        ticketEmailMode === opt.id
-                          ? 'border-brand bg-brand/10 shadow-xs'
-                          : 'border-border/60 bg-card hover:border-border'
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="ticket_email_setting"
-                        value={opt.id}
-                        checked={ticketEmailMode === opt.id}
-                        onChange={() => setTicketEmailMode(opt.id as any)}
-                        className="mt-0.5 accent-brand cursor-pointer"
-                      />
-                      <div className="space-y-0.5">
-                        <span className="text-xs font-bold text-foreground block">
-                          {opt.label}
-                        </span>
-                        <span className="text-[11px] text-muted-foreground block leading-relaxed">
-                          {opt.desc}
-                        </span>
-                      </div>
-                    </label>
-                  ))}
-                </div>
+              <div className="space-y-2.5">
+                {[
+                  {
+                    id: 'default_on',
+                    label: 'پیش‌فرض فعال (Default ON)',
+                    desc: 'تاگل پیامک به صورت پیش‌فرض روشن است اما کاربر می‌تواند آن را خاموش کند',
+                  },
+                  {
+                    id: 'default_off',
+                    label: 'پیش‌فرض غیرفعال (Default OFF)',
+                    desc: 'تاگل پیامک به صورت پیش‌فرض خاموش است و با تمایل کاربر روشن می‌شود',
+                  },
+                  {
+                    id: 'disabled',
+                    label: 'عدم نمایش و غیرفعال کامل (Disabled)',
+                    desc: 'پیامک تیکت کاملاً خاموش بوده و هیچ تاگل یا گزینه‌ای به کاربر نمایش داده نمی‌شود',
+                  },
+                ].map((opt) => (
+                  <label
+                    key={opt.id}
+                    className={`p-3 rounded-control border flex items-start gap-2.5 cursor-pointer transition select-none ${
+                      ticketSMSMode === opt.id
+                        ? 'border-brand bg-brand/10 shadow-xs'
+                        : 'border-border/60 bg-card hover:border-border'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="ticket_sms_setting"
+                      value={opt.id}
+                      checked={ticketSMSMode === opt.id}
+                      onChange={() => setTicketSMSMode(opt.id as any)}
+                      className="mt-0.5 accent-brand cursor-pointer"
+                    />
+                    <div className="space-y-0.5">
+                      <span className="text-xs font-bold text-foreground block">
+                        {opt.label}
+                      </span>
+                      <span className="text-[11px] text-muted-foreground block leading-relaxed">
+                        {opt.desc}
+                      </span>
+                    </div>
+                  </label>
+                ))}
               </div>
             </div>
           </div>
         </div>
       )}
+
+      {/* CREATE / EDIT ANNOUNCEMENT MODAL */}
+      {isAnnounceModalOpen &&
+        createPortal(
+          <div className="fixed inset-0 z-[250] flex items-center justify-center p-3 sm:p-5 overflow-y-auto bg-background/85 backdrop-blur-md animate-in fade-in duration-200">
+            <div
+              dir="rtl"
+              className="w-full max-w-2xl bg-card rounded-surface border border-border/80 shadow-surface p-5 sm:p-6 space-y-4 text-right animate-in zoom-in-95 duration-200 text-foreground my-auto"
+            >
+              <div className="flex items-center justify-between border-b border-border/60 pb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-control bg-brand/10 text-brand flex items-center justify-center font-bold">
+                    <BellRing className="w-4 h-4" />
+                  </div>
+                  <h4 className="font-bold text-sm text-foreground">
+                    {editingAnnounce
+                      ? 'ویرایش اعلان سراسری'
+                      : 'ایجاد اعلان و پاپ‌آپ جدید'}
+                  </h4>
+                </div>
+                <ModalCloseButton
+                  onClick={() => setIsAnnounceModalOpen(false)}
+                  size="sm"
+                />
+              </div>
+
+              <form
+                onSubmit={handleSaveAnnouncement}
+                className="space-y-4 text-xs"
+              >
+                <div className="space-y-1">
+                  <label className="font-bold text-foreground block">
+                    عنوان اعلان <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={announceTitle}
+                    onChange={(e) => setAnnounceTitle(e.target.value)}
+                    placeholder="مثال: تخفیف ویژه بهاره آغاز شد!"
+                    className="w-full h-10 px-3 rounded-field border border-border/60 bg-muted/20 text-foreground text-xs outline-none focus:border-brand"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-bold text-foreground block">
+                    متن و محتوای اعلان (تکست‌ادیتور / مارک‌داون){' '}
+                    <span className="text-rose-500">*</span>
+                  </label>
+                  <RichContentEditor
+                    value={announceContent}
+                    onChange={setAnnounceContent}
+                    placeholder="متن کامل پیام یا اعلان..."
+                    minHeight="180px"
+                    label="محتوای اعلان"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="font-bold text-foreground block">
+                      تصویر / بنر اعلان (اختیاری):
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={announceImage}
+                        onChange={(e) => setAnnounceImage(e.target.value)}
+                        placeholder="/images/banner.jpg یا https://..."
+                        className="flex-1 h-9 px-3 rounded-field border border-border/60 bg-muted/20 text-foreground text-xs font-mono font-latin dir-ltr text-left outline-none focus:border-brand"
+                      />
+                      <label className="h-9 px-3 rounded-field bg-secondary hover:bg-muted text-foreground border border-border/60 text-xs font-bold flex items-center gap-1 cursor-pointer shrink-0">
+                        <Upload className="w-3.5 h-3.5 text-brand" />
+                        <span>
+                          {uploadingAnnounceImage ? 'آپلود...' : 'آپلود عکس'}
+                        </span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleUploadAnnounceImage}
+                          className="hidden"
+                        />
+                      </label>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="font-bold text-foreground block">
+                      صفحات هدف جهت نمایش:
+                    </label>
+                    <select
+                      value={announceTargetPages}
+                      onChange={(e) => setAnnounceTargetPages(e.target.value)}
+                      className="w-full h-9 px-3 rounded-control border border-border/60 bg-card text-foreground text-xs font-bold outline-none cursor-pointer"
+                    >
+                      <option value="all">🌐 تمام صفحات سایت (سراسری)</option>
+                      <option value="/">🏠 فقط صفحه اصلی</option>
+                      <option value="/products">
+                        🛍️ صفحات کاتالوگ و محصولات
+                      </option>
+                      <option value="/category">🗂️ صفحات دسته‌بندی</option>
+                      <option value="/profile">👤 پنل کاربری خریدار</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="space-y-1">
+                    <label className="font-bold text-foreground block">
+                      نحوه نمایش:
+                    </label>
+                    <select
+                      value={announceDisplayType}
+                      onChange={(e: any) =>
+                        setAnnounceDisplayType(e.target.value)
+                      }
+                      className="w-full h-9 px-3 rounded-control border border-border/60 bg-card text-foreground text-xs font-bold outline-none cursor-pointer"
+                    >
+                      <option value="bell_and_popup">
+                        🔔 زنگوله هدر + پاپ‌آپ اولین لود
+                      </option>
+                      <option value="popup_first_load">
+                        💥 فقط پاپ‌آپ بازشو در اولین ورود
+                      </option>
+                      <option value="bell_only">🔕 فقط منوی زنگوله هدر</option>
+                      <option value="banner_top">📌 بنر بالای صفحه</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="font-bold text-foreground block">
+                      درجه فوریت / تگ:
+                    </label>
+                    <select
+                      value={announceSeverity}
+                      onChange={(e: any) => setAnnounceSeverity(e.target.value)}
+                      className="w-full h-9 px-3 rounded-control border border-border/60 bg-card text-foreground text-xs font-bold outline-none cursor-pointer"
+                    >
+                      <option value="info">📢 اطلاعیه معمولی</option>
+                      <option value="discount">🔥 تخفیف و جشنواره</option>
+                      <option value="warning">⚠️ هشدار مهم</option>
+                      <option value="success">✅ بروزرسانی موفق</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="font-bold text-foreground block">
+                      تاریخ انقضا (حذف خودکار):
+                    </label>
+                    <input
+                      type="datetime-local"
+                      value={announceExpiresAt}
+                      onChange={(e) => setAnnounceExpiresAt(e.target.value)}
+                      className="w-full h-9 px-3 rounded-control border border-border/60 bg-muted/20 text-foreground text-xs font-mono font-latin outline-none focus:border-brand"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between p-3 rounded-control border border-border/60 bg-muted/20">
+                  <span className="font-bold text-foreground">
+                    وضعیت فعال‌سازی اعلان:
+                  </span>
+                  <ToggleSwitch
+                    checked={announceIsActive}
+                    onChange={setAnnounceIsActive}
+                    size="md"
+                  />
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-2 border-t border-border/60">
+                  <button
+                    type="button"
+                    onClick={() => setIsAnnounceModalOpen(false)}
+                    className="h-9 px-4 rounded-control border border-border/60 bg-secondary hover:bg-muted text-xs font-bold transition shadow-xs cursor-pointer"
+                  >
+                    انصراف
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={savingAnnounce}
+                    className="h-9 px-5 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs shadow-control flex items-center gap-1.5 cursor-pointer duration-motion active:scale-[0.98] disabled:opacity-50"
+                  >
+                    {savingAnnounce ? (
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Check className="w-3.5 h-3.5" />
+                    )}
+                    <span>
+                      {editingAnnounce
+                        ? 'ذخیره تغییرات'
+                        : 'انتشار اعلان سراسری'}
+                    </span>
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>,
+          document.body,
+        )}
+
+      {/* Delete Announcement Confirmation */}
+      <ConfirmModal
+        isOpen={Boolean(deleteAnnounceId)}
+        onClose={() => setDeleteAnnounceId(null)}
+        onConfirm={handleDeleteAnnouncement}
+        title="حذف اعلان سراسری"
+        message="آیا از حذف این اعلان اطمینان دارید؟ این پیام بلافاصله از تمامی صفحات و هدر پاک خواهد شد."
+        confirmText="بله، حذف شود"
+      />
 
       {/* TAB CONTENT 7: ADMIN AUDIT & ACTIVITY LOGS */}
       {activeSubTab === 'audit-logs' && <AdminActionLogView />}

@@ -578,11 +578,11 @@ export const RichContentEditor: React.FC<RichContentEditorProps> = ({
               type="button"
               onClick={() =>
                 insertBlock(
-                  '| نام ویژگی | نسخه رایگان | نسخه اشتراکی |\n| :--- | :--- | :--- |\n| سقف استفاده | ۱۰ پرسش | نامحدود |\n| سرعت پاسخ | متوسط | آنی |',
+                  '| نام ویژگی | نسخه رایگان | نسخه اشتراکی |\n| :---: | :---: | :---: |\n| سقف استفاده | ۱۰ پرسش | نامحدود |\n| سرعت پاسخ | متوسط | آنی |',
                 )
               }
               className="p-1.5 hover:bg-muted hover:text-foreground rounded-lg transition-colors"
-              title="درج جدول"
+              title="درج جدول مقایسه وسط‌چین"
             >
               <Table className="h-4 w-4" />
             </button>

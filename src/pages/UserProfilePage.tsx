@@ -3,6 +3,7 @@ import {
   ChevronLeft,
   Crown,
   Gift,
+  Heart,
   LayoutDashboard,
   LogIn,
   MessageSquare,
@@ -23,6 +24,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { AuthModal } from '../components/AuthModal'
 import { CartDrawer } from '../components/CartDrawer'
 import { Header } from '../components/Header'
+import { ProfileFavoritesTab } from '../components/profile/ProfileFavoritesTab'
 import { ProfileLoyaltyTab } from '../components/profile/ProfileLoyaltyTab'
 import { ProfileNotificationsTab } from '../components/profile/ProfileNotificationsTab'
 import { ProfileNumberSessionsTab } from '../components/profile/ProfileNumberSessionsTab'
@@ -48,6 +50,7 @@ type ProfileTabId =
   | 'overview'
   | 'loyalty'
   | 'personal'
+  | 'favorites'
   | 'security'
   | 'orders'
   | 'reviews'
@@ -283,6 +286,13 @@ export const UserProfilePage: React.FC = () => {
       label: 'اطلاعات کاربری',
       shortLabel: 'اطلاعات',
       icon: UserCheck,
+      group: 'general',
+    },
+    {
+      id: 'favorites',
+      label: 'نشان‌شده‌ها و علاقه‌مندی‌ها',
+      shortLabel: 'علاقه‌مندی‌ها',
+      icon: Heart,
       group: 'general',
     },
     {
@@ -729,6 +739,8 @@ export const UserProfilePage: React.FC = () => {
                     onProfileUpdated={(updated) => setCustomer(updated)}
                   />
                 )}
+
+                {activeTab === 'favorites' && <ProfileFavoritesTab />}
 
                 {activeTab === 'security' && (
                   <ProfileSecurityTab

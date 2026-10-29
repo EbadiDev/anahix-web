@@ -48,11 +48,7 @@ import type {
   VirtualNumberOrder,
   VirtualNumberService,
 } from '../types'
-
-function toPersianDigits(n: number | string): string {
-  const f = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹']
-  return String(n).replace(/\d/g, (d) => f[Number(d)])
-}
+import { formatToman, toPersianDigits } from '../utils/formatters'
 
 // Country Aliases for flexible searching (e.g. آمریکا, امریکا, USA, usa, ایالات متحده)
 const COUNTRY_SEARCH_ALIASES: Record<string, string[]> = {
@@ -1167,13 +1163,11 @@ export const VirtualNumbersPage: React.FC = () => {
 
                       <div className="w-full pt-3 border-t border-border/40 flex items-center justify-between text-xs">
                         <div>
-                          <span className="text-muted-foreground text-[10px] block">
+                          <span className="text-muted-foreground text-[10px] block font-bold">
                             شروع قیمت از
                           </span>
-                          <span className="font-bold text-foreground font-latin">
-                            {toPersianDigits(
-                              service.min_price_toman.toLocaleString(),
-                            )}{' '}
+                          <span className="font-bold text-foreground font-sans">
+                            {formatToman(service.min_price_toman)}{' '}
                             <span className="text-[10px] font-normal text-muted-foreground font-sans">
                               تومان
                             </span>
@@ -1431,10 +1425,8 @@ export const VirtualNumbersPage: React.FC = () => {
                                 {c.operators.map((op) => (
                                   <option key={op.operator} value={op.operator}>
                                     {op.operator} |{' '}
-                                    {toPersianDigits(
-                                      op.price_toman.toLocaleString(),
-                                    )}{' '}
-                                    تومان (موجودی: {toPersianDigits(op.count)})
+                                    {formatToman(op.price_toman)} تومان (موجودی:{' '}
+                                    {toPersianDigits(op.count)})
                                   </option>
                                 ))}
                               </select>
@@ -1451,14 +1443,11 @@ export const VirtualNumbersPage: React.FC = () => {
                         {/* Price & Action Buttons */}
                         <div className="pt-2 flex items-center justify-between gap-2">
                           <div>
-                            <span className="text-[10px] text-muted-foreground block">
+                            <span className="text-[10px] text-muted-foreground block font-bold">
                               قیمت نهایی
                             </span>
-                            <span className="text-sm font-black text-foreground font-latin">
-                              {toPersianDigits(
-                                (activeOp?.price_toman || 0).toLocaleString(),
-                              )}{' '}
-                              تومان
+                            <span className="text-sm font-black text-foreground font-sans">
+                              {formatToman(activeOp?.price_toman || 0)} تومان
                             </span>
                           </div>
 
@@ -1625,19 +1614,17 @@ export const VirtualNumbersPage: React.FC = () => {
                     </span>
                   </div>
                   <div className="flex justify-between py-2 border-t border-border/60 pt-2 text-sm">
-                    <span className="font-black text-foreground">
+                    <span className="font-black text-foreground font-bold">
                       مبلغ قابل پرداخت:
                     </span>
-                    <span className="font-black text-foreground font-latin">
-                      {toPersianDigits(
-                        (
-                          buyingCountry.operators.find(
-                            (op) =>
-                              op.operator ===
-                              (selectedOperators[buyingCountry.country] ||
-                                buyingCountry.default_operator),
-                          )?.price_toman || buyingCountry.cheapest_price_toman
-                        ).toLocaleString(),
+                    <span className="font-black text-foreground font-sans">
+                      {formatToman(
+                        buyingCountry.operators.find(
+                          (op) =>
+                            op.operator ===
+                            (selectedOperators[buyingCountry.country] ||
+                              buyingCountry.default_operator),
+                        )?.price_toman || buyingCountry.cheapest_price_toman,
                       )}{' '}
                       تومان
                     </span>

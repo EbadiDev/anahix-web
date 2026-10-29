@@ -8,6 +8,7 @@ import {
 import type React from 'react'
 import { useState } from 'react'
 import { createPortal } from 'react-dom'
+import { formatToman, toPersianDigits } from '../../utils/formatters'
 import { ModalCloseButton } from '../vibefarsi/ModalCloseButton'
 
 interface WalletTopupModalProps {
@@ -18,11 +19,6 @@ interface WalletTopupModalProps {
 }
 
 const PRESET_AMOUNTS = [50000, 100000, 250000, 500000, 1000000, 2000000]
-
-function toPersianDigits(n: number | string): string {
-  const f = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹']
-  return String(n).replace(/\d/g, (d) => f[Number(d)])
-}
 
 export const WalletTopupModal: React.FC<WalletTopupModalProps> = ({
   isOpen,
@@ -108,9 +104,8 @@ export const WalletTopupModal: React.FC<WalletTopupModalProps> = ({
             <h4 className="text-sm font-black text-foreground">
               کیف پول با موفقیت شارژ شد!
             </h4>
-            <p className="text-xs text-muted-foreground font-latin">
-              +{toPersianDigits(amount.toLocaleString())} تومان به موجودی اضافه
-              گردید
+            <p className="text-xs text-muted-foreground font-sans">
+              +{formatToman(amount)} تومان به موجودی اضافه گردید
             </p>
           </div>
         ) : (
@@ -131,7 +126,7 @@ export const WalletTopupModal: React.FC<WalletTopupModalProps> = ({
                   }
                   onChange={handleCustomChange}
                   placeholder="۱۰۰,۰۰۰"
-                  className="w-full h-11 px-3 text-center text-lg font-black font-latin rounded-field bg-muted/20 border border-border/60 text-foreground outline-none focus:border-brand transition-colors"
+                  className="w-full h-11 px-3 text-center text-lg font-black font-sans rounded-field bg-muted/20 border border-border/60 text-foreground outline-none focus:border-brand transition-colors"
                   required
                 />
               </div>
@@ -146,13 +141,13 @@ export const WalletTopupModal: React.FC<WalletTopupModalProps> = ({
                     type="button"
                     key={`topup-preset-${val}`}
                     onClick={() => handleSelectPreset(val)}
-                    className={`py-2 px-2 rounded-control border text-center duration-motion ease-motion active:scale-[0.98] transition-all text-xs font-latin cursor-pointer ${
+                    className={`py-2 px-2 rounded-control border text-center duration-motion ease-motion active:scale-[0.98] transition-all text-xs font-sans cursor-pointer ${
                       isSelected
                         ? 'bg-primary text-primary-foreground font-black border-transparent shadow-control'
                         : 'border-border/60 bg-muted/40 text-muted-foreground hover:text-foreground hover:bg-muted'
                     }`}
                   >
-                    {toPersianDigits(val.toLocaleString())}
+                    {formatToman(val)} تومان
                   </button>
                 )
               })}
@@ -191,9 +186,7 @@ export const WalletTopupModal: React.FC<WalletTopupModalProps> = ({
                   <span>در حال اتصال به درگاه شاپرک...</span>
                 </>
               ) : (
-                <span>
-                  پرداخت و شارژ {toPersianDigits(amount.toLocaleString())} تومان
-                </span>
+                <span>پرداخت و شارژ {formatToman(amount)} تومان</span>
               )}
             </button>
           </form>

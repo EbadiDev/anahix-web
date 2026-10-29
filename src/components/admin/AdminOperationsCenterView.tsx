@@ -3,6 +3,8 @@ import {
   Boxes,
   Check,
   CheckCircle2,
+  Clock,
+  Copy,
   Eye,
   EyeOff,
   FolderTree,
@@ -13,16 +15,19 @@ import {
   Radio,
   RefreshCw,
   Send,
-  Settings,
   Zap,
 } from 'lucide-react'
 import type React from 'react'
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { apiService } from '../../services/api'
+import { toPersianDigits } from '../../utils/formatters'
 import { OfficialInvoiceModal } from '../invoice/OfficialInvoiceModal'
 import { ConfirmModal } from '../vibefarsi/ConfirmModal'
+import { LoadingState } from '../vibefarsi/LoadingState'
+import { ModalCloseButton } from '../vibefarsi/ModalCloseButton'
 import { useNotification } from '../vibefarsi/NotificationContext'
-import { AdminBotExplorerView } from './AdminBotExplorerView'
+import { SearchInput } from '../vibefarsi/SearchInput'
 import { AdminBotSettingsView } from './AdminBotSettingsView'
 import { AdminCategoriesView } from './AdminCategoriesView'
 import { AdminHeaderBanner } from './AdminHeaderBanner'
@@ -32,7 +37,6 @@ import { FetchBotModal } from './FetchBotModal'
 
 export type OperationsSubTab =
   | 'products'
-  | 'bot-explorer'
   | 'inventory'
   | 'bot-settings'
   | 'categories'
@@ -55,6 +59,8 @@ export const AdminOperationsCenterView: React.FC<
 
   // Operator Queue State
   const [queueOrders, setQueueOrders] = useState<any[]>([])
+  const [queueFilter, setQueueFilter] = useState<string>('all')
+  const [queueSearch, setQueueSearch] = useState<string>('')
   const [loadingQueue, setLoadingQueue] = useState(false)
   const [promptOrderId, setPromptOrderId] = useState<string | null>(null)
   const [promptMessage, setPromptMessage] = useState(
@@ -73,6 +79,14 @@ export const AdminOperationsCenterView: React.FC<
   const [revealedCreds, setRevealedCreds] = useState<Record<string, boolean>>(
     {},
   )
+  const [copiedQueueId, setCopiedQueueId] = useState<string | null>(null)
+
+  const handleCopyQueueText = (text: string, id: string) => {
+    navigator.clipboard.writeText(text)
+    setCopiedQueueId(id)
+    notifySuccess('کپی شد', 'در کلیپ‌بورد کپی شد.')
+    setTimeout(() => setCopiedQueueId(null), 2000)
+  }
   const [adminInvoiceOrderNo, setAdminInvoiceOrderNo] = useState<string | null>(
     null,
   )
@@ -197,23 +211,7 @@ export const AdminOperationsCenterView: React.FC<
           }`}
         >
           <Package className="w-4 h-4" />
-          <span>کاتالوگ محصولات</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab('bot-explorer')}
-          className={`flex items-center gap-2 px-3.5 py-2 rounded-control text-xs font-bold transition-all whitespace-nowrap cursor-pointer duration-motion active:scale-[0.98] ${
-            activeTab === 'bot-explorer'
-              ? 'bg-primary text-primary-foreground font-black shadow-control'
-              : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-          }`}
-        >
-          <Bot className="w-4 h-4 text-brand" />
-          <span>کاوشگر و مقایسه زنده ربات‌ها</span>
-          <span className="text-[10px] px-1.5 py-0.2 rounded-control bg-brand/10 text-brand font-mono font-latin">
-            5 Bots
-          </span>
+          <span>محصولات و کاتالوگ ربات‌ها</span>
         </button>
 
         <button
@@ -238,8 +236,8 @@ export const AdminOperationsCenterView: React.FC<
               : 'text-muted-foreground hover:bg-muted hover:text-foreground'
           }`}
         >
-          <Settings className="w-4 h-4" />
-          <span>کلیدهای API و اتصال ۵ ربات</span>
+          <Key className="w-4 h-4" />
+          <span>کلیدهای API</span>
         </button>
 
         <button
@@ -287,7 +285,7 @@ export const AdminOperationsCenterView: React.FC<
         </button>
       </div>
 
-      {/* TAB 1 & 3: Products Catalog & Inventory License Keys (Direct embed - no duplicate header/tabs) */}
+      {/* TAB 1 & 2: Products & Bots Catalog / Inventory License Keys */}
       {(activeTab === 'products' || activeTab === 'inventory') && (
         <AdminInventoryView
           defaultSubTab={activeTab === 'inventory' ? 'inventory' : 'catalog'}
@@ -296,16 +294,7 @@ export const AdminOperationsCenterView: React.FC<
         />
       )}
 
-      {/* TAB 2: LIVE BOTS CATALOG & MULTI-BOT COMPARISON */}
-      {activeTab === 'bot-explorer' && (
-        <AdminBotExplorerView
-          onProductImported={() => {
-            loadQueueOrders()
-          }}
-        />
-      )}
-
-      {/* TAB 4: BOT API KEYS & FULFILLMENT SETTINGS */}
+      {/* TAB 3: BOT API KEYS */}
       {activeTab === 'bot-settings' && <AdminBotSettingsView />}
 
       {/* TAB 5: HIERARCHICAL STORE CATEGORIES & GROUPS */}
@@ -314,7 +303,62 @@ export const AdminOperationsCenterView: React.FC<
       {/* TAB 6: Operator Queue Desk */}
       {activeTab === 'queue' && (
         <div className="space-y-6 animate-in fade-in duration-200">
-          <div className="flex items-center justify-between bg-card rounded-surface border border-border/80 p-4 shadow-surface">
+          {/* Top 4 KPI Cards for Operator Queue */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+            <div className="p-4 rounded-surface border border-border/80 bg-card space-y-1 text-right shadow-surface">
+              <div className="flex items-center justify-between text-muted-foreground text-xs font-bold">
+                <span>کل سفارشات در صف</span>
+                <Layers className="w-4 h-4 text-brand" />
+              </div>
+              <div className="text-xl sm:text-2xl font-black font-mono font-latin text-foreground">
+                {toPersianDigits(queueOrders.length)}
+              </div>
+            </div>
+
+            <div className="p-4 rounded-surface border border-amber-500/30 bg-amber-500/5 space-y-1 text-right shadow-xs">
+              <div className="flex items-center justify-between text-amber-500 text-xs font-bold">
+                <span>در انتظار اقدام مشتری (۲FA)</span>
+                <Clock className="w-4 h-4" />
+              </div>
+              <div className="text-xl sm:text-2xl font-black font-mono font-latin text-amber-500">
+                {toPersianDigits(
+                  queueOrders.filter(
+                    (o) => o.status === 'awaiting_customer_action',
+                  ).length,
+                )}
+              </div>
+            </div>
+
+            <div className="p-4 rounded-surface border border-blue-500/30 bg-blue-500/5 space-y-1 text-right shadow-xs">
+              <div className="flex items-center justify-between text-blue-500 text-xs font-bold">
+                <span>در انتظار ورود اپراتور</span>
+                <Send className="w-4 h-4" />
+              </div>
+              <div className="text-xl sm:text-2xl font-black font-mono font-latin text-blue-500">
+                {toPersianDigits(
+                  queueOrders.filter(
+                    (o) =>
+                      o.status === 'pending_operator' || o.status === 'pending',
+                  ).length,
+                )}
+              </div>
+            </div>
+
+            <div className="p-4 rounded-surface border border-purple-500/30 bg-purple-500/5 space-y-1 text-right shadow-xs">
+              <div className="flex items-center justify-between text-purple-400 text-xs font-bold">
+                <span>در حال پردازش</span>
+                <CheckCircle2 className="w-4 h-4" />
+              </div>
+              <div className="text-xl sm:text-2xl font-black font-mono font-latin text-purple-400">
+                {toPersianDigits(
+                  queueOrders.filter((o) => o.status === 'processing').length,
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Action & Filter Toolbar */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-card rounded-surface border border-border/80 p-4 shadow-surface">
             <div>
               <h4 className="text-sm font-black text-foreground flex items-center gap-2">
                 <Layers className="w-4 h-4 text-brand" />
@@ -326,20 +370,51 @@ export const AdminOperationsCenterView: React.FC<
               </p>
             </div>
 
-            <button
-              type="button"
-              onClick={loadQueueOrders}
-              disabled={loadingQueue}
-              className="h-9 px-4 rounded-control bg-secondary text-secondary-foreground border border-border/60 hover:bg-muted text-xs font-bold transition-all shadow-control flex items-center gap-2 cursor-pointer"
-            >
-              <RefreshCw
-                className={`w-3.5 h-3.5 ${loadingQueue ? 'animate-spin' : ''}`}
-              />
-              <span>بروزرسانی صف</span>
-            </button>
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <div className="w-52">
+                <SearchInput
+                  value={queueSearch}
+                  onChange={setQueueSearch}
+                  placeholder="جستجو در سفارشات صف..."
+                  debounceMs={250}
+                />
+              </div>
+
+              <select
+                value={queueFilter}
+                onChange={(e) => setQueueFilter(e.target.value)}
+                className="h-9 px-3 rounded-control border border-border/60 bg-secondary text-xs font-bold text-foreground outline-none cursor-pointer"
+              >
+                <option value="all">همه سفارشات صف</option>
+                <option value="awaiting_customer_action">
+                  در انتظار اقدام مشتری (۲FA)
+                </option>
+                <option value="pending_operator">در انتظار ورود اپراتور</option>
+                <option value="processing">در حال پردازش</option>
+              </select>
+
+              <button
+                type="button"
+                onClick={loadQueueOrders}
+                disabled={loadingQueue}
+                className="h-9 px-4 rounded-control bg-secondary text-secondary-foreground border border-border/60 hover:bg-muted text-xs font-bold transition-all shadow-control flex items-center gap-2 cursor-pointer"
+              >
+                <RefreshCw
+                  className={`w-3.5 h-3.5 ${loadingQueue ? 'animate-spin text-brand' : ''}`}
+                />
+                <span>بروزرسانی صف</span>
+              </button>
+            </div>
           </div>
 
-          {queueOrders.length === 0 ? (
+          {loadingQueue ? (
+            <div className="bg-card rounded-surface border border-border/80 shadow-surface">
+              <LoadingState
+                message="در حال فراخوانی صف سفارشات اپراتور..."
+                subMessage="بررسی وضعیت کدهای ۲FA و سفارشات Mode C"
+              />
+            </div>
+          ) : queueOrders.length === 0 ? (
             <div className="bg-card rounded-surface border border-border/80 p-12 text-center text-muted-foreground shadow-surface space-y-3">
               <div className="w-12 h-12 rounded-control bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center justify-center mx-auto shadow-control">
                 <CheckCircle2 className="w-6 h-6" />
@@ -352,185 +427,347 @@ export const AdminOperationsCenterView: React.FC<
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              {queueOrders.map((ord: any) => {
-                const oid = ord.order_id || ord.id || ord.order_number
-                return (
-                  <div
-                    key={oid}
-                    className="bg-card rounded-surface border border-border/80 p-5 shadow-surface space-y-4 relative"
-                  >
-                    <div className="flex items-start justify-between border-b border-border/60 pb-3">
-                      <div>
-                        <span className="text-xs font-mono font-bold text-brand">
-                          #{ord.order_number}
-                        </span>
-                        <h4 className="font-bold text-sm text-foreground mt-0.5">
-                          {ord.product_title ||
-                            ord.items?.[0]?.product_title ||
-                            'سفارش هوش مصنوعی'}
-                        </h4>
-                      </div>
-                      <span className="px-2.5 py-1 rounded-control text-[10px] font-bold bg-amber-500/10 text-amber-500 border border-amber-500/20">
-                        {ord.status}
-                      </span>
-                    </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4.5">
+              {queueOrders
+                .filter((ord: any) => {
+                  if (queueFilter !== 'all' && ord.status !== queueFilter)
+                    return false
+                  if (!queueSearch.trim()) return true
+                  const q = queueSearch.toLowerCase().trim()
+                  return (
+                    (ord.order_number || '').toLowerCase().includes(q) ||
+                    (ord.customer_phone || '').includes(q) ||
+                    (ord.account_email || '').toLowerCase().includes(q) ||
+                    (ord.product_title || '').toLowerCase().includes(q)
+                  )
+                })
+                .map((ord: any) => {
+                  const oid = ord.order_id || ord.id || ord.order_number
+                  const statusBadge = (() => {
+                    switch (ord.status) {
+                      case 'awaiting_customer_action':
+                        return {
+                          label: 'در انتظار اقدام مشتری (کد ۲FA)',
+                          classes:
+                            'bg-amber-500/10 text-amber-500 border-amber-500/30 animate-pulse',
+                        }
+                      case 'pending_operator':
+                      case 'pending':
+                        return {
+                          label: 'در انتظار ورود اپراتور',
+                          classes:
+                            'bg-blue-500/10 text-blue-400 border-blue-500/30',
+                        }
+                      case 'processing':
+                        return {
+                          label: 'در حال پردازش',
+                          classes:
+                            'bg-purple-500/10 text-purple-400 border-purple-500/30',
+                        }
+                      case 'completed':
+                        return {
+                          label: 'تکمیل شده',
+                          classes:
+                            'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
+                        }
+                      default:
+                        return {
+                          label: ord.status,
+                          classes:
+                            'bg-muted text-muted-foreground border-border/60',
+                        }
+                    }
+                  })()
 
-                    <div className="text-xs space-y-2 bg-muted/20 p-3 rounded-control border border-border/60">
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">مشتری:</span>
-                        <span className="font-mono font-latin text-foreground">
-                          {ord.customer_phone}
-                        </span>
-                      </div>
-                      {ord.account_email && (
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">
-                            ایمیل اکانت:
-                          </span>
-                          <span className="font-mono font-latin text-foreground">
-                            {ord.account_email}
-                          </span>
-                        </div>
-                      )}
-                      {ord.account_password && (
-                        <div className="flex justify-between items-center">
-                          <span className="text-muted-foreground">
-                            رمز عبور:
-                          </span>
-                          <div className="flex items-center gap-2">
-                            <span className="font-mono font-latin text-foreground">
-                              {revealedCreds[oid]
-                                ? ord.account_password
-                                : '••••••••••••'}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setRevealedCreds({
-                                  ...revealedCreds,
-                                  [oid]: !revealedCreds[oid],
-                                })
+                  return (
+                    <div
+                      key={oid}
+                      className="bg-card rounded-surface border border-border/80 p-4 sm:p-5 shadow-surface space-y-3.5 relative flex flex-col justify-between hover:border-brand/40 transition-colors"
+                    >
+                      <div className="space-y-3">
+                        <div className="flex items-start justify-between border-b border-border/60 pb-3 gap-2">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5 font-mono text-xs font-bold text-brand">
+                              <span>#{ord.order_number}</span>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleCopyQueueText(
+                                    ord.order_number,
+                                    `ord-${ord.order_number}`,
+                                  )
+                                }
+                                className="p-0.5 text-muted-foreground hover:text-brand cursor-pointer"
+                                title="کپی شماره سفارش"
+                              >
+                                {copiedQueueId === `ord-${ord.order_number}` ? (
+                                  <Check className="w-3 h-3 text-emerald-400" />
+                                ) : (
+                                  <Copy className="w-3 h-3" />
+                                )}
+                              </button>
+                            </div>
+                            <h4
+                              className="font-bold text-xs sm:text-sm text-foreground mt-0.5 truncate"
+                              title={
+                                ord.product_title ||
+                                ord.items?.[0]?.product_title
                               }
-                              className="text-muted-foreground hover:text-foreground cursor-pointer"
                             >
-                              {revealedCreds[oid] ? (
-                                <EyeOff className="w-3.5 h-3.5" />
-                              ) : (
-                                <Eye className="w-3.5 h-3.5" />
-                              )}
-                            </button>
+                              {ord.product_title ||
+                                ord.items?.[0]?.product_title ||
+                                'سفارش هوش مصنوعی'}
+                            </h4>
                           </div>
-                        </div>
-                      )}
-                      {ord.two_factor_code && (
-                        <div className="flex justify-between items-center bg-emerald-500/10 p-2 rounded-control border border-emerald-500/20 text-emerald-400">
-                          <span className="font-bold">
-                            کد ۲FA ارسالی کاربر:
-                          </span>
-                          <span className="font-mono font-latin text-base font-bold tracking-widest">
-                            {ord.two_factor_code}
+                          <span
+                            className={`px-2.5 py-0.5 rounded-control text-[10px] font-bold border shrink-0 ${statusBadge.classes}`}
+                          >
+                            {statusBadge.label}
                           </span>
                         </div>
-                      )}
-                    </div>
 
-                    <div className="flex items-center gap-2 pt-1 flex-wrap">
-                      <button
-                        type="button"
-                        onClick={() => setAdminInvoiceOrderNo(ord.order_number)}
-                        className="h-9 px-3 rounded-control border border-border/60 bg-secondary hover:bg-muted text-xs font-bold transition-all shadow-control flex items-center gap-1.5 cursor-pointer"
-                        title="مشاهده فاکتور رسمی"
-                      >
-                        <Printer className="w-3.5 h-3.5" />
-                        <span>فاکتور</span>
-                      </button>
+                        <div className="text-xs space-y-2 bg-muted/20 p-3 rounded-control border border-border/60 text-right">
+                          <div className="flex justify-between items-center">
+                            <span className="text-muted-foreground text-[11px]">
+                              مشتری:
+                            </span>
+                            <span className="font-mono font-latin text-foreground font-bold">
+                              {ord.customer_phone || '-'}
+                            </span>
+                          </div>
+                          {ord.account_email && (
+                            <div className="flex justify-between items-center">
+                              <span className="text-muted-foreground text-[11px]">
+                                ایمیل اکانت:
+                              </span>
+                              <div className="flex items-center gap-1.5 font-mono font-latin text-foreground truncate max-w-[170px]">
+                                <span className="truncate">
+                                  {ord.account_email}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    handleCopyQueueText(
+                                      ord.account_email,
+                                      `email-${oid}`,
+                                    )
+                                  }
+                                  className="p-0.5 text-muted-foreground hover:text-brand cursor-pointer shrink-0"
+                                  title="کپی ایمیل"
+                                >
+                                  {copiedQueueId === `email-${oid}` ? (
+                                    <Check className="w-3 h-3 text-emerald-400" />
+                                  ) : (
+                                    <Copy className="w-3 h-3" />
+                                  )}
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                          {ord.account_password && (
+                            <div className="flex justify-between items-center">
+                              <span className="text-muted-foreground text-[11px]">
+                                رمز عبور:
+                              </span>
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-mono font-latin text-foreground font-bold">
+                                  {revealedCreds[oid]
+                                    ? ord.account_password
+                                    : '••••••••••••'}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setRevealedCreds({
+                                      ...revealedCreds,
+                                      [oid]: !revealedCreds[oid],
+                                    })
+                                  }
+                                  className="p-0.5 text-muted-foreground hover:text-foreground cursor-pointer"
+                                  title="نمایش/مخفی‌سازی رمز"
+                                >
+                                  {revealedCreds[oid] ? (
+                                    <EyeOff className="w-3.5 h-3.5" />
+                                  ) : (
+                                    <Eye className="w-3.5 h-3.5" />
+                                  )}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    handleCopyQueueText(
+                                      ord.account_password,
+                                      `pass-${oid}`,
+                                    )
+                                  }
+                                  className="p-0.5 text-muted-foreground hover:text-brand cursor-pointer"
+                                  title="کپی رمز عبور"
+                                >
+                                  {copiedQueueId === `pass-${oid}` ? (
+                                    <Check className="w-3 h-3 text-emerald-400" />
+                                  ) : (
+                                    <Copy className="w-3 h-3" />
+                                  )}
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                          {ord.two_factor_code && (
+                            <div className="flex justify-between items-center bg-emerald-500/10 p-2 rounded-control border border-emerald-500/20 text-emerald-400">
+                              <span className="font-bold text-[11px]">
+                                کد ۲FA کاربر:
+                              </span>
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-mono font-latin text-base font-black tracking-widest">
+                                  {ord.two_factor_code}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    handleCopyQueueText(
+                                      ord.two_factor_code,
+                                      `2fa-${oid}`,
+                                    )
+                                  }
+                                  className="p-0.5 text-emerald-400 hover:text-emerald-300 cursor-pointer"
+                                  title="کپی کد ۲FA"
+                                >
+                                  {copiedQueueId === `2fa-${oid}` ? (
+                                    <Check className="w-3 h-3 text-emerald-300" />
+                                  ) : (
+                                    <Copy className="w-3 h-3" />
+                                  )}
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
 
-                      {ord.can_retry_fulfillment && (
+                      <div className="flex items-center gap-2 pt-2 border-t border-border/40 flex-wrap">
                         <button
                           type="button"
-                          disabled={retryingOrder[ord.order_number]}
                           onClick={() =>
-                            handleRetryBotFulfillment(ord.order_number)
+                            setAdminInvoiceOrderNo(ord.order_number)
                           }
-                          className="h-9 px-3 rounded-control border border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-control"
-                          title="تلاش مجدد برای صدور خودکار لایسنس از ربات پس از شارژ کیف پول"
+                          className="h-8 px-2.5 rounded-control border border-border/60 bg-secondary hover:bg-muted text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+                          title="مشاهده فاکتور رسمی"
                         >
-                          <Zap
-                            className={`w-3.5 h-3.5 ${retryingOrder[ord.order_number] ? 'animate-spin' : ''}`}
-                          />
-                          <span>
-                            {retryingOrder[ord.order_number]
-                              ? 'در حال صدور...'
-                              : 'تلاش مجدد صدور آنی'}
-                          </span>
+                          <Printer className="w-3.5 h-3.5" />
+                          <span>فاکتور</span>
                         </button>
-                      )}
 
-                      <button
-                        type="button"
-                        onClick={() => setPromptOrderId(oid)}
-                        className="flex-1 h-9 px-3 rounded-control border border-brand/40 text-brand hover:bg-brand/10 text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer"
-                      >
-                        <Send className="w-3.5 h-3.5" />
-                        <span>درخواست ۲FA</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setCompleteConfirm({
-                            isOpen: true,
-                            orderId: oid,
-                            loading: false,
-                          })
-                        }
-                        className="flex-1 h-9 px-3 rounded-control bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black transition-all flex items-center justify-center gap-1.5 shadow-control cursor-pointer"
-                      >
-                        <Check className="w-3.5 h-3.5" />
-                        <span>تکمیل و Zeroize</span>
-                      </button>
-                    </div>
-
-                    {/* 2FA Prompt Modal Inline */}
-                    {promptOrderId === oid && (
-                      <div className="absolute inset-0 bg-card p-5 rounded-surface border-2 border-brand z-10 flex flex-col justify-between">
-                        <div className="space-y-3 text-right">
-                          <h5 className="font-bold text-sm text-foreground">
-                            ارسال پیام درخواست کد ۲FA به مشتری
-                          </h5>
-                          <textarea
-                            value={promptMessage}
-                            onChange={(e) => setPromptMessage(e.target.value)}
-                            rows={3}
-                            className="w-full p-2.5 text-xs rounded-control border border-border/60 bg-muted/20 text-foreground outline-none focus:border-brand"
-                          />
-                        </div>
-                        <div className="flex items-center gap-2 justify-end">
+                        {ord.can_retry_fulfillment && (
                           <button
                             type="button"
-                            onClick={() => setPromptOrderId(null)}
-                            className="px-3 py-1.5 rounded-control text-xs font-medium text-muted-foreground hover:bg-muted cursor-pointer"
+                            disabled={retryingOrder[ord.order_number]}
+                            onClick={() =>
+                              handleRetryBotFulfillment(ord.order_number)
+                            }
+                            className="h-8 px-2.5 rounded-control border border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs font-black transition-all flex items-center justify-center gap-1 cursor-pointer shadow-xs"
+                            title="تلاش مجدد برای صدور خودکار لایسنس از ربات پس از شارژ کیف پول"
                           >
-                            انصراف
+                            <Zap
+                              className={`w-3.5 h-3.5 ${retryingOrder[ord.order_number] ? 'animate-spin' : ''}`}
+                            />
+                            <span>
+                              {retryingOrder[ord.order_number]
+                                ? 'در حال صدور...'
+                                : 'تلاش مجدد'}
+                            </span>
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => handleSend2FAPrompt(oid)}
-                            disabled={sendingPrompt}
-                            className="px-4 py-1.5 rounded-control bg-brand hover:bg-brand/90 text-white text-xs font-bold flex items-center gap-1.5 shadow-control cursor-pointer"
-                          >
-                            {sendingPrompt
-                              ? 'در حال ارسال...'
-                              : 'ارسال درخواست'}
-                          </button>
-                        </div>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={() => setPromptOrderId(oid)}
+                          className="flex-1 h-8 px-2 rounded-control border border-brand/40 text-brand hover:bg-brand/10 text-xs font-bold transition-all flex items-center justify-center gap-1 cursor-pointer"
+                        >
+                          <Send className="w-3.5 h-3.5" />
+                          <span>درخواست ۲FA</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setCompleteConfirm({
+                              isOpen: true,
+                              orderId: oid,
+                              loading: false,
+                            })
+                          }
+                          className="flex-1 h-8 px-2 rounded-control bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black transition-all flex items-center justify-center gap-1 shadow-control cursor-pointer"
+                        >
+                          <Check className="w-3.5 h-3.5" />
+                          <span>تکمیل و Zeroize</span>
+                        </button>
                       </div>
-                    )}
-                  </div>
-                )
-              })}
+                    </div>
+                  )
+                })}
             </div>
           )}
+
+          {/* Clean 2FA Prompt Modal via createPortal */}
+          {promptOrderId &&
+            createPortal(
+              <div className="fixed inset-0 z-[250] w-screen h-screen flex items-center justify-center p-4 bg-background/85 backdrop-blur-md animate-in fade-in duration-200">
+                <div
+                  dir="rtl"
+                  className="w-full max-w-md bg-card rounded-surface border border-border/80 shadow-surface p-5 space-y-4 text-right animate-in zoom-in-95 duration-200 text-foreground"
+                >
+                  <div className="flex items-center justify-between border-b border-border/60 pb-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-control bg-brand/10 text-brand flex items-center justify-center font-bold">
+                        <Send className="w-4 h-4" />
+                      </div>
+                      <h4 className="font-bold text-sm text-foreground">
+                        ارسال درخواست کد ۲FA به مشتری
+                      </h4>
+                    </div>
+                    <ModalCloseButton
+                      onClick={() => setPromptOrderId(null)}
+                      size="sm"
+                    />
+                  </div>
+
+                  <p className="text-xs text-muted-foreground">
+                    این پیام به صورت نوتیفیکیشن لایو در صفحه پیگیری سفارش خریدار
+                    نمایش داده می‌شود تا کد پیامک‌شده را وارد نماید.
+                  </p>
+
+                  <textarea
+                    rows={3}
+                    value={promptMessage}
+                    onChange={(e) => setPromptMessage(e.target.value)}
+                    className="w-full p-3 text-xs rounded-field border border-border/60 bg-muted/20 text-foreground outline-none focus:border-brand resize-none"
+                  />
+
+                  <div className="flex items-center justify-end gap-2 pt-2 border-t border-border/60">
+                    <button
+                      type="button"
+                      onClick={() => setPromptOrderId(null)}
+                      className="h-9 px-4 rounded-control border border-border/60 bg-secondary hover:bg-muted text-xs font-bold transition shadow-xs cursor-pointer"
+                    >
+                      انصراف
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSend2FAPrompt(promptOrderId)}
+                      disabled={sendingPrompt}
+                      className="h-9 px-5 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs shadow-control flex items-center gap-1.5 cursor-pointer duration-motion active:scale-[0.98] disabled:opacity-50"
+                    >
+                      {sendingPrompt ? (
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Send className="w-3.5 h-3.5" />
+                      )}
+                      <span>ارسال درخواست لایو</span>
+                    </button>
+                  </div>
+                </div>
+              </div>,
+              document.body,
+            )}
         </div>
       )}
 

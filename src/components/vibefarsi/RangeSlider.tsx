@@ -38,7 +38,7 @@ export const RangeSlider: React.FC<RangeSliderProps> = ({
       {/* Header Info */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-control bg-secondary text-brand flex items-center justify-center border border-border/60 shadow-xs shrink-0">
+          <div className="w-7 h-7 rounded-control bg-brand/10 text-brand flex items-center justify-center border border-brand/20 shadow-xs shrink-0">
             <SlidersHorizontal className="w-3.5 h-3.5" />
           </div>
           <span className="font-bold text-foreground">{label}</span>
@@ -65,7 +65,7 @@ export const RangeSlider: React.FC<RangeSliderProps> = ({
           onChange={(e) => onChange(Number(e.target.value))}
           className="w-full h-2 rounded-full appearance-none cursor-pointer bg-muted accent-brand focus:outline-none transition-all"
           style={{
-            background: `linear-gradient(to left, hsl(var(--primary)) ${percentage}%, hsl(var(--muted)) ${percentage}%)`,
+            background: `linear-gradient(to left, var(--brand) ${percentage}%, color-mix(in oklch, var(--muted) 80%, transparent) ${percentage}%)`,
           }}
           aria-label={label}
         />
@@ -93,7 +93,7 @@ export const RangeSlider: React.FC<RangeSliderProps> = ({
                   onClick={() => onChange(p.value)}
                   className={`px-2.5 py-1 rounded-control font-bold text-[10px] duration-motion ease-motion transition-all cursor-pointer ${
                     isActive
-                      ? 'bg-primary text-primary-foreground font-black shadow-control'
+                      ? 'bg-brand text-brand-foreground font-black shadow-brand/20'
                       : 'border border-border/60 bg-muted/20 text-muted-foreground hover:text-foreground hover:bg-muted'
                   }`}
                 >

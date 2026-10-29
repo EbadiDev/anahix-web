@@ -1,28 +1,22 @@
 import {
   Bot,
   Check,
-  Clock,
   ExternalLink,
   Eye,
   EyeOff,
   HelpCircle,
   Key,
   Loader2,
+  Plus,
   RefreshCw,
-  Tag,
-  Zap,
 } from 'lucide-react'
 import type React from 'react'
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { apiService } from '../../services/api'
-import type {
-  BotProviderSetting,
-  InstantDeliverySettings,
-  ProductGroup,
-  ProviderCatalogItem,
-} from '../../types'
+import type { BotProviderSetting, InstantDeliverySettings } from '../../types'
+import { ModalCloseButton } from '../vibefarsi/ModalCloseButton'
 import { useNotification } from '../vibefarsi/NotificationContext'
-import { SearchInput } from '../vibefarsi/SearchInput'
 import { ToggleSwitch } from '../vibefarsi/ToggleSwitch'
 
 const BOT_DOCS_GUIDE: Record<
@@ -37,7 +31,7 @@ const BOT_DOCS_GUIDE: Record<
 > = {
   insightx: {
     botHandle: '@insightXpro_bot',
-    keyPrefix: 'یک رشته متنی هش (مثال: ix_live_...)',
+    keyPrefix: 'یک رشته متنی هش (مثال: isk_live_...)',
     defaultUrl: 'https://api.insightxpro.store',
     helpText:
       'در ربات تلگرام @insightXpro_bot دستور /api را ارسال کرده و کلید تولید شده را وارد نمایید. موجودی به تتر است.',
@@ -80,7 +74,7 @@ const BOT_DOCS_GUIDE: Record<
 const DEFAULT_FALLBACK_BOTS: BotProviderSetting[] = [
   {
     key: 'insightx',
-    name_fa: 'اینسایت استور (InsightX)',
+    name_fa: 'InsightX Store',
     enabled: true,
     has_api_key: false,
     api_key_masked: '',
@@ -93,7 +87,7 @@ const DEFAULT_FALLBACK_BOTS: BotProviderSetting[] = [
   },
   {
     key: 'stackvault',
-    name_fa: 'استک‌ولت (StackVault)',
+    name_fa: 'StackVault Digital',
     enabled: true,
     has_api_key: false,
     api_key_masked: '',
@@ -106,8 +100,8 @@ const DEFAULT_FALLBACK_BOTS: BotProviderSetting[] = [
   },
   {
     key: 'paglu',
-    name_fa: 'لوت پاگلو (Loot Paglu)',
-    enabled: true,
+    name_fa: 'Loot Paglu',
+    enabled: false,
     has_api_key: false,
     api_key_masked: '',
     base_url: 'https://lootpaglu.in',
@@ -119,8 +113,8 @@ const DEFAULT_FALLBACK_BOTS: BotProviderSetting[] = [
   },
   {
     key: 'jero',
-    name_fa: 'جرو اکانتس (Jero Accounts)',
-    enabled: true,
+    name_fa: 'Jero Accounts',
+    enabled: false,
     has_api_key: false,
     api_key_masked: '',
     base_url: 'https://api.jeroaccounts.com/api/reseller',
@@ -132,8 +126,8 @@ const DEFAULT_FALLBACK_BOTS: BotProviderSetting[] = [
   },
   {
     key: 'supreme',
-    name_fa: 'سوپریم لیدر (Supreme Leader)',
-    enabled: true,
+    name_fa: 'Supreme Leader Shop',
+    enabled: false,
     has_api_key: false,
     api_key_masked: '',
     base_url: 'https://telegram-shop-bot-production-48fa.up.railway.app',
@@ -152,18 +146,15 @@ export const AdminBotSettingsView: React.FC = () => {
   const [_deliverySettings, setDeliverySettings] =
     useState<InstantDeliverySettings | null>(null)
   const [loadingBots, setLoadingBots] = useState(false)
-  const [productGroups, setProductGroups] = useState<ProductGroup[]>([])
-  const [_loadingGroups, setLoadingGroups] = useState(false)
-  const [providerCatalog, setProviderCatalog] = useState<ProviderCatalogItem[]>(
-    [],
-  )
-  const [groupSearch, setGroupSearch] = useState('')
-  const [groupUpdateLoading, setGroupUpdateLoading] = useState<
-    Record<string, boolean>
-  >({})
-  const [linkingLoading, setLinkingLoading] = useState<Record<string, boolean>>(
-    {},
-  )
+  const [testingKey, setTestingKey] = useState<Record<string, boolean>>({})
+
+  // Add Custom Bot Modal State
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false)
+  const [newBotKey, setNewBotKey] = useState('')
+  const [newBotName, setNewBotName] = useState('')
+  const [newBotBaseURL, setNewBotBaseURL] = useState('')
+  const [newBotAPIKey, setNewBotAPIKey] = useState('')
+  const [addingBot, setAddingBot] = useState(false)
 
   // Form states per bot
   const [formData, setFormData] = useState<
@@ -172,7 +163,6 @@ export const AdminBotSettingsView: React.FC = () => {
       {
         api_key: string
         base_url: string
-        margin_percent: number
         enabled: boolean
         show_key: boolean
         saving: boolean
@@ -182,19 +172,14 @@ export const AdminBotSettingsView: React.FC = () => {
 
   const loadData = async () => {
     setLoadingBots(true)
-    setLoadingGroups(true)
     try {
-      const [botList, dSettings, groups, catalog] = await Promise.all([
+      const [botList, dSettings] = await Promise.all([
         apiService.getBotProviderSettings().catch(() => []),
         apiService.getInstantDeliverySettings().catch(() => null),
-        apiService.getProductGroups().catch(() => []),
-        apiService.getProviderCatalog().catch(() => []),
       ])
       const activeBots = botList.length > 0 ? botList : DEFAULT_FALLBACK_BOTS
       setBotProviders(activeBots)
       setDeliverySettings(dSettings)
-      setProductGroups(groups)
-      setProviderCatalog(catalog)
 
       // Initialize form state
       const initialForm: Record<string, any> = {}
@@ -202,7 +187,6 @@ export const AdminBotSettingsView: React.FC = () => {
         initialForm[bot.key] = {
           api_key: '',
           base_url: bot.base_url || '',
-          margin_percent: bot.margin_percent || 25,
           enabled: bot.enabled,
           show_key: false,
           saving: false,
@@ -211,7 +195,6 @@ export const AdminBotSettingsView: React.FC = () => {
       setFormData(initialForm)
     } finally {
       setLoadingBots(false)
-      setLoadingGroups(false)
     }
   }
 
@@ -229,6 +212,7 @@ export const AdminBotSettingsView: React.FC = () => {
     }))
   }
 
+  // Save Settings for a bot
   const handleSaveBot = async (botKey: string) => {
     const data = formData[botKey]
     if (!data) return
@@ -239,7 +223,6 @@ export const AdminBotSettingsView: React.FC = () => {
         key: botKey,
         enabled: data.enabled,
         base_url: data.base_url.trim(),
-        margin_percent: Number(data.margin_percent),
       }
       if (data.api_key.trim()) {
         payload.api_key = data.api_key.trim()
@@ -248,7 +231,7 @@ export const AdminBotSettingsView: React.FC = () => {
       await apiService.updateBotProviderSettings(payload)
       notifySuccess(
         'تنظیمات ذخیره شد',
-        `تنظیمات ربات @${botKey} با موفقیت ثبت گردید.`,
+        `تنظیمات ربات @${botKey} با موفقیت در پایگاه داده ذخیره گردید.`,
       )
       loadData()
     } catch (err: any) {
@@ -258,71 +241,62 @@ export const AdminBotSettingsView: React.FC = () => {
     }
   }
 
-  const handleToggleGroupStrategy = async (
-    groupTag: string,
-    newStrategy: 'manual_operator' | 'third_party_instant',
-  ) => {
-    setGroupUpdateLoading((prev) => ({ ...prev, [groupTag]: true }))
+  // Test Connection separately
+  const handleTestBot = async (botKey: string) => {
+    const data = formData[botKey]
+    setTestingKey((prev) => ({ ...prev, [botKey]: true }))
     try {
-      await apiService.updateGroupDeliveryStrategy(groupTag, newStrategy)
-      setProductGroups((prev) =>
-        prev.map((g) =>
-          g.group_tag === groupTag
-            ? {
-                ...g,
-                delivery_strategy: newStrategy,
-                products: g.products.map((p) => ({
-                  ...p,
-                  delivery_strategy: newStrategy,
-                })),
-              }
-            : g,
-        ),
-      )
-      notifySuccess(
-        'استراتژی گروه به‌روزرسانی شد',
-        `استراتژی تحویل گروه «${groupTag}» تغییر یافت.`,
-      )
+      const res = await apiService.testBotProviderConnection({
+        key: botKey,
+        api_key: data?.api_key?.trim() ? data.api_key.trim() : undefined,
+        base_url: data?.base_url?.trim() ? data.base_url.trim() : undefined,
+      })
+      if (res.is_connected) {
+        notifySuccess('تست اتصال موفق', res.message)
+        loadData()
+      } else {
+        notifyError('تست اتصال ناموفق', res.message)
+      }
     } catch (err: any) {
-      notifyError('خطا در تغییر استراتژی', err.message)
+      notifyError('خطا در تست اتصال', err.message || 'خطای غیرمنتظره شبکه')
     } finally {
-      setGroupUpdateLoading((prev) => ({ ...prev, [groupTag]: false }))
+      setTestingKey((prev) => ({ ...prev, [botKey]: false }))
     }
   }
 
-  const handleLinkProduct = async (
-    productId: string,
-    externalProductId: number,
-    strategy?: string,
-  ) => {
-    setLinkingLoading((prev) => ({ ...prev, [productId]: true }))
+  // Handle Add Custom Bot
+  const handleAddCustomBot = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newBotKey.trim() || !newBotName.trim()) return
+
+    setAddingBot(true)
     try {
-      await apiService.linkProductProvider(
-        productId,
-        externalProductId,
-        strategy,
+      const cleanKey = newBotKey
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9_]/g, '')
+      await apiService.updateBotProviderSettings({
+        key: cleanKey,
+        enabled: true,
+        base_url: newBotBaseURL.trim(),
+        api_key: newBotAPIKey.trim(),
+      })
+      notifySuccess(
+        'ربات جدید اضافه شد',
+        `پرووایدر ${newBotName} با موفقیت ثبت گردید.`,
       )
+      setIsAddModalOpen(false)
+      setNewBotKey('')
+      setNewBotName('')
+      setNewBotBaseURL('')
+      setNewBotAPIKey('')
       loadData()
-      notifySuccess(
-        'اتصال لایسنس انجام شد',
-        'محصول به مخزن لایسنس‌های آنی متصل گردید.',
-      )
     } catch (err: any) {
-      notifyError('خطا در اتصال محصول', err.message)
+      notifyError('خطا در افزودن ربات', err.message)
     } finally {
-      setLinkingLoading((prev) => ({ ...prev, [productId]: false }))
+      setAddingBot(false)
     }
   }
-
-  const filteredGroups = productGroups.filter((g) => {
-    if (!groupSearch.trim()) return true
-    const q = groupSearch.toLowerCase().trim()
-    return (
-      (g.group_title_fa || '').toLowerCase().includes(q) ||
-      (g.group_tag || '').toLowerCase().includes(q) ||
-      g.products.some((p) => (p.title_fa || '').toLowerCase().includes(q))
-    )
-  })
 
   return (
     <div className="space-y-6 text-foreground text-right" dir="rtl">
@@ -331,35 +305,43 @@ export const AdminBotSettingsView: React.FC = () => {
         <div>
           <h4 className="text-sm sm:text-base font-black text-foreground flex items-center gap-2">
             <Key className="w-4 h-4 text-brand" />
-            پیکربندی کلیدهای API و اتصال ۵ ربات تامین‌کننده (Fulfillment
-            Settings)
+            مدیریت کلیدهای API ربات‌ها و تامین‌کنندگان (API Keys Desk)
           </h4>
           <p className="text-xs text-muted-foreground mt-0.5">
-            ثبت و ذخیره کلیدهای API، آدرس سرورها و درصد مارجین سود جهت استعلام
-            کاتالوگ و تحویل خودکار
+            ثبت، ذخیره، تست اتصال و پایش اعتبار کیف پول ربات‌های تحویل آنی
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={loadData}
-          disabled={loadingBots}
-          className="h-9 px-4 rounded-control border border-border/60 bg-secondary text-secondary-foreground text-xs font-bold hover:bg-muted flex items-center gap-1.5 cursor-pointer shadow-control self-end sm:self-auto"
-        >
-          <RefreshCw
-            className={`w-3.5 h-3.5 ${loadingBots ? 'animate-spin text-brand' : ''}`}
-          />
-          <span>استعلام زنده مانده حساب‌ها</span>
-        </button>
+        <div className="flex items-center gap-2 self-end sm:self-auto flex-wrap">
+          <button
+            type="button"
+            onClick={() => setIsAddModalOpen(true)}
+            className="h-9 px-3.5 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground text-xs font-black shadow-control flex items-center gap-1.5 cursor-pointer duration-motion active:scale-[0.98]"
+          >
+            <Plus className="w-4 h-4" />
+            <span>افزودن ربات جدید</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={loadData}
+            disabled={loadingBots}
+            className="h-9 px-3.5 rounded-control border border-border/60 bg-secondary text-secondary-foreground text-xs font-bold hover:bg-muted flex items-center gap-1.5 cursor-pointer shadow-control"
+          >
+            <RefreshCw
+              className={`w-3.5 h-3.5 ${loadingBots ? 'animate-spin text-brand' : ''}`}
+            />
+            <span>استعلام زنده</span>
+          </button>
+        </div>
       </div>
 
-      {/* 5 Bot Configuration Cards */}
+      {/* Bot Configuration Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
         {botProviders.map((bot) => {
           const form = formData[bot.key] || {
             api_key: '',
             base_url: bot.base_url || '',
-            margin_percent: bot.margin_percent || 25,
             enabled: bot.enabled,
             show_key: false,
             saving: false,
@@ -374,7 +356,7 @@ export const AdminBotSettingsView: React.FC = () => {
                 {/* Card Header */}
                 <div className="flex items-start justify-between border-b border-border/60 pb-3">
                   <div>
-                    <h5 className="font-black text-sm text-foreground flex items-center gap-2">
+                    <h5 className="font-black text-sm text-foreground flex items-center gap-2 font-latin">
                       <Bot className="w-4 h-4 text-brand" />
                       <span>{bot.name_fa}</span>
                     </h5>
@@ -421,9 +403,7 @@ export const AdminBotSettingsView: React.FC = () => {
                     <div className="flex items-center justify-between">
                       <span className="font-bold text-brand flex items-center gap-1 text-[11px]">
                         <HelpCircle className="w-3.5 h-3.5" />
-                        <span>
-                          راهنمای اتصال {BOT_DOCS_GUIDE[bot.key].botHandle}:
-                        </span>
+                        <span>راهنمای دریافت کلید:</span>
                       </span>
                       <a
                         href={BOT_DOCS_GUIDE[bot.key].docsUrl}
@@ -495,50 +475,43 @@ export const AdminBotSettingsView: React.FC = () => {
                   />
                 </div>
 
-                {/* Margin % and Enabled Toggle */}
-                <div className="flex items-center justify-between gap-3 pt-1">
-                  <div className="space-y-1 flex-1">
-                    <label className="text-[11px] font-bold text-muted-foreground block">
-                      مارجین سود (%):
-                    </label>
-                    <input
-                      type="number"
-                      step="1"
-                      min="0"
-                      value={form.margin_percent}
-                      onChange={(e) =>
-                        handleFieldChange(
-                          bot.key,
-                          'margin_percent',
-                          Number(e.target.value),
-                        )
-                      }
-                      className="w-full h-9 px-3 text-xs rounded-field border border-border/60 bg-muted/20 text-foreground font-mono font-latin outline-none focus:border-brand"
-                    />
-                  </div>
-
-                  <div className="space-y-1 flex flex-col items-center">
-                    <label className="text-[11px] font-bold text-muted-foreground block">
-                      فعال‌سازی:
-                    </label>
-                    <ToggleSwitch
-                      checked={form.enabled}
-                      onChange={(val) =>
-                        handleFieldChange(bot.key, 'enabled', val)
-                      }
-                      size="sm"
-                    />
-                  </div>
+                {/* Enabled Toggle Switch */}
+                <div className="flex items-center justify-between p-2.5 rounded-control bg-muted/20 border border-border/40">
+                  <span className="text-xs font-bold text-foreground">
+                    وضعیت فعال‌سازی ربات:
+                  </span>
+                  <ToggleSwitch
+                    checked={form.enabled}
+                    onChange={(val) =>
+                      handleFieldChange(bot.key, 'enabled', val)
+                    }
+                    size="sm"
+                  />
                 </div>
               </div>
 
-              {/* Save Button */}
-              <div className="pt-3 border-t border-border/60">
+              {/* Action Buttons: Separate Test Connection & Save */}
+              <div className="pt-3 border-t border-border/60 flex items-center gap-2">
+                <button
+                  type="button"
+                  disabled={testingKey[bot.key]}
+                  onClick={() => handleTestBot(bot.key)}
+                  className="flex-1 h-9 px-3 rounded-control border border-border/60 bg-secondary hover:bg-muted text-foreground font-bold text-xs shadow-xs flex items-center justify-center gap-1.5 cursor-pointer duration-motion active:scale-[0.98] disabled:opacity-50"
+                  title="استعلام زنده مانده و تست اعتبار کلید وارد شده"
+                >
+                  <RefreshCw
+                    className={`w-3.5 h-3.5 ${testingKey[bot.key] ? 'animate-spin text-brand' : ''}`}
+                  />
+                  <span>
+                    {testingKey[bot.key] ? 'در حال تست...' : 'تست اتصال'}
+                  </span>
+                </button>
+
                 <button
                   type="button"
                   disabled={form.saving}
                   onClick={() => handleSaveBot(bot.key)}
-                  className="w-full h-9 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs shadow-control flex items-center justify-center gap-1.5 cursor-pointer duration-motion active:scale-[0.98] disabled:opacity-50"
+                  className="flex-1 h-9 px-3 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs shadow-control flex items-center justify-center gap-1.5 cursor-pointer duration-motion active:scale-[0.98] disabled:opacity-50"
                 >
                   {form.saving ? (
                     <>
@@ -548,7 +521,7 @@ export const AdminBotSettingsView: React.FC = () => {
                   ) : (
                     <>
                       <Check className="w-3.5 h-3.5" />
-                      <span>ذخیره و تست اتصال</span>
+                      <span>ذخیره تنظیمات</span>
                     </>
                   )}
                 </button>
@@ -558,189 +531,117 @@ export const AdminBotSettingsView: React.FC = () => {
         })}
       </div>
 
-      {/* Group Delivery Strategy Router Matrix */}
-      <div className="bg-card rounded-surface border border-border/80 p-5 shadow-surface space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/60 pb-3">
-          <div>
-            <h4 className="text-sm font-black text-foreground flex items-center gap-2">
-              <Tag className="w-4 h-4 text-brand" />
-              ماتریس استراتژی تحویل گروه‌ها و اتصال به مخزن لایسنس‌ها (Group
-              Routing Engine)
-            </h4>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              تعیین استراتژی تحویل (آنی خودکار یا دستی اپراتور) در سطح گروه و
-              اتصال کالا به لایسنس
-            </p>
-          </div>
-
-          <div className="w-56">
-            <SearchInput
-              value={groupSearch}
-              onChange={setGroupSearch}
-              placeholder="جستجوی گروه یا کالا..."
-              debounceMs={250}
-            />
-          </div>
-        </div>
-
-        <div className="space-y-4">
-          {filteredGroups.map((group) => {
-            const isGroupInstant =
-              group.delivery_strategy === 'third_party_instant'
-            return (
-              <div
-                key={group.group_tag}
-                className="rounded-surface border border-border/80 overflow-hidden bg-card shadow-xs"
-              >
-                <div className="p-4 bg-muted/20 border-b border-border/60 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-control bg-secondary text-brand border border-border/60 flex items-center justify-center font-bold">
-                      <Tag className="w-3.5 h-3.5" />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-black text-sm text-foreground">
-                          {group.group_title_fa}
-                        </span>
-                        <span className="text-[10px] px-2 py-0.5 rounded-control bg-secondary text-secondary-foreground font-mono font-latin">
-                          #{group.group_tag}
-                        </span>
-                        <span className="text-[11px] text-muted-foreground">
-                          ({group.products_count} محصول)
-                        </span>
-                      </div>
-                    </div>
+      {/* Add Custom Bot Modal */}
+      {isAddModalOpen &&
+        createPortal(
+          <div className="fixed inset-0 z-[250] w-screen h-screen min-h-screen flex items-center justify-center p-3 sm:p-5 overflow-y-auto bg-background/85 backdrop-blur-md animate-in fade-in duration-200">
+            <div
+              dir="rtl"
+              className="relative w-full max-w-lg bg-card rounded-surface border border-border/80 shadow-surface overflow-hidden flex flex-col my-auto text-foreground animate-in zoom-in-95 duration-200"
+            >
+              <div className="p-4 sm:p-5 border-b border-border/60 flex items-center justify-between bg-muted/20">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-control bg-primary text-primary-foreground flex items-center justify-center font-bold">
+                    <Plus className="w-4 h-4" />
                   </div>
-
-                  <div className="flex items-center bg-muted/40 border border-border/60 p-1 rounded-control gap-1">
-                    <button
-                      type="button"
-                      disabled={groupUpdateLoading[group.group_tag]}
-                      onClick={() =>
-                        handleToggleGroupStrategy(
-                          group.group_tag,
-                          'manual_operator',
-                        )
-                      }
-                      className={`px-3 py-1.5 rounded-control text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                        !isGroupInstant
-                          ? 'bg-primary text-primary-foreground font-black shadow-control'
-                          : 'text-muted-foreground hover:text-foreground'
-                      }`}
-                    >
-                      <Clock className="w-3.5 h-3.5 text-amber-500" />
-                      <span>تحویل دستی اپراتور</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      disabled={groupUpdateLoading[group.group_tag]}
-                      onClick={() =>
-                        handleToggleGroupStrategy(
-                          group.group_tag,
-                          'third_party_instant',
-                        )
-                      }
-                      className={`px-3 py-1.5 rounded-control text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                        isGroupInstant
-                          ? 'bg-brand text-white font-black shadow-control'
-                          : 'text-muted-foreground hover:text-foreground'
-                      }`}
-                    >
-                      <Zap className="w-3.5 h-3.5" />
-                      <span>تحویل آنی خودکار</span>
-                    </button>
+                  <div>
+                    <h4 className="text-sm font-black text-foreground">
+                      افزودن ربات یا تامین‌کننده جدید
+                    </h4>
+                    <p className="text-[11px] text-muted-foreground">
+                      ثبت کلید اتصال و آدرس سرور جهت استفاده در تحویل خودکار
+                    </p>
                   </div>
                 </div>
 
-                <div className="overflow-x-auto">
-                  <table className="w-full text-right text-xs">
-                    <thead>
-                      <tr className="border-b border-border/60 bg-muted/10 text-muted-foreground font-bold">
-                        <th className="py-2.5 px-4">عنوان محصول</th>
-                        <th className="py-2.5 px-4">قیمت فروش</th>
-                        <th className="py-2.5 px-4">روش تحویل فعلی</th>
-                        <th className="py-2.5 px-4 min-w-[280px]">
-                          اتصال به لایسنس‌های آنی
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border/60">
-                      {group.products.map((prod) => (
-                        <tr key={prod.id} className="hover:bg-muted/20">
-                          <td className="py-3 px-4 font-bold text-foreground">
-                            {prod.title_fa}
-                          </td>
-                          <td className="py-3 px-4 font-mono font-latin font-bold">
-                            {prod.price_toman.toLocaleString('fa-IR')} ت
-                          </td>
-                          <td className="py-3 px-4">
-                            <span
-                              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-control text-[11px] font-bold ${
-                                prod.delivery_strategy === 'third_party_instant'
-                                  ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                                  : 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
-                              }`}
-                            >
-                              {prod.delivery_strategy ===
-                              'third_party_instant' ? (
-                                <>
-                                  <Zap className="w-3 h-3" />
-                                  <span>آنی خودکار</span>
-                                </>
-                              ) : (
-                                <>
-                                  <Clock className="w-3 h-3" />
-                                  <span>دستی اپراتور</span>
-                                </>
-                              )}
-                            </span>
-                          </td>
-                          <td className="py-3 px-4">
-                            <div className="relative">
-                              <select
-                                disabled={linkingLoading[prod.id]}
-                                value={prod.external_product_id || 0}
-                                onChange={(e) =>
-                                  handleLinkProduct(
-                                    prod.id,
-                                    Number(e.target.value),
-                                    Number(e.target.value) > 0
-                                      ? 'third_party_instant'
-                                      : 'manual_operator',
-                                  )
-                                }
-                                className="w-full text-xs py-1.5 px-3 rounded-control border border-border/60 bg-card text-foreground font-mono font-latin outline-none focus:border-brand cursor-pointer"
-                              >
-                                <option value={0}>
-                                  -- بدون اتصال (تحویل دستی در صف اپراتور) --
-                                </option>
-                                {providerCatalog.map((ix) => (
-                                  <option key={ix.id} value={ix.id}>
-                                    [#{ix.id}] {ix.name} ($
-                                    {ix.price_usdt.toFixed(2)} USDT ~{' '}
-                                    {ix.price_toman.toLocaleString('fa-IR')} ت){' '}
-                                    {ix.stock > 0
-                                      ? `[موجودی: ${ix.stock}]`
-                                      : '[ناموجود]'}
-                                  </option>
-                                ))}
-                              </select>
-                              {linkingLoading[prod.id] && (
-                                <RefreshCw className="w-3.5 h-3.5 animate-spin text-brand absolute left-3 top-2" />
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <ModalCloseButton onClick={() => setIsAddModalOpen(false)} />
               </div>
-            )
-          })}
-        </div>
-      </div>
+
+              <form
+                onSubmit={handleAddCustomBot}
+                className="p-4 sm:p-6 space-y-4 text-right text-xs"
+              >
+                <div className="space-y-1.5">
+                  <label className="font-bold text-foreground block">
+                    شناسه انگلیسی یکتا (Unique Key){' '}
+                    <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={newBotKey}
+                    onChange={(e) => setNewBotKey(e.target.value)}
+                    placeholder="مثال: my_bot یا telegram_reseller"
+                    className="w-full h-10 px-3 rounded-field border border-border/60 bg-muted/20 text-foreground font-mono font-latin outline-none focus:border-brand"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="font-bold text-foreground block">
+                    نام نمایشی ربات <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={newBotName}
+                    onChange={(e) => setNewBotName(e.target.value)}
+                    placeholder="مثال: My Custom Bot"
+                    className="w-full h-10 px-3 rounded-field border border-border/60 bg-muted/20 text-foreground outline-none focus:border-brand"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="font-bold text-foreground block">
+                    آدرس سرور API (Base URL){' '}
+                    <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={newBotBaseURL}
+                    onChange={(e) => setNewBotBaseURL(e.target.value)}
+                    placeholder="https://api.example.com"
+                    className="w-full h-10 px-3 rounded-field border border-border/60 bg-muted/20 text-foreground font-mono font-latin outline-none focus:border-brand"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="font-bold text-foreground block">
+                    کلید اختصاصی API (API Key)
+                  </label>
+                  <input
+                    type="text"
+                    value={newBotAPIKey}
+                    onChange={(e) => setNewBotAPIKey(e.target.value)}
+                    placeholder="کلید API در صورت وجود"
+                    className="w-full h-10 px-3 rounded-field border border-border/60 bg-muted/20 text-foreground font-mono font-latin outline-none focus:border-brand"
+                  />
+                </div>
+
+                <div className="pt-2">
+                  <button
+                    type="submit"
+                    disabled={addingBot}
+                    className="w-full h-11 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs shadow-control flex items-center justify-center gap-2 cursor-pointer duration-motion active:scale-[0.98] disabled:opacity-50"
+                  >
+                    {addingBot ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>در حال ثبت...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Check className="w-4 h-4" />
+                        <span>افزودن و فعال‌سازی ربات</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>,
+          document.body,
+        )}
     </div>
   )
 }

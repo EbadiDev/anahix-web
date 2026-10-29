@@ -2,7 +2,6 @@ import {
   Bell,
   CheckCircle2,
   ExternalLink,
-  Loader2,
   Package,
   Shield,
   Sparkles,
@@ -13,6 +12,7 @@ import { Link } from 'react-router-dom'
 import { apiService } from '../../services/api'
 import type { CustomerNotificationItem } from '../../types'
 import { toPersianDigits } from '../../utils/formatters'
+import { LoadingState } from '../vibefarsi/LoadingState'
 import { useNotification } from '../vibefarsi/NotificationContext'
 
 export const ProfileNotificationsTab: React.FC = () => {
@@ -170,10 +170,7 @@ export const ProfileNotificationsTab: React.FC = () => {
         </div>
 
         {loading ? (
-          <div className="py-12 text-center text-xs text-muted-foreground space-y-2">
-            <Loader2 className="w-6 h-6 animate-spin text-brand mx-auto" />
-            <p>در حال دریافت اعلان‌های شما از سرور...</p>
-          </div>
+          <LoadingState message="در حال دریافت اعلان‌های شما از سرور..." />
         ) : filteredNotifs.length === 0 ? (
           <div className="py-12 text-center bg-muted/10 border border-dashed border-border/60 rounded-control p-8 space-y-2">
             <Bell className="w-8 h-8 text-muted-foreground/60 mx-auto" />

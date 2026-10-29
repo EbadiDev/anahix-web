@@ -26,6 +26,7 @@ import type {
   BotProviderSetting,
 } from '../../types'
 import { RichContentEditor } from '../content/RichContentEditor'
+import { LoadingState } from '../vibefarsi/LoadingState'
 import { ModalCloseButton } from '../vibefarsi/ModalCloseButton'
 import { useNotification } from '../vibefarsi/NotificationContext'
 import { SearchInput } from '../vibefarsi/SearchInput'
@@ -35,6 +36,7 @@ interface FetchBotModalProps {
   isOpen: boolean
   onClose: () => void
   onProductImported: (product: AdminProduct) => void
+  initialProduct?: BotCatalogProduct | null
 }
 
 const BOT_DOCS_GUIDE: Record<
@@ -161,6 +163,7 @@ export const FetchBotModal: React.FC<FetchBotModalProps> = ({
   isOpen,
   onClose,
   onProductImported,
+  initialProduct,
 }) => {
   const { success: notifySuccess, error: notifyError } = useNotification()
 
@@ -255,8 +258,14 @@ export const FetchBotModal: React.FC<FetchBotModalProps> = ({
   useEffect(() => {
     if (isOpen) {
       loadInitialData()
+      if (initialProduct) {
+        if (initialProduct.provider_key) {
+          setSelectedProvider(initialProduct.provider_key)
+        }
+        handleSelectBotProduct(initialProduct)
+      }
     }
-  }, [isOpen])
+  }, [isOpen, initialProduct])
 
   // Load catalog when selectedProvider changes
   const loadCatalog = async (forceRefresh = false) => {
@@ -301,6 +310,20 @@ export const FetchBotModal: React.FC<FetchBotModalProps> = ({
     setSellToman(sToman)
   }
 
+  const recalculateFromCostToman = (
+    cToman: number,
+    margin: number,
+    rate: number,
+  ) => {
+    const cUSD = rate > 0 ? cToman / rate : 0
+    const sUSD = cUSD * (1.0 + margin / 100.0)
+    const sToman = Math.ceil((cToman * (1.0 + margin / 100.0)) / 500) * 500
+    setCostToman(cToman)
+    setCostUSD(Number(cUSD.toFixed(2)))
+    setSellUSD(Number(sUSD.toFixed(2)))
+    setSellToman(sToman)
+  }
+
   const recalculateFromSellToman = (
     sToman: number,
     cost: number,
@@ -341,7 +364,7 @@ export const FetchBotModal: React.FC<FetchBotModalProps> = ({
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/^-|-$/g, '') || `bot-${botProd.id}`,
     )
-    setDescription(botProd.description || 'اشتراک قانونی تحویل آنی آناهیکس')
+    setDescription(botProd.description || 'اشتراک قانونی با تحویل آنی')
     setRequiredInput(botProd.required_input || 'none')
     setPayloadType(botProd.delivered_payload_type || 'license_code')
     setDeliveryStrategy('third_party_instant')
@@ -367,7 +390,7 @@ export const FetchBotModal: React.FC<FetchBotModalProps> = ({
         `### نکات مهم و شرایط تحویل
 - این سرویس دارای **ضمانت ۱۰۰٪ سلامت و عدم قطعی** در طول دوره اشتراک می‌باشد.
 - کد فعال‌سازی یا لایسنس بلافاصله پس از پرداخت به شما نمایش داده می‌شود و از طریق پیامک نیز ارسال می‌گردد.
-- در صورت هرگونه سوال، پشتیبانی ۲۴ ساعته آناهیکس پاسخگوی شماست.`,
+- در صورت هرگونه سوال، پشتیبانی ۲۴ ساعته پاسخگوی شماست.`,
       )
     }
 
@@ -677,11 +700,11 @@ export const FetchBotModal: React.FC<FetchBotModalProps> = ({
 
             {/* Catalog Table */}
             {loadingCatalog ? (
-              <div className="p-12 text-center text-muted-foreground bg-muted/10 rounded-surface border border-border/60 space-y-3">
-                <RefreshCw className="w-6 h-6 animate-spin text-brand mx-auto" />
-                <p className="text-xs font-bold">
-                  در حال استعلام کاتالوگ و موجودی زنده از ربات...
-                </p>
+              <div className="bg-muted/10 rounded-surface border border-border/60">
+                <LoadingState
+                  message="در حال استعلام کاتالوگ و موجودی زنده از ربات..."
+                  subMessage="دریافت لحظه‌ای قیمت‌های دلاری و ارزیابی تومانی"
+                />
               </div>
             ) : filteredCatalog.length === 0 ? (
               <div className="p-10 text-center text-muted-foreground bg-muted/10 rounded-surface border border-border/60 space-y-2">
@@ -697,18 +720,18 @@ export const FetchBotModal: React.FC<FetchBotModalProps> = ({
             ) : (
               <div className="rounded-surface border border-border/80 overflow-hidden shadow-surface">
                 <div className="overflow-x-auto">
-                  <table className="w-full text-right text-xs">
+                  <table className="w-full text-center text-xs">
                     <thead>
                       <tr className="border-b border-border/60 bg-muted/30 text-muted-foreground font-bold">
-                        <th className="py-3 px-4 text-center">شناسه در ربات</th>
-                        <th className="py-3 px-4">عنوان محصول تامین‌کننده</th>
-                        <th className="py-3 px-4 text-center">خرید دلاری</th>
+                        <th className="py-3 px-4 text-center w-20">شناسه</th>
                         <th className="py-3 px-4 text-center">
-                          خرید تومانی (پایه)
+                          عنوان محصول تامین‌کننده
                         </th>
-                        <th className="py-3 px-4 text-center">موجودی ربات</th>
                         <th className="py-3 px-4 text-center">
-                          وضعیت در آناهیکس
+                          قیمت پایه خرید و موجودی ربات
+                        </th>
+                        <th className="py-3 px-4 text-center">
+                          وضعیت در فروشگاه
                         </th>
                         <th className="py-3 px-4 text-center">عملیات</th>
                       </tr>
@@ -722,49 +745,53 @@ export const FetchBotModal: React.FC<FetchBotModalProps> = ({
                             key={prod.id}
                             className="hover:bg-muted/20 transition-colors"
                           >
-                            <td className="py-3.5 px-4 text-center font-mono font-latin text-muted-foreground">
+                            <td className="py-3.5 px-4 text-center font-mono font-latin text-muted-foreground font-bold">
                               #{prod.id}
                             </td>
 
-                            <td className="py-3.5 px-4">
-                              <div className="font-bold text-foreground flex items-center gap-2">
+                            <td className="py-3.5 px-4 text-center">
+                              <div className="font-bold text-foreground flex items-center justify-center gap-2 mx-auto">
                                 {prod.emoji && <span>{prod.emoji}</span>}
                                 <span>{prod.name}</span>
                               </div>
                               {prod.description && (
-                                <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-1">
+                                <p
+                                  className="text-[11px] text-muted-foreground mt-1 max-w-md mx-auto line-clamp-2 leading-relaxed"
+                                  dir="auto"
+                                >
                                   {prod.description}
                                 </p>
                               )}
                             </td>
 
-                            <td className="py-3.5 px-4 text-center font-mono font-latin font-bold text-brand">
-                              ${prod.price_usd?.toFixed(2) || '0.00'}
-                            </td>
-
-                            <td className="py-3.5 px-4 text-center font-mono font-latin font-bold text-foreground">
-                              {Math.round(
-                                (prod.price_usd || 0) * liveUSDTRate,
-                              ).toLocaleString('fa-IR')}{' '}
-                              <span className="font-sans font-normal text-[10px] text-muted-foreground">
-                                تومان
-                              </span>
-                            </td>
-
-                            <td className="py-3.5 px-4 text-center">
-                              <span
-                                className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-control text-[11px] font-bold ${
-                                  isAvailable
-                                    ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                                    : 'bg-rose-500/10 text-rose-500 border border-rose-500/20'
-                                }`}
-                              >
-                                {prod.unlimited
-                                  ? 'نامحدود (∞)'
-                                  : isAvailable
-                                    ? `${prod.stock} عدد`
-                                    : 'ناموجود'}
-                              </span>
+                            {/* Unified Vertical Stacked Financial & Stock Column */}
+                            <td className="py-3.5 px-4 text-center font-latin">
+                              <div className="font-bold text-xs text-foreground">
+                                {Math.round(
+                                  (prod.price_usd || 0) * liveUSDTRate,
+                                ).toLocaleString('fa-IR')}{' '}
+                                <span className="font-sans font-normal text-[10px] text-muted-foreground">
+                                  تومان
+                                </span>
+                              </div>
+                              <div className="font-mono text-[11px] font-bold text-brand mt-0.5">
+                                ${prod.price_usd?.toFixed(2) || '0.00'} USD
+                              </div>
+                              <div className="mt-1 flex justify-center">
+                                <span
+                                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-control text-[10px] font-bold ${
+                                    isAvailable
+                                      ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                                      : 'bg-rose-500/10 text-rose-500 border border-rose-500/20'
+                                  }`}
+                                >
+                                  {prod.unlimited
+                                    ? 'نامحدود (∞)'
+                                    : isAvailable
+                                      ? `${prod.stock} عدد موجود`
+                                      : 'ناموجود'}
+                                </span>
+                              </div>
                             </td>
 
                             <td className="py-3.5 px-4 text-center">
@@ -784,7 +811,7 @@ export const FetchBotModal: React.FC<FetchBotModalProps> = ({
                               <button
                                 type="button"
                                 onClick={() => handleSelectBotProduct(prod)}
-                                className="h-8 px-3 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs transition-all shadow-control cursor-pointer duration-motion active:scale-[0.98] inline-flex items-center gap-1.5"
+                                className="h-8 px-3 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs transition-all shadow-control cursor-pointer duration-motion active:scale-[0.98] inline-flex items-center justify-center gap-1.5 mx-auto"
                               >
                                 <Plus className="w-3.5 h-3.5" />
                                 <span>محاسبه و اد کردن</span>
@@ -871,11 +898,11 @@ export const FetchBotModal: React.FC<FetchBotModalProps> = ({
                     </label>
                     <input
                       type="number"
-                      step="0.5"
+                      step="any"
                       min="0"
                       value={marginPercent}
                       onChange={(e) => {
-                        const val = Number(e.target.value) || 0
+                        const val = parseFloat(e.target.value) || 0
                         recalculateFromMargin(costUSD, val, liveUSDTRate)
                       }}
                       className="w-full h-10 px-3 text-xs rounded-field border border-border/60 bg-card text-foreground font-mono font-latin outline-none focus:border-brand"
@@ -889,15 +916,15 @@ export const FetchBotModal: React.FC<FetchBotModalProps> = ({
                     </label>
                     <input
                       type="number"
-                      step="0.01"
+                      step="any"
                       min="0"
                       value={sellUSD}
                       onChange={(e) => {
-                        const val = Number(e.target.value) || 0
+                        const val = parseFloat(e.target.value) || 0
                         const margin =
                           costUSD > 0 ? ((val - costUSD) / costUSD) * 100 : 0
                         setSellUSD(val)
-                        setMarginPercent(Number(margin.toFixed(1)))
+                        setMarginPercent(parseFloat(margin.toFixed(2)))
                         setSellToman(
                           Math.ceil((val * liveUSDTRate) / 500) * 500,
                         )
@@ -911,9 +938,21 @@ export const FetchBotModal: React.FC<FetchBotModalProps> = ({
                     <label className="text-[11px] font-bold text-muted-foreground">
                       تمام‌شده تومانی:
                     </label>
-                    <div className="h-10 px-3 text-xs rounded-field border border-border/40 bg-muted/40 text-muted-foreground flex items-center font-mono font-latin">
-                      {costToman.toLocaleString('fa-IR')}
-                    </div>
+                    <input
+                      type="number"
+                      step="any"
+                      min="0"
+                      value={costToman}
+                      onChange={(e) => {
+                        const val = Number(e.target.value) || 0
+                        recalculateFromCostToman(
+                          val,
+                          marginPercent,
+                          liveUSDTRate,
+                        )
+                      }}
+                      className="w-full h-10 px-3 text-xs rounded-field border border-border/60 bg-card text-foreground font-mono font-latin outline-none focus:border-brand"
+                    />
                   </div>
 
                   {/* 5. Sell Toman (Final Storefront Price) */}
@@ -923,7 +962,7 @@ export const FetchBotModal: React.FC<FetchBotModalProps> = ({
                     </label>
                     <input
                       type="number"
-                      step="500"
+                      step="any"
                       min="0"
                       value={sellToman}
                       onChange={(e) => {

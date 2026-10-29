@@ -1139,7 +1139,8 @@ export const AdminContentView: React.FC = () => {
                     <option value="">بدون اتصال به محصول</option>
                     {products.map((p) => (
                       <option key={p.id} value={String(p.id)}>
-                        {p.title_fa} - {p.price_toman.toLocaleString()} تومان
+                        {p.title_fa} - {p.price_toman.toLocaleString('fa-IR')}{' '}
+                        تومان
                       </option>
                     ))}
                   </select>

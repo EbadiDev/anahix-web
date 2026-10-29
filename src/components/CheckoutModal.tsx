@@ -22,6 +22,7 @@ import type {
   PaymentGateway,
   Product,
 } from '../types'
+import { formatToman } from '../utils/formatters'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
@@ -158,7 +159,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       }
       if (userBalance < finalAmount) {
         setErrorMsg(
-          `موجودی کیف پول شما (${userBalance.toLocaleString('fa-IR')} تومان) کافی نیست. لطفا درگاه شتاب را انتخاب کنید یا حساب خود را شارژ نمایید.`,
+          `موجودی کیف پول شما (${formatToman(userBalance)} تومان) کافی نیست. لطفا درگاه شتاب را انتخاب کنید یا حساب خود را شارژ نمایید.`,
         )
         return
       }
@@ -347,7 +348,18 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   >
                     <div className="flex items-center gap-3">
                       <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-background border border-border">
-                        {getGatewayIcon(p.icon_type)}
+                        {p.icon_url ? (
+                          <img
+                            src={p.icon_url}
+                            alt={p.name}
+                            className="w-5 h-5 object-contain rounded-xs"
+                            onError={(e) => {
+                              ;(e.target as HTMLElement).style.display = 'none'
+                            }}
+                          />
+                        ) : (
+                          getGatewayIcon(p.icon_type)
+                        )}
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
@@ -366,7 +378,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                         <p className="text-[11px] text-muted-foreground mt-0.5">
                           {p.platform === 'balance'
                             ? customer
-                              ? `موجودی شما: ${userBalance.toLocaleString('fa-IR')} تومان`
+                              ? `موجودی شما: ${formatToman(userBalance)} تومان`
                               : 'پرداخت از موجودی حساب (نیاز به ورود)'
                             : p.description_fa}
                         </p>
@@ -395,7 +407,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             <div className="flex justify-between text-muted-foreground">
               <span>قیمت کل اقلام:</span>
               <span className="font-bold text-foreground">
-                {subtotal.toLocaleString('fa-IR')} تومان
+                {formatToman(subtotal)} تومان
               </span>
             </div>
 
@@ -407,7 +419,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   {loyaltyDiscountPercent}٪):
                 </span>
                 <span className="font-bold">
-                  - {Math.round(loyaltyDiscount).toLocaleString('fa-IR')} تومان
+                  - {formatToman(Math.round(loyaltyDiscount))} تومان
                 </span>
               </div>
             )}
@@ -415,9 +427,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             {couponDiscount > 0 && (
               <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-semibold">
                 <span>کد تخفیف ({coupon?.code}):</span>
-                <span>
-                  - {Math.round(couponDiscount).toLocaleString('fa-IR')} تومان
-                </span>
+                <span>- {formatToman(Math.round(couponDiscount))} تومان</span>
               </div>
             )}
 
@@ -425,14 +435,14 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               <div className="flex justify-between text-muted-foreground">
                 <span>کارمزد درگاه:</span>
                 <span className="font-bold text-amber-600 dark:text-amber-400">
-                  {fee.toLocaleString('fa-IR')} تومان
+                  {formatToman(fee)} تومان
                 </span>
               </div>
             )}
             <div className="flex justify-between items-baseline border-t border-border pt-2 text-sm font-bold">
               <span>مبلغ نهایی پرداخت:</span>
               <span className="text-base text-blue-600 dark:text-blue-400">
-                {finalAmount.toLocaleString('fa-IR')} تومان
+                {formatToman(finalAmount)} تومان
               </span>
             </div>
           </div>

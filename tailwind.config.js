@@ -16,13 +16,12 @@ export default {
     extend: {
       fontFamily: {
         sans: [
-          'IRANSans',
           'Vazirmatn',
           '-apple-system',
           'BlinkMacSystemFont',
           'sans-serif',
         ],
-        heading: ['IRANSans', 'Vazirmatn', 'sans-serif'],
+        heading: ['Vazirmatn', 'sans-serif'],
         latin: ['Outfit', 'sans-serif'],
       },
       colors: {

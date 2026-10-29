@@ -2,6 +2,7 @@ import {
   AlertCircle,
   ArrowLeft,
   ArrowRight,
+  Bell,
   Calendar,
   Check,
   CheckCircle2,
@@ -39,6 +40,7 @@ import { OrderSuccessModal } from '../components/OrderSuccessModal'
 import { PrePurchaseNoticeModal } from '../components/PrePurchaseNoticeModal'
 import { ProductReviewsSection } from '../components/reviews/ProductReviewsSection'
 import { TelegramIcon } from '../components/SocialIcons'
+import { StockAlertModal } from '../components/StockAlertModal'
 import { Badge } from '../components/ui/badge'
 import { Accordion } from '../components/vibefarsi/Accordion'
 import { Breadcrumb } from '../components/vibefarsi/Breadcrumb'
@@ -54,11 +56,8 @@ import type {
   ProductDetail,
   ProductPlan,
 } from '../types'
-
-function toPersianDigits(n: number | string): string {
-  const f = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹']
-  return String(n).replace(/\d/g, (d) => f[Number(d)])
-}
+import { getSiteBrandName } from '../utils/brand'
+import { formatToman, toPersianDigits } from '../utils/formatters'
 
 interface ProductDetailPageProps {
   orders: Order[]
@@ -82,6 +81,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
 
   // Plan selection state
   const [selectedPlan, setSelectedPlan] = useState<ProductPlan | null>(null)
+  const [isStockAlertOpen, setIsStockAlertOpen] = useState(false)
   const [isCartOpen, setIsCartOpen] = useState(false)
   const [addedToast, setAddedToast] = useState(false)
   const [isAuthOpen, setIsAuthOpen] = useState(false)
@@ -128,15 +128,16 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
         setSelectedPlan(def)
 
         // Dynamic SEO Head injection
+        const brand = getSiteBrandName()
         const seoTitle =
           prodData.seo?.meta_title ||
           prodData.meta_title ||
-          `خرید ${prodData.title_fa} (${prodData.title_en}) | تحویل قانونی و آنی - آناهیکس`
+          `خرید ${prodData.title_fa} (${prodData.title_en}) | تحویل قانونی و آنی - ${brand}`
         const seoDesc =
           prodData.seo?.meta_description ||
           prodData.meta_description ||
           prodData.description_fa ||
-          `خرید اشتراک قانونی ${prodData.title_fa} با بهترین قیمت، فعال‌سازی فوری، ضمانت عدم قطعی و پشتیبانی شبانه‌روزی در آناهیکس.`
+          `خرید اشتراک قانونی ${prodData.title_fa} با بهترین قیمت، فعال‌سازی فوری، ضمانت عدم قطعی و پشتیبانی شبانه‌روزی در ${brand}.`
 
         document.title = seoTitle
 
@@ -177,8 +178,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
   // Reset document title on unmount
   useEffect(() => {
     return () => {
-      document.title =
-        'آناهیکس (Anahix) | مرجع رسمی اشتراک‌های قانونی هوش مصنوعی و شماره مجازی'
+      document.title = `${getSiteBrandName()} | مرجع رسمی اشتراک‌های قانونی و شماره مجازی`
     }
   }, [])
 
@@ -221,10 +221,11 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
   }
 
   const isOutOfStock =
+    product?.stock_mode === 'out_of_stock' ||
     product?.is_out_of_stock ||
-    (product?.available_stock !== undefined &&
-      product.available_stock <= 0 &&
-      product.delivery_type === 'instant')
+    (product?.stock_mode !== 'always_in_stock' &&
+      product?.available_stock !== undefined &&
+      product.available_stock <= 0)
 
   const shouldShowNoticeModal = () => {
     if (!product?.pre_purchase_notice) return false
@@ -561,6 +562,21 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                     گارانتی کامل ۳۰ روزه
                   </span>
                 </div>
+
+                {/* Stock Display Badge */}
+                {product?.stock_display_mode === 'show_exact' &&
+                  product.available_stock !== undefined &&
+                  product.available_stock > 0 && (
+                    <div className="p-3 rounded-xl border border-border bg-card/60 space-y-1 col-span-2 sm:col-span-1">
+                      <span className="text-muted-foreground flex items-center gap-1">
+                        <Package className="h-3.5 w-3.5 text-brand" />
+                        <span>موجودی در انبار:</span>
+                      </span>
+                      <span className="font-bold text-foreground block">
+                        {toPersianDigits(product.available_stock)} عدد موجود
+                      </span>
+                    </div>
+                  )}
               </div>
             </div>
 
@@ -629,14 +645,12 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                           <div className="text-left shrink-0">
                             {plan.original_price_toman &&
                               plan.original_price_toman > plan.price_toman && (
-                                <div className="text-[11px] text-muted-foreground/50 line-through font-latin font-medium">
-                                  {Number(
-                                    plan.original_price_toman,
-                                  ).toLocaleString('fa-IR')}
+                                <div className="text-[11px] text-muted-foreground/50 line-through font-sans font-medium">
+                                  {formatToman(plan.original_price_toman)}
                                 </div>
                               )}
-                            <div className="font-black text-sm text-foreground font-latin tracking-tight">
-                              {Number(plan.price_toman).toLocaleString('fa-IR')}{' '}
+                            <div className="font-black text-sm text-foreground font-sans tracking-tight">
+                              {formatToman(plan.price_toman)}{' '}
                               <span className="text-[10px] font-normal text-muted-foreground font-sans">
                                 تومان
                               </span>
@@ -661,20 +675,19 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
 
                   <div className="border-t border-border/40 pt-3 flex items-baseline justify-between">
                     <div>
-                      <span className="text-[11px] text-muted-foreground block">
+                      <span className="text-[11px] text-muted-foreground block font-bold">
                         مبلغ قابل پرداخت:
                       </span>
                       {savingsToman > 0 && (
-                        <span className="text-[11px] text-emerald-500 font-bold font-latin">
-                          تخفیف ویژه (
-                          {Number(savingsPercent).toLocaleString('fa-IR')}٪):{' '}
-                          {Number(savingsToman).toLocaleString('fa-IR')} تومان
+                        <span className="text-[11px] text-emerald-500 font-bold font-sans">
+                          تخفیف ویژه ({toPersianDigits(savingsPercent)}٪):{' '}
+                          {formatToman(savingsToman)} تومان
                         </span>
                       )}
                     </div>
-                    <div className="text-left font-latin">
-                      <span className="text-2xl font-black text-foreground tracking-tight">
-                        {Number(effectivePrice).toLocaleString('fa-IR')}
+                    <div className="text-left font-sans">
+                      <span className="text-2xl font-black text-foreground tracking-tight font-sans">
+                        {formatToman(effectivePrice)}
                       </span>
                       <span className="text-xs text-muted-foreground font-sans mr-1">
                         تومان
@@ -705,21 +718,25 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                   {(() => {
                     if (isOutOfStock) {
                       return (
-                        <div className="p-4 rounded-surface border border-rose-500/30 bg-rose-500/5 text-center space-y-2.5">
-                          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-control bg-rose-500/10 text-rose-500 font-bold text-xs">
+                        <div className="p-4 rounded-surface border border-amber-500/30 bg-amber-500/5 text-center space-y-2.5">
+                          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-control bg-amber-500/10 text-amber-500 font-bold text-xs">
                             <Package className="w-3.5 h-3.5" />
-                            <span>در حال حاضر ناموجود</span>
+                            <span>
+                              {product?.out_of_stock_text ||
+                                'در حال تهیه و تامین مجدد'}
+                            </span>
                           </div>
                           <p className="text-xs text-muted-foreground leading-relaxed">
-                            متاسفانه موجودی این سرویس موقتاً به اتمام رسیده است.
-                            به محض شارژ مجدد در دسترس قرار خواهد گرفت.
+                            {product?.out_of_stock_text ||
+                              'متاسفانه موجودی این سرویس موقتاً به اتمام رسیده است. به محض شارژ مجدد در دسترس قرار خواهد گرفت.'}
                           </p>
                           <button
                             type="button"
-                            disabled
-                            className="w-full h-11 rounded-control bg-muted text-muted-foreground border border-border/60 font-black text-xs cursor-not-allowed opacity-60"
+                            onClick={() => setIsStockAlertOpen(true)}
+                            className="w-full h-11 rounded-control bg-brand hover:bg-brand/90 text-white font-black text-xs shadow-control flex items-center justify-center gap-2 cursor-pointer duration-motion active:scale-[0.98]"
                           >
-                            اتمام موجودی در انبار
+                            <Bell className="w-4 h-4" />
+                            <span>موجود شد به من اطلاع بده</span>
                           </button>
                         </div>
                       )
@@ -1101,68 +1118,82 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
           <ProductReviewsSection product={product} customer={customer} />
         </ScrollReveal>
 
-        {/* SECTION 5: 4-PILLAR REASSURANCE TRUST GRID */}
-        <section className="rounded-3xl border border-border bg-card p-6 sm:p-8">
-          <div className="text-center mb-6">
-            <h3 className="text-lg font-black text-foreground">
-              ضمانت‌های رسمی خرید از آناهیکس (Anahix)
-            </h3>
-            <p className="text-xs text-muted-foreground mt-1">
-              ساختار امنیتی و استانداردهای پرداختی منطبق با بانکداری بین‌المللی
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-right">
-            <div className="p-4 rounded-2xl bg-muted/40 border border-border/60 space-y-2">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-950/80 text-blue-600 font-black">
-                <Zap className="h-5 w-5" />
+        {/* SECTION 5: 4-PILLAR REASSURANCE TRUST GRID (CUSTOMIZABLE) */}
+        {product.instructions !== 'hide' && product.instructions !== 'none' && (
+          <section className="rounded-surface border border-border/80 bg-card p-6 sm:p-8 shadow-surface">
+            {product.instructions?.trim() &&
+            product.instructions !== 'default' ? (
+              <div className="space-y-4">
+                <MarkdownRenderer content={product.instructions} />
               </div>
-              <h4 className="font-bold text-xs sm:text-sm text-foreground">
-                تحویل آنی و مطمئن
-              </h4>
-              <p className="text-[11px] text-muted-foreground leading-relaxed">
-                صدور ۰ ثانیه‌ای لایسنس‌ها بلافاصله پس از پرداخت بدون کوچکترین
-                معطلی.
-              </p>
-            </div>
+            ) : (
+              <>
+                <div className="text-center mb-6">
+                  <h3 className="text-lg font-black text-foreground">
+                    ضمانت‌های رسمی خرید از {getSiteBrandName()}
+                  </h3>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    ساختار امنیتی و استانداردهای پرداختی منطبق با بانکداری
+                    بین‌المللی
+                  </p>
+                </div>
 
-            <div className="p-4 rounded-2xl bg-muted/40 border border-border/60 space-y-2">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-950/80 text-blue-600 font-black">
-                <ShieldCheck className="h-5 w-5" />
-              </div>
-              <h4 className="font-bold text-xs sm:text-sm text-foreground">
-                ضمانت عدم قطعی
-              </h4>
-              <p className="text-[11px] text-muted-foreground leading-relaxed">
-                پرداخت با مسترکارت قانونی و پوشش کامل گارانتی تعویض ۳۰ روزه.
-              </p>
-            </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-right">
+                  <div className="p-4 rounded-surface bg-muted/30 border border-border/60 space-y-2">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-control bg-primary/10 text-primary font-black">
+                      <Zap className="h-5 w-5" />
+                    </div>
+                    <h4 className="font-bold text-xs sm:text-sm text-foreground">
+                      تحویل آنی و مطمئن
+                    </h4>
+                    <p className="text-[11px] text-muted-foreground leading-relaxed">
+                      صدور ۰ ثانیه‌ای لایسنس‌ها بلافاصله پس از پرداخت بدون
+                      کوچکترین معطلی.
+                    </p>
+                  </div>
 
-            <div className="p-4 rounded-2xl bg-muted/40 border border-border/60 space-y-2">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-950/80 text-blue-600 font-black">
-                <Lock className="h-5 w-5" />
-              </div>
-              <h4 className="font-bold text-xs sm:text-sm text-foreground">
-                پروتکل Zeroize پسورد
-              </h4>
-              <p className="text-[11px] text-muted-foreground leading-relaxed">
-                امحای کامل و برگشت‌ناپذیر اطلاعات پسورد پس از تکمیل فعال‌سازی.
-              </p>
-            </div>
+                  <div className="p-4 rounded-surface bg-muted/30 border border-border/60 space-y-2">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-control bg-primary/10 text-primary font-black">
+                      <ShieldCheck className="h-5 w-5" />
+                    </div>
+                    <h4 className="font-bold text-xs sm:text-sm text-foreground">
+                      ضمانت عدم قطعی
+                    </h4>
+                    <p className="text-[11px] text-muted-foreground leading-relaxed">
+                      پرداخت با کارت‌های قانونی بین‌المللی و پوشش کامل گارانتی
+                      تعویض ۳۰ روزه.
+                    </p>
+                  </div>
 
-            <div className="p-4 rounded-2xl bg-muted/40 border border-border/60 space-y-2">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-950/80 text-blue-600 font-black">
-                <Headphones className="h-5 w-5" />
-              </div>
-              <h4 className="font-bold text-xs sm:text-sm text-foreground">
-                پشتیبانی ۲۴ ساعته
-              </h4>
-              <p className="text-[11px] text-muted-foreground leading-relaxed">
-                پاسخگویی سریع تیم پشتیبانی فنی در تلگرام (@AnahixSupport).
-              </p>
-            </div>
-          </div>
-        </section>
+                  <div className="p-4 rounded-surface bg-muted/30 border border-border/60 space-y-2">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-control bg-primary/10 text-primary font-black">
+                      <Lock className="h-5 w-5" />
+                    </div>
+                    <h4 className="font-bold text-xs sm:text-sm text-foreground">
+                      پروتکل Zeroize پسورد
+                    </h4>
+                    <p className="text-[11px] text-muted-foreground leading-relaxed">
+                      امحای کامل و برگشت‌ناپذیر اطلاعات پسورد پس از تکمیل
+                      فعال‌سازی.
+                    </p>
+                  </div>
+
+                  <div className="p-4 rounded-surface bg-muted/30 border border-border/60 space-y-2">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-control bg-primary/10 text-primary font-black">
+                      <Headphones className="h-5 w-5" />
+                    </div>
+                    <h4 className="font-bold text-xs sm:text-sm text-foreground">
+                      پشتیبانی ۲۴ ساعته
+                    </h4>
+                    <p className="text-[11px] text-muted-foreground leading-relaxed">
+                      پاسخگویی سریع تیم پشتیبانی فنی و حل آنلاین مشکلات کاربران.
+                    </p>
+                  </div>
+                </div>
+              </>
+            )}
+          </section>
+        )}
       </main>
 
       {/* Cart Drawer */}
@@ -1191,6 +1222,16 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
         order={successOrderModal}
         onClose={() => setSuccessOrderModal(null)}
       />
+
+      {/* Stock Alert Modal */}
+      {product && (
+        <StockAlertModal
+          isOpen={isStockAlertOpen}
+          onClose={() => setIsStockAlertOpen(false)}
+          product={product}
+          planTitle={selectedPlan?.title}
+        />
+      )}
 
       {/* Customer Auth Modal for Gated Instant Buy Action */}
       <AuthModal

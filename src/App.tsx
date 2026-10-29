@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { AnnouncementPopupModal } from './components/AnnouncementPopupModal'
 import { AdminProtectedRoute } from './components/auth/AdminProtectedRoute'
 import { ProtectedRoute } from './components/auth/ProtectedRoute'
 import { NotificationProvider } from './components/vibefarsi/NotificationContext'
@@ -30,6 +31,12 @@ export function App() {
   // Dynamic Site Branding, Favicon & SEO Sync from Database
   useEffect(() => {
     const applyThemeToDocument = (settings: ThemeSettings) => {
+      if (settings.site_name_fa) {
+        try {
+          localStorage.setItem('site_name_fa', settings.site_name_fa)
+        } catch {}
+      }
+
       // 1. Meta Title & Document Title
       if (settings.meta_title) {
         document.title = settings.meta_title
@@ -186,6 +193,7 @@ export function App() {
             {/* 404 Not Found Page for unmatched URLs */}
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
+          <AnnouncementPopupModal />
         </BrowserRouter>
       </NotificationProvider>
     </VibeThemeProvider>

@@ -2,10 +2,11 @@ import {
   AlertCircle,
   Bot,
   Calendar,
+  Check,
   CheckCircle2,
   ChevronDown,
   ChevronUp,
-  Coins,
+  Clock,
   Copy,
   Download,
   Edit2,
@@ -20,6 +21,7 @@ import {
   Plus,
   RefreshCw,
   Search,
+  ShieldCheck,
   Sparkles,
   Table,
   Tag,
@@ -28,7 +30,7 @@ import {
   Zap,
 } from 'lucide-react'
 import type React from 'react'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { apiService } from '../../services/api'
 import type {
@@ -36,12 +38,16 @@ import type {
   InventoryItem,
   InventoryStats,
   ProductPlan,
+  StoreCategory,
 } from '../../types'
+import { getSiteBrandName } from '../../utils/brand'
 import { RichContentEditor } from '../content/RichContentEditor'
 import { ConfirmModal } from '../vibefarsi/ConfirmModal'
 import { ModalCloseButton } from '../vibefarsi/ModalCloseButton'
+import { useNotification } from '../vibefarsi/NotificationContext'
 import { SearchInput } from '../vibefarsi/SearchInput'
 import { ToggleSwitch } from '../vibefarsi/ToggleSwitch'
+import { AdminBotExplorerView } from './AdminBotExplorerView'
 import { AdminHeaderBanner } from './AdminHeaderBanner'
 import { FetchBotModal } from './FetchBotModal'
 
@@ -54,12 +60,28 @@ interface AdminInventoryViewProps {
 export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
   defaultSubTab = 'catalog',
   hideHeaderTabs = false,
-  onOpenFetchBotModal,
+  onOpenFetchBotModal: _onOpenFetchBotModal,
 }) => {
   const [activeSubtab, setActiveSubtab] = useState<'catalog' | 'inventory'>(
     defaultSubTab,
   )
+  const [catalogSourceTab, setCatalogSourceTab] = useState<
+    'store_products' | 'bot_catalog'
+  >('store_products')
+  const { success: notifySuccess, error: notifyError } = useNotification()
+  const [pOriginalPriceToman, setPOriginalPriceToman] = useState<number>(0)
+  const [pDiscountPercent, setPDiscountPercent] = useState<number | string>(0)
+  const [pCostToman, setPCostToman] = useState<number>(0)
   const [localFetchBotOpen, setLocalFetchBotOpen] = useState(false)
+
+  // Bulk Import Keys State
+  const [isBulkImportOpen, setIsBulkImportOpen] = useState(false)
+  const [bulkImportProductId, setBulkImportProductId] = useState('')
+  const [bulkImportItemType, setBulkImportItemType] = useState('license_key')
+  const [bulkImportBatchTag, setBulkImportBatchTag] = useState('')
+  const [bulkImportLines, setBulkImportLines] = useState('')
+  const [bulkImportLoading, setBulkImportLoading] = useState(false)
+  const [copiedKeyId, setCopiedKeyId] = useState<string | number | null>(null)
 
   useEffect(() => {
     if (defaultSubTab) {
@@ -98,6 +120,7 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
     | 'comparison'
     | 'guide'
     | 'faq'
+    | 'trust'
     | 'seo'
   >('general')
   const [pTitleFA, setPTitleFA] = useState('')
@@ -132,11 +155,32 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
   >('none')
   const [pPrePurchaseSnoozeDays, setPPrePurchaseSnoozeDays] = useState(7)
   const [pStockDisplayMode, setPStockDisplayMode] = useState<
-    'show_exact' | 'show_status_only' | 'hide'
+    'show_exact' | 'show_status_only' | 'hide' | 'custom_text'
   >('show_exact')
+  const [pStockMode, setPStockMode] = useState<
+    'auto' | 'always_in_stock' | 'manual' | 'out_of_stock'
+  >('auto')
+  const [pManualStock, setPManualStock] = useState<number>(50)
+  const [pOutOfStockText, setPOutOfStockText] = useState(
+    'در حال تهیه و تامین مجدد',
+  )
+  const [activePlanContext, setActivePlanContext] = useState<string>('base')
   const [pShowProgress, setPShowProgress] = useState(true)
   const [pShowSalesCount, setPShowSalesCount] = useState(true)
   const [pLiveUSDTRate, setPLiveUSDTRate] = useState(98500)
+  const [pMarginPercent, setPMarginPercent] = useState<number | string>(25.0)
+  const [storeCategories, setStoreCategories] = useState<StoreCategory[]>([])
+
+  // Computed distinct group tags from database products
+  const uniqueGroupTags = useMemo(() => {
+    const map = new Map<string, string>()
+    adminProducts.forEach((p) => {
+      if (p.group_tag) {
+        map.set(p.group_tag, p.group_title_fa || p.group_tag)
+      }
+    })
+    return Array.from(map.entries()).map(([tag, title]) => ({ tag, title }))
+  }, [adminProducts])
 
   // Product Image & Merchandising Enhancements
   const [pImageURL, setPImageURL] = useState('')
@@ -192,13 +236,16 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
   const loadData = async () => {
     setLoading(true)
     try {
-      const [statsData, adminProdsData, deliverySettings] = await Promise.all([
-        apiService.getInventoryStats().catch(() => null),
-        apiService.adminListProducts().catch(() => []),
-        apiService.getInstantDeliverySettings().catch(() => null),
-      ])
+      const [statsData, adminProdsData, deliverySettings, storeCats] =
+        await Promise.all([
+          apiService.getInventoryStats().catch(() => null),
+          apiService.adminListProducts().catch(() => []),
+          apiService.getInstantDeliverySettings().catch(() => null),
+          apiService.adminGetStoreCategories().catch(() => []),
+        ])
       if (statsData) setStats(statsData)
       setAdminProducts(adminProdsData)
+      setStoreCategories(storeCats)
       if (deliverySettings?.effective_usd_rate) {
         setPLiveUSDTRate(deliverySettings.effective_usd_rate)
       }
@@ -239,12 +286,16 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
     setPTitleFA('')
     setPTitleEN('')
     setPSlug('')
-    setPCategory('ai_chat')
+    setPCategory(storeCategories[0]?.slug || 'ai_chat')
     setPDeliveryType('instant')
     setPGroupTag('general')
     setPGroupTitleFA('')
     setPPriceToman(500000)
     setPBaseCostUSD(0)
+    setPMarginPercent(25.0)
+    setPOriginalPriceToman(0)
+    setPDiscountPercent(0)
+    setPCostToman(0)
     setPSLAMin(10)
     setPSLAMax(30)
     setPSLAText('تحویل ۱۰ الی ۳۰ دقیقه')
@@ -270,6 +321,10 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
     setPPrePurchaseNoticeMode('none')
     setPPrePurchaseSnoozeDays(7)
     setPStockDisplayMode('show_exact')
+    setPStockMode('auto')
+    setPManualStock(50)
+    setPOutOfStockText('در حال تهیه و تامین مجدد')
+    setActivePlanContext('base')
     setPShowProgress(true)
     setPShowSalesCount(true)
     setPImageURL('')
@@ -300,6 +355,24 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
     setPGroupTitleFA(p.group_title_fa || '')
     setPPriceToman(p.price_toman || 0)
     setPBaseCostUSD(p.base_cost_usd || 0)
+    const origPrice = p.original_price_toman || 0
+    setPOriginalPriceToman(origPrice)
+    if (p.discount_percent && p.discount_percent > 0) {
+      setPDiscountPercent(p.discount_percent)
+    } else if (origPrice > (p.price_toman || 0) && origPrice > 0) {
+      const d = ((origPrice - (p.price_toman || 0)) / origPrice) * 100
+      setPDiscountPercent(parseFloat(d.toFixed(1)))
+    } else {
+      setPDiscountPercent(0)
+    }
+    setPCostToman(Math.round((p.base_cost_usd || 0) * pLiveUSDTRate))
+    if (p.base_cost_usd && p.base_cost_usd > 0 && pLiveUSDTRate > 0) {
+      const sellUSD = (p.price_toman || 0) / pLiveUSDTRate
+      const m = ((sellUSD - p.base_cost_usd) / p.base_cost_usd) * 100.0
+      setPMarginPercent(parseFloat(m.toFixed(2)))
+    } else {
+      setPMarginPercent(25.0)
+    }
     setPSLAMin(p.sla_min_minutes || 10)
     setPSLAMax(p.sla_max_minutes || 30)
     setPSLAText(p.sla_display_text || '')
@@ -319,6 +392,10 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
     setPPrePurchaseNoticeMode(p.pre_purchase_notice_mode || 'none')
     setPPrePurchaseSnoozeDays(p.pre_purchase_snooze_days || 7)
     setPStockDisplayMode(p.stock_display_mode || 'show_exact')
+    setPStockMode((p.stock_mode as any) || 'auto')
+    setPManualStock(p.manual_stock || 50)
+    setPOutOfStockText(p.out_of_stock_text || 'در حال تهیه و تامین مجدد')
+    setActivePlanContext('base')
     setPShowProgress(p.show_progress !== false)
     setPShowSalesCount(p.show_sales_count !== false)
     setPImageURL(p.image_url || '')
@@ -473,10 +550,8 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
       .map((s) => s.trim())
       .filter(Boolean)
 
-    let finalPlansJSON = pPlansJSON.trim()
-    if (!finalPlansJSON && pPlans.length > 0) {
-      finalPlansJSON = JSON.stringify(pPlans, null, 2)
-    }
+    const finalPlansJSON =
+      pPlans.length > 0 ? JSON.stringify(pPlans, null, 2) : pPlansJSON.trim()
 
     const payload: Partial<AdminProduct> = {
       title_fa: pTitleFA.trim(),
@@ -487,6 +562,8 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
       group_tag: pGroupTag,
       group_title_fa: pGroupTitleFA.trim() || undefined,
       price_toman: Number(pPriceToman),
+      original_price_toman: Number(pOriginalPriceToman) || undefined,
+      discount_percent: Number(pDiscountPercent) || undefined,
       base_cost_usd: Number(pBaseCostUSD) || 0,
       sla_min_minutes: Number(pSLAMin) || 10,
       sla_max_minutes: Number(pSLAMax) || 30,
@@ -527,6 +604,9 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
       pre_purchase_notice_mode: pPrePurchaseNoticeMode,
       pre_purchase_snooze_days: pPrePurchaseSnoozeDays,
       stock_display_mode: pStockDisplayMode,
+      stock_mode: pStockMode,
+      manual_stock: Number(pManualStock) || 0,
+      out_of_stock_text: pOutOfStockText.trim() || undefined,
       show_sales_count: pShowSalesCount,
       show_progress: pShowProgress,
       plans_json: finalPlansJSON || undefined,
@@ -619,11 +699,12 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
   }
 
   const handleGenerateDefaultSEO = () => {
-    const title = pTitleFA.trim() || 'سرویس هوش مصنوعی'
-    setPMetaTitle(`خرید ${title} | تحویل آنی و قانونی - آناهیکس`)
+    const title = pTitleFA.trim() || 'سرویس دیجیتال'
+    const brandName = getSiteBrandName()
+    setPMetaTitle(`خرید ${title} | تحویل آنی و قانونی - ${brandName}`)
     setPMetaDescription(
       pDescription.trim() ||
-        `خرید اشتراک قانونی ${title} با تحویل فوری، گارانتی عدم قطعی ۳۰ روزه، پرداخت شتابی و پشتیبانی ۲۴ ساعته در آناهیکس.`,
+        `خرید اشتراک قانونی ${title} با تحویل فوری، گارانتی عدم قطعی، پرداخت شتابی و پشتیبانی ۲۴ ساعته در ${brandName}.`,
     )
     setPOgImageURL('/assets/hero.png')
   }
@@ -878,7 +959,7 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
               description:
                 'روی لینک کلیک کرده یا مشخصات را در وب‌سایت مرجع وارد کنید و بلافاصله از تمامی امکانات پریمیوم لذت ببرید.',
               icon: 'sparkles',
-              tip: 'در صورت داشتن هرگونه سوال، تیم فنی آناهیکس آماده پشتیبانی است.',
+              tip: 'در صورت داشتن هرگونه سوال، تیم پشتیبانی فنی آماده راهنمایی شماست.',
             },
           ],
           null,
@@ -1081,6 +1162,47 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
     }
   }
 
+  const handleBulkImportSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!bulkImportProductId || !bulkImportLines.trim()) return
+
+    const lines = bulkImportLines
+      .split('\n')
+      .map((l) => l.trim())
+      .filter(Boolean)
+
+    if (lines.length === 0) return
+
+    setBulkImportLoading(true)
+    try {
+      const resp = await apiService.bulkImportInventory({
+        product_id: bulkImportProductId,
+        item_type: bulkImportItemType,
+        items: lines,
+        batch_tag: bulkImportBatchTag.trim() || undefined,
+      })
+      notifySuccess(
+        'واردسازی موفق',
+        `${resp.imported_count || lines.length} قلم کلید لایسنس جدید با موفقیت در انبار ثبت گردید.`,
+      )
+      setIsBulkImportOpen(false)
+      setBulkImportLines('')
+      setBulkImportBatchTag('')
+      loadData()
+    } catch (err: any) {
+      notifyError('خطا در واردسازی', err.message)
+    } finally {
+      setBulkImportLoading(false)
+    }
+  }
+
+  const handleCopyKey = (keyText: string, id: string | number) => {
+    navigator.clipboard.writeText(keyText)
+    setCopiedKeyId(id)
+    notifySuccess('کپی شد', 'کلید لایسنس در کلیپ‌بورد کپی شد.')
+    setTimeout(() => setCopiedKeyId(null), 2000)
+  }
+
   const filteredAdminProducts = adminProducts.filter((p) => {
     const q = catalogSearch.toLowerCase().trim()
     const matchesSearch =
@@ -1107,6 +1229,58 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
       it.batch_tag?.toLowerCase().includes(q)
     )
   })
+
+  const renderPlanContextBar = (tabName: string) => {
+    if (pPlans.length === 0) return null
+    return (
+      <div className="p-3 rounded-surface bg-brand/5 border border-brand/20 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-right mb-3">
+        <div className="flex items-center gap-1.5">
+          <Calendar className="w-3.5 h-3.5 text-brand" />
+          <span className="font-bold text-foreground">
+            پیکربندی {tabName} برای دوره:{' '}
+          </span>
+          <span className="font-black text-brand">
+            {activePlanContext === 'base'
+              ? 'تمامی دوره‌ها (سراسری)'
+              : pPlans.find((pl) => pl.id === activePlanContext)?.title ||
+                activePlanContext}
+          </span>
+        </div>
+        <div className="flex items-center gap-1 flex-wrap">
+          <button
+            type="button"
+            onClick={() => setActivePlanContext('base')}
+            className={`px-2 py-0.5 rounded-control text-[10px] font-bold border transition-all cursor-pointer ${
+              activePlanContext === 'base'
+                ? 'bg-brand text-brand-foreground border-brand font-black shadow-xs'
+                : 'bg-card text-muted-foreground hover:text-foreground border-border/40'
+            }`}
+          >
+            تمامی دوره‌ها (سراسری)
+          </button>
+          {pPlans.map((pl, pIdx) => (
+            <button
+              key={pl.id || `pl-ctx-${pIdx}`}
+              type="button"
+              onClick={() => setActivePlanContext(pl.id || `plan-${pIdx}`)}
+              className={`px-2 py-0.5 rounded-control text-[10px] font-bold border transition-all cursor-pointer flex items-center gap-1 ${
+                activePlanContext === (pl.id || `plan-${pIdx}`)
+                  ? 'bg-brand text-brand-foreground border-brand font-black shadow-xs'
+                  : 'bg-card text-muted-foreground hover:text-foreground border-border/40'
+              }`}
+            >
+              <span>{pl.title}</span>
+              {pl.badge && (
+                <span className="text-[9px] px-1 rounded-control bg-brand/15 text-brand font-black">
+                  {pl.badge}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -1195,52 +1369,6 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
         </div>
       )}
 
-      {/* Metrics Row for Inventory */}
-      {activeSubtab === 'inventory' && stats && (
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-right">
-          <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
-            <span className="text-[11px] font-medium text-muted-foreground block">
-              کل موجودی انبار
-            </span>
-            <span className="text-xl font-black text-foreground mt-1 block font-mono">
-              {stats.total_count.toLocaleString('fa-IR')}
-            </span>
-          </div>
-          <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-4 shadow-sm">
-            <span className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400 block">
-              موجود و آماده تحویل
-            </span>
-            <span className="text-xl font-black text-emerald-600 dark:text-emerald-400 mt-1 block font-mono">
-              {stats.available_count.toLocaleString('fa-IR')}
-            </span>
-          </div>
-          <div className="rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4 shadow-sm">
-            <span className="text-[11px] font-medium text-amber-600 dark:text-amber-400 block">
-              رزرو شده موقت
-            </span>
-            <span className="text-xl font-black text-amber-600 dark:text-amber-400 mt-1 block font-mono">
-              {stats.reserved_count.toLocaleString('fa-IR')}
-            </span>
-          </div>
-          <div className="rounded-2xl border border-blue-500/20 bg-blue-500/5 p-4 shadow-sm">
-            <span className="text-[11px] font-medium text-blue-600 dark:text-blue-400 block">
-              فروخته و تحویل شده
-            </span>
-            <span className="text-xl font-black text-blue-600 dark:text-blue-400 mt-1 block font-mono">
-              {stats.sold_delivered_count.toLocaleString('fa-IR')}
-            </span>
-          </div>
-          <div className="rounded-2xl border border-rose-500/20 bg-rose-500/5 p-4 shadow-sm col-span-2 sm:col-span-1">
-            <span className="text-[11px] font-medium text-rose-600 dark:text-rose-400 block">
-              سوخته یا ابطال شده
-            </span>
-            <span className="text-xl font-black text-rose-600 dark:text-rose-400 mt-1 block font-mono">
-              {stats.void_count.toLocaleString('fa-IR')}
-            </span>
-          </div>
-        </div>
-      )}
-
       {/* SUBTAB 0: PRODUCT CATALOG MANAGEMENT */}
       {activeSubtab === 'catalog' && (
         <div className="space-y-4">
@@ -1302,22 +1430,34 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
             </div>
 
             {/* Action Buttons: Fetch from Bots & Manual Creation */}
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  if (onOpenFetchBotModal) {
-                    onOpenFetchBotModal()
-                  } else {
-                    setLocalFetchBotOpen(true)
-                  }
-                }}
-                className="h-9 px-3.5 rounded-control border border-brand/40 bg-brand/10 hover:bg-brand/20 text-brand text-xs font-black duration-motion ease-motion active:scale-[0.98] shadow-control transition-all flex items-center gap-1.5 cursor-pointer"
-                title="دریافت و ایمپورت مستقیم از کاتالوگ ربات‌ها"
-              >
-                <Bot className="h-4 w-4" />
-                <span>دریافت هوشمند از ربات‌ها</span>
-              </button>
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-center gap-1.5 p-1 rounded-control bg-muted/40 border border-border/60">
+                <button
+                  type="button"
+                  onClick={() => setCatalogSourceTab('store_products')}
+                  className={`px-3 py-1.5 rounded-control text-xs font-bold transition-all cursor-pointer ${
+                    catalogSourceTab === 'store_products'
+                      ? 'bg-primary text-primary-foreground font-black shadow-control'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  <Package className="w-3.5 h-3.5 inline ml-1.5" />
+                  <span>محصولات فروشگاه ({adminProducts.length})</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setCatalogSourceTab('bot_catalog')}
+                  className={`px-3 py-1.5 rounded-control text-xs font-bold transition-all cursor-pointer ${
+                    catalogSourceTab === 'bot_catalog'
+                      ? 'bg-primary text-primary-foreground font-black shadow-control'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  <Bot className="w-3.5 h-3.5 inline ml-1.5 text-brand" />
+                  <span>کاتالوگ زنده ۵ ربات و تامین‌کنندگان</span>
+                </button>
+              </div>
 
               <button
                 type="button"
@@ -1330,253 +1470,330 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
             </div>
           </div>
 
-          {/* Products Table */}
-          <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-sm">
-            {loading ? (
-              <div className="py-20 flex flex-col items-center justify-center text-muted-foreground gap-3">
-                <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-                <span className="text-xs">
-                  در حال بارگذاری کاتالوگ محصولات...
-                </span>
-              </div>
-            ) : filteredAdminProducts.length === 0 ? (
-              <div className="py-16 text-center text-muted-foreground space-y-3">
-                <Package className="h-12 w-12 mx-auto text-muted-foreground/40 stroke-1" />
-                <div className="text-sm font-semibold">
-                  محصولی در کاتالوگ یافت نشد
+          {/* Conditional View: Store Products vs Bot Live Catalog */}
+          {catalogSourceTab === 'bot_catalog' ? (
+            <AdminBotExplorerView onProductImported={() => loadData()} />
+          ) : (
+            /* Products Table */
+            <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-sm">
+              {loading ? (
+                <div className="py-20 flex flex-col items-center justify-center text-muted-foreground gap-3">
+                  <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+                  <span className="text-xs">
+                    در حال بارگذاری کاتالوگ محصولات...
+                  </span>
                 </div>
-                <p className="text-xs max-w-sm mx-auto text-muted-foreground/70">
-                  محصولات پیش‌فرض هاردکد با موفقیت حذف شدند. اکنون می‌توانید اولین
-                  محصول فروشگاه را با مشخصات دلخواه ایجاد کنید.
-                </p>
-                <button
-                  type="button"
-                  onClick={openCreateProductModal}
-                  className="mt-2 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition"
-                >
-                  <Plus className="h-4 w-4" />
-                  <span>ایجاد اولین محصول</span>
-                </button>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-center text-xs">
-                  <thead className="bg-muted/40 text-muted-foreground border-b border-border text-[11px] font-semibold select-none">
-                    <tr>
-                      <th className="p-3.5 text-right pr-6">
-                        محصول، تصویر و عنوان
-                      </th>
-                      <th className="p-3.5 text-center">
-                        دسته‌بندی و شیوه تحویل
-                      </th>
-                      <th className="p-3.5 text-center">قیمت فروش</th>
-                      <th className="p-3.5 text-center">قیمت تمام‌شده</th>
-                      <th className="p-3.5 text-center">موجودی / SLA</th>
-                      <th className="p-3.5 text-center">وضعیت</th>
-                      <th className="p-3.5 text-center">عملیات</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border">
-                    {filteredAdminProducts.map((p) => (
-                      <tr key={p.id} className="hover:bg-muted/30 transition">
-                        <td className="p-3.5 text-right pr-6">
-                          <div className="flex items-center gap-3">
-                            <div className="relative w-12 h-12 rounded-control bg-secondary border border-border/60 overflow-hidden shrink-0 flex items-center justify-center">
-                              {p.image_url ? (
-                                <img
-                                  src={p.image_url}
-                                  alt={p.title_fa}
-                                  className="w-full h-full object-cover"
-                                />
-                              ) : (
-                                <Package className="w-6 h-6 text-muted-foreground/50" />
-                              )}
-                              {p.icon_url && (
-                                <img
-                                  src={p.icon_url}
-                                  alt="آیکون"
-                                  className="absolute bottom-0.5 right-0.5 w-4 h-4 rounded-full bg-card p-0.5 border border-border/60 shadow-xs"
-                                />
-                              )}
+              ) : filteredAdminProducts.length === 0 ? (
+                <div className="py-16 text-center text-muted-foreground space-y-3">
+                  <Package className="h-12 w-12 mx-auto text-muted-foreground/40 stroke-1" />
+                  <div className="text-sm font-semibold">
+                    محصولی در کاتالوگ یافت نشد
+                  </div>
+                  <p className="text-xs max-w-sm mx-auto text-muted-foreground/70">
+                    محصولات پیش‌فرض هاردکد با موفقیت حذف شدند. اکنون می‌توانید
+                    اولین محصول فروشگاه را با مشخصات دلخواه ایجاد کنید.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={openCreateProductModal}
+                    className="mt-2 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition"
+                  >
+                    <Plus className="h-4 w-4" />
+                    <span>ایجاد اولین محصول</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-center text-xs">
+                    <thead className="bg-muted/40 text-muted-foreground border-b border-border/60 text-[11px] font-bold select-none">
+                      <tr>
+                        <th className="p-3.5 text-center">
+                          محصول، تصویر و عنوان
+                        </th>
+                        <th className="p-3.5 text-center">
+                          دسته‌بندی و شیوه تحویل
+                        </th>
+                        <th className="p-3.5 text-center">
+                          قیمت فروش و بهای خرید (تومان)
+                        </th>
+                        <th className="p-3.5 text-center">
+                          موجودی انبار و زمان تحویل
+                        </th>
+                        <th className="p-3.5 text-center">وضعیت انتشار</th>
+                        <th className="p-3.5 text-center">عملیات</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border/60">
+                      {filteredAdminProducts.map((p) => (
+                        <tr key={p.id} className="hover:bg-muted/30 transition">
+                          <td className="p-3.5 text-center">
+                            <div className="flex items-center justify-center gap-3">
+                              <div className="relative w-12 h-12 rounded-control bg-secondary border border-border/60 overflow-hidden shrink-0 flex items-center justify-center">
+                                {p.image_url ? (
+                                  <img
+                                    src={p.image_url}
+                                    alt={p.title_fa}
+                                    className="w-full h-full object-cover"
+                                  />
+                                ) : (
+                                  <Package className="w-6 h-6 text-muted-foreground/50" />
+                                )}
+                                {p.icon_url && (
+                                  <img
+                                    src={p.icon_url}
+                                    alt="آیکون"
+                                    className="absolute bottom-0.5 right-0.5 w-4 h-4 rounded-full bg-card p-0.5 border border-border/60 shadow-xs"
+                                  />
+                                )}
+                              </div>
+                              <div className="text-right min-w-0">
+                                <div className="font-bold text-foreground flex items-center gap-2">
+                                  <span>{p.title_fa}</span>
+                                  {p.group_tag && (
+                                    <span className="text-[10px] px-2 py-0.5 rounded-control bg-brand/10 text-brand font-mono font-latin">
+                                      {p.group_tag}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="text-[11px] text-muted-foreground mt-0.5 flex items-center gap-1.5 font-latin">
+                                  <span>{p.title}</span>
+                                  <span className="text-[10px] text-muted-foreground/70">
+                                    ({p.slug})
+                                  </span>
+                                </div>
+                              </div>
                             </div>
-                            <div>
-                              <div className="font-bold text-foreground flex items-center gap-2">
-                                <span>{p.title_fa}</span>
-                                {p.group_tag && (
-                                  <span className="text-[10px] px-2 py-0.5 rounded-control bg-brand/10 text-brand font-mono font-latin">
-                                    {p.group_tag}
+                          </td>
+                          <td className="p-3.5 text-center">
+                            <div className="flex flex-col gap-1 items-center justify-center">
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-secondary text-secondary-foreground">
+                                {p.category === 'ai_chat'
+                                  ? 'هوش مصنوعی'
+                                  : p.category === 'coding_ai'
+                                    ? 'دستیار کد'
+                                    : p.category === 'personal_upgrade'
+                                      ? 'ارتقای اکانت'
+                                      : p.category === 'vpn'
+                                        ? 'شبکه و VPN'
+                                        : p.category}
+                              </span>
+                              <span
+                                className={`text-[10px] font-semibold flex items-center gap-1 ${
+                                  p.delivery_type === 'instant'
+                                    ? 'text-emerald-500'
+                                    : 'text-amber-500'
+                                }`}
+                              >
+                                {p.delivery_type === 'instant'
+                                  ? '⚡ تحویل آنی خودکار'
+                                  : '👤 دستی اپراتور (Mode C)'}
+                              </span>
+                            </div>
+                          </td>
+
+                          {/* Vertical Price Stacked Column */}
+                          <td className="p-3.5 text-center font-latin">
+                            <div className="font-black text-sm text-foreground">
+                              {Number(p.price_toman).toLocaleString('fa-IR')}{' '}
+                              <span className="text-[10px] font-normal text-muted-foreground font-sans">
+                                تومان
+                              </span>
+                            </div>
+                            {p.base_cost_usd > 0 ? (
+                              <div className="text-[10px] text-muted-foreground mt-0.5">
+                                خرید:{' '}
+                                {Math.round(
+                                  p.base_cost_usd * pLiveUSDTRate,
+                                ).toLocaleString('fa-IR')}{' '}
+                                ت
+                                {p.price_toman >
+                                  Math.round(
+                                    p.base_cost_usd * pLiveUSDTRate,
+                                  ) && (
+                                  <span className="text-emerald-500 font-bold mr-1">
+                                    (+
+                                    {(
+                                      p.price_toman -
+                                      Math.round(
+                                        p.base_cost_usd * pLiveUSDTRate,
+                                      )
+                                    ).toLocaleString('fa-IR')}{' '}
+                                    ت)
                                   </span>
                                 )}
                               </div>
-                              <div className="text-[11px] text-muted-foreground mt-0.5 flex items-center gap-1.5 font-latin">
-                                <span>{p.title}</span>
-                                <span className="text-[10px] text-muted-foreground/70">
-                                  ({p.slug})
-                                </span>
+                            ) : (
+                              <div className="text-[10px] text-muted-foreground/60 mt-0.5">
+                                بدون هزینه ارزی
                               </div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="p-3.5 text-center">
-                          <div className="flex flex-col gap-1 items-center justify-center">
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-secondary text-secondary-foreground">
-                              {p.category === 'ai_chat'
-                                ? 'هوش مصنوعی'
-                                : p.category === 'coding_ai'
-                                  ? 'دستیار کد'
-                                  : p.category === 'personal_upgrade'
-                                    ? 'ارتقای اکانت'
-                                    : p.category === 'vpn'
-                                      ? 'شبکه و VPN'
-                                      : p.category}
-                            </span>
-                            <span
-                              className={`text-[10px] font-semibold flex items-center gap-1 ${
-                                p.delivery_type === 'instant'
-                                  ? 'text-emerald-500'
-                                  : 'text-amber-500'
-                              }`}
-                            >
-                              {p.delivery_type === 'instant'
-                                ? '⚡ تحویل آنی خودکار'
-                                : '👤 دستی اپراتور (Mode C)'}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="p-3.5 font-bold font-mono text-foreground text-center font-latin">
-                          {p.price_toman.toLocaleString('fa-IR')}{' '}
-                          <span className="text-[10px] font-normal text-muted-foreground font-sans">
-                            تومان
-                          </span>
-                        </td>
-                        <td className="p-3.5 font-mono text-muted-foreground text-center font-latin">
-                          {p.base_cost_usd > 0 ? (
-                            <div className="group/cost relative inline-block cursor-help">
-                              <span className="border-b border-dashed border-border/80 hover:text-foreground transition-colors font-bold">
-                                ${p.base_cost_usd.toFixed(2)}
-                              </span>
-                              {/* Hover Tooltip showing Toman equivalent */}
-                              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover/cost:flex flex-col items-center z-[130] pointer-events-none whitespace-nowrap animate-in fade-in zoom-in-95">
-                                <div className="bg-popover text-popover-foreground border border-border px-3 py-1.5 rounded-control shadow-xl text-xs text-right font-sans">
-                                  <div className="font-bold text-foreground flex items-center gap-1">
-                                    <Coins className="w-3.5 h-3.5 text-emerald-500" />
-                                    <span>قیمت تمام‌شده به تومان:</span>
-                                  </div>
-                                  <div className="font-mono font-latin text-emerald-500 font-bold text-sm mt-0.5">
-                                    {Math.round(
-                                      p.base_cost_usd * 98500,
-                                    ).toLocaleString('fa-IR')}{' '}
-                                    تومان
-                                  </div>
-                                  <div className="text-[10px] text-muted-foreground mt-0.5">
-                                    بر مبنای نرخ حواله دلار / تتر (۹۸,۵۰۰ تومان)
-                                  </div>
-                                </div>
-                                <div className="w-2 h-2 bg-popover border-b border-r border-border rotate-45 -mt-1" />
-                              </div>
-                            </div>
-                          ) : (
-                            <span className="text-muted-foreground/40">-</span>
-                          )}
-                        </td>
-                        <td className="p-3.5 text-center">
-                          {p.delivery_type === 'instant' ? (
+                            )}
+                          </td>
+
+                          {/* Vertical Stock & Delivery Stacked Column */}
+                          <td className="p-3.5 text-center">
                             <div className="flex items-center justify-center gap-1.5 font-mono font-latin">
                               <span
                                 className={`h-2 w-2 rounded-full ${
-                                  (p.available_stock ?? 0) > 0
-                                    ? 'bg-emerald-500'
-                                    : 'bg-rose-500'
+                                  p.stock_mode === 'out_of_stock'
+                                    ? 'bg-rose-500'
+                                    : p.stock_mode === 'always_in_stock'
+                                      ? 'bg-emerald-500 animate-pulse'
+                                      : (p.available_stock ?? 0) > 0 ||
+                                          p.delivery_type !== 'instant'
+                                        ? 'bg-emerald-500'
+                                        : 'bg-rose-500'
                                 }`}
                               />
-                              <span className="font-mono font-bold">
-                                {(p.available_stock ?? 0).toLocaleString(
-                                  'fa-IR',
-                                )}
-                              </span>
-                              <span className="text-[10px] text-muted-foreground font-sans">
-                                کلید موجود
+                              <span className="font-mono font-bold text-xs">
+                                {p.stock_mode === 'always_in_stock'
+                                  ? 'همیشه موجود (سفارش‌پذیر)'
+                                  : p.stock_mode === 'manual'
+                                    ? `${(p.manual_stock || 0).toLocaleString('fa-IR')} عدد دستی`
+                                    : p.stock_mode === 'out_of_stock'
+                                      ? p.out_of_stock_text || 'ناموجود'
+                                      : (p.available_stock ?? 0) > 0
+                                        ? `${(p.available_stock ?? 0).toLocaleString('fa-IR')} کلید موجود در انبار`
+                                        : p.out_of_stock_text ||
+                                          'اتمام موجودی (۰)'}
                               </span>
                             </div>
-                          ) : (
-                            <div className="text-[11px] text-muted-foreground text-center">
-                              {p.sla_display_text ||
-                                `${p.sla_min_minutes} الی ${p.sla_max_minutes} دقیقه`}
+                            <div className="text-[10px] text-muted-foreground mt-0.5">
+                              {p.delivery_type === 'instant'
+                                ? '⚡ تحویل آنی خودکار'
+                                : p.sla_display_text ||
+                                  `${p.sla_min_minutes} الی ${p.sla_max_minutes} دقیقه`}
                             </div>
-                          )}
-                        </td>
-                        <td className="p-3.5 text-center">
-                          <button
-                            type="button"
-                            onClick={() => handleToggleProductActive(p)}
-                            className={`px-2.5 py-1 rounded-control text-[10px] font-bold transition flex items-center justify-center gap-1 mx-auto cursor-pointer border ${
-                              p.is_active
-                                ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30'
-                                : 'bg-muted text-muted-foreground border-border/60 hover:bg-muted/80'
-                            }`}
-                            title="کلیک برای تغییر وضعیت"
-                          >
-                            <span
-                              className={`h-1.5 w-1.5 rounded-full ${p.is_active ? 'bg-emerald-500' : 'bg-muted-foreground'}`}
-                            />
-                            <span>
-                              {p.is_active ? 'فعال در فروشگاه' : 'غیرفعال'}
-                            </span>
-                          </button>
-                        </td>
-                        <td className="p-3.5 text-center">
-                          <div className="flex items-center justify-center gap-1.5">
-                            <a
-                              href={`/products/${p.slug}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="h-8 w-8 rounded-control border border-border/60 bg-secondary flex items-center justify-center text-muted-foreground hover:text-emerald-500 hover:bg-muted transition shadow-xs"
-                              title="مشاهده صفحه اختصاصی محصول در فروشگاه (PDP)"
-                            >
-                              <ExternalLink className="h-3.5 w-3.5" />
-                            </a>
+                            <div className="text-[10px] font-medium text-muted-foreground/80 mt-0.5">
+                              نمایش به مشتری:{' '}
+                              {p.stock_display_mode === 'hide'
+                                ? 'مخفی'
+                                : p.stock_display_mode === 'show_status_only'
+                                  ? 'فقط وضعیت'
+                                  : p.stock_display_mode === 'custom_text'
+                                    ? 'متن دلخواه'
+                                    : 'عدد دقیق'}
+                            </div>
+                          </td>
+
+                          {/* Active Status */}
+                          <td className="p-3.5 text-center">
                             <button
                               type="button"
-                              onClick={() => openEditProductModal(p)}
-                              className="h-8 w-8 rounded-control border border-border/60 bg-secondary flex items-center justify-center text-muted-foreground hover:text-brand hover:bg-muted transition shadow-xs cursor-pointer"
-                              title="ویرایش محصول"
+                              onClick={() => handleToggleProductActive(p)}
+                              className={`px-2.5 py-1 rounded-control text-[10px] font-bold transition flex items-center justify-center gap-1 mx-auto cursor-pointer border ${
+                                p.is_active
+                                  ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30'
+                                  : 'bg-muted text-muted-foreground border-border/60 hover:bg-muted/80'
+                              }`}
+                              title="کلیک برای تغییر وضعیت"
                             >
-                              <Edit2 className="h-3.5 w-3.5" />
+                              <span
+                                className={`h-1.5 w-1.5 rounded-full ${p.is_active ? 'bg-emerald-500' : 'bg-muted-foreground'}`}
+                              />
+                              <span>
+                                {p.is_active ? 'فعال در فروشگاه' : 'غیرفعال'}
+                              </span>
                             </button>
-                            <button
-                              type="button"
-                              onClick={() => openDeleteModal(p)}
-                              className="h-8 w-8 rounded-control border border-destructive/20 bg-secondary flex items-center justify-center text-destructive hover:bg-destructive/10 transition shadow-xs cursor-pointer"
-                              title="حذف محصول"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
+                          </td>
+
+                          {/* Actions (Unified with Blog / Content style) */}
+                          <td className="p-3.5 text-center">
+                            <div className="flex items-center justify-center gap-1.5">
+                              <a
+                                href={`/products/${p.slug}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="p-1.5 rounded-control border border-border/60 bg-secondary hover:bg-muted text-foreground hover:text-blue-500 transition-colors cursor-pointer shadow-control"
+                                title="مشاهده در فروشگاه"
+                              >
+                                <ExternalLink className="w-3.5 h-3.5 text-blue-500" />
+                              </a>
+                              <button
+                                type="button"
+                                onClick={() => openEditProductModal(p)}
+                                className="p-1.5 rounded-control border border-border/60 bg-secondary hover:bg-muted text-foreground hover:text-brand transition-colors cursor-pointer shadow-control"
+                                title="ویرایش کامل محصول"
+                              >
+                                <Edit2 className="w-3.5 h-3.5 text-brand" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => openDeleteModal(p)}
+                                className="p-1.5 rounded-control border border-destructive/20 text-destructive hover:bg-destructive/10 transition-colors cursor-pointer shadow-control"
+                                title="حذف محصول"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
       {/* SUBTAB 1: INVENTORY & KEYS */}
       {activeSubtab === 'inventory' && (
         <div className="space-y-4">
+          {/* Top 4 KPI Stat Cards */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+            <div className="p-4 rounded-surface border border-emerald-500/30 bg-emerald-500/5 space-y-1 text-right">
+              <div className="flex items-center justify-between text-emerald-500 text-xs font-bold">
+                <span>کلیدهای موجود و آماده تحویل</span>
+                <CheckCircle2 className="w-4 h-4" />
+              </div>
+              <div className="text-xl sm:text-2xl font-black font-mono font-latin text-foreground">
+                {(stats?.available_count || 0).toLocaleString('fa-IR')}
+              </div>
+            </div>
+
+            <div className="p-4 rounded-surface border border-amber-500/30 bg-amber-500/5 space-y-1 text-right">
+              <div className="flex items-center justify-between text-amber-500 text-xs font-bold">
+                <span>رزروشده در صف پردازش</span>
+                <Clock className="w-4 h-4" />
+              </div>
+              <div className="text-xl sm:text-2xl font-black font-mono font-latin text-foreground">
+                {(stats?.reserved_count || 0).toLocaleString('fa-IR')}
+              </div>
+            </div>
+
+            <div className="p-4 rounded-surface border border-primary/30 bg-primary/5 space-y-1 text-right">
+              <div className="flex items-center justify-between text-primary text-xs font-bold">
+                <span>تحویل‌شده به خریداران</span>
+                <Package className="w-4 h-4" />
+              </div>
+              <div className="text-xl sm:text-2xl font-black font-mono font-latin text-foreground">
+                {(stats?.sold_delivered_count || 0).toLocaleString('fa-IR')}
+              </div>
+            </div>
+
+            <div className="p-4 rounded-surface border border-rose-500/30 bg-rose-500/5 space-y-1 text-right">
+              <div className="flex items-center justify-between text-rose-500 text-xs font-bold">
+                <span>باطل یا سوخته</span>
+                <AlertCircle className="w-4 h-4" />
+              </div>
+              <div className="text-xl sm:text-2xl font-black font-mono font-latin text-foreground">
+                {(stats?.void_count || 0).toLocaleString('fa-IR')}
+              </div>
+            </div>
+          </div>
+
           {/* Action & Filter Toolbar */}
-          <div className="rounded-2xl border border-border bg-card p-4 flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap items-center gap-2">
+          <div className="rounded-surface border border-border/80 bg-card p-4 sm:p-5 flex flex-wrap items-center justify-between gap-3 shadow-surface">
+            <div className="flex flex-wrap items-center gap-2.5">
               {/* Product Select */}
               <select
                 aria-label="فیلتر بر اساس محصول"
                 value={selectedProduct}
                 onChange={(e) => setSelectedProduct(e.target.value)}
-                className="h-9 px-3 rounded-xl border border-border bg-background text-xs font-medium focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="h-9 px-3 rounded-control border border-border/60 bg-secondary text-xs font-bold text-foreground outline-none cursor-pointer"
               >
-                <option value="all">همه محصولات</option>
+                <option value="all">همه محصولات فروشگاه</option>
                 {adminProducts.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.title_fa}
@@ -1589,7 +1806,7 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
                 aria-label="فیلتر بر اساس وضعیت"
                 value={selectedStatus}
                 onChange={(e) => setSelectedStatus(e.target.value)}
-                className="h-9 px-3 rounded-xl border border-border bg-background text-xs font-medium focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="h-9 px-3 rounded-control border border-border/60 bg-secondary text-xs font-bold text-foreground outline-none cursor-pointer"
               >
                 <option value="all">همه وضعیت‌ها</option>
                 <option value="available">موجود (Available)</option>
@@ -1611,54 +1828,70 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
               <button
                 type="button"
                 onClick={() => loadData()}
-                className="h-9 w-9 flex items-center justify-center rounded-xl border border-border hover:bg-muted text-muted-foreground hover:text-foreground transition"
-                title="تازه‌سازی"
+                className="h-9 px-3 rounded-control border border-border/60 bg-secondary text-secondary-foreground text-xs font-bold hover:bg-muted flex items-center gap-1.5 cursor-pointer shadow-control"
+                title="تازه‌سازی لیست کلیدها"
               >
                 <RefreshCw
-                  className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`}
+                  className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-brand' : ''}`}
                 />
               </button>
             </div>
 
-            {/* Export & Replace Buttons */}
-            <div className="flex items-center gap-2">
+            {/* Action Buttons: Add Bulk, Replace, Export */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                type="button"
+                onClick={() => {
+                  setBulkImportProductId(adminProducts[0]?.id || '')
+                  setBulkImportItemType('license_key')
+                  setBulkImportBatchTag('')
+                  setBulkImportLines('')
+                  setIsBulkImportOpen(true)
+                }}
+                className="h-9 px-3.5 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs shadow-control flex items-center gap-1.5 cursor-pointer duration-motion active:scale-[0.98]"
+              >
+                <Plus className="w-4 h-4" />
+                <span>افزودن دسته‌ای کلیدها</span>
+              </button>
+
               <button
                 type="button"
                 onClick={() => setIsReplaceOpen(true)}
-                className="h-9 px-3 rounded-xl border border-border hover:bg-muted text-foreground text-xs font-medium transition flex items-center gap-1.5"
+                className="h-9 px-3 rounded-control border border-border/60 bg-secondary hover:bg-muted text-foreground text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-xs"
               >
-                <RefreshCw className="h-3.5 w-3.5 text-blue-600" />
+                <RefreshCw className="w-3.5 h-3.5 text-brand" />
                 <span>تعویض کلید سفارش (گارانتی)</span>
               </button>
+
               <button
                 type="button"
                 onClick={handleExport}
-                className="h-9 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-sm hover:shadow-blue-500/20"
+                className="h-9 px-3 rounded-control border border-border/60 bg-secondary hover:bg-muted text-foreground text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-xs"
               >
-                <Download className="h-3.5 w-3.5" />
-                <span>خروجی گرفتن از کلیدها (Export)</span>
+                <Download className="w-3.5 h-3.5" />
+                <span>خروجی کلیدها (Export)</span>
               </button>
             </div>
           </div>
 
           {/* Inventory Table */}
-          <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-sm">
+          <div className="rounded-surface border border-border/80 bg-card overflow-hidden shadow-surface">
             {loading ? (
               <div className="py-20 flex flex-col items-center justify-center text-muted-foreground gap-3">
-                <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+                <Loader2 className="h-8 w-8 animate-spin text-brand" />
                 <span className="text-xs">در حال بارگذاری لیست انبار...</span>
               </div>
             ) : filteredItems.length === 0 ? (
               <div className="py-16 text-center text-muted-foreground space-y-2">
                 <Key className="h-10 w-10 mx-auto text-muted-foreground/50 stroke-1" />
                 <div className="text-xs font-medium">
-                  کلیدی با این مشخصات یافت نشد
+                  کلیدی با این مشخصات در انبار یافت نشد.
                 </div>
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-center text-xs">
-                  <thead className="bg-muted/40 text-muted-foreground border-b border-border text-[11px] font-semibold select-none">
+                  <thead className="bg-muted/40 text-muted-foreground border-b border-border/60 text-[11px] font-bold select-none">
                     <tr>
                       <th className="p-3.5 text-center">شناسه</th>
                       <th className="p-3.5 text-center">محصول متصل</th>
@@ -1669,39 +1902,56 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
                       <th className="p-3.5 text-center">برچسب پارت</th>
                       <th className="p-3.5 text-center">سفارش متصل</th>
                       <th className="p-3.5 text-center">تاریخ ثبت</th>
+                      <th className="p-3.5 text-center">عملیات</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-border">
+                  <tbody className="divide-y divide-border/60">
                     {filteredItems.map((it) => (
-                      <tr key={it.id} className="hover:bg-muted/30 transition">
+                      <tr
+                        key={it.id}
+                        className="hover:bg-muted/30 transition-colors"
+                      >
                         <td className="p-3.5 font-mono text-muted-foreground text-center font-latin">
                           #{it.id}
                         </td>
-                        <td className="p-3.5 font-medium text-foreground text-center">
+                        <td className="p-3.5 font-bold text-foreground text-center">
                           {it.product_title || 'سرویس نامشخص'}
                         </td>
-                        <td className="p-3.5 font-mono text-[11px] text-muted-foreground/90 max-w-[220px] truncate text-center font-latin mx-auto">
+                        <td className="p-3.5 font-mono text-[11px] text-muted-foreground max-w-[220px] truncate text-center font-latin mx-auto">
                           {it.payload_preview}
                         </td>
                         <td className="p-3.5 text-center">
                           <span
-                            className={`px-2.5 py-0.5 rounded-control text-[10px] font-bold border ${
+                            className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-control text-[10px] font-bold border ${
                               it.status === 'available'
-                                ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30'
+                                ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
                                 : it.status === 'reserved'
-                                  ? 'bg-amber-500/10 text-amber-500 border-amber-500/30'
+                                  ? 'bg-amber-500/10 text-amber-500 border-amber-500/20'
                                   : it.status === 'sold'
-                                    ? 'bg-brand/10 text-brand border-brand/30'
-                                    : 'bg-rose-500/10 text-rose-500 border-rose-500/30'
+                                    ? 'bg-primary/10 text-primary border-primary/20'
+                                    : 'bg-rose-500/10 text-rose-500 border-rose-500/20'
                             }`}
                           >
-                            {it.status === 'available'
-                              ? 'موجود'
-                              : it.status === 'reserved'
-                                ? 'رزرو شده'
-                                : it.status === 'sold'
-                                  ? 'فروخته شده'
-                                  : 'سوخته/باطل'}
+                            <span
+                              className={`h-1.5 w-1.5 rounded-full ${
+                                it.status === 'available'
+                                  ? 'bg-emerald-400 animate-pulse'
+                                  : it.status === 'reserved'
+                                    ? 'bg-amber-400'
+                                    : it.status === 'sold'
+                                      ? 'bg-primary'
+                                      : 'bg-rose-500'
+                              }`}
+                            />
+                            <span>
+                              {it.status === 'available'
+                                ? 'موجود'
+                                : it.status === 'reserved'
+                                  ? 'رزرو شده'
+                                  : it.status === 'sold'
+                                    ? 'تحویل‌شده'
+                                    : 'سوخته/باطل'}
+                            </span>
                           </span>
                         </td>
                         <td className="p-3.5 font-mono text-[11px] text-muted-foreground text-center font-latin">
@@ -1722,6 +1972,22 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
                                 'fa-IR',
                               )
                             : '-'}
+                        </td>
+                        <td className="p-3.5 text-center">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleCopyKey(it.payload_preview || '', it.id)
+                            }
+                            className="p-1.5 rounded-control border border-border/60 bg-secondary hover:bg-muted text-muted-foreground hover:text-foreground cursor-pointer transition-colors shadow-xs"
+                            title="کپی پیش‌نمایش کلید"
+                          >
+                            {copiedKeyId === it.id ? (
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                            ) : (
+                              <Copy className="w-3.5 h-3.5" />
+                            )}
+                          </button>
                         </td>
                       </tr>
                     ))}
@@ -1892,6 +2158,18 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
                     </button>
                     <button
                       type="button"
+                      onClick={() => setProductModalTab('trust')}
+                      className={`px-3 py-1.5 rounded-control text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer duration-motion active:scale-[0.98] ${
+                        productModalTab === 'trust'
+                          ? 'bg-primary text-primary-foreground font-black shadow-control'
+                          : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+                      }`}
+                    >
+                      <ShieldCheck className="h-3.5 w-3.5" />
+                      <span>۹. ضمانت‌ها و اعتماد خریداران</span>
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => setProductModalTab('seo')}
                       className={`px-3 py-1.5 rounded-control text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer duration-motion active:scale-[0.98] ${
                         productModalTab === 'seo'
@@ -1900,7 +2178,7 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
                       }`}
                     >
                       <Globe className="h-3.5 w-3.5" />
-                      <span>۹. سئو و متادیتا</span>
+                      <span>۱۰. سئو و متادیتا</span>
                     </button>
                   </div>
                 </div>
@@ -1919,6 +2197,77 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
                   {/* TAB 1: GENERAL SETTINGS */}
                   {productModalTab === 'general' && (
                     <div className="space-y-4">
+                      {/* Multi-Plan Active Switcher */}
+                      {pPlans.length > 0 && (
+                        <div className="p-3.5 rounded-surface bg-brand/5 border border-brand/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-right">
+                          <div>
+                            <span className="font-black text-brand text-xs sm:text-sm flex items-center gap-1.5">
+                              <Calendar className="w-4 h-4" />
+                              این محصول دارای {pPlans.length} دوره/پلن اختصاصی
+                              است.
+                            </span>
+                            <span className="text-[11px] text-muted-foreground block mt-0.5">
+                              جهت بارگذاری سریع مشخصات هر دوره روی فرم، روی آن
+                              کلیک فرمایید:
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <button
+                              type="button"
+                              onClick={() => setActivePlanContext('base')}
+                              className={`px-2.5 py-1 rounded-control text-[11px] font-bold border transition-all cursor-pointer ${
+                                activePlanContext === 'base'
+                                  ? 'bg-brand text-brand-foreground border-brand shadow-xs font-black'
+                                  : 'bg-card text-muted-foreground hover:text-foreground border-border/60'
+                              }`}
+                            >
+                              مشخصات کلی
+                            </button>
+                            {pPlans.map((pl, pIdx) => (
+                              <button
+                                key={pl.id || `pl-btn-${pIdx}`}
+                                type="button"
+                                onClick={() => {
+                                  setActivePlanContext(pl.id || `plan-${pIdx}`)
+                                  setPPriceToman(pl.price_toman || pPriceToman)
+                                  if (pl.original_price_toman)
+                                    setPOriginalPriceToman(
+                                      pl.original_price_toman,
+                                    )
+                                  if (pl.base_cost_usd)
+                                    setPBaseCostUSD(pl.base_cost_usd)
+                                  if (pl.external_provider)
+                                    setPExternalProvider(pl.external_provider)
+                                  if (pl.delivery_strategy)
+                                    setPDeliveryStrategy(pl.delivery_strategy)
+                                  if (pl.external_product_id_str)
+                                    setPExternalProductIDStr(
+                                      pl.external_product_id_str,
+                                    )
+                                  notifySuccess(
+                                    'پلن انتخاب شد',
+                                    `مشخصات و قیمت پلن «${pl.title}» روی فرم بارگذاری شد.`,
+                                  )
+                                }}
+                                className={`px-2.5 py-1 rounded-control text-[11px] font-bold border transition-all cursor-pointer flex items-center gap-1 ${
+                                  activePlanContext ===
+                                  (pl.id || `plan-${pIdx}`)
+                                    ? 'bg-brand text-brand-foreground border-brand shadow-xs font-black'
+                                    : 'bg-card hover:bg-muted text-foreground border-border/60'
+                                }`}
+                              >
+                                <span>{pl.title}</span>
+                                {pl.badge && (
+                                  <span className="text-[9px] px-1 rounded-control bg-brand/15 text-brand font-black">
+                                    {pl.badge}
+                                  </span>
+                                )}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
                       {/* Persian & English Titles */}
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
@@ -1936,7 +2285,7 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
                             placeholder="مثال: اکانت چت‌جی‌پی‌تی پلاس ۱ ماهه"
                             value={pTitleFA}
                             onChange={(e) => setPTitleFA(e.target.value)}
-                            className="w-full h-9 px-3 rounded-xl border border-border bg-background focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            className="w-full h-9 px-3 rounded-field border border-border/60 bg-muted/20 text-foreground text-xs outline-none focus:border-brand"
                           />
                         </div>
                         <div>
@@ -1954,12 +2303,12 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
                             placeholder="مثال: ChatGPT Plus 1 Month"
                             value={pTitleEN}
                             onChange={(e) => setPTitleEN(e.target.value)}
-                            className="w-full h-9 px-3 rounded-xl border border-border bg-background focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono"
+                            className="w-full h-9 px-3 rounded-field border border-border/60 bg-muted/20 text-foreground text-xs font-mono font-latin outline-none focus:border-brand"
                           />
                         </div>
                       </div>
 
-                      {/* Slug & Group Tag */}
+                      {/* Slug & Category Row */}
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
                           <label
@@ -1974,7 +2323,7 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
                             placeholder="مثال: chatgpt-plus-personal (خالی = خودکار)"
                             value={pSlug}
                             onChange={(e) => setPSlug(e.target.value)}
-                            className="w-full h-9 px-3 rounded-xl border border-border bg-background focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono"
+                            className="w-full h-9 px-3 rounded-field border border-border/60 bg-muted/20 text-foreground text-xs font-mono font-latin outline-none focus:border-brand"
                           />
                           <span className="text-[10px] text-muted-foreground mt-0.5 block font-mono">
                             آدرس روت اختصاصی: /products/{pSlug || '...'}
@@ -1982,64 +2331,78 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
                         </div>
                         <div>
                           <label
-                            htmlFor="p-group-tag"
-                            className="font-bold text-foreground block mb-1"
-                          >
-                            گروه برند (Group Tag)
-                          </label>
-                          <select
-                            id="p-group-tag"
-                            value={pGroupTag}
-                            onChange={(e) => setPGroupTag(e.target.value)}
-                            className="w-full h-9 px-3 rounded-xl border border-border bg-background focus:outline-none focus:ring-1 focus:ring-blue-500"
-                          >
-                            <option value="general">عمومی (General)</option>
-                            <option value="chatgpt">ChatGPT / OpenAI</option>
-                            <option value="claude">Claude / Anthropic</option>
-                            <option value="gemini">Gemini / Google</option>
-                            <option value="cursor">Cursor AI</option>
-                            <option value="vpn">سرویس‌های VPN</option>
-                          </select>
-                        </div>
-                      </div>
-
-                      {/* Category & Group Tag */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div>
-                          <label
                             htmlFor="p-category"
                             className="font-bold text-foreground block mb-1"
                           >
-                            دسته‌بندی فروشگاه
+                            دسته‌بندی فروشگاه (دریافت زنده از پایگاه داده)
                           </label>
                           <select
                             id="p-category"
                             value={pCategory}
                             onChange={(e) => setPCategory(e.target.value)}
-                            className="w-full h-9 px-3 rounded-xl border border-border bg-background focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            className="w-full h-9 px-3 rounded-control border border-border/60 bg-card text-foreground text-xs font-bold outline-none focus:border-brand cursor-pointer"
                           >
-                            <option value="ai_chat">
-                              هوش مصنوعی و چت‌بات (ai_chat)
-                            </option>
-                            <option value="coding_ai">
-                              دستیار کدنویسی (coding_ai)
-                            </option>
-                            <option value="personal_upgrade">
-                              ارتقای اکانت شخصی (personal_upgrade)
-                            </option>
-                            <option value="ai_account">
-                              اکانت اختصاصی آماده (ai_account)
-                            </option>
-                            <option value="vpn">
-                              فیلترشکن و دور زدن تحریم (vpn)
-                            </option>
-                            <option value="api_key">
-                              کلید API و توسعه‌دهنده (api_key)
-                            </option>
-                            <option value="digital_code">
-                              کد دیجیتال و گیفت‌کارت (digital_code)
-                            </option>
+                            <option value="">-- انتخاب دسته‌بندی --</option>
+                            {storeCategories.map((c) => (
+                              <optgroup
+                                key={c.id}
+                                label={`📁 ${c.title_fa} (${c.slug})`}
+                              >
+                                <option value={c.slug}>
+                                  {c.title_fa} (اصلی)
+                                </option>
+                                {c.children?.map((sub) => (
+                                  <option key={sub.id} value={sub.slug}>
+                                    &nbsp;&nbsp;↳ {sub.title_fa} ({sub.slug})
+                                  </option>
+                                ))}
+                              </optgroup>
+                            ))}
+                            {storeCategories.length === 0 && (
+                              <>
+                                <option value="ai_chat">
+                                  هوش مصنوعی و چت‌بات (ai_chat)
+                                </option>
+                                <option value="coding_ai">
+                                  دستیار کدنویسی (coding_ai)
+                                </option>
+                                <option value="personal_upgrade">
+                                  ارتقای اکانت شخصی (personal_upgrade)
+                                </option>
+                                <option value="ai_account">
+                                  اکانت اختصاصی آماده (ai_account)
+                                </option>
+                              </>
+                            )}
                           </select>
+                        </div>
+                      </div>
+
+                      {/* Group Tag & Group Title Row (Database-driven) */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label
+                            htmlFor="p-group-tag"
+                            className="font-bold text-foreground block mb-1"
+                          >
+                            شناسه گروه برند (Group Tag)
+                          </label>
+                          <input
+                            id="p-group-tag"
+                            list="group-tags-list"
+                            type="text"
+                            placeholder="مثال: gemini یا chatgpt یا vpn"
+                            value={pGroupTag}
+                            onChange={(e) => setPGroupTag(e.target.value)}
+                            className="w-full h-9 px-3 rounded-field border border-border/60 bg-muted/20 text-foreground font-mono font-latin text-xs outline-none focus:border-brand"
+                          />
+                          <datalist id="group-tags-list">
+                            {uniqueGroupTags.map((g) => (
+                              <option key={g.tag} value={g.tag}>
+                                {g.title} ({g.tag})
+                              </option>
+                            ))}
+                          </datalist>
                         </div>
                         <div>
                           <label
@@ -2054,7 +2417,7 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
                             placeholder="مثال: اکوسیستم گوگل و جمینای"
                             value={pGroupTitleFA}
                             onChange={(e) => setPGroupTitleFA(e.target.value)}
-                            className="w-full h-9 px-3 rounded-xl border border-border bg-background focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            className="w-full h-9 px-3 rounded-field border border-border/60 bg-muted/20 text-foreground text-xs outline-none focus:border-brand"
                           />
                         </div>
                       </div>
@@ -2079,16 +2442,18 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
                             </label>
                             <input
                               type="number"
-                              step="0.01"
+                              step="any"
                               min="0"
                               value={pBaseCostUSD}
                               onChange={(e) => {
-                                const cost = Number(e.target.value) || 0
+                                const cost = parseFloat(e.target.value) || 0
                                 setPBaseCostUSD(cost)
+                                const m =
+                                  parseFloat(String(pMarginPercent)) || 0
+                                const sellUSD = cost * (1.0 + m / 100.0)
                                 const sellToman =
-                                  Math.ceil(
-                                    (cost * 1.25 * pLiveUSDTRate) / 500,
-                                  ) * 500
+                                  Math.ceil((sellUSD * pLiveUSDTRate) / 500) *
+                                  500
                                 setPPriceToman(sellToman)
                               }}
                               className="w-full h-9 px-2.5 text-xs rounded-xl border border-border/60 bg-background text-foreground font-mono font-latin outline-none focus:border-brand"
@@ -2101,26 +2466,26 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
                             </label>
                             <input
                               type="number"
-                              step="1"
-                              min="0"
-                              value={
-                                pBaseCostUSD > 0
-                                  ? Math.round(
-                                      ((pPriceToman / pLiveUSDTRate -
-                                        pBaseCostUSD) /
-                                        pBaseCostUSD) *
-                                        100,
-                                    )
-                                  : 25
-                              }
+                              step="any"
+                              value={pMarginPercent}
                               onChange={(e) => {
-                                const m = Number(e.target.value) || 0
-                                const sellUSD = pBaseCostUSD * (1.0 + m / 100.0)
-                                const sellToman =
-                                  Math.ceil((sellUSD * pLiveUSDTRate) / 500) *
-                                  500
-                                setPPriceToman(sellToman)
+                                const valStr = e.target.value
+                                setPMarginPercent(valStr)
+                                const m = parseFloat(valStr)
+                                if (
+                                  !Number.isNaN(m) &&
+                                  pBaseCostUSD > 0 &&
+                                  pLiveUSDTRate > 0
+                                ) {
+                                  const sellUSD =
+                                    pBaseCostUSD * (1.0 + m / 100.0)
+                                  const sellToman =
+                                    Math.ceil((sellUSD * pLiveUSDTRate) / 500) *
+                                    500
+                                  setPPriceToman(sellToman)
+                                }
                               }}
+                              placeholder="مثال: ۲.۲ یا ۰.۰۲"
                               className="w-full h-9 px-2.5 text-xs rounded-xl border border-border/60 bg-background text-foreground font-mono font-latin outline-none focus:border-brand"
                             />
                           </div>
@@ -2136,13 +2501,44 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
 
                           <div className="space-y-1">
                             <label className="text-[11px] font-bold text-muted-foreground block">
-                              تمام‌شده تومانی:
+                              تمام‌شده تومانی (خرید):
                             </label>
-                            <div className="h-9 px-2.5 text-xs rounded-xl border border-border/40 bg-muted/40 text-muted-foreground flex items-center font-mono font-latin">
-                              {Math.round(
-                                pBaseCostUSD * pLiveUSDTRate,
-                              ).toLocaleString('fa-IR')}
-                            </div>
+                            <input
+                              type="number"
+                              step="any"
+                              min="0"
+                              value={
+                                Math.round(pBaseCostUSD * pLiveUSDTRate) ||
+                                pCostToman ||
+                                ''
+                              }
+                              onChange={(e) => {
+                                const cToman = Number(e.target.value) || 0
+                                setPCostToman(cToman)
+                                if (pLiveUSDTRate > 0) {
+                                  setPBaseCostUSD(
+                                    Number((cToman / pLiveUSDTRate).toFixed(2)),
+                                  )
+                                }
+                                const m =
+                                  parseFloat(String(pMarginPercent)) || 0
+                                const sellToman =
+                                  Math.ceil(
+                                    (cToman * (1.0 + m / 100.0)) / 500,
+                                  ) * 500
+                                setPPriceToman(sellToman)
+                              }}
+                              placeholder="مبلغ خرید تومانی"
+                              className="w-full h-9 px-2.5 text-xs rounded-xl border border-border/60 bg-background text-foreground font-mono font-latin outline-none focus:border-brand"
+                            />
+                            <span className="text-[10px] text-muted-foreground block font-latin">
+                              {Number(
+                                Math.round(pBaseCostUSD * pLiveUSDTRate) ||
+                                  pCostToman ||
+                                  0,
+                              ).toLocaleString('fa-IR')}{' '}
+                              تومان
+                            </span>
                           </div>
 
                           <div className="space-y-1">
@@ -2151,29 +2547,279 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
                             </label>
                             <input
                               type="number"
-                              step="500"
+                              step="any"
                               min="0"
                               required
                               value={pPriceToman}
-                              onChange={(e) =>
-                                setPPriceToman(Number(e.target.value) || 0)
-                              }
+                              onChange={(e) => {
+                                const sellToman = Number(e.target.value) || 0
+                                setPPriceToman(sellToman)
+                                const costToman =
+                                  Math.round(pBaseCostUSD * pLiveUSDTRate) ||
+                                  pCostToman ||
+                                  0
+                                if (costToman > 0) {
+                                  const m =
+                                    ((sellToman - costToman) / costToman) *
+                                    100.0
+                                  setPMarginPercent(parseFloat(m.toFixed(2)))
+                                }
+                              }}
                               className="w-full h-9 px-2.5 text-xs font-bold rounded-xl border-2 border-brand bg-background text-foreground font-mono font-latin outline-none focus:ring-2 focus:ring-brand/30"
                             />
+                            <span className="text-[11px] text-brand font-black block font-latin">
+                              {Number(pPriceToman).toLocaleString('fa-IR')}{' '}
+                              تومان
+                            </span>
                           </div>
                         </div>
 
                         <div className="text-[11px] text-muted-foreground flex items-center justify-between pt-0.5">
                           <span>سود تخمینی هر فروش:</span>
-                          <span className="font-mono font-latin font-bold text-emerald-400">
-                            +
+                          <span
+                            className={`font-mono font-latin font-bold ${
+                              pPriceToman >=
+                              Math.round(pBaseCostUSD * pLiveUSDTRate)
+                                ? 'text-emerald-400'
+                                : 'text-rose-500'
+                            }`}
+                          >
+                            {pPriceToman >=
+                            Math.round(pBaseCostUSD * pLiveUSDTRate)
+                              ? '+'
+                              : ''}
                             {(
                               pPriceToman -
                               Math.round(pBaseCostUSD * pLiveUSDTRate)
                             ).toLocaleString('fa-IR')}{' '}
-                            تومان
+                            تومان ({Number(pMarginPercent).toFixed(2)}٪)
                           </span>
                         </div>
+                      </div>
+
+                      {/* Two-Way Strikethrough & Percentage Discount Configuration */}
+                      <div className="p-4 rounded-surface border border-brand/20 bg-brand/5 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-black text-brand flex items-center gap-1.5">
+                            <Sparkles className="w-4 h-4" />
+                            تنظیمات تخفیف و جشنواره فروشگاهی (دو طرفه: درصدی یا
+                            خط‌خورده)
+                          </span>
+                          <span className="text-[11px] text-muted-foreground">
+                            در صورت درج، قیمت قبلی خط‌خورده و بج تخفیف در ویترین
+                            و کارت محصول فعال می‌گردد
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-right">
+                          <div className="space-y-1">
+                            <label className="text-[11px] font-bold text-foreground block">
+                              قیمت اصلی قبل از تخفیف (خط‌خورده به تومان):
+                            </label>
+                            <input
+                              type="number"
+                              step="any"
+                              min="0"
+                              value={pOriginalPriceToman || ''}
+                              onChange={(e) => {
+                                const orig = Number(e.target.value) || 0
+                                setPOriginalPriceToman(orig)
+                                if (orig > pPriceToman && pPriceToman > 0) {
+                                  const d =
+                                    ((orig - pPriceToman) / orig) * 100.0
+                                  setPDiscountPercent(parseFloat(d.toFixed(1)))
+                                } else {
+                                  setPDiscountPercent(0)
+                                }
+                              }}
+                              placeholder="مثلاً: ۵۰۰٬۰۰۰ تومان"
+                              className="w-full h-9 px-3 text-xs rounded-field border border-border/60 bg-card text-foreground font-mono font-latin outline-none focus:border-brand"
+                            />
+                            {pOriginalPriceToman > 0 && (
+                              <span className="text-[10px] text-muted-foreground block font-latin">
+                                {Number(pOriginalPriceToman).toLocaleString(
+                                  'fa-IR',
+                                )}{' '}
+                                تومان
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="text-[11px] font-bold text-foreground block">
+                              درصد تخفیف پیشنهادی (%):
+                            </label>
+                            <input
+                              type="number"
+                              step="any"
+                              min="0"
+                              max="99"
+                              value={pDiscountPercent || ''}
+                              onChange={(e) => {
+                                const dStr = e.target.value
+                                setPDiscountPercent(dStr)
+                                const d = parseFloat(dStr) || 0
+                                if (d > 0 && d < 100) {
+                                  if (pOriginalPriceToman > 0) {
+                                    const newPrice =
+                                      Math.round(
+                                        (pOriginalPriceToman *
+                                          (1.0 - d / 100.0)) /
+                                          500,
+                                      ) * 500
+                                    setPPriceToman(newPrice)
+                                  } else if (pPriceToman > 0) {
+                                    const newOrig =
+                                      Math.round(
+                                        pPriceToman / (1.0 - d / 100.0) / 500,
+                                      ) * 500
+                                    setPOriginalPriceToman(newOrig)
+                                  }
+                                }
+                              }}
+                              placeholder="مثلاً: ۲۰ یا ۱۵.۵"
+                              className="w-full h-9 px-3 text-xs rounded-field border border-border/60 bg-card text-foreground font-mono font-latin outline-none focus:border-brand"
+                            />
+                            {Number(pDiscountPercent) > 0 &&
+                              pOriginalPriceToman > pPriceToman && (
+                                <span className="text-[10px] text-emerald-500 font-bold block font-latin">
+                                  سود خریدار:{' '}
+                                  {(
+                                    pOriginalPriceToman - pPriceToman
+                                  ).toLocaleString('fa-IR')}{' '}
+                                  تومان ({Number(pDiscountPercent)}٪ تخفیف)
+                                </span>
+                              )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Comprehensive Stock & Inventory Management Panel */}
+                      <div className="p-4 rounded-surface border border-border/80 bg-muted/20 space-y-4 text-right">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border/60 pb-3">
+                          <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 rounded-control bg-secondary text-brand flex items-center justify-center border border-border/60 shrink-0">
+                              <Package className="w-4 h-4 text-brand" />
+                            </div>
+                            <div>
+                              <span className="text-xs font-black text-foreground block">
+                                مدیریت جامع موجودی و نحوه نمایش در فروشگاه
+                              </span>
+                              <span className="text-[11px] text-muted-foreground">
+                                تعیین نوع مدیریت موجودی، تعداد در انبار و شیوه
+                                نمایش برچسب به مشتریان
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                          {/* Stock Mode */}
+                          <div className="space-y-1">
+                            <label className="text-[11px] font-bold text-foreground block">
+                              روش مدیریت موجودی کالا:
+                            </label>
+                            <select
+                              value={pStockMode}
+                              onChange={(e: any) =>
+                                setPStockMode(e.target.value)
+                              }
+                              className="w-full h-9 px-3 text-xs rounded-control border border-border/60 bg-card text-foreground font-bold outline-none focus:border-brand cursor-pointer"
+                            >
+                              <option value="auto">
+                                ⚡ خودکار (انبار لایسنس یا بات متصل)
+                              </option>
+                              <option value="always_in_stock">
+                                🟢 همیشه موجود (سفارش‌پذیر نامحدود)
+                              </option>
+                              <option value="manual">
+                                🔢 تعیین تعداد دستی (کسر خودکار با هر خرید)
+                              </option>
+                              <option value="out_of_stock">
+                                🔴 ناموجود دستی (توقف فروش)
+                              </option>
+                            </select>
+                          </div>
+
+                          {/* Manual Stock Count (shown when manual) */}
+                          {pStockMode === 'manual' && (
+                            <div className="space-y-1 animate-in fade-in duration-200">
+                              <label className="text-[11px] font-bold text-foreground block">
+                                تعداد موجودی دستی در انبار (عدد):
+                              </label>
+                              <div className="relative">
+                                <input
+                                  type="number"
+                                  min={0}
+                                  step="1"
+                                  value={pManualStock}
+                                  onChange={(e) =>
+                                    setPManualStock(Number(e.target.value) || 0)
+                                  }
+                                  placeholder="مثلاً: ۵۰"
+                                  className="w-full h-9 px-3 pl-12 text-xs rounded-field border border-border/60 bg-card text-foreground font-mono font-latin outline-none focus:border-brand"
+                                />
+                                <span className="absolute left-3 top-2 text-[10px] text-muted-foreground font-bold">
+                                  عدد
+                                </span>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Display Mode to Buyers */}
+                          <div className="space-y-1">
+                            <label className="text-[11px] font-bold text-foreground block">
+                              نحوه نمایش موجودی این محصول به خریداران در
+                              فروشگاه:
+                            </label>
+                            <select
+                              value={pStockDisplayMode}
+                              onChange={(e: any) =>
+                                setPStockDisplayMode(e.target.value)
+                              }
+                              className="w-full h-9 px-3 text-xs rounded-control border border-border/60 bg-card text-foreground font-bold outline-none focus:border-brand cursor-pointer"
+                            >
+                              <option value="show_exact">
+                                🟢 نمایش عدد دقیق موجودی به خریدار
+                              </option>
+                              <option value="show_status_only">
+                                🟡 فقط نمایش برچسب موجود / محدود
+                              </option>
+                              <option value="hide">
+                                ⚪ عدم نمایش موجودی (مخفی)
+                              </option>
+                            </select>
+                          </div>
+
+                          {/* Out of stock text */}
+                          <div className="space-y-1">
+                            <label className="text-[11px] font-bold text-foreground block">
+                              متن هنگام اتمام موجودی:
+                            </label>
+                            <input
+                              type="text"
+                              value={pOutOfStockText}
+                              onChange={(e) =>
+                                setPOutOfStockText(e.target.value)
+                              }
+                              placeholder="مثلاً: در حال تهیه و تامین مجدد"
+                              className="w-full h-9 px-3 text-xs rounded-field border border-border/60 bg-card text-foreground outline-none focus:border-brand"
+                            />
+                          </div>
+                        </div>
+
+                        {pStockMode === 'manual' && (
+                          <div className="p-2.5 rounded-control bg-secondary/50 border border-border/40 text-[11px] text-muted-foreground flex items-center gap-2">
+                            <span className="text-brand font-black">
+                              ℹ️ کسر خودکار پویا:
+                            </span>
+                            <span>
+                              با هر خرید موفق در سایت، تعداد خریداری‌شده به صورت
+                              خودکار از این موجودی کسر می‌گردد و در صورت رسیدن به
+                              صفر، وضعیت به «ناموجود» تغییر می‌کند.
+                            </span>
+                          </div>
+                        )}
                       </div>
 
                       {/* Description & Overview */}
@@ -2190,7 +2836,7 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
                           placeholder="توضیحات تکمیلی محصول که در صفحه فروشگاه نمایش داده می‌شود..."
                           value={pDescription}
                           onChange={(e) => setPDescription(e.target.value)}
-                          className="w-full p-3 rounded-xl border border-border bg-background focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none"
+                          className="w-full p-3 rounded-field border border-border/60 bg-muted/20 text-foreground text-xs outline-none focus:border-brand resize-none"
                         />
                       </div>
 
@@ -2317,14 +2963,46 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
                           <ToggleSwitch
                             checked={pIsFlashSale}
                             onChange={setPIsFlashSale}
-                            variant="primary"
                             size="sm"
                           />
                         </div>
 
                         {pIsFlashSale && (
                           <div className="space-y-3 pt-3 border-t border-rose-500/20">
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                              <div>
+                                <label className="text-xs font-bold text-foreground block mb-1">
+                                  قیمت قبل تخفیف (خط‌خورده به تومان):
+                                </label>
+                                <input
+                                  type="number"
+                                  min={0}
+                                  step={1000}
+                                  value={pOriginalPriceToman || ''}
+                                  onChange={(e) =>
+                                    setPOriginalPriceToman(
+                                      Number(e.target.value) || 0,
+                                    )
+                                  }
+                                  placeholder="مثال: ۴۵۰۰۰۰"
+                                  className="w-full h-9 px-3 rounded-control border border-border/60 bg-muted/20 text-xs font-mono font-latin outline-none focus:border-brand"
+                                />
+                                {pOriginalPriceToman > pPriceToman && (
+                                  <span className="text-[10px] text-emerald-500 font-bold block mt-0.5 font-latin">
+                                    تخفیف:{' '}
+                                    {(
+                                      pOriginalPriceToman - pPriceToman
+                                    ).toLocaleString('fa-IR')}{' '}
+                                    ت (
+                                    {Math.round(
+                                      ((pOriginalPriceToman - pPriceToman) /
+                                        pOriginalPriceToman) *
+                                        100,
+                                    )}
+                                    ٪)
+                                  </span>
+                                )}
+                              </div>
                               <div>
                                 <label className="text-xs font-bold text-foreground block mb-1">
                                   قیمت جشنواره (تومان) *
@@ -2345,7 +3023,7 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
                               </div>
                               <div>
                                 <label className="text-xs font-bold text-foreground block mb-1">
-                                  تاریخ و زمان پایان مهلت تخفیف (تایمر معکوس)
+                                  پایان مهلت تخفیف (تایمر معکوس)
                                 </label>
                                 <input
                                   type="datetime-local"
@@ -2435,7 +3113,6 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
                           <ToggleSwitch
                             checked={pShowRating}
                             onChange={setPShowRating}
-                            variant="primary"
                             size="sm"
                           />
                         </div>
@@ -2500,6 +3177,32 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
                   {/* TAB 2: DELIVERY & UPSTREAM BOT ROUTING */}
                   {productModalTab === 'delivery' && (
                     <div className="space-y-4">
+                      {pPlans.length > 0 && (
+                        <div className="p-3.5 rounded-surface bg-brand/10 border border-brand/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                          <div>
+                            <span className="font-black text-brand text-xs sm:text-sm flex items-center gap-1.5">
+                              <Calendar className="w-4 h-4" />
+                              این محصول دارای {pPlans.length} دوره/پلن زمانی
+                              است.
+                            </span>
+                            <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
+                              تنظیمات زیر به عنوان پیش‌فرض پایه محصول عمل می‌کنند.
+                              در تب «۳. پلن‌ها و دوره‌ها» می‌توانید برای هر دوره
+                              (مثلاً ۶ ماهه، ۱۸ ماهه و ...) شیوه تحویل، ربات
+                              تامین‌کننده و شناسه محصول را به صورت کاملاً مجزا و
+                              اختصاصی تعیین نمایید.
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setProductModalTab('plans')}
+                            className="px-3 py-1.5 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs shrink-0 self-start sm:self-auto cursor-pointer shadow-control transition-all"
+                          >
+                            مدیریت اختصاصی دوره‌ها ({pPlans.length})
+                          </button>
+                        </div>
+                      )}
+
                       <div className="p-3.5 rounded-surface bg-brand/5 border border-brand/20 flex items-center justify-between text-xs">
                         <div className="flex items-center gap-2">
                           <Zap className="w-4 h-4 text-brand" />
@@ -2530,8 +3233,7 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
                               ⚡ تحویل آنی و خودکار از ربات (Instant via Bot)
                             </option>
                             <option value="local_inventory">
-                              🔑 تحویل آنی از انبار لایسنس محلی آناهیکس (Local
-                              Vault)
+                              🔑 تحویل آنی از انبار لایسنس محلی (Local Vault)
                             </option>
                             <option value="manual_operator">
                               🔷 تحویل دستی در صف اپراتور (Mode C / Operator
@@ -2552,7 +3254,7 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
                             className="w-full h-10 px-3 text-xs rounded-control border border-border/60 bg-card text-foreground outline-none focus:border-brand cursor-pointer font-mono font-latin"
                           >
                             <option value="manual_vault">
-                              انبار محلی آناهیکس (بدون ربات)
+                              انبار محلی داخلی (بدون ربات)
                             </option>
                             <option value="insightx">
                               اینسایت استور (@insightXpro_bot)
@@ -2645,25 +3347,104 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
                           </select>
                         </div>
 
-                        <div className="space-y-1 text-right">
-                          <label className="font-bold text-foreground block">
-                            شیوه نمایش موجودی به خریداران:
-                          </label>
-                          <select
-                            value={pStockDisplayMode}
-                            onChange={(e: any) =>
-                              setPStockDisplayMode(e.target.value)
-                            }
-                            className="w-full h-10 px-3 text-xs rounded-control border border-border/60 bg-card text-foreground outline-none focus:border-brand cursor-pointer"
-                          >
-                            <option value="show_exact">
-                              نمایش عدد دقیق موجودی (مثلاً ۴ عدد در انبار)
-                            </option>
-                            <option value="show_status_only">
-                              فقط نمایش وضعیت (موجود در انبار / محدود)
-                            </option>
-                            <option value="hide">عدم نمایش موجودی</option>
-                          </select>
+                        {/* Comprehensive Stock Management Panel */}
+                        <div className="col-span-1 sm:col-span-2 p-4 rounded-surface border border-border/60 bg-muted/20 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="font-bold text-foreground text-xs flex items-center gap-1.5">
+                              <Package className="w-4 h-4 text-brand" />
+                              مدیریت جامع موجودی و پیام‌های وضعیت فروشگاه (Stock
+                              & Fallback)
+                            </span>
+                            <span className="text-[11px] text-muted-foreground">
+                              تنظیم نحوه شمارش و نمایش پیام‌های ناموجودی به مشتری
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <div className="space-y-1">
+                              <label className="font-bold text-foreground block text-[11px]">
+                                وضعیت پایه موجودی کالا:
+                              </label>
+                              <select
+                                value={pStockMode}
+                                onChange={(e: any) =>
+                                  setPStockMode(e.target.value)
+                                }
+                                className="w-full h-9 px-3 text-xs rounded-control border border-border/60 bg-card text-foreground outline-none focus:border-brand cursor-pointer"
+                              >
+                                <option value="auto">
+                                  ⚡ خودکار (انبار لایسنس یا ربات)
+                                </option>
+                                <option value="always_in_stock">
+                                  🟢 همیشه موجود (سفارش‌پذیر نامحدود)
+                                </option>
+                                <option value="manual">
+                                  🔢 تعداد موجودی دستی (تعیین عدد)
+                                </option>
+                                <option value="out_of_stock">
+                                  🔴 ناموجود دستی (توقف فروش)
+                                </option>
+                              </select>
+                            </div>
+
+                            {pStockMode === 'manual' && (
+                              <div className="space-y-1">
+                                <label className="font-bold text-foreground block text-[11px]">
+                                  تعداد موجودی دستی (عدد):
+                                </label>
+                                <input
+                                  type="number"
+                                  min={0}
+                                  value={pManualStock}
+                                  onChange={(e) =>
+                                    setPManualStock(Number(e.target.value) || 0)
+                                  }
+                                  className="w-full h-9 px-3 text-xs rounded-field border border-border/60 bg-card text-foreground font-mono font-latin outline-none focus:border-brand"
+                                />
+                              </div>
+                            )}
+
+                            <div className="space-y-1">
+                              <label className="font-bold text-foreground block text-[11px]">
+                                شیوه نمایش موجودی به خریدار:
+                              </label>
+                              <select
+                                value={pStockDisplayMode}
+                                onChange={(e: any) =>
+                                  setPStockDisplayMode(e.target.value)
+                                }
+                                className="w-full h-9 px-3 text-xs rounded-control border border-border/60 bg-card text-foreground outline-none focus:border-brand cursor-pointer"
+                              >
+                                <option value="show_exact">
+                                  نمایش عدد دقیق (مثلاً ۵ عدد در انبار)
+                                </option>
+                                <option value="show_status_only">
+                                  فقط نمایش وضعیت (موجود در انبار)
+                                </option>
+                                <option value="custom_text">
+                                  متن سفارشی (مانند تحویل فوری)
+                                </option>
+                                <option value="hide">
+                                  مخفی کردن کامل برچسب
+                                </option>
+                              </select>
+                            </div>
+
+                            <div className="space-y-1">
+                              <label className="font-bold text-foreground block text-[11px]">
+                                متن هنگام اتمام موجودی:
+                              </label>
+                              <input
+                                type="text"
+                                value={pOutOfStockText}
+                                onChange={(e) =>
+                                  setPOutOfStockText(e.target.value)
+                                }
+                                placeholder="مثلاً: در حال تهیه و تامین مجدد"
+                                className="w-full h-9 px-3 text-xs rounded-field border border-border/60 bg-card text-foreground outline-none focus:border-brand"
+                              />
+                            </div>
+                          </div>
                         </div>
                       </div>
 
@@ -2740,6 +3521,7 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
                   {/* TAB: PRE-PURCHASE NOTICE & RICH EDITOR */}
                   {productModalTab === 'notice' && (
                     <div className="space-y-4 text-right">
+                      {renderPlanContextBar('نکات مهم قبل از خرید')}
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-surface bg-muted/20 border border-border/60">
                         <div>
                           <h4 className="text-xs sm:text-sm font-black text-foreground flex items-center gap-1.5">
@@ -2812,6 +3594,7 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
                   {/* TAB: TECHNICAL FEATURES */}
                   {productModalTab === 'features' && (
                     <div className="space-y-4 text-right">
+                      {renderPlanContextBar('ویژگی‌های فنی')}
                       <div>
                         <label className="font-bold text-foreground block mb-1">
                           ویژگی‌ها و مشخصات برجسته محصول (هر ویژگی در یک سطر)
@@ -2843,9 +3626,9 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
                         <button
                           type="button"
                           onClick={handleGenerateDefaultSEO}
-                          className="px-3 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold flex items-center gap-1 shadow-sm"
+                          className="h-8 px-3 rounded-control bg-secondary text-brand hover:bg-muted text-xs font-bold flex items-center gap-1.5 border border-border/60 shadow-xs cursor-pointer duration-motion active:scale-[0.98]"
                         >
-                          <Sparkles className="h-3 w-3" />
+                          <Sparkles className="h-3.5 w-3.5" />
                           <span>تولید خودکار سئو</span>
                         </button>
                       </div>
@@ -2871,10 +3654,10 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
                         <input
                           id="p-meta-title"
                           type="text"
-                          placeholder="مثال: خرید اکانت قانونی ChatGPT Plus | تحویل فوری - آناهیکس"
+                          placeholder="مثال: خرید اکانت قانونی ChatGPT Plus | تحویل فوری"
                           value={pMetaTitle}
                           onChange={(e) => setPMetaTitle(e.target.value)}
-                          className="w-full h-9 px-3 rounded-xl border border-border bg-background focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          className="w-full h-9 px-3 rounded-field border border-border/60 bg-muted/20 text-foreground text-xs outline-none focus:border-brand"
                         />
                       </div>
 
@@ -2902,7 +3685,7 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
                           placeholder="توضیحات جذاب سئو که در نتایج جستجوی گوگل نمایش داده می‌شود..."
                           value={pMetaDescription}
                           onChange={(e) => setPMetaDescription(e.target.value)}
-                          className="w-full p-3 rounded-xl border border-border bg-background focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none leading-relaxed"
+                          className="w-full p-3 rounded-field border border-border/60 bg-muted/20 text-foreground text-xs outline-none focus:border-brand resize-none leading-relaxed"
                         />
                       </div>
 
@@ -2919,7 +3702,7 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
                           placeholder="/assets/hero.png یا آدرس کامل تصویر"
                           value={pOgImageURL}
                           onChange={(e) => setPOgImageURL(e.target.value)}
-                          className="w-full h-9 px-3 rounded-xl border border-border bg-background focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono"
+                          className="w-full h-9 px-3 rounded-field border border-border/60 bg-muted/20 text-foreground text-xs font-mono font-latin outline-none focus:border-brand"
                         />
                       </div>
 
@@ -2935,27 +3718,26 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
                         >
                           <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
                             <div className="h-4 w-4 rounded-full bg-blue-600 flex items-center justify-center text-[9px] text-white font-bold">
-                              A
+                              S
                             </div>
                             <span className="font-medium text-foreground">
-                              آناهیکس (Anahix)
+                              {getSiteBrandName()}
                             </span>
                             <span>›</span>
                             <span className="font-mono text-[10px]" dir="ltr">
-                              https://anahix.ir/products/
-                              {pSlug || 'product-slug'}
+                              /products/{pSlug || 'product-slug'}
                             </span>
                           </div>
                           <h4 className="text-sm font-bold text-blue-600 hover:underline cursor-pointer leading-tight pt-1">
                             {pMetaTitle ||
                               (pTitleFA
-                                ? `خرید ${pTitleFA} | آناهیکس`
-                                : 'عنوان صفحه محصول در آناهیکس')}
+                                ? `خرید ${pTitleFA} | ${getSiteBrandName()}`
+                                : 'عنوان صفحه محصول')}
                           </h4>
                           <p className="text-[11px] text-muted-foreground leading-relaxed line-clamp-2">
                             {pMetaDescription ||
                               pDescription ||
-                              'خرید اشتراک و لایسنس قانونی با تحویل فوری، پرداخت امن شتابی و ضمانت کامل در آناهیکس.'}
+                              `خرید اشتراک و لایسنس قانونی با تحویل فوری، پرداخت امن شتابی و ضمانت کامل در ${getSiteBrandName()}.`}
                           </p>
                         </div>
                       </div>
@@ -2979,7 +3761,7 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
                           <button
                             type="button"
                             onClick={handleGenerateDefaultPlans}
-                            className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm"
+                            className="h-8 px-3 rounded-control bg-secondary text-brand hover:bg-muted text-xs font-bold flex items-center gap-1.5 border border-border/60 shadow-xs cursor-pointer duration-motion active:scale-[0.98]"
                           >
                             <Sparkles className="h-3.5 w-3.5" />
                             <span>تولید خودکار ۳ پلن زمانی</span>
@@ -3053,6 +3835,17 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
                                     placeholder="عنوان پلن"
                                     className="h-7 px-2 font-bold text-foreground bg-transparent border-b border-dashed border-border/80 focus:outline-none focus:border-brand text-xs w-60"
                                   />
+                                  <span className="px-2 py-0.5 rounded-control text-[10px] font-bold bg-primary/10 text-primary border border-primary/20 font-latin">
+                                    تامین:{' '}
+                                    {pl.external_provider ||
+                                      pExternalProvider ||
+                                      'InsightX'}
+                                  </span>
+                                  <span className="px-2 py-0.5 rounded-control text-[10px] font-bold bg-secondary text-secondary-foreground border border-border/40">
+                                    {pl.delivery_strategy === 'manual_operator'
+                                      ? '🔷 دستی اپراتور'
+                                      : '⚡ تحویل آنی'}
+                                  </span>
                                   {pl.badge && (
                                     <span className="px-2 py-0.5 rounded-control text-[10px] bg-brand/10 text-brand border border-brand/20 font-bold">
                                       {pl.badge}
@@ -3180,6 +3973,251 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
                                   />
                                 </div>
                               </div>
+
+                              {/* Plan Badge Selection (محبوب‌ترین، بیشترین تخفیف، تخفیف ویژه) */}
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2 border-t border-border/40 text-right">
+                                <div>
+                                  <span className="text-[10px] font-bold text-foreground block mb-0.5">
+                                    برچسب نمایشی پلن (Badge):
+                                  </span>
+                                  <input
+                                    type="text"
+                                    value={pl.badge || ''}
+                                    onChange={(e) => {
+                                      const updated = [...pPlans]
+                                      updated[idx].badge = e.target.value
+                                      setPPlans(updated)
+                                      setPPlansJSON(
+                                        JSON.stringify(updated, null, 2),
+                                      )
+                                    }}
+                                    placeholder="مثلاً: محبوب‌ترین یا تخفیف ویژه"
+                                    className="w-full h-8 px-2 rounded-control border border-border/60 bg-card text-[11px] outline-none focus:border-brand font-bold text-brand"
+                                  />
+                                </div>
+                                <div>
+                                  <span className="text-[10px] text-muted-foreground block mb-0.5">
+                                    انتخاب سریع برچسب:
+                                  </span>
+                                  <div className="flex items-center gap-1 flex-wrap pt-0.5">
+                                    {[
+                                      '🔥 محبوب‌ترین',
+                                      '⚡ بیشترین تخفیف',
+                                      '💎 تخفیف ویژه',
+                                      '👑 پیشنهاد ویژه',
+                                    ].map((preset) => (
+                                      <button
+                                        key={preset}
+                                        type="button"
+                                        onClick={() => {
+                                          const updated = [...pPlans]
+                                          updated[idx].badge =
+                                            pl.badge === preset ? '' : preset
+                                          setPPlans(updated)
+                                          setPPlansJSON(
+                                            JSON.stringify(updated, null, 2),
+                                          )
+                                        }}
+                                        className={`px-2 py-0.5 rounded-control text-[10px] font-bold transition-all cursor-pointer ${
+                                          pl.badge === preset
+                                            ? 'bg-brand text-brand-foreground font-black shadow-xs'
+                                            : 'bg-muted/40 text-muted-foreground hover:bg-muted hover:text-foreground border border-border/40'
+                                        }`}
+                                      >
+                                        {preset}
+                                      </button>
+                                    ))}
+                                    {pl.badge && (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const updated = [...pPlans]
+                                          updated[idx].badge = ''
+                                          setPPlans(updated)
+                                          setPPlansJSON(
+                                            JSON.stringify(updated, null, 2),
+                                          )
+                                        }}
+                                        className="text-[10px] text-rose-500 hover:underline px-1 cursor-pointer"
+                                      >
+                                        حذف بج
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Plan Delivery Strategy & Upstream Bot Routing (Per-Plan Override) */}
+                              <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5 pt-2.5 border-t border-border/40 bg-muted/10 p-2.5 rounded-surface text-right">
+                                <div>
+                                  <span className="text-[10px] font-bold text-foreground block mb-0.5">
+                                    شیوه تحویل این پلن
+                                  </span>
+                                  <select
+                                    value={
+                                      pl.delivery_strategy ||
+                                      pDeliveryStrategy ||
+                                      'third_party_instant'
+                                    }
+                                    onChange={(e) => {
+                                      const updated = [...pPlans]
+                                      updated[idx].delivery_strategy = e.target
+                                        .value as any
+                                      setPPlans(updated)
+                                      setPPlansJSON(
+                                        JSON.stringify(updated, null, 2),
+                                      )
+                                    }}
+                                    className="w-full h-8 px-2 rounded-lg border border-border bg-card text-[11px] outline-none cursor-pointer"
+                                  >
+                                    <option value="third_party_instant">
+                                      ⚡ تحویل آنی از ربات
+                                    </option>
+                                    <option value="manual_operator">
+                                      🔷 تحویل دستی اپراتور
+                                    </option>
+                                    <option value="local_inventory">
+                                      🔑 انبار لایسنس محلی
+                                    </option>
+                                  </select>
+                                </div>
+
+                                <div>
+                                  <span className="text-[10px] font-bold text-foreground block mb-0.5">
+                                    ربات تامین‌کننده این پلن
+                                  </span>
+                                  <select
+                                    value={
+                                      pl.external_provider ||
+                                      pExternalProvider ||
+                                      'insightx'
+                                    }
+                                    onChange={(e) => {
+                                      const updated = [...pPlans]
+                                      updated[idx].external_provider =
+                                        e.target.value
+                                      setPPlans(updated)
+                                      setPPlansJSON(
+                                        JSON.stringify(updated, null, 2),
+                                      )
+                                    }}
+                                    className="w-full h-8 px-2 rounded-lg border border-border bg-card text-[11px] font-mono outline-none cursor-pointer"
+                                  >
+                                    <option value="insightx">
+                                      اینسایت‌استور (@insightXpro_bot)
+                                    </option>
+                                    <option value="stackvault">
+                                      استک‌ولت (@stackvault_bot)
+                                    </option>
+                                    <option value="paglu">
+                                      لوت پاگلو (@Paglu_Shopp_Bot)
+                                    </option>
+                                    <option value="jero">
+                                      جرو اکانتس (@JeroAccountsBot)
+                                    </option>
+                                    <option value="supreme">
+                                      سوپریم لیدر (@SupremeLeaderShopBot)
+                                    </option>
+                                    <option value="manual_vault">
+                                      انبار محلی (بدون ربات)
+                                    </option>
+                                  </select>
+                                </div>
+
+                                <div>
+                                  <span className="text-[10px] font-bold text-foreground block mb-0.5">
+                                    شناسه محصول ربات (External ID)
+                                  </span>
+                                  <input
+                                    type="text"
+                                    value={
+                                      pl.external_product_id_str ||
+                                      (pl.external_product_id
+                                        ? String(pl.external_product_id)
+                                        : '')
+                                    }
+                                    onChange={(e) => {
+                                      const updated = [...pPlans]
+                                      updated[idx].external_product_id_str =
+                                        e.target.value
+                                      const num = parseInt(e.target.value, 10)
+                                      updated[idx].external_product_id =
+                                        !Number.isNaN(num)
+                                          ? num
+                                          : e.target.value
+                                      setPPlans(updated)
+                                      setPPlansJSON(
+                                        JSON.stringify(updated, null, 2),
+                                      )
+                                    }}
+                                    placeholder="مثال: 14 یا ps_1024"
+                                    className="w-full h-8 px-2 rounded-lg border border-border bg-card text-[11px] font-mono outline-none focus:border-brand"
+                                  />
+                                </div>
+
+                                <div>
+                                  <span className="text-[10px] font-bold text-foreground block mb-0.5">
+                                    خرید دلاری پلن ($)
+                                  </span>
+                                  <input
+                                    type="number"
+                                    step="any"
+                                    min="0"
+                                    value={pl.base_cost_usd || 0}
+                                    onChange={(e) => {
+                                      const updated = [...pPlans]
+                                      updated[idx].base_cost_usd =
+                                        parseFloat(e.target.value) || 0
+                                      setPPlans(updated)
+                                      setPPlansJSON(
+                                        JSON.stringify(updated, null, 2),
+                                      )
+                                    }}
+                                    className="w-full h-8 px-2 rounded-lg border border-border bg-card text-[11px] font-mono outline-none focus:border-brand"
+                                  />
+                                </div>
+                              </div>
+
+                              {/* Sync Plan with Base Product Button */}
+                              <div className="flex items-center justify-between pt-2 border-t border-border/40 flex-wrap gap-2 text-xs">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setPPriceToman(
+                                      pl.price_toman || pPriceToman,
+                                    )
+                                    if (pl.original_price_toman)
+                                      setPOriginalPriceToman(
+                                        pl.original_price_toman,
+                                      )
+                                    if (pl.base_cost_usd)
+                                      setPBaseCostUSD(pl.base_cost_usd)
+                                    if (pl.external_provider)
+                                      setPExternalProvider(pl.external_provider)
+                                    if (pl.delivery_strategy)
+                                      setPDeliveryStrategy(pl.delivery_strategy)
+                                    if (pl.external_product_id_str)
+                                      setPExternalProductIDStr(
+                                        pl.external_product_id_str,
+                                      )
+                                    notifySuccess(
+                                      'همگام‌سازی موفق',
+                                      `قیمت و مشخصات پلن «${pl.title}» روی مشخصات پایه محصول بارگذاری گردید.`,
+                                    )
+                                  }}
+                                  className="px-2.5 py-1 rounded-control bg-secondary hover:bg-muted text-foreground text-[10px] font-bold border border-border/60 shadow-xs flex items-center gap-1 cursor-pointer"
+                                >
+                                  <Check className="w-3 h-3 text-brand" />
+                                  <span>
+                                    همگام‌سازی این پلن با مشخصات پایه و فروش
+                                    محصول
+                                  </span>
+                                </button>
+                                <span className="text-[10px] text-muted-foreground font-latin">
+                                  اعتبار: {pl.duration_days || 30} روز (
+                                  {pl.duration_text || '۱ ماهه'})
+                                </span>
+                              </div>
                             </div>
                           ))}
                         </div>
@@ -3197,7 +4235,7 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
                           <button
                             type="button"
                             onClick={handleGenerateDefaultPlans}
-                            className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-sm"
+                            className="mt-2 inline-flex items-center gap-1.5 h-8 px-3 rounded-control bg-secondary text-brand hover:bg-muted text-xs font-bold border border-border/60 shadow-xs cursor-pointer duration-motion active:scale-[0.98]"
                           >
                             <Plus className="h-3.5 w-3.5" />
                             <span>ایجاد ۳ پلن استاندارد اکنون</span>
@@ -3238,6 +4276,7 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
                   {/* TAB 4: COMPARISON TABLE */}
                   {productModalTab === 'comparison' && (
                     <div className="space-y-4">
+                      {renderPlanContextBar('جدول مقایسه')}
                       <div className="flex flex-wrap items-center justify-between p-3.5 rounded-surface bg-muted/20 border border-border/60 gap-2">
                         <div>
                           <h4 className="font-black text-foreground text-xs flex items-center gap-2">
@@ -3284,6 +4323,7 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
                   {/* TAB 5: ACTIVATION GUIDE */}
                   {productModalTab === 'guide' && (
                     <div className="space-y-4">
+                      {renderPlanContextBar('راهنمای فعال‌سازی')}
                       <div className="flex flex-wrap items-center justify-between p-3.5 rounded-surface bg-muted/20 border border-border/60 gap-2">
                         <div>
                           <h4 className="font-black text-foreground text-xs flex items-center gap-2">
@@ -3325,6 +4365,7 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
                   {/* TAB 6: FAQS */}
                   {productModalTab === 'faq' && (
                     <div className="space-y-4">
+                      {renderPlanContextBar('سوالات متداول')}
                       <div className="flex flex-wrap items-center justify-between p-3 rounded-xl bg-muted/40 border border-border gap-2">
                         <div>
                           <h4 className="font-bold text-foreground">
@@ -3339,7 +4380,7 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
                           <button
                             type="button"
                             onClick={handleGenerateDefaultFaqs}
-                            className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm"
+                            className="h-8 px-3 rounded-control bg-secondary text-brand hover:bg-muted text-xs font-bold flex items-center gap-1.5 border border-border/60 shadow-xs cursor-pointer duration-motion active:scale-[0.98]"
                           >
                             <Sparkles className="h-3.5 w-3.5" />
                             <span>بارگذاری سوالات پیشنهادی</span>
@@ -3360,9 +4401,103 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
                           placeholder='[\n  {\n    "question": "آیا اکانت قطعی دارد؟",\n    "answer": "خیر، پرداخت ۱۰۰٪ قانونی است..."\n  }\n]'
                           value={pFaqJSON}
                           onChange={(e) => setPFaqJSON(e.target.value)}
-                          className="w-full p-3 rounded-xl border border-border bg-background focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono text-xs leading-relaxed"
+                          className="w-full p-3 rounded-field border border-border/60 bg-muted/20 text-foreground font-mono font-latin text-xs outline-none focus:border-brand resize-none leading-relaxed"
                         />
                       </div>
+                    </div>
+                  )}
+
+                  {/* TAB 9: TRUST & REASSURANCE GUARANTEES */}
+                  {productModalTab === 'trust' && (
+                    <div className="space-y-4 text-right">
+                      {renderPlanContextBar('ضمانت‌ها و اعتماد خریداران')}
+                      <div className="p-4 rounded-surface bg-brand/5 border border-brand/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                        <div>
+                          <h4 className="font-bold text-foreground text-sm flex items-center gap-2">
+                            <ShieldCheck className="w-4 h-4 text-brand" />
+                            مدیریت و سفارشی‌سازی ضمانت‌های رسمی خرید (Trust Grid)
+                          </h4>
+                          <p className="text-[11px] text-muted-foreground mt-0.5">
+                            تنظیم و تغییر ۴ کادر ضمانت انتهای صفحه محصول (تحویل
+                            آنی، عدم قطعی، Zeroize، پشتیبانی ۲۴ ساعته)
+                          </p>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setPInstructions(
+                                `### ضمانت‌های رسمی و تعهدات ما\n\n:::columns-2\n:::col\n#### ⚡ تحویل آنی و مطمئن\nصدور ۰ ثانیه‌ای لایسنس بلافاصله پس از پرداخت بدون کوچکترین معطلی.\n:::col\n#### 🛡️ ضمانت اصالت و سلامت کامل\nپرداخت با کارت‌های بین‌المللی اختصاصی و پوشش کامل در طول مدت اشتراک.\n:::\n\n:::columns-2\n:::col\n#### 🔒 حریم خصوصی و امنیت کامل\nعدم ذخیره‌سازی داده‌های حساس و رعایت استانداردهای امنیتی.\n:::col\n#### 🎧 پشتیبانی ۲۴ ساعته\nپاسخگویی سریع کارشناسان در ساعات اداری و پشتیبانی آنلاین.\n:::`,
+                              )
+                              notifySuccess(
+                                'قالب ضمانت‌ها بارگذاری شد',
+                                'متن ضمانت‌ها در ویرایشگر قرار گرفت؛ می‌توانید آن را مطابق نظر خود ویرایش فرمایید.',
+                              )
+                            }}
+                            className="h-8 px-3 rounded-control bg-secondary text-brand hover:bg-muted text-xs font-bold flex items-center gap-1.5 border border-border/60 shadow-xs cursor-pointer duration-motion active:scale-[0.98]"
+                          >
+                            <Sparkles className="h-3.5 w-3.5" />
+                            <span>بارگذاری قالب اختصاصی</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="p-3.5 rounded-surface border border-border/60 bg-muted/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                        <div>
+                          <span className="font-bold text-foreground block">
+                            حالت نمایش ضمانت‌ها در صفحه این محصول:
+                          </span>
+                          <span className="text-[11px] text-muted-foreground">
+                            می‌توانید کادر ضمانت‌ها را روی حالت پیش‌فرض هوشمند
+                            بگذارید، متن دلخواه بنویسید یا کلاً مخفی کنید
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setPInstructions('default')}
+                            className={`px-3 py-1.5 rounded-control text-xs font-bold transition-all cursor-pointer ${
+                              pInstructions === 'default' || !pInstructions
+                                ? 'bg-primary text-primary-foreground font-black shadow-control'
+                                : 'bg-card text-muted-foreground hover:text-foreground border border-border/60'
+                            }`}
+                          >
+                            پیش‌فرض هوشمند
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setPInstructions('hide')}
+                            className={`px-3 py-1.5 rounded-control text-xs font-bold transition-all cursor-pointer ${
+                              pInstructions === 'hide'
+                                ? 'bg-rose-500 text-white font-black shadow-control'
+                                : 'bg-card text-muted-foreground hover:text-foreground border border-border/60'
+                            }`}
+                          >
+                            عدم نمایش (مخفی)
+                          </button>
+                        </div>
+                      </div>
+
+                      {pInstructions !== 'hide' && (
+                        <div className="space-y-1.5">
+                          <label className="font-bold text-foreground block text-xs">
+                            متن سفارشی ضمانت‌ها (در صورت خالی بودن یا انتخاب
+                            پیش‌فرض، ۴ کارت استاندارد نمایش می‌یابد):
+                          </label>
+                          <RichContentEditor
+                            value={
+                              pInstructions === 'default' ? '' : pInstructions
+                            }
+                            onChange={(val) =>
+                              setPInstructions(val || 'default')
+                            }
+                            placeholder="متن دلخواه یا کد مارک‌داون ضمانت‌ها..."
+                            minHeight="280px"
+                            label="ویرایشگر ضمانت‌ها"
+                          />
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -3606,6 +4741,156 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
                       <Loader2 className="h-4 w-4 animate-spin" />
                     )}
                     <span>جایگزینی کلید جدید</span>
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>,
+          document.body,
+        )}
+
+      {/* BULK IMPORT KEYS MODAL */}
+      {isBulkImportOpen &&
+        createPortal(
+          <div
+            className="fixed inset-0 overflow-y-auto bg-black/80 backdrop-blur-md p-3 sm:p-6 animate-in fade-in"
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              width: '100vw',
+              height: '100vh',
+              zIndex: 2147483600,
+            }}
+            dir="rtl"
+          >
+            <div className="min-h-full w-full flex items-start sm:items-center justify-center">
+              <form
+                onSubmit={handleBulkImportSubmit}
+                className="max-w-lg w-full my-auto bg-card rounded-surface border border-border/80 shadow-overlay p-6 space-y-4 animate-in zoom-in-95 text-foreground"
+              >
+                <div className="flex items-center justify-between border-b border-border pb-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-control bg-primary text-primary-foreground flex items-center justify-center font-bold">
+                      <Plus className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold text-foreground">
+                        افزودن دسته‌ای کلیدها و لایسنس‌ها (Bulk Import)
+                      </h3>
+                      <p className="text-[11px] text-muted-foreground">
+                        ثبت مستقیم کلیدها در انبار محلی جهت تحویل آنی
+                      </p>
+                    </div>
+                  </div>
+                  <ModalCloseButton
+                    onClick={() => setIsBulkImportOpen(false)}
+                    size="sm"
+                  />
+                </div>
+
+                <div className="space-y-3.5 text-xs text-right">
+                  <div>
+                    <label className="font-bold text-foreground block mb-1">
+                      انتخاب محصول متصل <span className="text-rose-500">*</span>
+                    </label>
+                    <select
+                      required
+                      value={bulkImportProductId}
+                      onChange={(e) => setBulkImportProductId(e.target.value)}
+                      className="w-full h-10 px-3 rounded-control border border-border/60 bg-secondary text-foreground text-xs font-bold outline-none cursor-pointer"
+                    >
+                      <option value="">-- انتخاب محصول فروشگاه --</option>
+                      {adminProducts.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.title_fa} ({p.slug})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="font-bold text-foreground block mb-1">
+                        نوع محتوای ارسالی
+                      </label>
+                      <select
+                        value={bulkImportItemType}
+                        onChange={(e) => setBulkImportItemType(e.target.value)}
+                        className="w-full h-10 px-3 rounded-control border border-border/60 bg-secondary text-foreground text-xs font-bold outline-none cursor-pointer"
+                      >
+                        <option value="license_key">
+                          کد لایسنس (License Code)
+                        </option>
+                        <option value="credentials_pair">
+                          اکانت (یوزر/پسورد)
+                        </option>
+                        <option value="activation_url">
+                          لینک فعال‌سازی (Invite Link)
+                        </option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="font-bold text-foreground block mb-1">
+                        برچسب پارت / بچ (اختیاری)
+                      </label>
+                      <input
+                        type="text"
+                        value={bulkImportBatchTag}
+                        onChange={(e) => setBulkImportBatchTag(e.target.value)}
+                        placeholder="مثلاً: Batch-2026-10"
+                        className="w-full h-10 px-3 rounded-control border border-border/60 bg-muted/20 text-foreground font-mono font-latin outline-none focus:border-brand"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="font-bold text-foreground block">
+                        لیست کلیدها (هر سطر یک آیتم){' '}
+                        <span className="text-rose-500">*</span>
+                      </label>
+                      <span className="text-[10px] text-muted-foreground font-mono font-latin">
+                        تعداد سطرها:{' '}
+                        {
+                          bulkImportLines.split('\n').filter((l) => l.trim())
+                            .length
+                        }
+                      </span>
+                    </div>
+                    <textarea
+                      required
+                      rows={6}
+                      value={bulkImportLines}
+                      onChange={(e) => setBulkImportLines(e.target.value)}
+                      placeholder="XXXXX-XXXXX-XXXXX-XXXXX&#10;YYYYY-YYYYY-YYYYY-YYYYY&#10;user:pass"
+                      className="w-full p-3 rounded-control border border-border/60 bg-muted/20 text-foreground font-mono font-latin text-xs outline-none focus:border-brand resize-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-2 border-t border-border/60">
+                  <button
+                    type="button"
+                    onClick={() => setIsBulkImportOpen(false)}
+                    className="h-10 px-4 rounded-control border border-border/60 bg-secondary hover:bg-muted text-foreground text-xs font-bold transition shadow-xs cursor-pointer duration-motion active:scale-[0.98]"
+                  >
+                    انصراف
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={bulkImportLoading}
+                    className="h-10 px-6 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground text-xs font-black transition flex items-center justify-center gap-2 disabled:opacity-50 shadow-control cursor-pointer duration-motion active:scale-[0.98]"
+                  >
+                    {bulkImportLoading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Plus className="h-4 w-4" />
+                    )}
+                    <span>ثبت و واردسازی به انبار</span>
                   </button>
                 </div>
               </form>

@@ -15,7 +15,10 @@ import type {
   AdminOrderListResult,
   AdminUpdateOrderStatusRequest,
 } from '../../types'
+import { formatToman } from '../../utils/formatters'
+import { getGatewayDisplay } from '../../utils/paymentIcons'
 import { OfficialInvoiceModal } from '../invoice/OfficialInvoiceModal'
+import { LoadingState } from '../vibefarsi/LoadingState'
 import { ModalCloseButton } from '../vibefarsi/ModalCloseButton'
 import { useNotification } from '../vibefarsi/NotificationContext'
 import { SearchInput } from '../vibefarsi/SearchInput'
@@ -378,7 +381,7 @@ export const AdminOrdersTableView: React.FC = () => {
                       مشتری و شماره تماس
                     </th>
                     <th className="py-4 px-4 text-center">
-                      مبلغ و درگاه پرداخت
+                      اطلاعات مالی، سود و درگاه پرداخت
                     </th>
                     <th className="py-4 px-4 text-center">وضعیت سفارش</th>
                     <th className="py-4 px-4 text-center">عملیات مدیریت</th>
@@ -389,10 +392,9 @@ export const AdminOrdersTableView: React.FC = () => {
                     <tr>
                       <td
                         colSpan={6}
-                        className="py-16 text-center text-muted-foreground"
+                        className="py-12 text-center text-muted-foreground"
                       >
-                        <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-brand" />
-                        <span>در حال فراخوانی سفارش‌ها...</span>
+                        <LoadingState message="در حال فراخوانی سفارش‌ها..." />
                       </td>
                     </tr>
                   )}
@@ -470,23 +472,50 @@ export const AdminOrdersTableView: React.FC = () => {
                             )}
                           </td>
 
-                          {/* Total Amount & Gateway */}
-                          <td className="py-3.5 px-4 font-mono font-latin text-center">
-                            <div className="font-bold text-sm text-foreground">
-                              {ord.total_amount_toman.toLocaleString('fa-IR')}{' '}
-                              <span className="text-[10px] font-sans font-normal text-muted-foreground">
-                                تومان
-                              </span>
+                          {/* Total Amount & Gateway + Cost & Profit */}
+                          <td className="py-3.5 px-4 text-center font-latin">
+                            <div className="font-bold text-xs text-foreground">
+                              فروش: {formatToman(ord.total_amount_toman)} تومان
                             </div>
-                            <div className="text-[10px] text-muted-foreground font-sans">
-                              روش:{' '}
-                              {ord.payment_method === 'balance'
-                                ? 'کیف پول'
-                                : ord.payment_method === 'zarinpal'
-                                  ? 'زرین‌پال'
-                                  : ord.payment_method === 'card_to_card'
-                                    ? 'کارت به کارت'
-                                    : ord.payment_method}
+                            {(() => {
+                              const costToman =
+                                ord.items?.[0]?.cost_toman ||
+                                Math.round(ord.total_amount_toman * 0.75)
+                              const profitToman =
+                                ord.total_amount_toman - costToman
+                              return (
+                                <>
+                                  <div className="text-[10px] text-muted-foreground mt-0.5">
+                                    خرید: {formatToman(costToman)} تومان
+                                  </div>
+                                  <div className="text-[10px] font-bold mt-0.5">
+                                    {profitToman >= 0 ? (
+                                      <span className="text-emerald-400">
+                                        سود: +{formatToman(profitToman)} تومان
+                                      </span>
+                                    ) : (
+                                      <span className="text-rose-500">
+                                        ضرر: -
+                                        {formatToman(Math.abs(profitToman))}{' '}
+                                        تومان
+                                      </span>
+                                    )}
+                                  </div>
+                                </>
+                              )
+                            })()}
+                            <div className="mt-1 flex items-center justify-center gap-1 text-[10px] text-muted-foreground font-sans">
+                              {(() => {
+                                const gw = getGatewayDisplay(ord.payment_method)
+                                return (
+                                  <span
+                                    className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-control text-[10px] font-bold border shadow-xs ${gw.badgeClass}`}
+                                  >
+                                    {gw.icon}
+                                    <span>{gw.label}</span>
+                                  </span>
+                                )
+                              })()}
                             </div>
                           </td>
 
@@ -655,10 +684,7 @@ export const AdminOrdersTableView: React.FC = () => {
                       <div className="flex items-center justify-between gap-3">
                         <span className="text-xs font-bold text-foreground">
                           استرداد خودکار وجه سفارش به کیف پول مشتری (
-                          {selectedOrder.total_amount_toman.toLocaleString(
-                            'fa-IR',
-                          )}{' '}
-                          تومان)
+                          {formatToman(selectedOrder.total_amount_toman)} تومان)
                         </span>
                         <ToggleSwitch
                           size="sm"

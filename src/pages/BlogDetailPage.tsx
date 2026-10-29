@@ -24,7 +24,7 @@ import { LikeButton } from '../components/vibefarsi/LikeButton'
 import { useNotification } from '../components/vibefarsi/NotificationContext'
 import { api } from '../services/api'
 import type { ArticleDetail } from '../types'
-import { toPersianDigits } from '../utils/formatters'
+import { formatToman, toPersianDigits } from '../utils/formatters'
 
 export const BlogDetailPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>()
@@ -383,13 +383,8 @@ export const BlogDetailPage: React.FC = () => {
                     </p>
                     {article.related_product_price &&
                       article.related_product_price > 0 && (
-                        <div className="text-sm font-black text-foreground font-latin pt-1">
-                          قیمت:{' '}
-                          {toPersianDigits(
-                            article.related_product_price.toLocaleString(
-                              'fa-IR',
-                            ),
-                          )}{' '}
+                        <div className="text-sm font-black text-foreground font-sans pt-1">
+                          قیمت: {formatToman(article.related_product_price)}{' '}
                           <span className="text-xs font-normal text-muted-foreground font-sans">
                             تومان
                           </span>

@@ -8,7 +8,7 @@ interface ToggleSwitchProps {
   style?: React.CSSProperties
   ariaLabel?: string
   size?: 'sm' | 'md'
-  variant?: 'primary' | 'emerald'
+  variant?: 'brand' | 'primary' | 'emerald' | 'amber'
 }
 
 export const ToggleSwitch: React.FC<ToggleSwitchProps> = ({
@@ -19,19 +19,19 @@ export const ToggleSwitch: React.FC<ToggleSwitchProps> = ({
   style,
   ariaLabel,
   size = 'md',
+  variant = 'brand',
 }) => {
   const isSm = size === 'sm'
-  const trackWidth = isSm ? 'w-9 h-5' : 'w-11 h-6'
-  const circleSize = isSm ? 'w-3.5 h-3.5' : 'w-4.5 h-4.5'
-  const translateVal = isSm ? 'translate-x-4' : 'translate-x-5'
 
-  const activeStyle: React.CSSProperties | undefined = checked
-    ? {
-        backgroundColor: '#f59e0b', // Vibe Farsi Signature Warm Amber/Orange
-        borderColor: '#d97706',
-        ...style,
-      }
-    : style
+  // Dimensions: sm = 36px x 20px with 16px knob, md = 44px x 24px with 20px knob
+  const trackClass = isSm ? 'w-9 h-5' : 'w-11 h-6'
+  const thumbClass = isSm ? 'w-4 h-4' : 'w-5 h-5'
+  const translateClass = isSm ? 'translate-x-4' : 'translate-x-5'
+
+  const activeBg =
+    variant === 'primary'
+      ? 'bg-primary border-primary shadow-primary/20'
+      : 'bg-brand border-brand shadow-brand/25'
 
   return (
     <button
@@ -42,16 +42,16 @@ export const ToggleSwitch: React.FC<ToggleSwitchProps> = ({
       aria-label={ariaLabel}
       disabled={disabled}
       onClick={() => !disabled && onChange(!checked)}
-      className={`relative inline-flex ${trackWidth} shrink-0 cursor-pointer rounded-full border transition-all duration-200 ease-in-out focus:outline-none p-0.5 items-center select-none shadow-xs ${
+      className={`relative inline-flex ${trackClass} shrink-0 cursor-pointer rounded-full border transition-colors duration-200 ease-in-out focus:outline-none p-0.5 items-center select-none shadow-sm ${
         checked
-          ? 'bg-amber-500 border-amber-600 text-white'
-          : 'bg-muted/80 border-border/70 hover:border-border'
+          ? `${activeBg} text-white`
+          : 'bg-muted/80 border-border hover:border-border/80'
       } ${disabled ? 'opacity-40 cursor-not-allowed' : ''} ${className}`}
-      style={activeStyle}
+      style={style}
     >
       <span
-        className={`pointer-events-none inline-block ${circleSize} transform rounded-full bg-white shadow-md ring-0 transition-transform duration-200 ease-in-out ${
-          checked ? translateVal : 'translate-x-0'
+        className={`pointer-events-none inline-block ${thumbClass} transform rounded-full bg-white shadow-md ring-0 transition-transform duration-200 ease-in-out ${
+          checked ? translateClass : 'translate-x-0'
         }`}
       />
     </button>

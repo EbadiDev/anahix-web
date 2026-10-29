@@ -39,7 +39,7 @@ export const AdminDashboardPage: React.FC = () => {
           setAdminUser(
             admUser || {
               username: 'admin',
-              full_name: 'مدیر کل آناهیکس',
+              full_name: 'مدیر کل سیستم',
               role: 'super_admin',
             },
           )
@@ -128,6 +128,11 @@ export const AdminDashboardPage: React.FC = () => {
 
           {/* TAB: BANNERS & PROMOTIONS MANAGEMENT */}
           {activeTab === 'banners' && <AdminBannersView />}
+
+          {/* TAB: ANNOUNCEMENTS & POPUP BROADCAST ENGINE */}
+          {activeTab === 'announcements' && (
+            <AdminCoreSettingsView initialSubTab="notifications" />
+          )}
 
           {/* TAB: COUPONS & DISCOUNT ENGINE */}
           {activeTab === 'coupons' && <AdminCouponsView />}

@@ -3,9 +3,10 @@ import {
   Check,
   CheckCircle2,
   Copy,
+  Cpu,
   Edit2,
+  Key,
   Loader2,
-  PackageCheck,
   Radio,
   ReceiptText,
   RefreshCw,
@@ -21,6 +22,8 @@ import type {
   TransactionType,
 } from '../../types'
 import { formatToman, toPersianDigits } from '../../utils/formatters'
+import { getGatewayDisplay } from '../../utils/paymentIcons'
+import { LoadingState } from '../vibefarsi/LoadingState'
 import { ModalCloseButton } from '../vibefarsi/ModalCloseButton'
 import { useNotification } from '../vibefarsi/NotificationContext'
 import { SearchInput } from '../vibefarsi/SearchInput'
@@ -156,49 +159,39 @@ export const TransactionsLogView: React.FC<TransactionsLogViewProps> = ({
     switch (type) {
       case 'store_order':
         return (
-          <span className="inline-flex items-center gap-1 text-xs font-bold text-brand">
-            <PackageCheck className="w-3.5 h-3.5" />
-            سفارش اکانت
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-control text-xs font-bold bg-primary/10 text-primary border border-primary/20">
+            <Cpu className="w-3.5 h-3.5 text-primary" />
+            <span>سفارش اشتراک هوش مصنوعی</span>
           </span>
         )
       case 'virtual_number':
         return (
-          <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-500">
-            <Radio className="w-3.5 h-3.5" />
-            شماره مجازی
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-control text-xs font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+            <Radio className="w-3.5 h-3.5 text-emerald-400" />
+            <span>خرید شماره مجازی (5SIM)</span>
           </span>
         )
       case 'deposit':
         return (
-          <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-500">
-            <Wallet className="w-3.5 h-3.5" />
-            شارژ کیف پول
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-control text-xs font-bold bg-amber-500/10 text-amber-500 border border-amber-500/20">
+            <Wallet className="w-3.5 h-3.5 text-amber-500" />
+            <span>شارژ کیف پول کاربری</span>
           </span>
         )
       case 'refund':
         return (
-          <span className="inline-flex items-center gap-1 text-xs font-bold text-purple-400">
-            <ArrowDownLeft className="w-3.5 h-3.5" />
-            استرداد وجه
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-control text-xs font-bold bg-purple-500/10 text-purple-400 border border-purple-500/20">
+            <ArrowDownLeft className="w-3.5 h-3.5 text-purple-400" />
+            <span>استرداد وجه به کیف پول</span>
           </span>
         )
       default:
-        return <span className="text-xs">{type}</span>
-    }
-  }
-
-  const getPlatformLabel = (platform: string) => {
-    switch (platform) {
-      case 'balance':
-        return 'کیف پول کاربر'
-      case 'zarinpal':
-        return 'زرین‌پال'
-      case 'card_to_card':
-        return 'کارت به کارت'
-      case 'crypto':
-        return 'ارز دیجیتال'
-      default:
-        return platform || 'پیش‌فرض'
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-control text-xs font-bold bg-secondary text-secondary-foreground border border-border/40">
+            <Key className="w-3.5 h-3.5" />
+            <span>سفارش خدمات دیجیتال</span>
+          </span>
+        )
     }
   }
 
@@ -442,12 +435,14 @@ export const TransactionsLogView: React.FC<TransactionsLogViewProps> = ({
         <div className="overflow-x-auto">
           <table className="w-full text-center text-xs">
             <thead>
-              <tr className="border-b border-border/60 bg-muted/40 text-muted-foreground font-semibold select-none text-center">
+              <tr className="border-b border-border/60 bg-muted/40 text-muted-foreground font-bold select-none text-center">
                 <th className="py-3.5 px-4 text-center">شناسه تراکنش</th>
                 <th className="py-3.5 px-4 text-center">نوع عملیات</th>
                 <th className="py-3.5 px-4 text-center">مشتری</th>
-                <th className="py-3.5 px-4 text-center">مبلغ پرداختی</th>
-                <th className="py-3.5 px-4 text-center">درگاه / شیوه</th>
+                <th className="py-3.5 px-4 text-center">
+                  اطلاعات مالی و سود (تومان)
+                </th>
+                <th className="py-3.5 px-4 text-center">درگاه پرداخت</th>
                 <th className="py-3.5 px-4 text-center">کد پیگیری</th>
                 <th className="py-3.5 px-4 text-center">وضعیت</th>
                 <th className="py-3.5 px-4 text-center">تاریخ و زمان</th>
@@ -461,10 +456,7 @@ export const TransactionsLogView: React.FC<TransactionsLogViewProps> = ({
                     colSpan={9}
                     className="py-12 text-center text-muted-foreground"
                   >
-                    <div className="flex flex-col items-center justify-center gap-2">
-                      <RefreshCw className="w-5 h-5 animate-spin text-brand" />
-                      <span>در حال فراخوانی دفتر کل تراکنش‌ها...</span>
-                    </div>
+                    <LoadingState message="در حال فراخوانی دفتر کل تراکنش‌ها..." />
                   </td>
                 </tr>
               ) : transactions.length === 0 ? (
@@ -544,25 +536,56 @@ export const TransactionsLogView: React.FC<TransactionsLogViewProps> = ({
                       )}
                     </td>
 
-                    {/* Amount */}
-                    <td className="py-3.5 px-4 font-bold text-foreground text-center">
-                      <div className="flex items-baseline justify-center gap-1 font-latin">
-                        <span className="text-sm font-black text-brand">
-                          {formatToman(tx.amount_toman)}
-                        </span>
+                    {/* Financial Stacked Column: Sale, Cost & Profit/Loss */}
+                    <td className="py-3.5 px-4 text-center font-latin">
+                      <div className="font-bold text-xs text-foreground">
+                        فروش: {formatToman(tx.amount_toman)} تومان
                       </div>
-                      {tx.amount_usd > 0 && (
-                        <div className="text-[10px] font-mono text-muted-foreground font-latin">
-                          ${tx.amount_usd.toFixed(2)}
+                      {tx.order_type === 'deposit' ||
+                      tx.order_type === 'refund' ? (
+                        <div className="text-[10px] text-muted-foreground mt-0.5">
+                          گردش داخلی کیف پول
                         </div>
+                      ) : (
+                        (() => {
+                          const costToman = Math.round(tx.amount_toman * 0.75)
+                          const profitToman = tx.amount_toman - costToman
+                          return (
+                            <>
+                              <div className="text-[10px] text-muted-foreground mt-0.5">
+                                خرید: {formatToman(costToman)} تومان
+                              </div>
+                              <div className="text-[10px] font-bold mt-0.5">
+                                {profitToman >= 0 ? (
+                                  <span className="text-emerald-400">
+                                    سود: +{formatToman(profitToman)} تومان
+                                  </span>
+                                ) : (
+                                  <span className="text-rose-500">
+                                    ضرر: -{formatToman(Math.abs(profitToman))}{' '}
+                                    تومان
+                                  </span>
+                                )}
+                              </div>
+                            </>
+                          )
+                        })()
                       )}
                     </td>
 
-                    {/* Payment Platform */}
-                    <td className="py-3.5 px-4 text-center text-muted-foreground">
-                      <span className="px-2 py-0.5 rounded-control bg-secondary text-secondary-foreground border border-border/40 text-[11px] font-medium">
-                        {getPlatformLabel(tx.payment_method)}
-                      </span>
+                    {/* Payment Platform with Gateway Icon & Badge */}
+                    <td className="py-3.5 px-4 text-center">
+                      {(() => {
+                        const gw = getGatewayDisplay(tx.payment_method)
+                        return (
+                          <div
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-control text-xs font-bold border shadow-xs ${gw.badgeClass}`}
+                          >
+                            {gw.icon}
+                            <span>{gw.label}</span>
+                          </div>
+                        )
+                      })()}
                     </td>
 
                     {/* Payment Ref ID */}

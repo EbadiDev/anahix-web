@@ -2,7 +2,6 @@ import {
   ArrowDownLeft,
   ArrowUpRight,
   History,
-  Loader2,
   Plus,
   RefreshCw,
   Search,
@@ -13,7 +12,9 @@ import type React from 'react'
 import { useEffect, useMemo, useState } from 'react'
 import { apiService } from '../../services/api'
 import type { CustomerProfile, WalletLedgerItem } from '../../types'
+import { getSiteBrandName } from '../../utils/brand'
 import { formatToman, toPersianDigits } from '../../utils/formatters'
+import { LoadingState } from '../vibefarsi/LoadingState'
 
 interface ProfileWalletTabProps {
   customer: CustomerProfile
@@ -79,7 +80,7 @@ export const ProfileWalletTab: React.FC<ProfileWalletTabProps> = ({
         <div className="space-y-1.5">
           <div className="flex items-center gap-2 text-brand text-xs font-bold">
             <Wallet className="w-4 h-4" />
-            <span>موجودی در دسترس کیف پول آناهیکس</span>
+            <span>موجودی در دسترس کیف پول {getSiteBrandName()}</span>
           </div>
 
           <div className="mt-2 text-3xl sm:text-4xl font-black text-foreground flex items-baseline gap-2 font-latin">
@@ -224,10 +225,7 @@ export const ProfileWalletTab: React.FC<ProfileWalletTabProps> = ({
 
         {/* Ledger Items */}
         {loading ? (
-          <div className="py-12 text-center text-xs text-muted-foreground space-y-2">
-            <Loader2 className="w-6 h-6 animate-spin text-brand mx-auto" />
-            <p>در حال دریافت تراکنش‌های کیف پول...</p>
-          </div>
+          <LoadingState message="در حال دریافت تراکنش‌های کیف پول..." />
         ) : filteredLedger.length === 0 ? (
           <div className="py-12 text-center bg-muted/10 border border-dashed border-border/60 rounded-control p-8 space-y-2">
             <Wallet className="w-8 h-8 text-muted-foreground/60 mx-auto" />

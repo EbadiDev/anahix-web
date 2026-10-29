@@ -18,7 +18,7 @@ import { MarkdownRenderer } from '../components/content/MarkdownRenderer'
 import { Header } from '../components/Header'
 import { api } from '../services/api'
 import type { HelpGuideDetail } from '../types'
-import { toPersianDigits } from '../utils/formatters'
+import { formatToman, toPersianDigits } from '../utils/formatters'
 
 export const HelpDetailPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>()
@@ -408,11 +408,8 @@ export const HelpDetailPage: React.FC = () => {
                     </p>
                     {guide.related_product_price &&
                       guide.related_product_price > 0 && (
-                        <div className="text-sm font-black text-foreground font-latin pt-1">
-                          قیمت:{' '}
-                          {toPersianDigits(
-                            guide.related_product_price.toLocaleString('fa-IR'),
-                          )}{' '}
+                        <div className="text-sm font-black text-foreground font-sans pt-1">
+                          قیمت: {formatToman(guide.related_product_price)}{' '}
                           <span className="text-xs font-normal text-muted-foreground font-sans">
                             تومان
                           </span>

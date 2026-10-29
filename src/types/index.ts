@@ -14,6 +14,13 @@ export interface ProductPlan {
   badge?: string
   is_default: boolean
   delivery_type?: string
+  delivery_strategy?:
+    | 'third_party_instant'
+    | 'manual_operator'
+    | 'local_inventory'
+  external_provider?: string
+  external_product_id?: string | number
+  external_product_id_str?: string
   features?: string[]
 }
 
@@ -96,10 +103,19 @@ export interface Product {
   badges_json?: string
   group_tag?: string
   group_title_fa?: string
+  parent_category_slug?: string
+  category_slug?: string
   pre_purchase_notice?: string
   pre_purchase_notice_mode?: 'none' | 'inline' | 'modal_confirm' | 'both'
   pre_purchase_snooze_days?: number
-  stock_display_mode?: 'show_exact' | 'show_status_only' | 'hide'
+  stock_display_mode?:
+    | 'show_exact'
+    | 'show_status_only'
+    | 'hide'
+    | 'custom_text'
+  stock_mode?: 'auto' | 'always_in_stock' | 'manual' | 'out_of_stock'
+  manual_stock?: number
+  out_of_stock_text?: string
   is_out_of_stock?: boolean
   available_stock?: number
   plans?: ProductPlan[]
@@ -137,6 +153,8 @@ export interface AdminProduct {
   operating_hours?: string
   base_cost_usd: number
   price_toman: number
+  original_price_toman?: number
+  discount_percent?: number
   is_active: boolean
   instructions?: string
   image_url?: string
@@ -162,7 +180,14 @@ export interface AdminProduct {
   pre_purchase_notice?: string
   pre_purchase_notice_mode?: 'none' | 'inline' | 'modal_confirm' | 'both'
   pre_purchase_snooze_days?: number
-  stock_display_mode?: 'show_exact' | 'show_status_only' | 'hide'
+  stock_display_mode?:
+    | 'show_exact'
+    | 'show_status_only'
+    | 'hide'
+    | 'custom_text'
+  stock_mode?: 'auto' | 'always_in_stock' | 'manual' | 'out_of_stock'
+  manual_stock?: number
+  out_of_stock_text?: string
   parent_category_slug?: string
   category_slug?: string
   show_sales_count?: boolean
@@ -188,7 +213,34 @@ export interface PaymentGateway {
   fee_percentage: number
   is_default: boolean
   icon_type: string
+  icon_url?: string
   description_fa: string
+}
+
+export interface SystemAnnouncement {
+  id: string
+  title: string
+  content: string
+  image_url?: string
+  target_pages: string
+  display_type:
+    | 'bell_only'
+    | 'popup_first_load'
+    | 'banner_top'
+    | 'bell_and_popup'
+  severity: 'info' | 'discount' | 'warning' | 'success'
+  is_active: boolean
+  expires_at?: string
+  created_at: string
+}
+
+export interface UserFavorite {
+  id: string
+  customer_id: string
+  target_type: 'product' | 'article' | 'guide'
+  target_id: string
+  title: string
+  created_at: string
 }
 
 export type OrderStatus =

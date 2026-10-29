@@ -20,7 +20,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { apiService } from '../services/api'
 import type { Order } from '../types'
-import { toPersianDigits } from '../utils/formatters'
+import { formatToman, toPersianDigits } from '../utils/formatters'
 import { OfficialInvoiceModal } from './invoice/OfficialInvoiceModal'
 import { type StepItem, Stepper } from './vibefarsi/Stepper'
 
@@ -511,9 +511,9 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
 
           {/* Amount & Actions */}
           <div className="flex flex-col md:items-end gap-2.5">
-            <div className="text-right md:text-left font-latin">
+            <div className="text-right md:text-left font-sans">
               <div className="text-xl sm:text-2xl font-black text-foreground">
-                {toPersianDigits(activeOrder.amount_toman.toLocaleString())}{' '}
+                {formatToman(activeOrder.amount_toman)}{' '}
                 <span className="text-xs font-sans text-muted-foreground font-normal">
                   تومان
                 </span>

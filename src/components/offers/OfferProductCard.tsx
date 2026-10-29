@@ -13,6 +13,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { cartStore, useCart } from '../../lib/cartStore'
 import type { Product } from '../../types'
+import { formatToman } from '../../utils/formatters'
 import { ClaudeIcon, CursorIcon, GeminiIcon, OpenAIIcon } from '../BrandIcons'
 import { useNotification } from '../vibefarsi/NotificationContext'
 import { QuantitySelector } from '../vibefarsi/QuantitySelector'
@@ -354,13 +355,13 @@ export const OfferProductCard: React.FC<OfferProductCardProps> = ({
           </span>
           <div className="flex items-baseline gap-2">
             {originalPrice > effectivePrice && (
-              <span className="text-xs text-muted-foreground/60 line-through font-latin font-medium">
-                {toPersianDigits(originalPrice.toLocaleString('fa-IR'))}
+              <span className="text-xs text-muted-foreground/60 line-through font-sans font-medium">
+                {formatToman(originalPrice)}
               </span>
             )}
             <div className="flex items-baseline gap-1">
-              <span className="text-lg sm:text-xl font-black font-latin tracking-tight text-foreground">
-                {toPersianDigits(effectivePrice.toLocaleString('fa-IR'))}
+              <span className="text-lg sm:text-xl font-black font-sans tracking-tight text-foreground">
+                {formatToman(effectivePrice)}
               </span>
               <span className="text-xs text-muted-foreground font-sans">
                 تومان

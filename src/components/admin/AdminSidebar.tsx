@@ -1,4 +1,5 @@
 import {
+  BellRing,
   BookOpen,
   Boxes,
   Calendar as CalendarIcon,
@@ -8,7 +9,6 @@ import {
   LogOut,
   ReceiptText,
   Settings,
-  ShieldCheck,
   Ticket,
   TrendingUp,
   UserCheck,
@@ -22,6 +22,7 @@ export type AdminTabType =
   | 'bi-analytics'
   | 'calendar'
   | 'banners'
+  | 'announcements'
   | 'coupons'
   | 'loyalty-tiers'
   | 'users'
@@ -103,6 +104,12 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
           title: 'مدیریت بنرها و اسلایدرها',
           subtitle: 'اسلایدر هیرو، بنرهای جشنواره و تخفیف',
           icon: ImageIcon,
+        },
+        {
+          id: 'announcements',
+          title: 'اعلان‌ها و پیام‌های سراسری',
+          subtitle: 'پاپ‌آپ‌های بازشو، زنگوله هدر و پیام‌های سراسری',
+          icon: BellRing,
         },
         {
           id: 'coupons',
@@ -193,37 +200,19 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
 
   const sidebarContent = (
     <div className="flex flex-col h-full bg-card border-l border-border/80 text-foreground select-none">
-      {/* Brand Header */}
-      <div className="p-4 sm:p-5 border-b border-border/60">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-control bg-secondary text-brand border border-border/60 flex items-center justify-center font-bold text-lg shadow-control shrink-0">
-              <ShieldCheck className="w-5 h-5 text-brand" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-black text-base tracking-tight text-foreground">
-                  آناهیکس
-                </span>
-                <span className="text-[10px] bg-brand/10 text-brand font-bold px-2 py-0.5 rounded-control border border-brand/20 font-latin">
-                  v2.5 Pro
-                </span>
-              </div>
-              <p className="text-[11px] text-muted-foreground font-medium">
-                پنل مدیریت و عملیات سازمانی
-              </p>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={onCloseMobile}
-            className="lg:hidden p-1.5 rounded-control text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-            aria-label="بستن منو"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+      {/* Mobile Drawer Close Bar */}
+      <div className="lg:hidden p-3 border-b border-border/60 flex items-center justify-between">
+        <span className="text-xs font-bold text-muted-foreground">
+          منوی مدیریت
+        </span>
+        <button
+          type="button"
+          onClick={onCloseMobile}
+          className="p-1.5 rounded-control text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
+          aria-label="بستن منو"
+        >
+          <X className="w-5 h-5" />
+        </button>
       </div>
 
       {/* Navigation Groups - Clean, Readable and Free of Truncate Cuts */}

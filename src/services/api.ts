@@ -61,6 +61,7 @@ import type {
   StoreCategory,
   SubmitReviewRequest,
   SubmitReviewResponse,
+  SystemAnnouncement,
   ThemeSettings,
   TicketAttachment,
   TicketDetailResponse,
@@ -68,6 +69,7 @@ import type {
   TicketMessage,
   TransactionRecord,
   UpdateBuyerInvoicePayload,
+  UserFavorite,
   VerifyOTPResponse,
   VirtualNumberCountry,
   VirtualNumberOrder,
@@ -75,6 +77,7 @@ import type {
   VirtualNumberSettings,
   WalletLedgerItem,
 } from '../types'
+import { registerPaymentGateways } from '../utils/paymentIcons'
 
 function normalizeProduct(raw: any): Product {
   let mode: DeliveryMode = 'INSTANT_LINK'
@@ -191,13 +194,19 @@ function normalizeProductDetail(raw: any): ProductDetail {
 }
 
 function normalizePayment(raw: any): PaymentGateway {
+  const iconStr = raw.icon || raw.icon_type || 'wallet'
+  const isCustomUrl =
+    typeof iconStr === 'string' &&
+    (iconStr.startsWith('/') || iconStr.startsWith('http'))
   return {
     id: raw.id,
     name: raw.name_fa || raw.name,
+    name_fa: raw.name_fa || raw.name,
     platform: raw.platform,
     fee_percentage: raw.fee_percentage ?? 0,
     is_default: raw.id === -1 || raw.platform === 'balance',
-    icon_type: raw.icon || raw.icon_type || 'wallet',
+    icon_type: isCustomUrl ? 'custom' : iconStr,
+    icon_url: isCustomUrl ? iconStr : raw.icon_url || undefined,
     description_fa: raw.description || raw.description_fa || '',
   }
 }
@@ -267,11 +276,177 @@ export const apiService = {
       if (res.ok) {
         const json = await res.json()
         if (json.data && Array.isArray(json.data)) {
-          return json.data.map(normalizePayment)
+          const mapped = json.data.map(normalizePayment)
+          registerPaymentGateways(mapped)
+          return mapped
         }
       }
     } catch (err) {
       console.error('Failed to fetch payments from backend:', err)
+    }
+    return []
+  },
+
+  async adminListPayments(): Promise<any[]> {
+    const token = this.getAdminToken()
+    const res = await fetch('/api/v1/admin/payments', {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (res.ok) {
+      const json = await res.json()
+      if (json.data && Array.isArray(json.data)) {
+        const mapped = json.data.map(normalizePayment)
+        registerPaymentGateways(mapped)
+        return mapped
+      }
+    }
+    return []
+  },
+
+  async adminUpdatePayment(
+    id: number | string,
+    payload: {
+      name_fa?: string
+      icon?: string
+      description?: string
+      enable?: boolean
+      sort?: number
+    },
+  ): Promise<any> {
+    const token = this.getAdminToken()
+    const res = await fetch(`/api/v1/admin/payments/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(payload),
+    })
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'خطا در به‌روزرسانی درگاه پرداخت')
+    }
+    return json.data
+  },
+
+  async getAnnouncements(): Promise<SystemAnnouncement[]> {
+    try {
+      const res = await fetch('/api/v1/announcements')
+      if (res.ok) {
+        const json = await res.json()
+        return json.data || []
+      }
+    } catch {}
+    return []
+  },
+
+  async adminListAnnouncements(): Promise<SystemAnnouncement[]> {
+    const token = this.getAdminToken()
+    const res = await fetch('/api/v1/admin/announcements', {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (res.ok) {
+      const json = await res.json()
+      return json.data || []
+    }
+    return []
+  },
+
+  async adminCreateAnnouncement(
+    payload: Partial<SystemAnnouncement>,
+  ): Promise<SystemAnnouncement> {
+    const token = this.getAdminToken()
+    const res = await fetch('/api/v1/admin/announcements', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(payload),
+    })
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'خطا در ثبت اعلان جدید')
+    }
+    return json.data
+  },
+
+  async adminUpdateAnnouncement(
+    id: string,
+    payload: Partial<SystemAnnouncement>,
+  ): Promise<SystemAnnouncement> {
+    const token = this.getAdminToken()
+    const res = await fetch(`/api/v1/admin/announcements/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(payload),
+    })
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'خطا در به‌روزرسانی اعلان')
+    }
+    return json.data
+  },
+
+  async adminDeleteAnnouncement(id: string): Promise<void> {
+    const token = this.getAdminToken()
+    const res = await fetch(`/api/v1/admin/announcements/${id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (!res.ok) {
+      throw new Error('خطا در حذف اعلان')
+    }
+  },
+
+  async createStockAlert(payload: {
+    product_id: string
+    mobile?: string
+    email?: string
+  }): Promise<void> {
+    const res = await fetch('/api/v1/stock-alerts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'خطا در ثبت درخواست اطلاع‌رسانی')
+    }
+  },
+
+  async toggleFavorite(payload: {
+    target_type: string
+    target_id: string
+    title?: string
+  }): Promise<{ is_favorite: boolean; message: string }> {
+    const token = this.getCustomerToken()
+    const res = await fetch('/api/v1/favorites/toggle', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(payload),
+    })
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'خطا در نشان‌کردن')
+    }
+    return json.data
+  },
+
+  async listFavorites(): Promise<UserFavorite[]> {
+    const token = this.getCustomerToken()
+    const res = await fetch('/api/v1/favorites', {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (res.ok) {
+      const json = await res.json()
+      return json.data || []
     }
     return []
   },
@@ -947,6 +1122,33 @@ export const apiService = {
     return json.data
   },
 
+  async testBotProviderConnection(payload: {
+    key: string
+    api_key?: string
+    base_url?: string
+  }): Promise<{
+    success: boolean
+    is_connected: boolean
+    balance_usd: number
+    balance_toman: number
+    message: string
+  }> {
+    const token = this.getAdminToken()
+    const res = await fetch('/api/v1/admin/providers/test', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(payload),
+    })
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'خطا در تست اتصال به ربات')
+    }
+    return json.data
+  },
+
   async getBotCatalog(
     provider: string,
     forceRefresh = false,
@@ -1498,6 +1700,28 @@ export const apiService = {
       return json.data
     }
     return { total: 0, items: [] }
+  },
+
+  async bulkImportInventory(payload: {
+    product_id: string
+    item_type: string
+    items: string[]
+    batch_tag?: string
+  }): Promise<{ imported_count: number }> {
+    const token = this.getAdminToken()
+    const res = await fetch('/api/v1/admin/inventory/bulk-import', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(payload),
+    })
+    const json = await res.json()
+    if (res.ok && json.code === 200 && json.data) {
+      return json.data
+    }
+    throw new Error(json.msg || 'خطا در افزودن دسته‌ای کلیدها')
   },
 
   async replaceInventoryKey(

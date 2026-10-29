@@ -32,7 +32,7 @@ import type {
   TicketStatusType,
   VirtualNumberOrder,
 } from '../../types'
-import { toPersianDigits } from '../../utils/formatters'
+import { formatToman, toPersianDigits } from '../../utils/formatters'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import { ConfirmModal } from '../vibefarsi/ConfirmModal'
@@ -1319,8 +1319,8 @@ export const ProfileSupportTab: React.FC<ProfileSupportTabProps> = ({
                         <optgroup label="سفارش‌های اشتراک و اکانت هوش مصنوعی">
                           {orders.map((o) => (
                             <option key={o.order_no} value={o.order_no}>
-                              #{o.order_no} — {o.product_title} (
-                              {o.amount_toman?.toLocaleString('fa-IR')} تومان)
+                              #{toPersianDigits(o.order_no)} — {o.product_title}{' '}
+                              ({formatToman(o.amount_toman)} تومان)
                             </option>
                           ))}
                         </optgroup>

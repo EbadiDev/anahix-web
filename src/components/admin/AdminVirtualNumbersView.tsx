@@ -306,7 +306,7 @@ export const AdminVirtualNumbersView: React.FC = () => {
                     <span>
                       تتر SwapWallet:{' '}
                       {toPersianDigits(
-                        vnSettings.live_usd_rate.toLocaleString(),
+                        vnSettings.live_usd_rate.toLocaleString('fa-IR'),
                       )}{' '}
                       تومان
                     </span>
@@ -406,7 +406,7 @@ export const AdminVirtualNumbersView: React.FC = () => {
                 <div className="relative">
                   <input
                     type="number"
-                    step="500"
+                    step="any"
                     value={usdRateInput}
                     onChange={(e) => setUsdRateInput(Number(e.target.value))}
                     className="w-full h-10 px-3.5 pr-9 text-xs rounded-field border border-border/60 bg-muted/20 text-foreground font-latin outline-none focus:border-brand"

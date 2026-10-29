@@ -1,11 +1,11 @@
 import {
   ArrowLeft,
+  Bell,
   Boxes,
   Check,
   Clock,
   Flame,
   KeyRound,
-  Package,
   ShoppingCart,
   Sparkles,
   Star,
@@ -18,8 +18,10 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { cartStore, useCart } from '../lib/cartStore'
 import type { Product, ProductPlan } from '../types'
+import { formatToman } from '../utils/formatters'
 import { ClaudeIcon, CursorIcon, GeminiIcon, OpenAIIcon } from './BrandIcons'
 import { PrePurchaseNoticeModal } from './PrePurchaseNoticeModal'
+import { StockAlertModal } from './StockAlertModal'
 import { useNotification } from './vibefarsi/NotificationContext'
 import { QuantitySelector } from './vibefarsi/QuantitySelector'
 
@@ -46,13 +48,15 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     return plans.find((p) => p.is_default) || plans[0] || null
   })
   const [isNoticeOpen, setIsNoticeOpen] = useState(false)
+  const [isStockAlertOpen, setIsStockAlertOpen] = useState(false)
 
   // Out of Stock detection
   const isOutOfStock =
+    product.stock_mode === 'out_of_stock' ||
     product.is_out_of_stock ||
-    (product.available_stock !== undefined &&
-      product.available_stock <= 0 &&
-      product.delivery_type === 'instant')
+    (product.stock_mode !== 'always_in_stock' &&
+      product.available_stock !== undefined &&
+      product.available_stock <= 0)
 
   // Find quantity of this product (matching selected plan if any) in cart
   const cartItem = items.find((item) => {
@@ -155,15 +159,20 @@ export const ProductCard: React.FC<ProductCardProps> = ({
       ? (product.flash_sale_price_toman as number)
       : product.price_toman
 
-  const originalPrice = selectedPlan
-    ? selectedPlan.original_price_toman ||
-      Math.round((selectedPlan.price_toman * 1.15) / 1000) * 1000
+  // Original price ONLY if explicitly set by admin or active flash sale (never fabricate discounts!)
+  const rawOriginalPrice = selectedPlan
+    ? selectedPlan.original_price_toman
     : isFlashSaleActive
       ? product.price_toman
-      : Math.round((product.price_toman * 1.18) / 10000) * 10000
+      : product.original_price_toman
+
+  const originalPrice =
+    rawOriginalPrice && rawOriginalPrice > effectivePrice
+      ? rawOriginalPrice
+      : undefined
 
   const discountPercent =
-    originalPrice > effectivePrice
+    originalPrice && originalPrice > effectivePrice
       ? Math.round(((originalPrice - effectivePrice) / originalPrice) * 100)
       : 0
 
@@ -316,7 +325,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             </div>
 
             {/* Two Distinct Badge Types (Timed vs Regular Discount) */}
-            {hasTimedDiscount ? (
+            {hasTimedDiscount && discountPercent > 0 ? (
               <span className="inline-flex items-center gap-1 rounded-control bg-rose-600 text-white text-[10px] sm:text-[11px] font-black px-2.5 py-1 shadow-control border border-rose-400/40 animate-pulse">
                 <Flame className="h-3.5 w-3.5" />
                 <span>{toPersianDigits(discountPercent)}٪ تخفیف زمان‌دار</span>
@@ -330,7 +339,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           </div>
 
           {/* Timed Countdown Bar at Bottom of Artwork (100% Responsive, Sleek Vibe Farsi Style, No Wrap) */}
-          {hasTimedDiscount && (
+          {hasTimedDiscount && discountPercent > 0 && (
             <div className="absolute bottom-2.5 inset-x-2.5 flex items-center justify-between p-1.5 px-2.5 rounded-control bg-slate-950/85 backdrop-blur-md border border-white/15 text-white shadow-xs">
               <div className="flex items-center gap-1 text-[11px] font-bold text-amber-300">
                 <Clock className="w-3.5 h-3.5 text-amber-400 shrink-0" />
@@ -388,11 +397,24 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             </p>
           </div>
 
-          <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">
-            {product.description_fa}
-          </p>
+          {product.description_fa && (
+            <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">
+              {product.description_fa}
+            </p>
+          )}
 
-          {/* Equal Height Guaranteed Container: Inventory Progress or SLA text */}
+          {/* Delivery SLA line if defined */}
+          {(product.sla_display_text ||
+            (product.sla_min_minutes && product.sla_max_minutes)) && (
+            <div className="text-[11px] text-muted-foreground font-medium flex items-center gap-1 pt-0.5">
+              <span>
+                {product.sla_display_text ||
+                  `تحویل ${toPersianDigits(product.sla_min_minutes ?? '')} الی ${toPersianDigits(product.sla_max_minutes ?? '')} دقیقه`}
+              </span>
+            </div>
+          )}
+
+          {/* Equal Height Guaranteed Container: Inventory Progress, Stock Mode or SLA text */}
           <div className="h-7 flex items-center">
             {product.is_flash_sale && product.flash_sale_stock ? (
               <div className="w-full space-y-1">
@@ -427,6 +449,40 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                     }}
                   />
                 </div>
+              </div>
+            ) : isOutOfStock ? (
+              <div className="text-[11px] font-bold text-amber-500 flex items-center gap-1.5">
+                <Boxes className="h-3.5 w-3.5" />
+                <span>
+                  {product.out_of_stock_text || 'در حال تهیه و تامین مجدد'}
+                </span>
+              </div>
+            ) : product.stock_display_mode === 'show_exact' &&
+              product.available_stock !== undefined &&
+              product.available_stock > 0 ? (
+              <div className="text-[11px] font-bold flex items-center gap-1.5">
+                {product.available_stock <= 5 ? (
+                  <span className="text-amber-500 flex items-center gap-1">
+                    <Flame className="h-3.5 w-3.5" />
+                    <span>
+                      تنها {toPersianDigits(product.available_stock)} عدد در
+                      انبار باقی‌مانده
+                    </span>
+                  </span>
+                ) : (
+                  <span className="text-emerald-500 flex items-center gap-1">
+                    <Boxes className="h-3.5 w-3.5" />
+                    <span>
+                      {toPersianDigits(product.available_stock)} عدد موجود در
+                      انبار
+                    </span>
+                  </span>
+                )}
+              </div>
+            ) : product.stock_display_mode === 'show_status_only' ? (
+              <div className="text-[11px] text-emerald-500 font-bold flex items-center gap-1.5">
+                <Check className="h-3.5 w-3.5" />
+                <span>موجود در انبار (آماده تحویل)</span>
               </div>
             ) : (
               <div className="text-[11px] text-muted-foreground flex items-center gap-1.5">
@@ -473,14 +529,14 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             قیمت سرویس:
           </span>
           <div className="flex items-baseline gap-2">
-            {discountPercent > 0 && (
-              <span className="text-xs text-muted-foreground/50 line-through font-latin font-medium">
-                {Number(originalPrice).toLocaleString('fa-IR')}
+            {discountPercent > 0 && originalPrice && (
+              <span className="text-xs text-muted-foreground/50 line-through font-sans font-medium">
+                {formatToman(originalPrice)}
               </span>
             )}
             <div className="flex items-baseline gap-1">
-              <span className="text-lg sm:text-xl font-black font-latin text-foreground tracking-tight">
-                {Number(effectivePrice).toLocaleString('fa-IR')}
+              <span className="text-lg sm:text-xl font-black font-sans text-foreground tracking-tight">
+                {formatToman(effectivePrice)}
               </span>
               <span className="text-xs text-muted-foreground font-sans">
                 تومان
@@ -493,15 +549,23 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         <div className="space-y-2">
           {/* Primary Action Button: Add to Cart or Quantity Selector */}
           {isOutOfStock ? (
-            <button
-              type="button"
-              disabled
-              className="w-full h-10 rounded-control bg-muted text-muted-foreground border border-border/60 font-black text-xs shadow-xs flex items-center justify-center gap-2 cursor-not-allowed opacity-75"
-              title="اتمام موجودی در انبار"
-            >
-              <Package className="h-4 w-4" />
-              <span>ناموجود در انبار</span>
-            </button>
+            <div className="space-y-1.5">
+              <div className="w-full py-1.5 px-3 rounded-control bg-muted text-muted-foreground border border-border/60 text-[11px] font-bold text-center">
+                {product.out_of_stock_text || 'در حال تهیه و تامین مجدد'}
+              </div>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  setIsStockAlertOpen(true)
+                }}
+                className="w-full h-9 rounded-control border border-brand/40 bg-brand/10 hover:bg-brand/20 text-brand text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer duration-motion active:scale-[0.98]"
+              >
+                <Bell className="w-3.5 h-3.5" />
+                <span>موجود شد به من اطلاع بده</span>
+              </button>
+            </div>
           ) : currentQuantity > 0 ? (
             <QuantitySelector
               value={currentQuantity}
@@ -543,6 +607,14 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           onClose={() => setIsNoticeOpen(false)}
         />
       )}
+
+      {/* Stock Alert Modal */}
+      <StockAlertModal
+        isOpen={isStockAlertOpen}
+        onClose={() => setIsStockAlertOpen(false)}
+        product={product}
+        planTitle={selectedPlan?.title}
+      />
     </div>
   )
 }

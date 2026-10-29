@@ -189,7 +189,7 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
             <div className="p-4 rounded-surface border border-brand/30 bg-brand/5 space-y-3">
               <div className="flex items-center gap-2 text-brand font-bold text-xs">
                 <Clock className="w-4 h-4 shrink-0" />
-                <span>سفارش شما در صف بررسی کارشناسان آناهیکس قرار گرفت</span>
+                <span>سفارش شما در صف بررسی کارشناسان قرار گرفت</span>
               </div>
 
               <p className="text-muted-foreground leading-relaxed">

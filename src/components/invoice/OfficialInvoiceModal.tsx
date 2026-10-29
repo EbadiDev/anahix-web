@@ -13,6 +13,8 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { apiService } from '../../services/api'
 import type { OfficialInvoice } from '../../types'
+import { getSiteBrandName } from '../../utils/brand'
+import { formatToman } from '../../utils/formatters'
 import { Badge } from '../ui/badge'
 import { Button } from '../ui/button'
 
@@ -122,7 +124,7 @@ export const OfficialInvoiceModal: React.FC<OfficialInvoiceModalProps> = ({
                   {isPaid ? 'رسید و صورتحساب خرید' : 'پیش‌فاکتور سفارش'}
                 </h3>
                 <p className="text-[10px] sm:text-[11px] text-muted-foreground truncate">
-                  فروشگاه هوش مصنوعی آناهیکس
+                  {invoice?.seller?.company_name || 'فروشگاه اشتراک و لایسنس'}
                 </p>
               </div>
             </div>
@@ -191,7 +193,8 @@ export const OfficialInvoiceModal: React.FC<OfficialInvoiceModalProps> = ({
                   <div>
                     <div className="flex items-center gap-2">
                       <h2 className="text-base font-black text-slate-900">
-                        فروشگاه هوش مصنوعی آناهیکس
+                        {invoice.seller?.company_name ||
+                          'فروشگاه اشتراک و لایسنس'}
                       </h2>
                       <span className="text-[10px] text-blue-600 font-semibold bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100">
                         anahix.com
@@ -306,7 +309,7 @@ export const OfficialInvoiceModal: React.FC<OfficialInvoiceModalProps> = ({
                       {invoice.buyer.full_name &&
                       invoice.buyer.full_name !== 'خریدار محترم'
                         ? invoice.buyer.full_name
-                        : 'کاربر آناهیکس'}
+                        : 'کاربر گرامی'}
                     </span>
                   </div>
 
@@ -373,11 +376,10 @@ export const OfficialInvoiceModal: React.FC<OfficialInvoiceModalProps> = ({
                             {item.quantity}
                           </td>
                           <td className="p-3 text-left font-mono text-slate-700">
-                            {item.unit_price_toman.toLocaleString('fa-IR')}{' '}
-                            تومان
+                            {formatToman(item.unit_price_toman)} تومان
                           </td>
                           <td className="p-3 text-left font-mono font-bold text-slate-900">
-                            {item.subtotal_toman.toLocaleString('fa-IR')} تومان
+                            {formatToman(item.subtotal_toman)} تومان
                           </td>
                         </tr>
                       ))}
@@ -391,7 +393,7 @@ export const OfficialInvoiceModal: React.FC<OfficialInvoiceModalProps> = ({
                 <div className="flex items-center justify-between text-xs text-slate-600">
                   <span>جمع کل اقلام:</span>
                   <span className="font-mono font-semibold">
-                    {invoice.subtotal_toman.toLocaleString('fa-IR')} تومان
+                    {formatToman(invoice.subtotal_toman)} تومان
                   </span>
                 </div>
 
@@ -399,8 +401,7 @@ export const OfficialInvoiceModal: React.FC<OfficialInvoiceModalProps> = ({
                   <div className="flex items-center justify-between text-xs text-emerald-700 font-semibold">
                     <span>تخفیف اعمال شده:</span>
                     <span className="font-mono">
-                      - {invoice.total_discount_toman.toLocaleString('fa-IR')}{' '}
-                      تومان
+                      - {formatToman(invoice.total_discount_toman)} تومان
                     </span>
                   </div>
                 )}
@@ -409,12 +410,12 @@ export const OfficialInvoiceModal: React.FC<OfficialInvoiceModalProps> = ({
                   <span>مبلغ نهایی پرداختی:</span>
                   <div className="text-left">
                     <span className="font-mono text-base text-blue-700 font-black">
-                      {invoice.subtotal_toman - invoice.total_discount_toman > 0
-                        ? (
-                            invoice.subtotal_toman -
-                            invoice.total_discount_toman
-                          ).toLocaleString('fa-IR')
-                        : '۰'}{' '}
+                      {formatToman(
+                        Math.max(
+                          0,
+                          invoice.subtotal_toman - invoice.total_discount_toman,
+                        ),
+                      )}{' '}
                       تومان
                     </span>
                   </div>
@@ -457,11 +458,11 @@ export const OfficialInvoiceModal: React.FC<OfficialInvoiceModalProps> = ({
               {/* Friendly Warm Footer */}
               <div className="text-center pt-2 space-y-1">
                 <p className="text-xs font-semibold text-slate-700">
-                  از خرید و اعتماد شما به آناهیکس صمیمانه متشکریم!
+                  از خرید و اعتماد شما صمیمانه متشکریم!
                 </p>
                 <p className="text-[11px] text-slate-400">
                   در صورت بروز هرگونه سوال یا نیاز به پشتیبانی، تیم ما ۲۴ ساعته
-                  در کنار شماست. | anahix.com
+                  در کنار شماست. | {getSiteBrandName()}
                 </p>
               </div>
             </div>

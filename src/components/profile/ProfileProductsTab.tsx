@@ -12,7 +12,7 @@ import { useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Link } from 'react-router-dom'
 import type { Order } from '../../types'
-import { toPersianDigits } from '../../utils/formatters'
+import { formatToman, toPersianDigits } from '../../utils/formatters'
 
 interface ProfileProductsTabProps {
   orders: Order[]
@@ -178,8 +178,8 @@ export const ProfileProductsTab: React.FC<ProfileProductsTabProps> = ({
 
                       <div className="flex items-center justify-between text-muted-foreground">
                         <span>مبلغ پرداخت‌شده:</span>
-                        <span className="font-bold text-foreground font-latin">
-                          {order.amount_toman.toLocaleString('fa-IR')} تومان
+                        <span className="font-bold text-foreground font-sans">
+                          {formatToman(order.amount_toman)} تومان
                         </span>
                       </div>
                     </div>

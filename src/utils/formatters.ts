@@ -41,7 +41,8 @@ export function formatToman(amount: number | null | undefined): string {
   if (amount === null || amount === undefined || Number.isNaN(amount)) {
     return '۰'
   }
-  return toPersianDigits(Math.round(amount).toLocaleString('en-US'))
+  // Enforce Persian digits across all browsers and operating environments
+  return toPersianDigits(Math.round(amount).toLocaleString('fa-IR'))
 }
 
 /**

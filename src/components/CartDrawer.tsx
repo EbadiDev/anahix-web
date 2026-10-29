@@ -30,7 +30,7 @@ import { createPortal } from 'react-dom'
 import { useCart } from '../lib/cartStore'
 import { apiService } from '../services/api'
 import type { CustomerProfile, PaymentGateway, ThemeSettings } from '../types'
-import { toPersianDigits } from '../utils/formatters'
+import { formatToman, toPersianDigits } from '../utils/formatters'
 import { AuthModal } from './AuthModal'
 import { ClaudeIcon, CursorIcon, GeminiIcon, OpenAIIcon } from './BrandIcons'
 import { WalletTopupModal } from './profile/WalletTopupModal'
@@ -896,8 +896,8 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
 
                               <span className="text-muted-foreground text-[10px] sm:text-[11px] flex items-center gap-1">
                                 <span>واحد:</span>
-                                <span className="font-bold text-foreground font-latin">
-                                  {unitPrice.toLocaleString('fa-IR')}
+                                <span className="font-bold text-foreground font-sans">
+                                  {formatToman(unitPrice)}
                                 </span>
                                 <span>تومان</span>
                               </span>
@@ -1045,16 +1045,17 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                         {/* Calculated Line Total */}
                         <div className="text-left">
                           <div className="flex items-baseline justify-end gap-1.5">
-                            <span className="font-black text-sm sm:text-base text-foreground font-mono">
-                              {lineTotal.toLocaleString('fa-IR')}
+                            <span className="font-black text-sm sm:text-base text-foreground font-sans">
+                              {formatToman(lineTotal)}
                             </span>
                             <span className="text-xs text-muted-foreground font-sans">
                               تومان
                             </span>
                           </div>
                           {quantity > 1 && (
-                            <div className="text-[10px] sm:text-[11px] text-muted-foreground font-mono">
-                              {quantity} × {unitPrice.toLocaleString('fa-IR')}
+                            <div className="text-[10px] sm:text-[11px] text-muted-foreground font-sans">
+                              {toPersianDigits(quantity)} ×{' '}
+                              {formatToman(unitPrice)}
                             </div>
                           )}
                         </div>
@@ -1069,8 +1070,8 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                       <span className="text-[11px] text-muted-foreground block">
                         مجموع کل اقلام
                       </span>
-                      <div className="flex items-baseline gap-1 font-black text-base text-foreground font-latin">
-                        <span>{total.toLocaleString('fa-IR')}</span>
+                      <div className="flex items-baseline gap-1 font-black text-base text-foreground font-sans">
+                        <span>{formatToman(total)}</span>
                         <span className="text-[10px] font-normal text-muted-foreground font-sans">
                           تومان
                         </span>
@@ -1437,8 +1438,8 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 <div className="rounded-surface border border-border/80 bg-card p-4 space-y-2.5 text-xs shadow-surface">
                   <div className="flex justify-between text-muted-foreground">
                     <span>ارزش کل اقلام:</span>
-                    <span className="font-bold text-foreground text-sm font-latin">
-                      {subtotal.toLocaleString('fa-IR')} تومان
+                    <span className="font-bold text-foreground text-sm font-sans">
+                      {formatToman(subtotal)} تومان
                     </span>
                   </div>
 
@@ -1448,8 +1449,8 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                         <Percent className="w-3.5 h-3.5" />
                         تخفیف پروموشن:
                       </span>
-                      <span className="text-sm font-latin">
-                        -{discount.toLocaleString('fa-IR')} تومان
+                      <span className="text-sm font-sans">
+                        -{formatToman(discount)} تومان
                       </span>
                     </div>
                   )}
@@ -1458,8 +1459,8 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                     <span className="font-black text-sm text-foreground">
                       مبلغ قابل پرداخت:
                     </span>
-                    <div className="flex items-baseline gap-1 text-xl font-black text-foreground font-latin">
-                      <span>{total.toLocaleString('fa-IR')}</span>
+                    <div className="flex items-baseline gap-1 text-xl font-black text-foreground font-sans">
+                      <span>{formatToman(total)}</span>
                       <span className="text-xs font-normal text-muted-foreground font-sans">
                         تومان
                       </span>

@@ -59,12 +59,19 @@ export const CategoryDetailPage: React.FC = () => {
     async function loadData() {
       setLoading(true)
       try {
-        const [cats, allProds, catBanners] = await Promise.all([
-          api.getContentCategories('product').catch(() => []),
+        const [storeCats, allProds, catBanners] = await Promise.all([
+          apiService.getStoreCategories().catch(() => []),
           apiService.getProducts().catch(() => []),
           api.getBanners('category_header').catch(() => []),
         ])
         setCategoryBanners(catBanners)
+
+        if (allProds.length > 0) {
+          const maxP = Math.max(...allProds.map((p) => p.price_toman || 0))
+          if (maxP > 0) {
+            setMaxPrice(Math.ceil(maxP / 500000) * 500000)
+          }
+        }
 
         if (isDiscountOnly) {
           setCategory({
@@ -88,13 +95,30 @@ export const CategoryDetailPage: React.FC = () => {
           )
           setProducts(filtered)
         } else {
-          const matchedCat = cats.find(
-            (c: ContentCategory) => c.slug === currentSlug,
-          )
+          const matchedCat = storeCats.find((c: any) => c.slug === currentSlug)
 
           if (matchedCat) {
-            setCategory(matchedCat)
-            setSubcategories(matchedCat.children || [])
+            setCategory({
+              id: matchedCat.id,
+              name: matchedCat.title_fa,
+              slug: matchedCat.slug,
+              type: 'product',
+              icon: matchedCat.icon_url || 'Package',
+              description: matchedCat.description || '',
+              sort_order: matchedCat.sort_order || 1,
+              is_active: matchedCat.is_active,
+            })
+            setSubcategories(
+              (matchedCat.children || []).map((sub: any) => ({
+                id: sub.id,
+                name: sub.title_fa,
+                slug: sub.slug,
+                type: 'product',
+                icon: sub.icon_url || 'Tag',
+                sort_order: sub.sort_order || 1,
+                is_active: sub.is_active,
+              })),
+            )
           } else {
             setCategory({
               id: currentSlug,
@@ -134,11 +158,14 @@ export const CategoryDetailPage: React.FC = () => {
     const list = products.filter((p) => {
       // Subcategory / Brand filter
       if (selectedSubcategory !== 'all') {
+        const matchesCat = p.category === selectedSubcategory
+        const matchesParent = p.parent_category_slug === selectedSubcategory
         const matchesGroup = p.group_tag === selectedSubcategory
         const matchesSlug = (p.slug || '')
           .toLowerCase()
           .includes(selectedSubcategory.toLowerCase())
-        if (!matchesGroup && !matchesSlug) return false
+        if (!matchesCat && !matchesParent && !matchesGroup && !matchesSlug)
+          return false
       }
 
       // Search filter

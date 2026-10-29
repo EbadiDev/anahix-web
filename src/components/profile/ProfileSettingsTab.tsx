@@ -1,12 +1,4 @@
-import {
-  AlertTriangle,
-  Check,
-  Layers,
-  Mail,
-  Send,
-  Smartphone,
-  Trash2,
-} from 'lucide-react'
+import { AlertTriangle, Check, Layers, Smartphone, Trash2 } from 'lucide-react'
 import type React from 'react'
 import { useState } from 'react'
 import { ConfirmModal } from '../vibefarsi/ConfirmModal'
@@ -73,122 +65,66 @@ export const ProfileSettingsTab: React.FC<ProfileSettingsTabProps> = ({
           )}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="max-w-2xl">
           {/* SMS Channel */}
-          <div className="p-4 rounded-control border border-border/60 bg-muted/20 space-y-3">
-            <div className="flex items-center gap-2 pb-2 border-b border-border/40">
-              <Smartphone className="w-4 h-4 text-brand" />
-              <h5 className="text-xs font-bold text-foreground">
-                پیامک خدماتی (SMS)
-              </h5>
+          <div className="p-5 rounded-surface border border-border/80 bg-muted/20 space-y-4">
+            <div className="flex items-center gap-2 pb-3 border-b border-border/40">
+              <Smartphone className="w-5 h-5 text-brand" />
+              <div>
+                <h5 className="text-xs sm:text-sm font-bold text-foreground">
+                  پیامک خدماتی و اعلانات (SMS.ir)
+                </h5>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  ارسال پیامک‌های سریع و موثق به شماره همراه تاییدشده شما
+                </p>
+              </div>
             </div>
-            <div className="space-y-2.5 text-xs">
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">تکمیل سفارش‌ها</span>
+            <div className="space-y-3 text-xs">
+              <div className="flex items-center justify-between p-2 rounded-control bg-card border border-border/40">
+                <div>
+                  <span className="font-bold text-foreground block">
+                    تکمیل و تحویل سفارش‌ها
+                  </span>
+                  <span className="text-[11px] text-muted-foreground">
+                    ارسال لایسنس و مشخصات پس از پرداخت
+                  </span>
+                </div>
                 <ToggleSwitch
                   size="sm"
                   checked={prefs.smsOrders}
                   onChange={() => togglePref('smsOrders')}
                 />
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">
-                  دریافت پیامک شماره مجازی
-                </span>
+
+              <div className="flex items-center justify-between p-2 rounded-control bg-card border border-border/40">
+                <div>
+                  <span className="font-bold text-foreground block">
+                    دریافت پیامک و کدهای شماره مجازی
+                  </span>
+                  <span className="text-[11px] text-muted-foreground">
+                    ارسال کد OTP دریافتی از ۵SIM
+                  </span>
+                </div>
                 <ToggleSwitch
                   size="sm"
                   checked={prefs.smsVirtualNumbers}
                   onChange={() => togglePref('smsVirtualNumbers')}
                 />
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">
-                  هشدارهای امنیتی ورود
-                </span>
+
+              <div className="flex items-center justify-between p-2 rounded-control bg-card border border-border/40">
+                <div>
+                  <span className="font-bold text-foreground block">
+                    هشدارهای امنیتی و کدهای ورود
+                  </span>
+                  <span className="text-[11px] text-muted-foreground">
+                    ورود با دستگاه جدید یا بازیابی رمز
+                  </span>
+                </div>
                 <ToggleSwitch
                   size="sm"
                   checked={prefs.smsSecurity}
                   onChange={() => togglePref('smsSecurity')}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Telegram Channel */}
-          <div className="p-4 rounded-control border border-border/60 bg-muted/20 space-y-3">
-            <div className="flex items-center gap-2 pb-2 border-b border-border/40">
-              <Send className="w-4 h-4 text-brand" />
-              <h5 className="text-xs font-bold text-foreground">
-                ربات تلگرام آناهیکس
-              </h5>
-            </div>
-            <div className="space-y-2.5 text-xs">
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">تحویل لایسنس‌ها</span>
-                <ToggleSwitch
-                  size="sm"
-                  checked={prefs.tgOrders}
-                  onChange={() => togglePref('tgOrders')}
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">
-                  کدهای OTP شماره موقت
-                </span>
-                <ToggleSwitch
-                  size="sm"
-                  checked={prefs.tgVirtualNumbers}
-                  onChange={() => togglePref('tgVirtualNumbers')}
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">
-                  یادآوری تمدید اشتراک
-                </span>
-                <ToggleSwitch
-                  size="sm"
-                  checked={prefs.tgExpiration}
-                  onChange={() => togglePref('tgExpiration')}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Email Channel */}
-          <div className="p-4 rounded-control border border-border/60 bg-muted/20 space-y-3">
-            <div className="flex items-center gap-2 pb-2 border-b border-border/40">
-              <Mail className="w-4 h-4 text-brand" />
-              <h5 className="text-xs font-bold text-foreground">
-                پست الکترونیک (Email)
-              </h5>
-            </div>
-            <div className="space-y-2.5 text-xs">
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">ارسال فاکتور رسمی</span>
-                <ToggleSwitch
-                  size="sm"
-                  checked={prefs.emailInvoices}
-                  onChange={() => togglePref('emailInvoices')}
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">
-                  اطلاعات اکانت شخصی
-                </span>
-                <ToggleSwitch
-                  size="sm"
-                  checked={prefs.emailCredentials}
-                  onChange={() => togglePref('emailCredentials')}
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">
-                  هشدارهای تغییر رمز
-                </span>
-                <ToggleSwitch
-                  size="sm"
-                  checked={prefs.emailSecurity}
-                  onChange={() => togglePref('emailSecurity')}
                 />
               </div>
             </div>
