@@ -1075,7 +1075,7 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
                       }
                     }}
                     placeholder="/favicon.svg یا https://..."
-                    className="flex-1 h-10 px-3.5 rounded-field border border-border/60 bg-card text-xs text-foreground focus:outline-none focus:border-brand font-mono font-latin dir-ltr text-left"
+                    className="flex-1 h-10 px-3.5 rounded-field border border-border/60 bg-card text-xs text-foreground focus:outline-none focus:border-brand font-latin dir-ltr text-left"
                   />
                   <label className="h-10 px-3.5 rounded-field bg-secondary hover:bg-muted text-foreground border border-border/60 text-xs font-bold flex items-center gap-1.5 cursor-pointer shrink-0 shadow-xs duration-motion active:scale-[0.98]">
                     <Upload className="w-3.5 h-3.5 text-brand" />
@@ -1145,7 +1145,7 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
                       }
                     }}
                     placeholder="/images/logo.png یا https://..."
-                    className="flex-1 h-10 px-3.5 rounded-field border border-border/60 bg-card text-xs text-foreground focus:outline-none focus:border-brand font-mono font-latin dir-ltr text-left"
+                    className="flex-1 h-10 px-3.5 rounded-field border border-border/60 bg-card text-xs text-foreground focus:outline-none focus:border-brand font-latin dir-ltr text-left"
                   />
                   <label className="h-10 px-3.5 rounded-field bg-secondary hover:bg-muted text-foreground border border-border/60 text-xs font-bold flex items-center gap-1.5 cursor-pointer shrink-0 shadow-xs duration-motion active:scale-[0.98]">
                     <Upload className="w-3.5 h-3.5 text-brand" />
@@ -1212,7 +1212,7 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
                     }))
                   }
                   placeholder="اختیاری (e.g. plyshop)"
-                  className="w-full h-10 px-3.5 rounded-field border border-border/60 bg-muted/20 text-xs text-foreground focus:outline-none focus:border-brand font-mono font-latin"
+                  className="w-full h-10 px-3.5 rounded-field border border-border/60 bg-muted/20 text-xs text-foreground focus:outline-none focus:border-brand font-latin"
                 />
               </div>
 
@@ -1282,7 +1282,7 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
                       }))
                     }
                     placeholder="/images/og-share.png یا https://..."
-                    className="w-full h-10 px-3.5 rounded-field border border-border/60 bg-muted/20 text-xs text-foreground focus:outline-none focus:border-brand font-mono font-latin dir-ltr text-left"
+                    className="w-full h-10 px-3.5 rounded-field border border-border/60 bg-muted/20 text-xs text-foreground focus:outline-none focus:border-brand font-latin dir-ltr text-left"
                   />
                 </div>
               </div>
@@ -1340,7 +1340,7 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
                     }))
                   }
                   placeholder="۰۲۱-۹۱۰۰۰۰۰۰"
-                  className="w-full h-10 px-3.5 rounded-field border border-border/60 bg-muted/20 text-xs text-foreground focus:outline-none focus:border-brand font-mono font-latin dir-ltr text-left"
+                  className="w-full h-10 px-3.5 rounded-field border border-border/60 bg-muted/20 text-xs text-foreground focus:outline-none focus:border-brand font-latin dir-ltr text-left"
                 />
               </div>
 
@@ -1358,7 +1358,7 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
                     }))
                   }
                   placeholder="@AnahixSupport"
-                  className="w-full h-10 px-3.5 rounded-field border border-border/60 bg-muted/20 text-xs text-foreground focus:outline-none focus:border-brand font-mono font-latin dir-ltr text-left"
+                  className="w-full h-10 px-3.5 rounded-field border border-border/60 bg-muted/20 text-xs text-foreground focus:outline-none focus:border-brand font-latin dir-ltr text-left"
                 />
               </div>
             </div>
@@ -1472,7 +1472,7 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
                               )
                             }
                             placeholder="آدرس مسیر (e.g. /category/ai_chat)"
-                            className="h-9 px-3 rounded-field border border-border/60 bg-card text-xs font-mono font-latin dir-ltr text-left text-foreground focus:outline-none focus:border-brand"
+                            className="h-9 px-3 rounded-field border border-border/60 bg-card text-xs font-latin dir-ltr text-left text-foreground focus:outline-none focus:border-brand"
                           />
                           <input
                             type="text"
@@ -1510,7 +1510,7 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
                                 )
                               }
                               placeholder="آدرس آیکون"
-                              className="h-9 px-2 rounded-field border border-border/60 bg-card text-xs font-mono font-latin dir-ltr text-left text-foreground focus:outline-none focus:border-brand flex-1"
+                              className="h-9 px-2 rounded-field border border-border/60 bg-card text-xs font-latin dir-ltr text-left text-foreground focus:outline-none focus:border-brand flex-1"
                             />
                             <label
                               className="h-9 px-2 rounded-field bg-secondary hover:bg-muted text-foreground border border-border/60 text-xs font-bold flex items-center gap-1 cursor-pointer shrink-0"
@@ -1697,7 +1697,7 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
                                   key={sub.id}
                                   className="flex flex-col sm:flex-row items-center gap-2 p-2 rounded-control bg-card border border-border/60"
                                 >
-                                  <div className="text-[10px] text-muted-foreground font-mono font-latin px-1.5 shrink-0">
+                                  <div className="text-[10px] text-muted-foreground font-latin px-1.5 shrink-0">
                                     #{sIdx + 1}
                                   </div>
                                   <input
@@ -1752,7 +1752,7 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
                                       )
                                     }
                                     placeholder="آدرس مسیر (e.g. /products/chatgpt-plus)"
-                                    className="h-8 px-2.5 rounded-field border border-border/60 bg-muted/20 text-xs font-mono font-latin dir-ltr text-left text-foreground focus:outline-none focus:border-brand flex-1 w-full"
+                                    className="h-8 px-2.5 rounded-field border border-border/60 bg-muted/20 text-xs font-latin dir-ltr text-left text-foreground focus:outline-none focus:border-brand flex-1 w-full"
                                   />
                                   <input
                                     type="text"
@@ -1896,7 +1896,7 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
                           ),
                         )
                       }
-                      className="flex-1 h-8 px-2.5 rounded-field border border-border/60 bg-card text-xs font-mono font-latin dir-ltr text-left text-foreground focus:outline-none focus:border-brand"
+                      className="flex-1 h-8 px-2.5 rounded-field border border-border/60 bg-card text-xs font-latin dir-ltr text-left text-foreground focus:outline-none focus:border-brand"
                     />
                     <button
                       type="button"
@@ -1979,7 +1979,7 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
                         )
                       }
                       placeholder="لینک (e.g. /products)"
-                      className="flex-1 h-8 px-2.5 rounded-field border border-border/60 bg-card text-xs font-mono font-latin dir-ltr text-left text-foreground focus:outline-none focus:border-brand"
+                      className="flex-1 h-8 px-2.5 rounded-field border border-border/60 bg-card text-xs font-latin dir-ltr text-left text-foreground focus:outline-none focus:border-brand"
                     />
                     <button
                       type="button"
@@ -2254,7 +2254,7 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
                             )
                           }
                           placeholder="https://trustseal.enamad.ir/?id=..."
-                          className="w-full h-8 px-2.5 rounded-field border border-border/60 bg-card text-xs font-mono font-latin dir-ltr text-left text-foreground focus:outline-none focus:border-brand"
+                          className="w-full h-8 px-2.5 rounded-field border border-border/60 bg-card text-xs font-latin dir-ltr text-left text-foreground focus:outline-none focus:border-brand"
                         />
                       </div>
                     </div>
@@ -2323,7 +2323,7 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
                       }))
                     }
                     placeholder="API Key سامانه پیامک..."
-                    className="w-full h-10 pl-20 pr-3.5 rounded-field border border-border/60 bg-card text-xs text-foreground focus:outline-none focus:border-brand font-mono font-latin dir-ltr text-left"
+                    className="w-full h-10 pl-20 pr-3.5 rounded-field border border-border/60 bg-card text-xs text-foreground focus:outline-none focus:border-brand font-latin dir-ltr text-left"
                   />
                   <div className="absolute left-1.5 top-1.5 flex items-center gap-1">
                     <button
@@ -2372,7 +2372,7 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
                       }))
                     }
                     placeholder="3000..."
-                    className="w-full h-9 px-3 rounded-field border border-border/60 bg-card text-xs text-foreground focus:outline-none focus:border-brand font-mono font-latin dir-ltr text-left"
+                    className="w-full h-9 px-3 rounded-field border border-border/60 bg-card text-xs text-foreground focus:outline-none focus:border-brand font-latin dir-ltr text-left"
                   />
                 </div>
               </div>
@@ -2399,7 +2399,7 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
                       }))
                     }
                     placeholder="XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
-                    className="w-full h-10 pl-20 pr-3.5 rounded-field border border-border/60 bg-card text-xs text-foreground focus:outline-none focus:border-brand font-mono font-latin dir-ltr text-left"
+                    className="w-full h-10 pl-20 pr-3.5 rounded-field border border-border/60 bg-card text-xs text-foreground focus:outline-none focus:border-brand font-latin dir-ltr text-left"
                   />
                   <div className="absolute left-1.5 top-1.5 flex items-center gap-1">
                     <button
@@ -2459,7 +2459,7 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
                       }))
                     }
                     placeholder="Bearer eyJhbGciOi..."
-                    className="w-full h-10 pl-20 pr-3.5 rounded-field border border-border/60 bg-card text-xs text-foreground focus:outline-none focus:border-brand font-mono font-latin dir-ltr text-left"
+                    className="w-full h-10 pl-20 pr-3.5 rounded-field border border-border/60 bg-card text-xs text-foreground focus:outline-none focus:border-brand font-latin dir-ltr text-left"
                   />
                   <div className="absolute left-1.5 top-1.5 flex items-center gap-1">
                     <button
@@ -2519,7 +2519,7 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
                       }))
                     }
                     placeholder="client_id.apps.googleusercontent.com"
-                    className="w-full h-10 pl-20 pr-3.5 rounded-field border border-border/60 bg-card text-xs text-foreground focus:outline-none focus:border-brand font-mono font-latin dir-ltr text-left"
+                    className="w-full h-10 pl-20 pr-3.5 rounded-field border border-border/60 bg-card text-xs text-foreground focus:outline-none focus:border-brand font-latin dir-ltr text-left"
                   />
                   <div className="absolute left-1.5 top-1.5 flex items-center gap-1">
                     <button
@@ -2565,7 +2565,7 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
                       }))
                     }
                     placeholder="Iv1..."
-                    className="w-full h-9 px-3 rounded-field border border-border/60 bg-card text-xs text-foreground focus:outline-none focus:border-brand font-mono font-latin dir-ltr text-left"
+                    className="w-full h-9 px-3 rounded-field border border-border/60 bg-card text-xs text-foreground focus:outline-none focus:border-brand font-latin dir-ltr text-left"
                   />
                 </div>
               </div>
@@ -2600,7 +2600,7 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
               </div>
 
               {exchangeRateSettings.live_usd_rate ? (
-                <div className="flex items-center gap-1.5 px-3 py-1 rounded-control text-xs font-mono font-latin bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-xs self-start sm:self-auto">
+                <div className="flex items-center gap-1.5 px-3 py-1 rounded-control text-xs font-latin bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-xs self-start sm:self-auto">
                   <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                   <span>
                     نرخ زنده تتر SwapWallet:{' '}
@@ -2707,7 +2707,7 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
                       usd_rate: Number(e.target.value) || 0,
                     }))
                   }
-                  className="w-full h-10 px-3.5 rounded-field border border-border/60 bg-muted/20 text-xs font-mono font-latin outline-none focus:border-brand"
+                  className="w-full h-10 px-3.5 rounded-field border border-border/60 bg-muted/20 text-xs font-latin outline-none focus:border-brand"
                 />
               </div>
 
@@ -2725,7 +2725,7 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
                       margin_percent: parseFloat(e.target.value) || 0,
                     }))
                   }
-                  className="w-full h-10 px-3.5 rounded-field border border-border/60 bg-muted/20 text-xs font-mono font-latin outline-none focus:border-brand"
+                  className="w-full h-10 px-3.5 rounded-field border border-border/60 bg-muted/20 text-xs font-latin outline-none focus:border-brand"
                 />
               </div>
 
@@ -2815,7 +2815,7 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
                             <span className="font-bold text-foreground text-xs block">
                               {p.name}
                             </span>
-                            <span className="text-[10px] text-muted-foreground font-mono font-latin">
+                            <span className="text-[10px] text-muted-foreground font-latin">
                               پلتفرم: {p.platform}
                             </span>
                           </div>
@@ -2878,7 +2878,7 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
                                 )
                               }
                               placeholder="/icons/gateway.svg یا https://..."
-                              className="flex-1 h-8 px-2.5 text-xs rounded-control border border-border/60 bg-card text-foreground font-mono font-latin dir-ltr text-left outline-none focus:border-brand"
+                              className="flex-1 h-8 px-2.5 text-xs rounded-control border border-border/60 bg-card text-foreground font-latin dir-ltr text-left outline-none focus:border-brand"
                             />
                             <label
                               className="h-8 px-2.5 rounded-control bg-secondary hover:bg-muted text-foreground border border-border/60 text-xs font-bold flex items-center gap-1 cursor-pointer shrink-0 shadow-xs"
@@ -3520,7 +3520,7 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
                         value={announceImage}
                         onChange={(e) => setAnnounceImage(e.target.value)}
                         placeholder="/images/banner.jpg یا https://..."
-                        className="flex-1 h-9 px-3 rounded-field border border-border/60 bg-muted/20 text-foreground text-xs font-mono font-latin dir-ltr text-left outline-none focus:border-brand"
+                        className="flex-1 h-9 px-3 rounded-field border border-border/60 bg-muted/20 text-foreground text-xs font-latin dir-ltr text-left outline-none focus:border-brand"
                       />
                       <label className="h-9 px-3 rounded-field bg-secondary hover:bg-muted text-foreground border border-border/60 text-xs font-bold flex items-center gap-1 cursor-pointer shrink-0">
                         <Upload className="w-3.5 h-3.5 text-brand" />
@@ -3604,7 +3604,7 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
                       type="datetime-local"
                       value={announceExpiresAt}
                       onChange={(e) => setAnnounceExpiresAt(e.target.value)}
-                      className="w-full h-9 px-3 rounded-control border border-border/60 bg-muted/20 text-foreground text-xs font-mono font-latin outline-none focus:border-brand"
+                      className="w-full h-9 px-3 rounded-control border border-border/60 bg-muted/20 text-foreground text-xs font-latin outline-none focus:border-brand"
                     />
                   </div>
                 </div>

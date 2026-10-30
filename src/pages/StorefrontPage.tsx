@@ -1594,7 +1594,7 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
                 >
                   <Headphones className="h-4 w-4 text-brand group-hover:scale-110 transition-transform" />
                   <span>پشتیبانی تلگرام:</span>
-                  <span className="font-mono font-latin dir-ltr text-brand">
+                  <span className="font-latin dir-ltr text-brand">
                     {supportTelegram}
                   </span>
                 </a>
