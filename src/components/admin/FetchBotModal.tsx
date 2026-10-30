@@ -431,6 +431,22 @@ export const FetchBotModal: React.FC<FetchBotModalProps> = ({
         image_url: imageURL,
         icon_url: iconURL,
         description,
+        stock: selectedBotProduct.stock || 0,
+        in_stock:
+          selectedBotProduct.in_stock ??
+          Boolean(
+            selectedBotProduct.unlimited || (selectedBotProduct.stock || 0) > 0,
+          ),
+        unlimited: Boolean(selectedBotProduct.unlimited),
+        stock_mode: selectedBotProduct.unlimited
+          ? 'always_in_stock'
+          : (selectedBotProduct.stock || 0) > 0 || selectedBotProduct.in_stock
+            ? 'manual'
+            : 'out_of_stock',
+        manual_stock: selectedBotProduct.unlimited
+          ? 999
+          : selectedBotProduct.stock || 0,
+        out_of_stock_text: 'ناموجود',
       }
 
       const imported = await apiService.importBotProduct(payload)

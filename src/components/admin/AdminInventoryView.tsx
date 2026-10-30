@@ -176,9 +176,7 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
     'auto' | 'always_in_stock' | 'manual' | 'out_of_stock'
   >('auto')
   const [pManualStock, setPManualStock] = useState<number>(50)
-  const [pOutOfStockText, setPOutOfStockText] = useState(
-    'در حال تهیه و تامین مجدد',
-  )
+  const [pOutOfStockText, setPOutOfStockText] = useState('ناموجود')
   const [activePlanContext, setActivePlanContext] = useState<string>('base')
   const [pShowProgress, setPShowProgress] = useState(true)
   const [pShowSalesCount, setPShowSalesCount] = useState(true)
@@ -421,7 +419,7 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
     setPStockDisplayMode('show_exact')
     setPStockMode('auto')
     setPManualStock(50)
-    setPOutOfStockText('در حال تهیه و تامین مجدد')
+    setPOutOfStockText('ناموجود')
     setActivePlanContext('base')
     setPShowProgress(true)
     setPShowSalesCount(true)
@@ -492,7 +490,11 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
     setPStockDisplayMode(p.stock_display_mode || 'show_exact')
     setPStockMode((p.stock_mode as any) || 'auto')
     setPManualStock(p.manual_stock || 50)
-    setPOutOfStockText(p.out_of_stock_text || 'در حال تهیه و تامین مجدد')
+    setPOutOfStockText(
+      p.out_of_stock_text && p.out_of_stock_text !== 'در حال تهیه و تامین مجدد'
+        ? p.out_of_stock_text
+        : 'ناموجود',
+    )
     setActivePlanContext('base')
     setPShowProgress(p.show_progress !== false)
     setPShowSalesCount(p.show_sales_count !== false)
@@ -1775,48 +1777,112 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
 
                           {/* Vertical Stock & Delivery Stacked Column */}
                           <td className="p-3.5 text-center font-sans">
-                            <div className="flex items-center justify-center gap-1.5 font-sans">
-                              <span
-                                className={`h-2 w-2 rounded-full ${
-                                  p.stock_mode === 'out_of_stock'
-                                    ? 'bg-rose-500'
-                                    : p.stock_mode === 'always_in_stock'
-                                      ? 'bg-emerald-500 animate-pulse'
-                                      : (p.available_stock ?? 0) > 0 ||
-                                          p.delivery_type !== 'instant'
-                                        ? 'bg-emerald-500'
-                                        : 'bg-rose-500'
-                                }`}
-                              />
-                              <span className="font-bold text-xs font-sans">
-                                {p.stock_mode === 'always_in_stock'
-                                  ? 'همیشه موجود (سفارش‌پذیر)'
-                                  : p.stock_mode === 'manual'
-                                    ? `${formatNumber(p.manual_stock || 0)} عدد دستی`
-                                    : p.stock_mode === 'out_of_stock'
-                                      ? p.out_of_stock_text || 'ناموجود'
-                                      : (p.available_stock ?? 0) > 0
-                                        ? `${formatNumber(p.available_stock ?? 0)} کلید موجود در انبار`
-                                        : p.out_of_stock_text ||
-                                          'اتمام موجودی (۰)'}
-                              </span>
-                            </div>
-                            <div className="text-[10px] text-muted-foreground mt-0.5">
-                              {p.delivery_type === 'instant'
-                                ? '⚡ تحویل آنی خودکار'
-                                : p.sla_display_text ||
-                                  `${p.sla_min_minutes} الی ${p.sla_max_minutes} دقیقه`}
-                            </div>
-                            <div className="text-[10px] font-medium text-muted-foreground/80 mt-0.5">
-                              نمایش به مشتری:{' '}
-                              {p.stock_display_mode === 'hide'
-                                ? 'مخفی'
-                                : p.stock_display_mode === 'show_status_only'
-                                  ? 'فقط وضعیت'
-                                  : p.stock_display_mode === 'custom_text'
-                                    ? 'متن دلخواه'
-                                    : 'عدد دقیق'}
-                            </div>
+                            {(() => {
+                              const isSupplier =
+                                Boolean(
+                                  p.external_provider &&
+                                    p.external_provider !== 'manual_vault',
+                                ) || p.delivery_strategy === 'third_party_instant'
+                              const isZeroOrOut =
+                                p.stock_mode === 'out_of_stock' ||
+                                (p.stock_mode !== 'always_in_stock' &&
+                                  (p.available_stock ?? 0) <= 0)
+
+                              return (
+                                <>
+                                  <div className="flex items-center justify-center gap-1.5 font-sans">
+                                    <span
+                                      className={`h-2 w-2 rounded-full ${
+                                        isZeroOrOut
+                                          ? 'bg-rose-500'
+                                          : p.stock_mode === 'always_in_stock'
+                                            ? 'bg-emerald-500 animate-pulse'
+                                            : 'bg-emerald-500'
+                                      }`}
+                                    />
+                                    <span className="font-bold text-xs font-sans">
+                                      {p.stock_mode === 'always_in_stock' ? (
+                                        <span className="text-emerald-500">
+                                          همیشه موجود (نامحدود ∞)
+                                        </span>
+                                      ) : isZeroOrOut ? (
+                                        <span className="text-rose-500 font-black">
+                                          ناموجود (موجودی: ۰ عدد)
+                                        </span>
+                                      ) : p.stock_mode === 'manual' ? (
+                                        <span className="text-emerald-500">
+                                          {formatNumber(p.manual_stock || 0)} عدد در انبار دستی
+                                        </span>
+                                      ) : isSupplier ? (
+                                        <span className="text-emerald-500">
+                                          {formatNumber(p.available_stock || 0)} عدد موجود در ربات
+                                        </span>
+                                      ) : (
+                                        <span className="text-emerald-500">
+                                          {formatNumber(p.available_stock || 0)} کلید آماده در مخزن
+                                        </span>
+                                      )}
+                                    </span>
+                                  </div>
+
+                                  {/* Supplier / Fulfillment Source */}
+                                  <div className="mt-1 flex items-center justify-center gap-1">
+                                    {isSupplier ? (
+                                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-control text-[10px] font-bold bg-primary/10 text-primary border border-primary/20">
+                                        <Bot className="w-3 h-3 text-brand" />
+                                        <span>
+                                          تامین‌کننده:{' '}
+                                          {p.external_provider || 'InsightX'}
+                                        </span>
+                                        {p.external_product_id_str ||
+                                        p.external_product_id ? (
+                                          <span className="opacity-70">
+                                            #
+                                            {p.external_product_id_str ||
+                                              p.external_product_id}
+                                          </span>
+                                        ) : null}
+                                      </span>
+                                    ) : p.delivery_type === 'instant' ? (
+                                      <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                                        <ShieldCheck className="w-3 h-3 text-emerald-500" />
+                                        <span>مخزن محلی کلیدها (Vault)</span>
+                                      </span>
+                                    ) : (
+                                      <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                                        <Clock className="w-3 h-3 text-amber-500" />
+                                        <span>
+                                          {p.sla_display_text ||
+                                            `اپراتور (${p.sla_min_minutes} الی ${p.sla_max_minutes} دقیقه)`}
+                                        </span>
+                                      </span>
+                                    )}
+                                  </div>
+
+                                  {/* Customer Display Status */}
+                                  <div className="text-[10px] font-medium text-muted-foreground/80 mt-0.5">
+                                    {isZeroOrOut ? (
+                                      <span className="text-rose-400 font-bold">
+                                        نمایش به خریدار: ناموجود (غیرقابل خرید)
+                                      </span>
+                                    ) : (
+                                      <span>
+                                        نمایش به خریدار:{' '}
+                                        {p.stock_display_mode === 'hide'
+                                          ? 'مخفی'
+                                          : p.stock_display_mode ===
+                                              'show_status_only'
+                                            ? 'فقط وضعیت'
+                                            : p.stock_display_mode ===
+                                                'custom_text'
+                                              ? 'متن دلخواه'
+                                              : 'عدد دقیق'}
+                                      </span>
+                                    )}
+                                  </div>
+                                </>
+                              )
+                            })()}
                           </td>
 
                           {/* Active Status */}
@@ -2995,7 +3061,7 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
                               onChange={(e) =>
                                 setPOutOfStockText(e.target.value)
                               }
-                              placeholder="مثلاً: در حال تهیه و تامین مجدد"
+                              placeholder="مثلاً: ناموجود یا موجودی صفر"
                               className="w-full h-9 px-3 text-xs rounded-field border border-border/60 bg-card text-foreground outline-none focus:border-brand"
                             />
                           </div>
@@ -3633,7 +3699,7 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
                                 onChange={(e) =>
                                   setPOutOfStockText(e.target.value)
                                 }
-                                placeholder="مثلاً: در حال تهیه و تامین مجدد"
+                                placeholder="مثلاً: ناموجود یا موجودی صفر"
                                 className="w-full h-9 px-3 text-xs rounded-field border border-border/60 bg-card text-foreground outline-none focus:border-brand"
                               />
                             </div>

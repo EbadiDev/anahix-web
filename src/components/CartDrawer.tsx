@@ -351,6 +351,21 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   // Mobile navigation step: 'items' | 'checkout'
   const [mobileStep, setMobileStep] = useState<'items' | 'checkout'>('items')
 
+  // Stock check helper
+  const isProductOutOfStock = (prod: Product) => {
+    return (
+      prod.stock_mode === 'out_of_stock' ||
+      prod.is_out_of_stock ||
+      (prod.stock_mode !== 'always_in_stock' &&
+        prod.available_stock !== undefined &&
+        prod.available_stock <= 0)
+    )
+  }
+
+  const hasOutOfStockItems = items.some(({ product }) =>
+    isProductOutOfStock(product),
+  )
+
   // Reset to items view when drawer closes
   useEffect(() => {
     if (!isOpen) {
@@ -528,6 +543,13 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   const handleFinalSubmit = async () => {
     setSubmitError(null)
 
+    if (hasOutOfStockItems) {
+      triggerError(
+        'یکی از کالاهای سبد خرید شما ناموجود است (موجودی صفر). امکان ثبت سفارش وجود ندارد.',
+      )
+      return
+    }
+
     // Auth gate check
     if (!isUserLoggedIn) {
       triggerError(
@@ -611,6 +633,12 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
 
   // Mobile validation for advancing from items to checkout
   const handleProceedToCheckout = () => {
+    if (hasOutOfStockItems) {
+      triggerError(
+        'یکی از کالاهای سبد خرید شما ناموجود است (موجودی صفر). لطفاً کالای ناموجود را حذف فرمایید تا بتوانید ادامه دهید.',
+      )
+      return
+    }
     for (const it of modeCItems) {
       const c = itemCreds[String(it.product.id)]
       if (!c?.email?.trim() || !c?.password?.trim()) {
@@ -815,12 +843,34 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                   const isCredFilled = Boolean(
                     cred.email?.trim() && cred.password?.trim(),
                   )
+                  const isItemUnavailable = isProductOutOfStock(product)
 
                   return (
                     <div
                       key={`${product.id}-${plan?.id || 'default'}`}
-                      className="group relative rounded-surface border border-border/60 bg-card p-3.5 sm:p-4 shadow-surface transition-all space-y-3"
+                      className={`group relative rounded-surface border bg-card p-3.5 sm:p-4 shadow-surface transition-all space-y-3 ${
+                        isItemUnavailable
+                          ? 'border-rose-500/40 bg-rose-500/5'
+                          : 'border-border/60'
+                      }`}
                     >
+                      {/* Out of Stock Warning */}
+                      {isItemUnavailable && (
+                        <div className="p-2.5 rounded-control bg-rose-500/10 border border-rose-500/30 text-rose-500 text-xs font-bold flex items-center justify-between">
+                          <div className="flex items-center gap-1.5">
+                            <AlertCircle className="w-4 h-4 shrink-0 text-rose-500" />
+                            <span>این محصول در حال حاضر ناموجود است (موجودی صفر)</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => removeItem(product.id, plan?.id)}
+                            className="text-[11px] underline hover:text-rose-400 font-bold cursor-pointer"
+                          >
+                            حذف این آیتم
+                          </button>
+                        </div>
+                      )}
+
                       {/* Product Header & Info */}
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex items-start gap-3 sm:gap-3.5 min-w-0">
@@ -1365,22 +1415,30 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                   }}
                   disabled={
                     isSubmitting ||
+                    hasOutOfStockItems ||
                     (isUserLoggedIn &&
                       selectedPlatform === 'balance' &&
                       !isBalanceSufficient)
                   }
                   className={`w-full h-11 rounded-control font-black text-xs sm:text-sm duration-motion ease-motion active:scale-[0.98] shadow-control flex items-center justify-center gap-2 cursor-pointer ${
-                    !isUserLoggedIn
-                      ? 'bg-primary hover:bg-primary-hover text-primary-foreground shadow-control'
-                      : selectedPlatform === 'balance' && !isBalanceSufficient
-                        ? 'bg-muted text-muted-foreground cursor-not-allowed opacity-60'
-                        : 'bg-primary hover:bg-primary-hover text-primary-foreground'
+                    hasOutOfStockItems
+                      ? 'bg-rose-500/10 text-rose-500 border border-rose-500/30 cursor-not-allowed opacity-80'
+                      : !isUserLoggedIn
+                        ? 'bg-primary hover:bg-primary-hover text-primary-foreground shadow-control'
+                        : selectedPlatform === 'balance' && !isBalanceSufficient
+                          ? 'bg-muted text-muted-foreground cursor-not-allowed opacity-60'
+                          : 'bg-primary hover:bg-primary-hover text-primary-foreground'
                   }`}
                 >
                   {isSubmitting ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
                       <span>در حال ثبت سفارش...</span>
+                    </>
+                  ) : hasOutOfStockItems ? (
+                    <>
+                      <AlertCircle className="w-4 h-4 text-rose-500" />
+                      <span>کالای ناموجود در سبد خرید (امکان پرداخت نیست)</span>
                     </>
                   ) : !isUserLoggedIn ? (
                     <>

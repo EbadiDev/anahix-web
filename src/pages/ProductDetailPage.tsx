@@ -718,17 +718,20 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                   {(() => {
                     if (isOutOfStock) {
                       return (
-                        <div className="p-4 rounded-surface border border-amber-500/30 bg-amber-500/5 text-center space-y-2.5">
-                          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-control bg-amber-500/10 text-amber-500 font-bold text-xs">
-                            <Package className="w-3.5 h-3.5" />
+                        <div className="p-4 rounded-surface border border-rose-500/30 bg-rose-500/5 text-center space-y-2.5">
+                          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-control bg-rose-500/10 text-rose-500 font-bold text-xs">
+                            <AlertCircle className="w-3.5 h-3.5" />
                             <span>
-                              {product?.out_of_stock_text ||
-                                'در حال تهیه و تامین مجدد'}
+                              {product?.out_of_stock_text &&
+                              product.out_of_stock_text !==
+                                'در حال تهیه و تامین مجدد'
+                                ? product.out_of_stock_text
+                                : 'ناموجود (موجودی صفر)'}
                             </span>
                           </div>
                           <p className="text-xs text-muted-foreground leading-relaxed">
-                            {product?.out_of_stock_text ||
-                              'متاسفانه موجودی این سرویس موقتاً به اتمام رسیده است. به محض شارژ مجدد در دسترس قرار خواهد گرفت.'}
+                            متاسفانه موجودی این سرویس به اتمام رسیده است و در
+                            حال حاضر امکان ثبت سفارش وجود ندارد.
                           </p>
                           <button
                             type="button"

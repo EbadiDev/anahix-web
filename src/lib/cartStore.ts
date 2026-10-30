@@ -40,6 +40,17 @@ export const cartStore = {
   },
 
   addItem(product: Product, quantity = 1, plan?: ProductPlan) {
+    // Prevent adding out-of-stock items to cart
+    const isOutOfStock =
+      product.stock_mode === 'out_of_stock' ||
+      product.is_out_of_stock ||
+      (product.stock_mode !== 'always_in_stock' &&
+        product.available_stock !== undefined &&
+        product.available_stock <= 0)
+    if (isOutOfStock) {
+      return false
+    }
+
     const planId = plan?.id || ''
     const existingIndex = globalState.items.findIndex(
       (item) =>

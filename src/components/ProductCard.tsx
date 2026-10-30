@@ -443,10 +443,13 @@ export const ProductCard: React.FC<ProductCardProps> = memo(
                   </div>
                 </div>
               ) : isOutOfStock ? (
-                <div className="text-[11px] font-bold text-amber-500 flex items-center gap-1.5">
+                <div className="text-[11px] font-bold text-rose-500 flex items-center gap-1.5">
                   <Boxes className="h-3.5 w-3.5" />
                   <span>
-                    {product.out_of_stock_text || 'در حال تهیه و تامین مجدد'}
+                    {product.out_of_stock_text &&
+                    product.out_of_stock_text !== 'در حال تهیه و تامین مجدد'
+                      ? product.out_of_stock_text
+                      : 'ناموجود'}
                   </span>
                 </div>
               ) : product.stock_display_mode === 'show_exact' &&
@@ -542,8 +545,14 @@ export const ProductCard: React.FC<ProductCardProps> = memo(
             {/* Primary Action Button: Add to Cart or Quantity Selector */}
             {isOutOfStock ? (
               <div className="space-y-1.5">
-                <div className="w-full py-1.5 px-3 rounded-control bg-muted text-muted-foreground border border-border/60 text-[11px] font-bold text-center">
-                  {product.out_of_stock_text || 'در حال تهیه و تامین مجدد'}
+                <div className="w-full py-1.5 px-3 rounded-control bg-rose-500/10 text-rose-500 border border-rose-500/30 text-[11px] font-black text-center flex items-center justify-center gap-1.5">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                  <span>
+                    {product.out_of_stock_text &&
+                    product.out_of_stock_text !== 'در حال تهیه و تامین مجدد'
+                      ? product.out_of_stock_text
+                      : 'ناموجود (موجودی صفر)'}
+                  </span>
                 </div>
                 <button
                   type="button"
