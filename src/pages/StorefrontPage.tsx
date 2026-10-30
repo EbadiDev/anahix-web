@@ -115,28 +115,35 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
       {
         id: 'enamad',
         title: 'نماد اعتماد الکترونیکی (اینماد)',
-        image_url: '/images/enamad.png',
+        image_url: '/images/enamad.svg',
         link_url: 'https://enamad.ir',
+        is_active: true,
+      },
+      {
+        id: 'torob',
+        title: 'فروشگاه تاییدشده ترب (Torob)',
+        image_url: '/images/torob.svg',
+        link_url: 'https://torob.com',
         is_active: true,
       },
       {
         id: 'samandehi',
         title: 'نشان ساماندهی رسانه‌های دیجیتال',
-        image_url: '/images/samandehi.png',
+        image_url: '/images/samandehi.svg',
         link_url: 'https://samandehi.ir',
         is_active: true,
       },
       {
         id: 'union',
         title: 'عضو اتحادیه کسب‌وکارهای مجازی',
-        image_url: '/images/union.png',
+        image_url: '/images/union.svg',
         link_url: 'https://ecunion.ir',
         is_active: true,
       },
       {
         id: 'security_vault',
         title: 'ضمانت امنیت داده‌ها و Zeroize',
-        image_url: '/images/security-seal.png',
+        image_url: '/images/security-seal.svg',
         link_url: '#',
         is_active: true,
       },
@@ -1789,22 +1796,30 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
               <div className="flex items-center gap-2.5 flex-wrap pt-1">
                 {footerTrustBadges.map((badge) => {
                   const content = (
-                    <div className="w-[88px] sm:w-[94px] h-[102px] sm:h-[108px] rounded-control bg-card border border-border/80 hover:border-brand/50 shadow-xs hover:shadow-md transition-all flex flex-col items-center justify-center p-2 text-center gap-1.5 group cursor-pointer">
-                      {badge.image_url ? (
-                        <img
-                          src={cleanMediaUrl(badge.image_url)}
-                          alt={badge.title}
-                          className="w-14 h-14 object-contain group-hover:scale-105 transition-transform"
-                          onError={(e) => {
-                            ;(e.target as HTMLElement).style.display = 'none'
-                          }}
-                        />
-                      ) : (
-                        <div className="w-12 h-12 rounded-control bg-secondary text-brand flex items-center justify-center border border-border/60">
-                          <ShieldCheck className="w-6 h-6 text-emerald-500" />
+                    <div className="w-[88px] sm:w-[94px] h-[102px] sm:h-[108px] rounded-xl bg-white text-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs hover:shadow-lg hover:border-brand/60 transition-all flex flex-col items-center justify-between p-2 text-center group cursor-pointer overflow-hidden">
+                      <div className="w-full flex-1 flex items-center justify-center">
+                        {badge.image_url ? (
+                          <img
+                            key={badge.image_url}
+                            src={cleanMediaUrl(badge.image_url)}
+                            alt={badge.title}
+                            className="w-14 h-14 object-contain group-hover:scale-105 transition-transform"
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none'
+                              const next = e.currentTarget
+                                .nextElementSibling as HTMLElement
+                              if (next) next.style.display = 'flex'
+                            }}
+                          />
+                        ) : null}
+                        <div
+                          style={{ display: badge.image_url ? 'none' : 'flex' }}
+                          className="w-10 h-10 rounded-full bg-slate-100 text-slate-500 items-center justify-center"
+                        >
+                          <ShieldCheck className="w-6 h-6 text-emerald-600" />
                         </div>
-                      )}
-                      <span className="text-[10px] font-bold text-foreground line-clamp-2 leading-tight w-full px-0.5">
+                      </div>
+                      <span className="text-[10px] font-bold text-slate-800 line-clamp-2 leading-tight w-full px-0.5 mt-auto">
                         {badge.title}
                       </span>
                     </div>

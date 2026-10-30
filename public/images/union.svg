@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <defs>
+    <linearGradient id="unionBlue" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e40af"/>
+      <stop offset="100%" stop-color="#2563eb"/>
+    </linearGradient>
+    <linearGradient id="unionGold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f59e0b"/>
+      <stop offset="100%" stop-color="#d97706"/>
+    </linearGradient>
+  </defs>
+  <!-- Background Badge Plaque -->
+  <rect x="5" y="5" width="90" height="90" rx="16" fill="#ffffff" stroke="#e2e8f0" stroke-width="2"/>
+  <!-- Laurel / Shield Motif -->
+  <path d="M50 20 C68 20 74 34 74 50 C74 66 50 78 50 78 C50 78 26 66 26 50 C26 34 32 20 50 20 Z" fill="#eff6ff" stroke="url(#unionBlue)" stroke-width="2"/>
+  <!-- Scales of Justice / Business balance -->
+  <line x1="50" y1="28" x2="50" y2="60" stroke="url(#unionGold)" stroke-width="2.5" stroke-linecap="round"/>
+  <line x1="36" y1="35" x2="64" y2="35" stroke="url(#unionGold)" stroke-width="2" stroke-linecap="round"/>
+  <!-- Scale Pans -->
+  <path d="M32 46 C32 50 40 50 40 46 Z" fill="url(#unionBlue)"/>
+  <line x1="36" y1="35" x2="36" y2="46" stroke="#94a3b8" stroke-width="1"/>
+  <path d="M60 46 C60 50 68 50 68 46 Z" fill="url(#unionBlue)"/>
+  <line x1="64" y1="35" x2="64" y2="46" stroke="#94a3b8" stroke-width="1"/>
+  <!-- Text Label -->
+  <text x="50" y="87" font-family="Tahoma, Arial, sans-serif" font-size="7" font-weight="bold" fill="#1e293b" text-anchor="middle">اتحادیه کسب‌وکار</text>
+</svg>

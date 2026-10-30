@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <defs>
+    <linearGradient id="enamadBlue" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e3a8a"/>
+      <stop offset="100%" stop-color="#3b82f6"/>
+    </linearGradient>
+    <linearGradient id="goldStar" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f59e0b"/>
+      <stop offset="100%" stop-color="#fbbf24"/>
+    </linearGradient>
+  </defs>
+  <!-- Background Badge Plaque -->
+  <rect x="5" y="5" width="90" height="90" rx="16" fill="#ffffff" stroke="#e2e8f0" stroke-width="2"/>
+  <!-- Circular Ribbon -->
+  <circle cx="50" cy="46" r="32" fill="none" stroke="url(#enamadBlue)" stroke-width="3" stroke-dasharray="4,2"/>
+  <!-- Central 'e' Symbol -->
+  <circle cx="50" cy="46" r="22" fill="#eff6ff"/>
+  <path d="M42 46 C42 38 58 38 58 46 L42 46 C42 53 58 53 58 48" fill="none" stroke="url(#enamadBlue)" stroke-width="4" stroke-linecap="round"/>
+  <!-- Two Golden Stars for Verified 2-Star Status -->
+  <g fill="url(#goldStar)">
+    <polygon points="40,20 42,25 47,25 43,28 45,33 40,30 35,33 37,28 33,25 38,25" transform="scale(0.7) translate(16, 5)"/>
+    <polygon points="40,20 42,25 47,25 43,28 45,33 40,30 35,33 37,28 33,25 38,25" transform="scale(0.7) translate(40, 5)"/>
+  </g>
+  <!-- Text Label -->
+  <text x="50" y="87" font-family="Tahoma, Arial, sans-serif" font-size="7.5" font-weight="bold" fill="#1e293b" text-anchor="middle">اینماد الکترونیکی</text>
+</svg>

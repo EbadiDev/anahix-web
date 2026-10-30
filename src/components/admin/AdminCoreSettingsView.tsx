@@ -262,28 +262,35 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
     {
       id: 'enamad',
       title: 'نماد اعتماد الکترونیکی (اینماد)',
-      image_url: '/images/enamad.png',
+      image_url: '/images/enamad.svg',
       link_url: 'https://enamad.ir',
+      is_active: true,
+    },
+    {
+      id: 'torob',
+      title: 'فروشگاه تاییدشده ترب (Torob)',
+      image_url: '/images/torob.svg',
+      link_url: 'https://torob.com',
       is_active: true,
     },
     {
       id: 'samandehi',
       title: 'نشان ساماندهی رسانه‌های دیجیتال',
-      image_url: '/images/samandehi.png',
+      image_url: '/images/samandehi.svg',
       link_url: 'https://samandehi.ir',
       is_active: true,
     },
     {
       id: 'union',
       title: 'عضو اتحادیه کشوری کسب‌وکارهای مجازی',
-      image_url: '/images/union.png',
+      image_url: '/images/union.svg',
       link_url: 'https://ecunion.ir',
       is_active: true,
     },
     {
       id: 'security_vault',
       title: 'ضمانت امنیت داده‌ها و پروتکل Zeroize',
-      image_url: '/images/security-seal.png',
+      image_url: '/images/security-seal.svg',
       link_url: '#',
       is_active: true,
     },
@@ -302,14 +309,22 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
     try {
       const res = await apiService.uploadMedia(file)
       if (res.file_url) {
-        setFooterBadges((prev) =>
-          prev.map((b, i) =>
-            i === badgeIdx
-              ? { ...b, image_url: cleanMediaUrl(res.file_url) }
-              : b,
-          ),
+        const next = footerBadges.map((b, i) =>
+          i === badgeIdx ? { ...b, image_url: cleanMediaUrl(res.file_url) } : b,
         )
-        notifySuccess('تصویر نماد ذخیره شد', 'فایل نماد با موفقیت آپلود گردید.')
+        setFooterBadges(next)
+        await api.updateAdminThemeSettings({
+          footer_badges_json: JSON.stringify(next),
+        })
+        window.dispatchEvent(
+          new CustomEvent('anahix:theme:updated', {
+            detail: { footer_badges_json: JSON.stringify(next) },
+          }),
+        )
+        notifySuccess(
+          'تصویر نماد ذخیره شد',
+          'فایل نماد با موفقیت آپلود و در سیستم ثبت گردید.',
+        )
       }
     } catch (err: any) {
       notifyError('خطا در آپلود نماد', err.message)
@@ -2023,35 +2038,35 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
                         {
                           id: `badge-${Date.now()}-1`,
                           title: 'نماد اعتماد الکترونیکی (اینماد)',
-                          image_url: '/images/enamad.png',
+                          image_url: '/images/enamad.svg',
                           link_url: 'https://enamad.ir',
                           is_active: true,
                         },
                         {
                           id: `badge-${Date.now()}-2`,
                           title: 'فروشگاه تاییدشده ترب (Torob)',
-                          image_url: '/images/torob.png',
+                          image_url: '/images/torob.svg',
                           link_url: 'https://torob.com',
                           is_active: true,
                         },
                         {
                           id: `badge-${Date.now()}-3`,
                           title: 'نشان ساماندهی رسانه‌های دیجیتال',
-                          image_url: '/images/samandehi.png',
+                          image_url: '/images/samandehi.svg',
                           link_url: 'https://samandehi.ir',
                           is_active: true,
                         },
                         {
                           id: `badge-${Date.now()}-4`,
                           title: 'عضو اتحادیه کشوری کسب‌وکارهای مجازی',
-                          image_url: '/images/union.png',
+                          image_url: '/images/union.svg',
                           link_url: 'https://ecunion.ir',
                           is_active: true,
                         },
                         {
                           id: `badge-${Date.now()}-5`,
                           title: 'پرداخت امن شاپرک و تتر TRC20',
-                          image_url: '/images/security-seal.png',
+                          image_url: '/images/security-seal.svg',
                           link_url: '#',
                           is_active: true,
                         },
@@ -2108,26 +2123,37 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2">
                           {/* Live Badge Preview Box (Standard Real-World E-Namad Dimensions) */}
-                          <div className="w-[88px] h-[98px] rounded-control bg-card border border-border/80 flex flex-col items-center justify-center shrink-0 p-1.5 shadow-xs">
-                            {badge.image_url ? (
-                              <img
-                                src={cleanMediaUrl(badge.image_url)}
-                                alt={badge.title}
-                                className="w-14 h-14 object-contain"
-                                onError={(e) => {
-                                  ;(e.target as HTMLElement).style.display =
-                                    'none'
+                          <div className="w-[88px] h-[98px] rounded-xl bg-white text-slate-900 border border-slate-200 dark:border-slate-700 shadow-xs flex flex-col items-center justify-between shrink-0 p-1.5 overflow-hidden">
+                            <div className="w-full flex-1 flex items-center justify-center">
+                              {badge.image_url ? (
+                                <img
+                                  key={badge.image_url}
+                                  src={cleanMediaUrl(badge.image_url)}
+                                  alt={badge.title}
+                                  className="w-14 h-14 object-contain"
+                                  onError={(e) => {
+                                    e.currentTarget.style.display = 'none'
+                                    const next = e.currentTarget
+                                      .nextElementSibling as HTMLElement
+                                    if (next) next.style.display = 'flex'
+                                  }}
+                                />
+                              ) : null}
+                              <div
+                                style={{
+                                  display: badge.image_url ? 'none' : 'flex',
                                 }}
-                              />
-                            ) : (
-                              <ShieldCheck className="w-7 h-7 text-muted-foreground/50" />
-                            )}
-                            <span className="text-[9px] font-bold text-foreground text-center truncate w-full mt-1">
+                                className="w-10 h-10 rounded-full bg-slate-100 text-slate-500 items-center justify-center"
+                              >
+                                <ShieldCheck className="w-6 h-6 text-emerald-600" />
+                              </div>
+                            </div>
+                            <span className="text-[9px] font-bold text-slate-800 text-center truncate w-full pt-1">
                               {badge.title}
                             </span>
                           </div>
 
-                          <div className="space-y-1">
+                          <div className="space-y-1 flex-1">
                             <input
                               type="text"
                               value={badge.title}
@@ -2141,10 +2167,10 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
                                 )
                               }
                               placeholder="عنوان نماد (مثلاً: اینماد)"
-                              className="h-8 px-2.5 rounded-field border border-border/60 bg-card text-xs font-bold text-foreground focus:outline-none focus:border-brand w-48 sm:w-56"
+                              className="h-8 px-2.5 rounded-field border border-border/60 bg-card text-xs font-bold text-foreground focus:outline-none focus:border-brand w-full"
                             />
-                            <div className="flex items-center gap-1.5">
-                              <label className="text-[10px] text-brand hover:underline font-bold flex items-center gap-1 cursor-pointer">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <label className="text-[10px] text-brand hover:underline font-bold flex items-center gap-1 cursor-pointer bg-secondary px-2 py-0.5 rounded-control border border-border/60">
                                 <Upload className="w-3 h-3" />
                                 <span>
                                   {uploadingBadgeIdx === bIdx
@@ -2161,6 +2187,24 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
                                   className="hidden"
                                 />
                               </label>
+
+                              {badge.image_url && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setFooterBadges((prev) =>
+                                      prev.map((b, i) =>
+                                        i === bIdx
+                                          ? { ...b, image_url: '' }
+                                          : b,
+                                      ),
+                                    )
+                                  }
+                                  className="text-[10px] text-rose-500 hover:underline font-bold"
+                                >
+                                  حذف عکس
+                                </button>
+                              )}
                             </div>
                           </div>
                         </div>

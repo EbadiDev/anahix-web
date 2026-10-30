@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <defs>
+    <linearGradient id="samandehiGold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#d97706"/>
+      <stop offset="100%" stop-color="#b45309"/>
+    </linearGradient>
+    <linearGradient id="samandehiGreen" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#059669"/>
+      <stop offset="100%" stop-color="#047857"/>
+    </linearGradient>
+  </defs>
+  <!-- Background Badge Plaque -->
+  <rect x="5" y="5" width="90" height="90" rx="16" fill="#ffffff" stroke="#e2e8f0" stroke-width="2"/>
+  <!-- Octagram / 8-pointed Islamic Star Geometry -->
+  <g transform="translate(50, 44) scale(0.65)">
+    <rect x="-30" y="-30" width="60" height="60" rx="4" fill="url(#samandehiGreen)"/>
+    <rect x="-30" y="-30" width="60" height="60" rx="4" fill="url(#samandehiGold)" transform="rotate(45)" opacity="0.9"/>
+    <!-- Inner Golden Emblem -->
+    <circle cx="0" cy="0" r="18" fill="#ffffff"/>
+    <circle cx="0" cy="0" r="14" fill="url(#samandehiGreen)"/>
+    <!-- Central Pen / Nib Motif -->
+    <path d="M0 -8 L5 2 L0 6 L-5 2 Z" fill="#ffffff"/>
+    <circle cx="0" cy="0" r="1.5" fill="url(#samandehiGold)"/>
+  </g>
+  <!-- Text Label -->
+  <text x="50" y="87" font-family="Tahoma, Arial, sans-serif" font-size="7.5" font-weight="bold" fill="#1e293b" text-anchor="middle">ساماندهی دیجیتال</text>
+</svg>
