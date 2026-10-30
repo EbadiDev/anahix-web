@@ -52,18 +52,13 @@ import type {
   ThemeSettings,
 } from '../types'
 import { cleanMediaUrl, getSiteBrandName } from '../utils/brand'
-import { formatNumber, formatToman } from '../utils/formatters'
+import { formatNumber, formatToman, toPersianDigits } from '../utils/formatters'
 import { getLocalWishlist, toggleItemFavorite } from '../utils/wishlist'
 
 interface StorefrontPageProps {
   orders: Order[]
   onOrderCreated: (order: Order) => void
   setBalance?: React.Dispatch<React.SetStateAction<number>>
-}
-
-function toPersianDigits(n: number | string): string {
-  const f = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹']
-  return String(n).replace(/\d/g, (d) => f[Number(d)])
 }
 
 export const StorefrontPage: React.FC<StorefrontPageProps> = ({

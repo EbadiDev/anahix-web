@@ -117,10 +117,9 @@ export function jalaliToGregorian(jy: number, jm: number, jd: number) {
   return { gy, gm, gd }
 }
 
-export function toPersianDigits(n: number | string): string {
-  const f = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹']
-  return String(n).replace(/\d/g, (d) => f[Number(d)])
-}
+import { toPersianDigits } from '../../utils/formatters'
+
+export { toPersianDigits }
 
 export const PersianJalaliCalendar: React.FC<PersianJalaliCalendarProps> = ({
   events = [],

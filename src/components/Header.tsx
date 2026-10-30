@@ -39,7 +39,11 @@ import type {
   ThemeSettings,
 } from '../types'
 import { cleanMediaUrl, getSiteBrandName } from '../utils/brand'
-import { formatDisplayPhone, formatToman } from '../utils/formatters'
+import {
+  formatDisplayPhone,
+  formatToman,
+  toPersianDigits,
+} from '../utils/formatters'
 import { getLocalWishlist } from '../utils/wishlist'
 import { AuthModal } from './AuthModal'
 import { MarkdownRenderer } from './content/MarkdownRenderer'
@@ -55,11 +59,6 @@ interface HeaderProps {
   hideAnnouncementBar?: boolean
   onToggleMobileMenu?: () => void
   onOpenCart?: () => void
-}
-
-function toPersianDigits(n: number | string): string {
-  const f = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹']
-  return String(n).replace(/\d/g, (d) => f[Number(d)])
 }
 
 export const Header: React.FC<HeaderProps> = ({

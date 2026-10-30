@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useSyncExternalStore } from 'react'
 import type { CartItem, CouponValidation, Product, ProductPlan } from '../types'
 
 const CART_STORAGE_KEY = 'anahix_cart_state'
@@ -125,13 +125,11 @@ export const cartStore = {
 }
 
 export function useCart() {
-  const [state, setState] = useState<CartState>(() => cartStore.getState())
-
-  useEffect(() => {
-    return cartStore.subscribe((newState) => {
-      setState(newState)
-    })
-  }, [])
+  const state = useSyncExternalStore(
+    cartStore.subscribe,
+    cartStore.getState,
+    cartStore.getState,
+  )
 
   const itemCount = state.items.reduce((sum, item) => sum + item.quantity, 0)
   const subtotal = state.items.reduce(
@@ -167,4 +165,27 @@ export function useCart() {
     removeCoupon: cartStore.removeCoupon,
     clearCart: cartStore.clearCart,
   }
+}
+
+/**
+ * Optimized granular selector hook for ProductCard instances
+ */
+export function useCartItemQuantity(
+  productId: string | number,
+  planId?: string,
+): number {
+  const state = useSyncExternalStore(
+    cartStore.subscribe,
+    cartStore.getState,
+    cartStore.getState,
+  )
+  const item = state.items.find((it) => {
+    const matchProd = String(it.product.id) === String(productId)
+    if (!matchProd) return false
+    if (planId !== undefined) {
+      return (it.plan?.id || '') === planId
+    }
+    return true
+  })
+  return item ? item.quantity : 0
 }

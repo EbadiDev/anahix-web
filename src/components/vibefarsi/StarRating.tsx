@@ -1,6 +1,7 @@
 import { Star } from 'lucide-react'
 import type React from 'react'
 import { useState } from 'react'
+import { toPersianDigits } from '../../utils/formatters'
 
 interface StarRatingProps {
   rating: number
@@ -10,11 +11,6 @@ interface StarRatingProps {
   size?: 'sm' | 'md' | 'lg'
   showNumber?: boolean
   className?: string
-}
-
-function toPersianDigits(n: number | string): string {
-  const f = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹']
-  return String(n).replace(/\d/g, (d) => f[Number(d)])
 }
 
 export const StarRating: React.FC<StarRatingProps> = ({

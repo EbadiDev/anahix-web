@@ -11,6 +11,8 @@ import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { api } from '../services/api'
 import type { CustomerProfile, ThemeSettings } from '../types'
+import { toEnDigits } from '../utils/formatters'
+import { validateIranianMobile } from '../utils/validators'
 import { GithubIcon, GoogleIcon } from './SocialIcons'
 import { Alert } from './vibefarsi/Alert'
 import { ModalCloseButton } from './vibefarsi/ModalCloseButton'
@@ -23,12 +25,6 @@ interface AuthModalProps {
   onClose: () => void
   onSuccess: (customer: CustomerProfile) => void
   initialMode?: 'login' | 'register'
-}
-
-function toEnDigits(str: string): string {
-  return str
-    .replace(/[۰-۹]/g, (d) => String.fromCharCode(d.charCodeAt(0) - 1728))
-    .replace(/[٠-٩]/g, (d) => String.fromCharCode(d.charCodeAt(0) - 1584))
 }
 
 export const AuthModal: React.FC<AuthModalProps> = ({
@@ -256,16 +252,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       return
     }
 
-    // Otherwise, treat as an Iranian mobile phone number
-    const cleanPhone = toEnDigits(rawInput.replace(/\s+/g, ''))
-    if (!cleanPhone.startsWith('09') || cleanPhone.length !== 11) {
+    // Otherwise, validate as an authentic Iranian mobile phone number
+    const mobCheck = validateIranianMobile(rawInput)
+    if (!mobCheck.valid) {
       setErrorMsg(
         authMode === 'login'
-          ? 'شماره موبایل وارد شده باید ۱۱ رقم بوده و با ۰۹ آغاز شود (یا یک آدرس ایمیل معتبر وارد کنید)'
-          : 'شماره موبایل وارد شده باید ۱۱ رقم بوده و با ۰۹ آغاز شود',
+          ? `${mobCheck.error} (یا یک آدرس ایمیل معتبر وارد کنید)`
+          : mobCheck.error || 'شماره موبایل وارد شده معتبر نمی‌باشد',
       )
       return
     }
+    const cleanPhone = mobCheck.normalized
 
     // In registration mode, always send OTP directly (no password form needed for initial signup)
     if (authMode === 'register') {

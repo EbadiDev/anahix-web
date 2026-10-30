@@ -1,10 +1,8 @@
 import type React from 'react'
 import { useState } from 'react'
+import { toPersianDigits } from '../../utils/formatters'
 
-export function toPersianDigits(n: number | string): string {
-  const f = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹']
-  return String(n).replace(/\d/g, (d) => f[Number(d)])
-}
+export { toPersianDigits }
 
 // 1. Interactive Area Chart for Financial / Order Trends
 interface AreaChartDataPoint {

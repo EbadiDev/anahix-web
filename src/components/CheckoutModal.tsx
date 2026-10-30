@@ -24,6 +24,7 @@ import type {
 } from '../types'
 import { getSiteBrandName } from '../utils/brand'
 import { formatToman } from '../utils/formatters'
+import { validateIranianMobile } from '../utils/validators'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
@@ -135,9 +136,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     e.preventDefault()
     setErrorMsg('')
 
-    if (!phone || phone.length < 11) {
+    const mobCheck = validateIranianMobile(phone)
+    if (!mobCheck.valid) {
       setErrorMsg(
-        'لطفا یک شماره موبایل معتبر جهت دریافت فاکتور و اطلاع‌رسانی وارد کنید.',
+        mobCheck.error ||
+          'لطفا یک شماره موبایل معتبر جهت دریافت فاکتور و اطلاع‌رسانی وارد کنید.',
       )
       return
     }

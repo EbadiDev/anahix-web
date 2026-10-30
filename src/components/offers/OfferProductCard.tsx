@@ -13,15 +13,10 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { cartStore, useCart } from '../../lib/cartStore'
 import type { Product } from '../../types'
-import { formatToman } from '../../utils/formatters'
+import { formatToman, toPersianDigits } from '../../utils/formatters'
 import { ClaudeIcon, CursorIcon, GeminiIcon, OpenAIIcon } from '../BrandIcons'
 import { useNotification } from '../vibefarsi/NotificationContext'
 import { QuantitySelector } from '../vibefarsi/QuantitySelector'
-
-function toPersianDigits(n: number | string): string {
-  const f = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹']
-  return String(n).replace(/\d/g, (d) => f[Number(d)])
-}
 
 interface OfferProductCardProps {
   product: Product

@@ -1,5 +1,6 @@
 import { Check } from 'lucide-react'
 import type React from 'react'
+import { toPersianDigits } from '../../utils/formatters'
 
 export interface StepItem {
   number: number
@@ -11,11 +12,6 @@ export interface StepItem {
 interface StepperProps {
   steps: StepItem[]
   className?: string
-}
-
-function toPersianDigits(n: number | string): string {
-  const f = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹']
-  return String(n).replace(/\d/g, (d) => f[Number(d)])
 }
 
 export const Stepper: React.FC<StepperProps> = ({ steps, className = '' }) => {

@@ -22,6 +22,13 @@ export const AnnouncementPopupModal: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false)
 
   useEffect(() => {
+    // Strictly suppress storefront marketing popups on administrative routes
+    if (location.pathname.startsWith('/admin')) {
+      setIsOpen(false)
+      setActivePopup(null)
+      return
+    }
+
     let isMounted = true
     apiService.getAnnouncements().then((list) => {
       if (!isMounted || !list || list.length === 0) return

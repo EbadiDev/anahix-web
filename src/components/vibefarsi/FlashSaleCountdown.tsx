@@ -1,6 +1,7 @@
 import { Flame } from 'lucide-react'
 import type React from 'react'
 import { useEffect, useState } from 'react'
+import { toPersianDigits } from '../../utils/formatters'
 
 interface FlashSaleCountdownProps {
   endTime: string | Date
@@ -8,11 +9,6 @@ interface FlashSaleCountdownProps {
   subtitle?: string
   onExpire?: () => void
   className?: string
-}
-
-function toPersianDigits(n: number | string): string {
-  const f = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹']
-  return String(n).replace(/\d/g, (d) => f[Number(d)])
 }
 
 export const FlashSaleCountdown: React.FC<FlashSaleCountdownProps> = ({

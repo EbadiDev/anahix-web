@@ -1,4 +1,5 @@
 import type React from 'react'
+import { toPersianDigits } from '../../utils/formatters'
 
 interface ProgressRingProps {
   progress: number // 0 to 100
@@ -9,11 +10,6 @@ interface ProgressRingProps {
   showLabel?: boolean
   label?: string
   className?: string
-}
-
-function toPersianDigits(n: number | string): string {
-  const f = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹']
-  return String(n).replace(/\d/g, (d) => f[Number(d)])
 }
 
 export const ProgressRing: React.FC<ProgressRingProps> = ({
