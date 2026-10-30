@@ -799,6 +799,23 @@ export const apiService = {
   },
 
   // Admin Auth
+  async checkAdminLoginIP(): Promise<{
+    is_banned: boolean
+    reason?: string
+    is_site_user?: boolean
+    kick_out?: boolean
+    ip?: string
+  }> {
+    try {
+      const res = await fetch('/api/v1/admin/auth/check-ip')
+      if (res.ok) {
+        const json = await res.json()
+        if (json.data) return json.data
+      }
+    } catch {}
+    return { is_banned: false }
+  },
+
   async adminLogin(
     username: string,
     password: string,
@@ -815,7 +832,12 @@ export const apiService = {
     })
     const json = await res.json()
     if (!res.ok || json.code !== 200) {
-      throw new Error(json.msg || 'نام کاربری یا رمز عبور اشتباه است')
+      const err: any = new Error(
+        json.msg || 'نام کاربری یا رمز عبور اشتباه است',
+      )
+      err.data = json.data
+      err.code = json.code
+      throw err
     }
     this.setAdminToken(json.data.token)
     this.setAdminUser(json.data)
