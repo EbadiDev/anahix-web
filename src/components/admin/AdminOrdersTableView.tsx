@@ -15,7 +15,11 @@ import type {
   AdminOrderListResult,
   AdminUpdateOrderStatusRequest,
 } from '../../types'
-import { formatToman } from '../../utils/formatters'
+import {
+  formatNumber,
+  formatToman,
+  toPersianDigits,
+} from '../../utils/formatters'
 import { getGatewayDisplay } from '../../utils/paymentIcons'
 import { OfficialInvoiceModal } from '../invoice/OfficialInvoiceModal'
 import { LoadingState } from '../vibefarsi/LoadingState'
@@ -336,7 +340,9 @@ export const AdminOrdersTableView: React.FC = () => {
                   <option value="all">همه روش‌ها</option>
                   <option value="instant">تحویل آنی و خودکار</option>
                   <option value="manual_operator">تحویل دستی اپراتور</option>
-                  <option value="direct_transfer">ارتقای شخصی (Mode C)</option>
+                  <option value="direct_transfer">
+                    ارتقای شخصی دستی اپراتور
+                  </option>
                   <option value="family_invite">دعوت‌نامه فمیلی</option>
                   <option value="activation_code">لایسنس و کد فعال‌سازی</option>
                 </select>
@@ -473,7 +479,7 @@ export const AdminOrdersTableView: React.FC = () => {
                           </td>
 
                           {/* Total Amount & Gateway + Cost & Profit */}
-                          <td className="py-3.5 px-4 text-center font-latin">
+                          <td className="py-3.5 px-4 text-center font-sans">
                             <div className="font-bold text-xs text-foreground">
                               فروش: {formatToman(ord.total_amount_toman)} تومان
                             </div>
@@ -577,10 +583,10 @@ export const AdminOrdersTableView: React.FC = () => {
             {/* Pagination */}
             {data && data.total > 0 && (
               <div className="p-4 border-t border-border/60 flex items-center justify-between text-xs text-muted-foreground">
-                <div>
-                  صفحه {data.page} از{' '}
-                  {Math.ceil(data.total / data.page_size) || 1} (مجموع{' '}
-                  {data.total.toLocaleString('fa-IR')} سفارش)
+                <div className="font-sans">
+                  صفحه {toPersianDigits(data.page)} از{' '}
+                  {toPersianDigits(Math.ceil(data.total / data.page_size) || 1)}{' '}
+                  (مجموع {formatNumber(data.total)} سفارش)
                 </div>
 
                 <div className="flex items-center gap-1.5">

@@ -9,6 +9,7 @@ import { useState } from 'react'
 
 export interface CalendarEvent {
   date: string // format: YYYY/MM/DD e.g. 1405/07/25
+  endDate?: string // format: YYYY/MM/DD e.g. 1405/07/30 (optional multi-day festival end date)
   title: string
   type: 'sale' | 'event' | 'holiday' | 'maintenance'
   badge?: string
@@ -187,8 +188,16 @@ export const PersianJalaliCalendar: React.FC<PersianJalaliCalendarProps> = ({
     }
   }
 
+  const isEventInDay = (e: CalendarEvent, dayStr: string) => {
+    if (e.date === dayStr) return true
+    if (e.endDate && dayStr >= e.date && dayStr <= e.endDate) return true
+    return false
+  }
+
   const currentFormatted = `${currentYear}/${String(currentMonth).padStart(2, '0')}/${String(selectedDay).padStart(2, '0')}`
-  const selectedDayEvents = events.filter((e) => e.date === currentFormatted)
+  const selectedDayEvents = events.filter((e) =>
+    isEventInDay(e, currentFormatted),
+  )
 
   return (
     <div
@@ -276,7 +285,7 @@ export const PersianJalaliCalendar: React.FC<PersianJalaliCalendarProps> = ({
           const isFriday = dayOfWeek === 6
 
           const dayFormatted = `${currentYear}/${String(currentMonth).padStart(2, '0')}/${String(day).padStart(2, '0')}`
-          const hasEvent = events.some((e) => e.date === dayFormatted)
+          const hasEvent = events.some((e) => isEventInDay(e, dayFormatted))
 
           return (
             <button

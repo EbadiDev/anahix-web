@@ -1,25 +1,23 @@
 import {
+  Activity,
   AlertCircle,
   BarChart3,
-  BookOpen,
+  Calendar,
   CheckCircle2,
   Coins,
   DollarSign,
   Download,
   Globe2,
-  HelpCircle,
+  LayoutDashboard,
   LineChart as LineChartIcon,
   Medal,
   Package,
-  Percent,
   RefreshCw,
+  ShieldCheck,
   ShoppingBag,
   Sparkles,
-  ThumbsUp,
   TrendingUp,
-  UserPlus,
   Users,
-  Zap,
 } from 'lucide-react'
 import type React from 'react'
 import { useEffect, useMemo, useState } from 'react'
@@ -29,6 +27,12 @@ import type {
   AdminBIOverviewResponse,
   AdminBITimeSeriesPoint,
 } from '../../types'
+import {
+  formatNumber,
+  formatToman,
+  toPersianDigits,
+} from '../../utils/formatters'
+import { LoadingState } from '../vibefarsi/LoadingState'
 import { PersianDonutChart } from '../vibefarsi/PersianCharts'
 import { PersianJalaliCalendar } from '../vibefarsi/PersianJalaliCalendar'
 import { AdminHeaderBanner } from './AdminHeaderBanner'
@@ -39,10 +43,10 @@ export const AdminBIAnalyticsView: React.FC = () => {
   const [error, setError] = useState<string | null>(null)
   const [data, setData] = useState<AdminBIOverviewResponse | null>(null)
 
-  // Filters
+  // Filters - Default to 7d weekly view per user request
   const [timeRange, setTimeRange] = useState<
     '7d' | '30d' | '90d' | '1y' | 'all'
-  >('30d')
+  >('7d')
   const [groupBy, setGroupBy] = useState<'daily' | 'weekly' | 'monthly'>(
     'daily',
   )
@@ -51,9 +55,29 @@ export const AdminBIAnalyticsView: React.FC = () => {
     useState<AdminBITimeSeriesPoint | null>(null)
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null)
 
+  // Real Recent Orders Desk State
+  const [recentOrders, setRecentOrders] = useState<any[]>([])
+  const [loadingOrders, setLoadingOrders] = useState<boolean>(false)
+
+  const loadRecentOrders = async () => {
+    setLoadingOrders(true)
+    try {
+      const res = await apiService.getAdminAllOrders({ page: 1, page_size: 6 })
+      setRecentOrders(res?.orders || [])
+    } catch {
+      setRecentOrders([])
+    } finally {
+      setLoadingOrders(false)
+    }
+  }
+
   const loadData = async (isManualRefresh = false) => {
-    if (isManualRefresh) setRefreshing(true)
-    else setLoading(true)
+    if (isManualRefresh) {
+      setRefreshing(true)
+      loadRecentOrders()
+    } else {
+      setLoading(true)
+    }
     setError(null)
     try {
       const res = await apiService.getBIOverview({
@@ -62,7 +86,7 @@ export const AdminBIAnalyticsView: React.FC = () => {
       })
       setData(res)
     } catch (err: any) {
-      setError(err?.message || 'خطا در بارگذاری اطلاعات هوش تجاری')
+      setError(err?.message || 'خطا در بارگذاری اطلاعات داشبورد')
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -73,6 +97,10 @@ export const AdminBIAnalyticsView: React.FC = () => {
     loadData()
   }, [timeRange, groupBy])
 
+  useEffect(() => {
+    loadRecentOrders()
+  }, [])
+
   // Currency Formatter Helpers
   const formatMoney = (toman: number, usdt: number) => {
     if (currencyUnit === 'usdt') {
@@ -81,7 +109,7 @@ export const AdminBIAnalyticsView: React.FC = () => {
         maximumFractionDigits: 2,
       })}`
     }
-    return `${Math.round(toman).toLocaleString('fa-IR')} تومان`
+    return `${formatToman(toman)} تومان`
   }
 
   const formatRawMoney = (toman: number) => {
@@ -92,7 +120,7 @@ export const AdminBIAnalyticsView: React.FC = () => {
         maximumFractionDigits: 1,
       })}`
     }
-    return `${Math.round(toman).toLocaleString('fa-IR')} ت`
+    return `${formatToman(toman)} تومان`
   }
 
   // SVG Chart Calculations for Line / Area Chart
@@ -202,10 +230,10 @@ export const AdminBIAnalyticsView: React.FC = () => {
     <div className="space-y-6 animate-in fade-in duration-300 pb-12">
       {/* Top Bar Header & Controls */}
       <AdminHeaderBanner
-        icon={TrendingUp}
-        title="داشبورد آمار تحلیلی و هوش تجاری (BI Analytics)"
-        subtitle="محاسبه خودکار درآمد، بهای تمام‌شده (COGS)، سود ناخالص ارزی و نرخ تبدیل فروشگاه"
-        badgeText="موتور محاسبات زنده"
+        icon={LayoutDashboard}
+        title="داشبورد مدیریتی"
+        subtitle="مرکز پایش وضعیت زنده، تحلیل عملکرد هفتگی، سفارشات اخیر و شاخص‌های کلیدی سامانه"
+        badgeText="میز فرمان و وضعیت زنده"
         actions={
           <div className="flex flex-wrap items-center gap-2">
             {/* Currency Toggle */}
@@ -312,302 +340,124 @@ export const AdminBIAnalyticsView: React.FC = () => {
         }
       />
 
-      {/* Primary KPI Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Primary Executive KPI Cards Grid (5-Card Deck) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
         {/* Card 1: Gross Revenue */}
-        <div className="bg-card border border-border/80 rounded-surface p-5 shadow-surface space-y-3 relative overflow-hidden group hover:border-brand/40 transition-colors text-foreground">
+        <div className="bg-card border border-border/80 rounded-surface p-4 sm:p-5 shadow-surface space-y-2.5 relative overflow-hidden group hover:border-brand/40 transition-colors text-foreground">
           <div className="flex items-center justify-between text-xs text-muted-foreground">
             <span className="font-bold flex items-center gap-1.5 text-foreground">
               <ShoppingBag className="w-4 h-4 text-brand" />
-              فروش کل ناخالص (Revenue)
+              فروش کل ناخالص
             </span>
             <span className="px-2 py-0.5 rounded-control bg-secondary text-brand font-mono text-[10px] font-bold border border-border/60">
-              {timeRange}
+              {timeRange === '7d' ? '۷ روزه' : timeRange}
             </span>
           </div>
-          <div className="text-2xl font-black text-foreground tracking-tight mt-1">
+          <div className="text-xl sm:text-2xl font-black text-foreground tracking-tight">
             {formatMoney(kpis.total_revenue_toman, kpis.total_revenue_usdt)}
           </div>
-          <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-border/60 text-xs text-muted-foreground">
-            <span>تعداد سفارشات موفق:</span>
-            <span className="font-bold text-foreground">
-              {kpis.paid_orders.toLocaleString('fa-IR')} سفارش
+          <div className="flex items-center justify-between pt-2 border-t border-border/60 text-[11px] text-muted-foreground font-sans">
+            <span>سفارشات موفق:</span>
+            <span className="font-bold text-foreground font-sans">
+              {formatNumber(kpis.paid_orders)} سفارش
             </span>
           </div>
         </div>
 
         {/* Card 2: Gross Profit & Margin */}
-        <div className="bg-card border border-border/80 rounded-surface p-5 shadow-surface space-y-3 relative overflow-hidden group hover:border-emerald-500/40 transition-colors text-foreground">
+        <div className="bg-card border border-border/80 rounded-surface p-4 sm:p-5 shadow-surface space-y-2.5 relative overflow-hidden group hover:border-emerald-500/40 transition-colors text-foreground">
           <div className="flex items-center justify-between text-xs text-muted-foreground">
             <span className="font-bold flex items-center gap-1.5 text-foreground">
               <TrendingUp className="w-4 h-4 text-emerald-400" />
-              سود ناخالص (Gross Profit)
+              سود ناخالص واقعی
             </span>
-            <span className="px-2 py-0.5 rounded-control bg-emerald-500/10 text-emerald-400 font-bold text-[10px] border border-emerald-500/20">
-              مارجین: {kpis.gross_margin_percent}%
+            <span className="px-2 py-0.5 rounded-control bg-emerald-500/10 text-emerald-400 font-bold text-[10px] border border-emerald-500/20 font-sans">
+              مارجین: {toPersianDigits(kpis.gross_margin_percent)}٪
             </span>
           </div>
-          <div className="text-2xl font-black text-emerald-400 tracking-tight mt-1">
+          <div className="text-xl sm:text-2xl font-black text-emerald-400 tracking-tight">
             {formatMoney(kpis.gross_profit_toman, kpis.gross_profit_usdt)}
           </div>
-          <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-border/60 text-xs text-muted-foreground">
-            <span>بهای تمام‌شده (COGS):</span>
+          <div className="flex items-center justify-between pt-2 border-t border-border/60 text-[11px] text-muted-foreground font-sans">
+            <span>بهای تمام‌شده:</span>
             <span className="font-bold text-foreground font-mono">
               {formatMoney(kpis.total_cogs_toman, kpis.total_cogs_usdt)}
             </span>
           </div>
         </div>
 
-        {/* Card 3: Conversion Rate */}
-        <div className="bg-card border border-border/80 rounded-surface p-5 shadow-surface space-y-3 relative overflow-hidden group hover:border-purple-500/40 transition-colors text-foreground">
+        {/* Card 3: Paid Orders & Conversion */}
+        <div className="bg-card border border-border/80 rounded-surface p-4 sm:p-5 shadow-surface space-y-2.5 relative overflow-hidden group hover:border-sky-500/40 transition-colors text-foreground">
           <div className="flex items-center justify-between text-xs text-muted-foreground">
             <span className="font-bold flex items-center gap-1.5 text-foreground">
-              <Zap className="w-4 h-4 text-purple-400" />
-              نرخ تبدیل (Conversion Rate)
+              <CheckCircle2 className="w-4 h-4 text-sky-400" />
+              سفارشات پرداختی
             </span>
-            <span className="px-2 py-0.5 rounded-control bg-purple-500/10 text-purple-400 font-mono text-[10px] font-bold border border-purple-500/20">
-              Checkout Flow
-            </span>
-          </div>
-          <div className="text-2xl font-black text-purple-400 tracking-tight mt-1 flex items-baseline gap-1.5">
-            <span>{kpis.conversion_rate_percent}%</span>
-            <span className="text-xs font-normal text-muted-foreground">
-              (از کل سبدها)
+            <span className="px-2 py-0.5 rounded-control bg-sky-500/10 text-sky-400 font-mono text-[10px] font-bold border border-sky-500/20">
+              {kpis.conversion_rate_percent}% راندمان
             </span>
           </div>
-          <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-border/60 text-xs text-muted-foreground">
-            <span>کل سفارشات ثبت‌شده:</span>
+          <div className="text-xl sm:text-2xl font-black text-foreground tracking-tight font-sans">
+            {formatNumber(kpis.paid_orders)}
+            <span className="text-xs font-normal text-muted-foreground mr-1.5 font-sans">
+              سفارش موفق
+            </span>
+          </div>
+          <div className="flex items-center justify-between pt-2 border-t border-border/60 text-[11px] text-muted-foreground font-sans">
+            <span>کل سبدهای ثبت‌شده:</span>
             <span className="font-bold text-foreground">
-              {kpis.total_orders.toLocaleString('fa-IR')} مورد
+              {toPersianDigits(kpis.total_orders)} سبد
             </span>
           </div>
         </div>
 
         {/* Card 4: Average Order Value (AOV) */}
-        <div className="bg-card border border-border/80 rounded-surface p-5 shadow-surface space-y-3 relative overflow-hidden group hover:border-amber-500/40 transition-colors text-foreground">
+        <div className="bg-card border border-border/80 rounded-surface p-4 sm:p-5 shadow-surface space-y-2.5 relative overflow-hidden group hover:border-amber-500/40 transition-colors text-foreground">
           <div className="flex items-center justify-between text-xs text-muted-foreground">
             <span className="font-bold flex items-center gap-1.5 text-foreground">
               <BarChart3 className="w-4 h-4 text-amber-400" />
-              میانگین سبد خرید (AOV)
+              میانگین سبد (AOV)
             </span>
             <span className="px-2 py-0.5 rounded-control bg-amber-500/10 text-amber-400 font-mono text-[10px] font-bold border border-amber-500/20">
-              Per Basket
+              میانگین
             </span>
           </div>
-          <div className="text-2xl font-black text-amber-400 tracking-tight mt-1">
+          <div className="text-xl sm:text-2xl font-black text-amber-400 tracking-tight">
             {formatMoney(
               kpis.average_order_value_toman,
               kpis.average_order_value_usdt,
             )}
           </div>
-          <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-border/60 text-xs text-muted-foreground">
-            <span>مشتریان یکتای خریدار:</span>
+          <div className="flex items-center justify-between pt-2 border-t border-border/60 text-[11px] text-muted-foreground">
+            <span>مشتریان خریدار:</span>
             <span className="font-bold text-foreground">
-              {kpis.total_customers.toLocaleString('fa-IR')} کاربر
+              {toPersianDigits(kpis.total_customers)} کاربر
             </span>
           </div>
         </div>
-      </div>
 
-      {/* Secondary User & Growth Metrics Grid (Requested for deep BI visibility) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Metric 1: Total Registered Users */}
-        <div className="relative overflow-hidden bg-card border border-border/80 rounded-2xl p-4 sm:p-5 shadow-surface group hover:border-brand/40 transition-colors">
-          <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
+        {/* Card 5: Registered Users & Signups */}
+        <div className="bg-card border border-border/80 rounded-surface p-4 sm:p-5 shadow-surface space-y-2.5 relative overflow-hidden group hover:border-purple-500/40 transition-colors text-foreground">
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
             <span className="font-bold flex items-center gap-1.5 text-foreground">
-              <Users className="w-4 h-4 text-brand" />
-              کل کاربران ثبت‌نامی
+              <Users className="w-4 h-4 text-purple-400" />
+              کاربران ثبت‌نامی
             </span>
-            <span className="px-2 py-0.5 rounded-control bg-secondary text-brand font-mono text-[11px] font-bold">
-              User 360°
+            <span className="px-2 py-0.5 rounded-control bg-purple-500/10 text-purple-400 font-mono text-[10px] font-bold border border-purple-500/20">
+              +{toPersianDigits(kpis.new_registered_users || 0)} جدید
             </span>
           </div>
-          <div className="text-2xl font-black text-foreground tracking-tight mt-1">
-            {(
-              kpis.total_registered_users || kpis.total_customers
-            ).toLocaleString('fa-IR')}
-            <span className="text-xs font-normal text-muted-foreground mr-1.5">
+          <div className="text-xl sm:text-2xl font-black text-foreground tracking-tight font-sans">
+            {formatNumber(kpis.total_registered_users || kpis.total_customers)}
+            <span className="text-xs font-normal text-muted-foreground mr-1.5 font-sans">
               کاربر
             </span>
           </div>
-          <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-border/60 text-xs text-muted-foreground">
+          <div className="flex items-center justify-between pt-2 border-t border-border/60 text-[11px] text-muted-foreground font-sans">
             <span>خریداران فعال:</span>
-            <span className="font-bold text-foreground">
-              {kpis.total_customers.toLocaleString('fa-IR')} خریدار یکتا
+            <span className="font-bold text-purple-400 font-sans">
+              {formatNumber(kpis.total_customers)} خریدار یکتا
             </span>
-          </div>
-        </div>
-
-        {/* Metric 2: New Signups in Period */}
-        <div className="relative overflow-hidden bg-card border border-border/80 rounded-2xl p-4 sm:p-5 shadow-surface group hover:border-emerald-500/40 transition-colors">
-          <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
-            <span className="font-bold flex items-center gap-1.5 text-foreground">
-              <UserPlus className="w-4 h-4 text-emerald-400" />
-              ثبت‌نامی‌های جدید بازه
-            </span>
-            <span className="px-2 py-0.5 rounded-control bg-emerald-500/10 text-emerald-400 font-mono text-[11px] font-bold">
-              +{timeRange}
-            </span>
-          </div>
-          <div className="text-2xl font-black text-emerald-400 tracking-tight mt-1">
-            {(kpis.new_registered_users || 0).toLocaleString('fa-IR')}
-            <span className="text-xs font-normal text-muted-foreground mr-1.5">
-              کاربر جدید
-            </span>
-          </div>
-          <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-border/60 text-xs text-muted-foreground">
-            <span>از کل پایگاه کاربری:</span>
-            <span className="font-bold text-emerald-400">
-              {kpis.total_registered_users && kpis.total_registered_users > 0
-                ? `${Math.round(
-                    ((kpis.new_registered_users || 0) /
-                      kpis.total_registered_users) *
-                      100,
-                  )}%`
-                : '۱۰۰%'}
-            </span>
-          </div>
-        </div>
-
-        {/* Metric 3: Total Successful Purchases */}
-        <div className="relative overflow-hidden bg-card border border-border/80 rounded-2xl p-4 sm:p-5 shadow-surface group hover:border-blue-500/40 transition-colors">
-          <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
-            <span className="font-bold flex items-center gap-1.5 text-foreground">
-              <CheckCircle2 className="w-4 h-4 text-blue-400" />
-              خریدهای موفق پرداخت‌شده
-            </span>
-            <span className="px-2 py-0.5 rounded-control bg-blue-500/10 text-blue-400 font-mono text-[11px] font-bold">
-              موفق ✓
-            </span>
-          </div>
-          <div className="text-2xl font-black text-foreground tracking-tight mt-1">
-            {kpis.paid_orders.toLocaleString('fa-IR')}
-            <span className="text-xs font-normal text-muted-foreground mr-1.5">
-              تراکنش
-            </span>
-          </div>
-          <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-border/60 text-xs text-muted-foreground">
-            <span>از مجموع کل سفارش‌ها:</span>
-            <span className="font-bold text-foreground">
-              {kpis.total_orders.toLocaleString('fa-IR')} سفارش
-            </span>
-          </div>
-        </div>
-
-        {/* Metric 4: Conversion Rate Performance */}
-        <div className="relative overflow-hidden bg-card border border-border/80 rounded-2xl p-4 sm:p-5 shadow-surface group hover:border-purple-500/40 transition-colors">
-          <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
-            <span className="font-bold flex items-center gap-1.5 text-foreground">
-              <Percent className="w-4 h-4 text-purple-400" />
-              راندمان تبدیل نهایی
-            </span>
-            <span className="px-2 py-0.5 rounded-control bg-purple-500/10 text-purple-400 font-mono text-[11px] font-bold">
-              Funnel
-            </span>
-          </div>
-          <div className="text-2xl font-black text-purple-400 tracking-tight mt-1">
-            {kpis.conversion_rate_percent}%
-          </div>
-          <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-border/60 text-xs text-muted-foreground">
-            <span>حاشیه سود ناخالص:</span>
-            <span className="font-bold text-foreground">
-              {kpis.gross_margin_percent}%
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* Content, SEO & Community Engagement Grid (Requested by user) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Metric 5: Blog Article Views */}
-        <div className="relative overflow-hidden bg-card border border-border/80 rounded-2xl p-4 sm:p-5 shadow-surface group hover:border-brand/40 transition-colors">
-          <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
-            <span className="font-bold flex items-center gap-1.5 text-foreground">
-              <BookOpen className="w-4 h-4 text-brand" />
-              بازدید کل مقالات وبلاگ
-            </span>
-            <span className="px-2 py-0.5 rounded-control bg-secondary text-brand font-mono text-[11px] font-bold">
-              SEO Blog
-            </span>
-          </div>
-          <div className="text-2xl font-black text-foreground tracking-tight mt-1">
-            {(kpis.total_article_views || 0).toLocaleString('fa-IR')}
-            <span className="text-xs font-normal text-muted-foreground mr-1.5">
-              بازدید
-            </span>
-          </div>
-          <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-border/60 text-xs text-muted-foreground">
-            <span>ترافیک طبیعی گوگل:</span>
-            <span className="font-bold text-foreground">ثبت فعال IP یکتا</span>
-          </div>
-        </div>
-
-        {/* Metric 6: Blog Likes & Reactions */}
-        <div className="relative overflow-hidden bg-card border border-border/80 rounded-2xl p-4 sm:p-5 shadow-surface group hover:border-rose-500/40 transition-colors">
-          <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
-            <span className="font-bold flex items-center gap-1.5 text-foreground">
-              <ThumbsUp className="w-4 h-4 text-rose-500" />
-              لایک‌ها و رضایت مقالات
-            </span>
-            <span className="px-2 py-0.5 rounded-control bg-rose-500/10 text-rose-500 font-mono text-[11px] font-bold">
-              محبوبیت
-            </span>
-          </div>
-          <div className="text-2xl font-black text-rose-500 tracking-tight mt-1">
-            {(kpis.total_article_likes || 0).toLocaleString('fa-IR')}
-            <span className="text-xs font-normal text-muted-foreground mr-1.5">
-              واکنش مثبت
-            </span>
-          </div>
-          <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-border/60 text-xs text-muted-foreground">
-            <span>تعامل خوانندگان:</span>
-            <span className="font-bold text-rose-500">محتوای تعاملی</span>
-          </div>
-        </div>
-
-        {/* Metric 7: Help Guide Views */}
-        <div className="relative overflow-hidden bg-card border border-border/80 rounded-2xl p-4 sm:p-5 shadow-surface group hover:border-amber-500/40 transition-colors">
-          <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
-            <span className="font-bold flex items-center gap-1.5 text-foreground">
-              <HelpCircle className="w-4 h-4 text-amber-500" />
-              بازدید راهنماها و آموزش‌ها
-            </span>
-            <span className="px-2 py-0.5 rounded-control bg-amber-500/10 text-amber-500 font-mono text-[11px] font-bold">
-              پایگاه دانش
-            </span>
-          </div>
-          <div className="text-2xl font-black text-foreground tracking-tight mt-1">
-            {(kpis.total_help_views || 0).toLocaleString('fa-IR')}
-            <span className="text-xs font-normal text-muted-foreground mr-1.5">
-              مطالعه
-            </span>
-          </div>
-          <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-border/60 text-xs text-muted-foreground">
-            <span>کاهش بار تیکت‌ها:</span>
-            <span className="font-bold text-amber-500">حل خودکار مشکل</span>
-          </div>
-        </div>
-
-        {/* Metric 8: Helpful Community Votes */}
-        <div className="relative overflow-hidden bg-card border border-border/80 rounded-2xl p-4 sm:p-5 shadow-surface group hover:border-emerald-500/40 transition-colors">
-          <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
-            <span className="font-bold flex items-center gap-1.5 text-foreground">
-              <Sparkles className="w-4 h-4 text-emerald-400" />
-              آرای مفید بودن راهنماها
-            </span>
-            <span className="px-2 py-0.5 rounded-control bg-emerald-500/10 text-emerald-400 font-mono text-[11px] font-bold">
-              امتیاز بالا
-            </span>
-          </div>
-          <div className="text-2xl font-black text-emerald-400 tracking-tight mt-1">
-            {(kpis.total_helpful_votes || 0).toLocaleString('fa-IR')}
-            <span className="text-xs font-normal text-muted-foreground mr-1.5">
-              رای مفید
-            </span>
-          </div>
-          <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-border/60 text-xs text-muted-foreground">
-            <span>کیفیت اسناد پشتیبانی:</span>
-            <span className="font-bold text-emerald-400">تایید کاربران</span>
           </div>
         </div>
       </div>
@@ -986,74 +836,334 @@ export const AdminBIAnalyticsView: React.FC = () => {
         )}
       </div>
 
-      {/* Comparative Bar Chart: Sales vs COGS vs Gross Profit */}
-      <div className="bg-card border border-border/80 p-6 rounded-surface shadow-surface space-y-4 text-foreground">
-        <div className="flex items-center justify-between">
+      {/* 1. Weekly Performance Matrix & Daily Breakdown Table */}
+      <div className="bg-card border border-border/80 p-5 sm:p-6 rounded-surface shadow-surface space-y-4 text-foreground">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border/60 pb-3">
           <div>
             <h3 className="text-base font-black text-foreground flex items-center gap-2">
-              <BarChart3 className="w-5 h-5 text-emerald-400" />
-              نمودار میله‌ای مقایسه‌ای: فروش در برابر بهای تمام‌شده و سود ناخالص
+              <Calendar className="w-5 h-5 text-brand" />
+              ماتریس تفکیکی عملکرد روزانه بازه (
+              {timeRange === '7d' ? 'هفتگی' : timeRange})
             </h3>
             <p className="text-xs text-muted-foreground mt-0.5">
-              مقایسه بصری ترکیب درآمد ناخالص و هزینه تأمین برای ارزیابی سلامت
-              مالی
+              جزئیات درآمد فروش، بهای تمام‌شده، سود ناخالص و نرخ موفقیت سفارش‌ها
+              به تفکیک هر روز
             </p>
           </div>
+          <span className="text-xs text-muted-foreground font-sans">
+            تعداد روزهای ثبت‌شده:{' '}
+            <strong className="text-foreground font-latin">
+              {toPersianDigits(chartPoints.length)}
+            </strong>
+          </span>
         </div>
 
-        <div className="space-y-2.5 pt-1">
-          {chartPoints.slice(-10).map((pt, idx) => {
-            const revVal =
-              currencyUnit === 'usdt' ? pt.revenue_usdt : pt.revenue_toman
-            const profitVal =
-              currencyUnit === 'usdt'
-                ? pt.gross_profit_usdt
-                : pt.gross_profit_toman
-            const pctRev =
-              maxRevenueVal > 0 ? (revVal / maxRevenueVal) * 100 : 0
-            const pctProfit =
-              maxRevenueVal > 0 ? (profitVal / maxRevenueVal) * 100 : 0
+        {chartPoints.length === 0 ? (
+          <div className="py-8 text-center text-muted-foreground text-xs">
+            داده‌ای در این بازه زمانی به ثبت نرسیده است.
+          </div>
+        ) : (
+          <div className="rounded-surface border border-border/80 overflow-hidden shadow-surface">
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-border/60 bg-muted/40 text-muted-foreground font-bold select-none text-right">
+                    <th className="p-3 text-right">روز / تاریخ</th>
+                    <th className="p-3 text-right">فروش ناخالص</th>
+                    <th className="p-3 text-right">بهای تمام‌شده (COGS)</th>
+                    <th className="p-3 text-right">سود ناخالص</th>
+                    <th className="p-3 text-center">حاشیه سود</th>
+                    <th className="p-3 text-center">سفارشات موفق</th>
+                    <th className="p-3 text-right min-w-[120px]">
+                      سهم از کل فروش
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/60">
+                  {chartPoints.slice(-10).map((pt, idx) => {
+                    const revVal =
+                      currencyUnit === 'usdt'
+                        ? pt.revenue_usdt
+                        : pt.revenue_toman
+                    const pctRev =
+                      maxRevenueVal > 0 ? (revVal / maxRevenueVal) * 100 : 0
 
-            return (
-              <div
-                key={pt.date ? `bar-${pt.date}` : `bar-idx-${idx}`}
-                className="space-y-1 bg-muted/20 p-3 rounded-surface border border-border/60"
-              >
-                <div className="flex items-center justify-between text-xs">
-                  <span className="font-bold text-foreground">
-                    {pt.period_label}
-                  </span>
-                  <div className="flex items-center gap-3">
-                    <span className="text-brand font-mono font-latin">
-                      فروش: {formatMoney(pt.revenue_toman, pt.revenue_usdt)}
-                    </span>
-                    <span className="text-emerald-400 font-mono font-latin">
-                      سود:{' '}
-                      {formatMoney(pt.gross_profit_toman, pt.gross_profit_usdt)}
-                    </span>
-                    <span className="text-muted-foreground text-[11px] font-latin">
-                      مارجین: {pt.gross_margin}%
-                    </span>
-                  </div>
-                </div>
+                    return (
+                      <tr
+                        key={pt.date ? `row-${pt.date}` : `row-idx-${idx}`}
+                        className="hover:bg-muted/20 transition-colors"
+                      >
+                        <td className="p-3 font-bold text-foreground whitespace-nowrap">
+                          <div>{pt.period_label || pt.date}</div>
+                          {pt.date && (
+                            <span className="text-[10px] text-muted-foreground font-latin font-normal">
+                              {pt.date}
+                            </span>
+                          )}
+                        </td>
+                        <td className="p-3 text-brand font-black font-latin whitespace-nowrap">
+                          {formatMoney(pt.revenue_toman, pt.revenue_usdt)}
+                        </td>
+                        <td className="p-3 text-muted-foreground font-sans whitespace-nowrap">
+                          {formatMoney(
+                            pt.revenue_toman - pt.gross_profit_toman,
+                            pt.revenue_usdt - pt.gross_profit_usdt,
+                          )}
+                        </td>
+                        <td className="p-3 text-emerald-400 font-black font-latin whitespace-nowrap">
+                          {formatMoney(
+                            pt.gross_profit_toman,
+                            pt.gross_profit_usdt,
+                          )}
+                        </td>
+                        <td className="p-3 text-center">
+                          <span className="px-2 py-0.5 rounded-control bg-emerald-500/10 text-emerald-400 font-bold text-[10px] border border-emerald-500/20 font-sans">
+                            {toPersianDigits(pt.gross_margin)}٪
+                          </span>
+                        </td>
+                        <td className="p-3 text-center font-bold text-foreground font-latin">
+                          {toPersianDigits(pt.paid_orders)}{' '}
+                          <span className="text-[10px] text-muted-foreground font-normal">
+                            از {toPersianDigits(pt.total_orders)}
+                          </span>
+                        </td>
+                        <td className="p-3">
+                          <div className="w-full bg-muted/60 h-2 rounded-control overflow-hidden">
+                            <div
+                              style={{ width: `${Math.min(pctRev, 100)}%` }}
+                              className="bg-brand h-full rounded-control transition-all duration-300"
+                            />
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
 
-                <div className="w-full bg-muted h-3 rounded-control overflow-hidden flex relative">
-                  {/* Revenue Bar */}
-                  <div
-                    style={{ width: `${Math.min(pctRev, 100)}%` }}
-                    className="bg-brand/80 h-full rounded-r-control transition-all duration-500"
-                    title={`فروش: ${formatMoney(pt.revenue_toman, pt.revenue_usdt)}`}
-                  />
-                  {/* Overlay Profit Bar */}
-                  <div
-                    style={{ width: `${Math.min(pctProfit, 100)}%` }}
-                    className="bg-emerald-500 h-full -ml-[100%] rounded-r-control opacity-90 transition-all duration-500"
-                    title={`سود خالص: ${formatMoney(pt.gross_profit_toman, pt.gross_profit_usdt)}`}
-                  />
-                </div>
-              </div>
-            )
-          })}
+      {/* 2. Real-Time Recent Orders Desk Table */}
+      <div className="bg-card border border-border/80 p-5 sm:p-6 rounded-surface shadow-surface space-y-4 text-foreground">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border/60 pb-3">
+          <div className="flex items-center gap-2">
+            <ShoppingBag className="w-5 h-5 text-brand" />
+            <div>
+              <h3 className="text-base font-black text-foreground">
+                آخرین سفارشات ثبت‌شده در سیستم
+              </h3>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                جریان زنده ثبت سفارش‌ها، وضعیت پرداخت و اطلاعات مشتریان
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={loadRecentOrders}
+            disabled={loadingOrders}
+            className="text-xs font-bold text-brand hover:underline inline-flex items-center gap-1 cursor-pointer"
+          >
+            <RefreshCw
+              className={`w-3.5 h-3.5 ${loadingOrders ? 'animate-spin' : ''}`}
+            />
+            <span>تازه‌سازی سفارشات</span>
+          </button>
+        </div>
+
+        {loadingOrders ? (
+          <LoadingState message="در حال دریافت آخرین سفارشات..." />
+        ) : recentOrders.length === 0 ? (
+          <div className="py-8 text-center text-muted-foreground text-xs">
+            هنوز سفارشی در سامانه ثبت نشده است.
+          </div>
+        ) : (
+          <div className="rounded-surface border border-border/80 overflow-hidden shadow-surface">
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-border/60 bg-muted/40 text-muted-foreground font-bold select-none text-right">
+                    <th className="p-3 text-right">شماره سفارش</th>
+                    <th className="p-3 text-right">مشتری</th>
+                    <th className="p-3 text-right">سرویس / اشتراک</th>
+                    <th className="p-3 text-right">مبلغ پرداختی</th>
+                    <th className="p-3 text-center">روش پرداخت</th>
+                    <th className="p-3 text-center">وضعیت</th>
+                    <th className="p-3 text-left">زمان ثبت</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/60">
+                  {recentOrders.map((ord: any) => {
+                    const isSuccess =
+                      ord.status === 'completed' || ord.status === 'paid'
+                    const isProcessing =
+                      ord.status === 'processing' ||
+                      ord.status === 'awaiting_customer_action' ||
+                      ord.status === 'in_queue'
+                    const isCancelled =
+                      ord.status === 'cancelled' || ord.status === 'refunded'
+
+                    return (
+                      <tr
+                        key={ord.id || ord.order_number}
+                        className="hover:bg-muted/20 transition-colors"
+                      >
+                        <td className="p-3 font-mono font-latin font-bold text-brand">
+                          #
+                          {ord.order_number ||
+                            ord.order_no ||
+                            ord.id?.slice?.(0, 8)}
+                        </td>
+                        <td className="p-3 text-foreground font-sans">
+                          <div className="font-bold">
+                            {ord.customer_name ||
+                              ord.customer_phone ||
+                              'کاربر مهمان'}
+                          </div>
+                          {ord.customer_phone && ord.customer_name && (
+                            <span className="text-[10px] text-muted-foreground font-latin block">
+                              {ord.customer_phone}
+                            </span>
+                          )}
+                        </td>
+                        <td className="p-3 font-bold text-foreground">
+                          {ord.product_title ||
+                            ord.items?.[0]?.product_title ||
+                            'سفارش هوش مصنوعی'}
+                        </td>
+                        <td className="p-3 font-black text-foreground font-sans">
+                          {formatToman(
+                            ord.total_amount_toman || ord.amount_toman || 0,
+                          )}{' '}
+                          <span className="text-[10px] font-normal text-muted-foreground font-sans">
+                            تومان
+                          </span>
+                        </td>
+                        <td className="p-3 text-center">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-control text-[10px] font-bold bg-muted/40 border border-border/60">
+                            {ord.payment_platform === 'balance'
+                              ? 'کیف پول'
+                              : 'درگاه شاپرک'}
+                          </span>
+                        </td>
+                        <td className="p-3 text-center">
+                          <span
+                            className={`px-2 py-0.5 rounded-control text-[10px] font-bold border font-sans ${
+                              isSuccess
+                                ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                                : isProcessing
+                                  ? 'bg-amber-500/10 text-amber-500 border-amber-500/30'
+                                  : isCancelled
+                                    ? 'bg-rose-500/10 text-rose-500 border-rose-500/30'
+                                    : 'bg-muted text-muted-foreground border-border/40'
+                            }`}
+                          >
+                            {ord.status_fa ||
+                              (isSuccess
+                                ? 'پرداخت موفق ✓'
+                                : isProcessing
+                                  ? 'در حال انجام'
+                                  : isCancelled
+                                    ? 'لغو شده'
+                                    : 'در انتظار')}
+                          </span>
+                        </td>
+                        <td className="p-3 text-left text-muted-foreground font-latin text-[11px]">
+                          {ord.created_at
+                            ? new Date(ord.created_at).toLocaleTimeString(
+                                'fa-IR',
+                                {
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                },
+                              )
+                            : 'لحظاتی پیش'}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* 3. System Infrastructure Health & Integration Status Matrix */}
+      <div className="bg-card border border-border/80 p-5 sm:p-6 rounded-surface shadow-surface space-y-4 text-foreground">
+        <div className="border-b border-border/60 pb-3">
+          <h3 className="text-base font-black text-foreground flex items-center gap-2">
+            <Activity className="w-5 h-5 text-emerald-400" />
+            سلامت سیستم و اتصالات زیرساخت فنی
+          </h3>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            پایش وضعیت زنده‌ی درگاه‌های پرداخت، وب‌سرویس‌های خارجی و لایه امنیت
+            کریپتو
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="p-4 rounded-surface border border-emerald-500/30 bg-emerald-500/5 space-y-2">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-bold text-foreground">
+                درگاه پرداخت شاپرک
+              </span>
+              <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+            </div>
+            <div className="text-sm font-black text-emerald-500">
+              آنلاین و آماده پرداخت
+            </div>
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
+              اتصال بدون وقفه به زرین‌پال و پروتکل پرداخت کارت‌های شتاب.
+            </p>
+          </div>
+
+          <div className="p-4 rounded-surface border border-cyan-500/30 bg-cyan-500/5 space-y-2">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-bold text-foreground">
+                سرویس مجازی 5SIM
+              </span>
+              <span className="flex h-2 w-2 rounded-full bg-cyan-400 animate-pulse" />
+            </div>
+            <div className="text-sm font-black text-cyan-400">
+              فعال (کش دو دقیقه‌ای)
+            </div>
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
+              استعلام زنده قیمت‌های تومانی و دریافت آنی پیامک OTP.
+            </p>
+          </div>
+
+          <div className="p-4 rounded-surface border border-brand/30 bg-brand/5 space-y-2">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-bold text-foreground">
+                صرافی SwapWallet
+              </span>
+              <span className="flex h-2 w-2 rounded-full bg-brand animate-pulse" />
+            </div>
+            <div className="text-sm font-black text-brand">
+              سینک لحظه‌ای USDT/IRT
+            </div>
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
+              نرخ مؤثر دلاری روز با قابلیت فال‌بک خودکار به نرخ دستی پنل.
+            </p>
+          </div>
+
+          <div className="p-4 rounded-surface border border-purple-500/30 bg-purple-500/5 space-y-2">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-bold text-foreground">
+                امنیت Vault Zeroize
+              </span>
+              <ShieldCheck className="w-4 h-4 text-purple-400" />
+            </div>
+            <div className="text-sm font-black text-purple-400">
+              AES-256-GCM فعال
+            </div>
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
+              رمزنگاری نامتقارن کلمات عبور و امحای کامل پس از فعال‌سازی.
+            </p>
+          </div>
         </div>
       </div>
 

@@ -14,7 +14,6 @@ import {
   HelpCircle,
   Lock,
   Package,
-  RefreshCw,
   ShieldCheck,
   ShoppingCart,
   Sparkles,
@@ -44,6 +43,7 @@ import { StockAlertModal } from '../components/StockAlertModal'
 import { Badge } from '../components/ui/badge'
 import { Accordion } from '../components/vibefarsi/Accordion'
 import { Breadcrumb } from '../components/vibefarsi/Breadcrumb'
+import { LoadingState } from '../components/vibefarsi/LoadingState'
 import { useNotification } from '../components/vibefarsi/NotificationContext'
 import { QuantitySelector } from '../components/vibefarsi/QuantitySelector'
 import { ScrollReveal } from '../components/vibefarsi/ScrollReveal'
@@ -362,14 +362,13 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
           }
           onOpenCart={() => setIsCartOpen(true)}
         />
-        <main className="flex-1 max-w-7xl mx-auto px-4 py-24 w-full flex flex-col items-center justify-center space-y-3">
-          <RefreshCw className="h-10 w-10 text-blue-600 animate-spin" />
-          <h2 className="font-bold text-sm text-foreground">
-            در حال بارگذاری صفحه اختصاصی محصول...
-          </h2>
-          <p className="text-xs text-muted-foreground">
-            دریافت اطلاعات پلن‌ها، قیمت‌های زنده و جدول مقایسه
-          </p>
+        <main className="flex-1 max-w-7xl mx-auto px-4 py-24 w-full flex items-center justify-center">
+          <LoadingState
+            message="در حال بارگذاری صفحه اختصاصی محصول..."
+            subMessage="دریافت اطلاعات پلن‌ها، قیمت‌های زنده و جدول مقایسه"
+            size="lg"
+            minHeight="40vh"
+          />
         </main>
       </div>
     )
@@ -475,7 +474,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                     className="gap-1.5 text-xs font-bold py-1 px-3"
                   >
                     <UserCheck className="h-3.5 w-3.5" />
-                    ارتقا روی اکانت شخصی (Mode C)
+                    ارتقا روی اکانت شخصی (دستی اپراتور)
                   </Badge>
                 ) : (
                   <Badge
@@ -589,8 +588,9 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                       <Calendar className="h-4 w-4 text-brand" />
                       <span>انتخاب پلن و دوره زمانی:</span>
                     </span>
-                    <span className="text-[11px] text-muted-foreground">
-                      {(product.plans || []).length} دوره قابل انتخاب
+                    <span className="text-[11px] text-muted-foreground font-sans">
+                      {toPersianDigits((product.plans || []).length)} دوره قابل
+                      انتخاب
                     </span>
                   </div>
 

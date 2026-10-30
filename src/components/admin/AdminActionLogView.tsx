@@ -21,6 +21,7 @@ import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { apiService } from '../../services/api'
 import type { AdminActionLogRecord } from '../../types'
+import { formatNumber, toPersianDigits } from '../../utils/formatters'
 import { ModalCloseButton } from '../vibefarsi/ModalCloseButton'
 import { SearchInput } from '../vibefarsi/SearchInput'
 
@@ -112,7 +113,7 @@ export const AdminActionLogView: React.FC = () => {
         return (
           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
             <CheckCircle className="w-3 h-3" />
-            تکمیل سفارش Mode C
+            تکمیل سفارش دستی اپراتور
           </span>
         )
       case 'OPERATOR_2FA_REQUEST':
@@ -195,8 +196,8 @@ export const AdminActionLogView: React.FC = () => {
             <div>
               <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 <span>لاگ حسابرسی و فعالیت مدیران (Audit Log)</span>
-                <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-normal">
-                  {total.toLocaleString('fa-IR')} رویداد ثبت شده
+                <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-sans">
+                  {formatNumber(total)} رویداد ثبت شده
                 </span>
               </h2>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
@@ -443,10 +444,11 @@ export const AdminActionLogView: React.FC = () => {
 
         {/* Pagination Footer */}
         <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/40 flex items-center justify-between text-xs text-slate-500">
-          <div>
-            نمایش {logs.length > 0 ? (page - 1) * pageSize + 1 : 0} تا{' '}
-            {Math.min(page * pageSize, total)} از{' '}
-            {total.toLocaleString('fa-IR')} لاگ
+          <div className="font-sans">
+            نمایش{' '}
+            {toPersianDigits(logs.length > 0 ? (page - 1) * pageSize + 1 : 0)}{' '}
+            تا {toPersianDigits(Math.min(page * pageSize, total))} از{' '}
+            {formatNumber(total)} لاگ
           </div>
 
           <div className="flex items-center gap-1.5">

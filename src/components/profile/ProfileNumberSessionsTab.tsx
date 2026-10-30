@@ -409,7 +409,7 @@ export const ProfileNumberSessionsTab: React.FC<
                 className="h-9 px-4 rounded-control border border-border/60 bg-card hover:bg-muted text-foreground font-black text-xs duration-motion ease-motion active:scale-[0.98] shadow-control cursor-pointer inline-flex items-center gap-2"
               >
                 <span>بارگذاری تاریخچه بیشتر</span>
-                <span className="text-[11px] text-muted-foreground font-latin">
+                <span className="text-[11px] text-muted-foreground font-sans">
                   (نمایش{' '}
                   {toPersianDigits(
                     Math.min(visibleHistoryCount, historySessions.length),

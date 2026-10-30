@@ -11,7 +11,6 @@ import {
   Landmark,
   Loader2,
   LogIn,
-  Mail,
   Minus,
   Percent,
   Plus,
@@ -29,12 +28,11 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useCart } from '../lib/cartStore'
 import { apiService } from '../services/api'
-import type { CustomerProfile, PaymentGateway, ThemeSettings } from '../types'
+import type { CustomerProfile, PaymentGateway } from '../types'
 import { formatToman, toPersianDigits } from '../utils/formatters'
 import { AuthModal } from './AuthModal'
 import { ClaudeIcon, CursorIcon, GeminiIcon, OpenAIIcon } from './BrandIcons'
 import { WalletTopupModal } from './profile/WalletTopupModal'
-import { Input } from './ui/input'
 import { ModalCloseButton } from './vibefarsi/ModalCloseButton'
 
 function getProductBrandConfig(category: string, title: string) {
@@ -81,18 +79,45 @@ function getProductBrandConfig(category: string, title: string) {
   }
 }
 
-function getGatewayIcon(iconType?: string, platform?: string) {
+function getGatewayIcon(
+  iconType?: string,
+  platform?: string,
+  iconUrl?: string,
+) {
+  if (iconUrl) {
+    return (
+      <img src={iconUrl} alt="" className="h-4 w-4 object-contain rounded-xs" />
+    )
+  }
   const t = `${iconType || ''} ${platform || ''}`.toLowerCase()
   if (t.includes('wallet') || t.includes('balance')) {
     return <Wallet className="h-4 w-4 text-emerald-500" />
   }
-  if (t.includes('zarinpal') || t.includes('credit') || t.includes('card')) {
+  if (
+    t.includes('zarinpal') ||
+    t.includes('credit') ||
+    t.includes('card') ||
+    t.includes('shaparak') ||
+    t.includes('saman') ||
+    t.includes('parsian')
+  ) {
     return <CreditCard className="h-4 w-4 text-brand" />
   }
-  if (t.includes('bank') || t.includes('landmark')) {
+  if (
+    t.includes('bank') ||
+    t.includes('landmark') ||
+    t.includes('melli') ||
+    t.includes('mellat') ||
+    t.includes('sepah')
+  ) {
     return <Landmark className="h-4 w-4 text-sky-500" />
   }
-  if (t.includes('bitcoin') || t.includes('crypto')) {
+  if (
+    t.includes('bitcoin') ||
+    t.includes('crypto') ||
+    t.includes('usdt') ||
+    t.includes('trx')
+  ) {
     return <Coins className="h-4 w-4 text-amber-500" />
   }
   return <CreditCard className="h-4 w-4 text-brand" />
@@ -166,18 +191,6 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
     return ''
   })
   const [emailAddress, setEmailAddress] = useState(() => customer?.email || '')
-  const [deliveryChannel, setDeliveryChannel] = useState<'mobile' | 'email'>(
-    () => {
-      if (
-        customer?.email &&
-        (!customer?.phone || /^098[0-9a-f]{8}$/i.test(customer.phone))
-      ) {
-        return 'email'
-      }
-      return 'mobile'
-    },
-  )
-  const [phoneError, setPhoneError] = useState<string | null>(null)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const errorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -204,21 +217,6 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   const [promotionalCoupons, setPromotionalCoupons] = useState<
     Array<{ code: string; label: string }>
   >([])
-  const [checkoutSettings, setCheckoutSettings] = useState<{
-    section_enabled: boolean
-    sms_enabled: boolean
-    email_enabled: boolean
-    title: string
-    sms_label: string
-    email_label: string
-  }>({
-    section_enabled: true,
-    sms_enabled: true,
-    email_enabled: true,
-    title: 'دریافت فاکتور و لایسنس سفارش:',
-    sms_label: 'پیامک به موبایل',
-    email_label: 'ارسال به ایمیل',
-  })
 
   // Auto-resolve customer profile, gateways, and public coupons from apiService
   useEffect(() => {
@@ -274,26 +272,6 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
             .catch(() => {
               removeCoupon()
             })
-        }
-      })
-      // 3. Fetch checkout channel settings from DB / Admin
-      apiService.getThemeSettings().then((theme: ThemeSettings) => {
-        if (theme) {
-          setCheckoutSettings({
-            section_enabled: theme.checkout_channel_section_enabled !== false,
-            sms_enabled: theme.checkout_channel_sms_enabled !== false,
-            email_enabled: theme.checkout_channel_email_enabled !== false,
-            title:
-              theme.checkout_channel_title || 'دریافت فاکتور و لایسنس سفارش:',
-            sms_label: theme.checkout_channel_sms_label || 'پیامک به موبایل',
-            email_label: theme.checkout_channel_email_label || 'ارسال به ایمیل',
-          })
-          if (
-            theme.checkout_channel_sms_enabled === false &&
-            theme.checkout_channel_email_enabled !== false
-          ) {
-            setDeliveryChannel('email')
-          }
         }
       })
     }
@@ -511,8 +489,11 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
     const filtered = sourceList.filter((p) => {
       // Must not be card_to_card per admin instructions
       if (p.platform === 'card_to_card') return false
-      // If enable flag is set, must be enabled
-      if ((p as any).enable !== undefined && !(p as any).enable) return false
+      // If hidden, do not display
+      if (p.display_mode === 'hidden') return false
+      // If enable flag is false and not disabled_visible, do not display
+      if (p.enable === false && p.display_mode !== 'disabled_visible')
+        return false
       return true
     })
 
@@ -546,7 +527,6 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   // Submit Handler
   const handleFinalSubmit = async () => {
     setSubmitError(null)
-    setPhoneError(null)
 
     // Auth gate check
     if (!isUserLoggedIn) {
@@ -557,24 +537,9 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
       return
     }
 
-    const cleanPhone = phone.trim()
-    const cleanEmail = emailAddress.trim()
-
-    if (deliveryChannel === 'mobile') {
-      if (!cleanPhone || cleanPhone.length < 11) {
-        setPhoneError(
-          'لطفاً شماره موبایل معتبر (۱۱ رقمی، مانند 0912...) وارد کنید.',
-        )
-        return
-      }
-    } else {
-      if (!cleanEmail?.includes('@') || !cleanEmail.includes('.')) {
-        setPhoneError(
-          'لطفاً آدرس ایمیل معتبر جهت ارسال فاکتور و لایسنس وارد نمایید.',
-        )
-        return
-      }
-    }
+    const userPhone = savedAccountPhone || customer?.phone || phone.trim()
+    const userEmail =
+      savedAccountEmail || customer?.email || emailAddress.trim()
 
     // Validate Mode C items
     for (const it of modeCItems) {
@@ -628,10 +593,10 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
           })),
           payment_platform: selectedPlatform,
           customer_phone:
-            cleanPhone ||
+            userPhone ||
             (savedAccountPhone ? savedAccountPhone : '09120000000'),
-          customer_email: cleanEmail || savedAccountEmail || firstCred?.email,
-          account_email: firstCred?.email || cleanEmail || savedAccountEmail,
+          customer_email: userEmail || firstCred?.email,
+          account_email: firstCred?.email || userEmail,
           account_password: firstCred?.password,
           customer_notes: notes,
           coupon_code: coupon?.code,
@@ -1100,174 +1065,26 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
               }`}
             >
               <div className="space-y-4">
-                {/* 1. Creative Destination & Contact Selector (Configurable from Admin Panel & DB) */}
-                {checkoutSettings.section_enabled && (
-                  <div className="relative rounded-surface border border-border/60 bg-muted/20 overflow-hidden">
-                    {/* If user is not logged in, overlay a frosted blur with a Login/Register button */}
-                    {!isUserLoggedIn && (
-                      <div className="absolute inset-0 z-20 backdrop-blur-xs bg-card/85 p-4 flex flex-col items-center justify-center text-center space-y-2 animate-in fade-in select-none">
-                        <div className="w-8 h-8 rounded-control bg-secondary text-brand border border-border/60 flex items-center justify-center shadow-control">
-                          <LogIn className="w-4 h-4 text-brand" />
-                        </div>
-                        <div className="space-y-0.5 max-w-xs">
-                          <h5 className="text-xs font-black text-foreground">
-                            نیازمند ورود به حساب کاربری
-                          </h5>
-                          <p className="text-[11px] text-muted-foreground leading-relaxed">
-                            جهت صدور فاکتور و ادامه پرداخت، لطفاً ابتدا وارد حساب
-                            خود شوید.
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setIsAuthModalOpen(true)}
-                          className="h-8.5 px-4 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs duration-motion ease-motion active:scale-[0.98] shadow-control flex items-center gap-1.5 cursor-pointer"
-                        >
-                          <LogIn className="w-3.5 h-3.5" />
-                          <span>ورود / ثبت‌نام سریع</span>
-                        </button>
-                      </div>
-                    )}
-
-                    <div
-                      className={`space-y-2.5 p-3.5 ${
-                        !isUserLoggedIn
-                          ? 'filter blur-[2.5px] opacity-25 pointer-events-none select-none'
-                          : ''
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <label className="text-xs font-black text-foreground block">
-                          {checkoutSettings.title}
-                        </label>
-                      </div>
-
-                      {/* Channel Switcher (SMS vs Email - based on admin enabled flags) */}
-                      {checkoutSettings.sms_enabled &&
-                        checkoutSettings.email_enabled && (
-                          <div className="flex items-center gap-1.5 p-1 rounded-control bg-muted/40 border border-border/40">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setDeliveryChannel('mobile')
-                                setPhoneError(null)
-                              }}
-                              className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-control text-xs font-bold transition-all duration-motion ease-motion active:scale-[0.98] cursor-pointer ${
-                                deliveryChannel === 'mobile'
-                                  ? 'bg-primary text-primary-foreground font-black shadow-control'
-                                  : 'text-muted-foreground hover:text-foreground'
-                              }`}
-                            >
-                              <Smartphone className="w-3.5 h-3.5" />
-                              <span>{checkoutSettings.sms_label}</span>
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setDeliveryChannel('email')
-                                setPhoneError(null)
-                              }}
-                              className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-control text-xs font-bold transition-all duration-motion ease-motion active:scale-[0.98] cursor-pointer ${
-                                deliveryChannel === 'email'
-                                  ? 'bg-primary text-primary-foreground font-black shadow-control'
-                                  : 'text-muted-foreground hover:text-foreground'
-                              }`}
-                            >
-                              <Mail className="w-3.5 h-3.5" />
-                              <span>{checkoutSettings.email_label}</span>
-                            </button>
-                          </div>
-                        )}
-
-                      {/* Quick Select Account Chips (if user has phone or email in account) */}
-                      {(savedAccountPhone || savedAccountEmail) && (
-                        <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
-                          {savedAccountPhone && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setDeliveryChannel('mobile')
-                                setPhone(savedAccountPhone)
-                                setPhoneError(null)
-                              }}
-                              className={`text-[10px] font-latin px-2.5 py-1 rounded-control border transition-all cursor-pointer flex items-center gap-1 ${
-                                deliveryChannel === 'mobile' &&
-                                phone === savedAccountPhone
-                                  ? 'border-brand/50 bg-brand/10 text-brand font-bold'
-                                  : 'border-border/60 bg-card hover:bg-muted text-muted-foreground hover:text-foreground'
-                              }`}
-                            >
-                              <Smartphone className="w-3 h-3 text-brand" />
-                              <span>{savedAccountPhone}</span>
-                              <span className="text-[9px] font-sans opacity-70">
-                                (شماره شما)
-                              </span>
-                            </button>
-                          )}
-
-                          {savedAccountEmail && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setDeliveryChannel('email')
-                                setEmailAddress(savedAccountEmail)
-                                setPhoneError(null)
-                              }}
-                              className={`text-[10px] font-latin px-2.5 py-1 rounded-control border transition-all cursor-pointer flex items-center gap-1 ${
-                                deliveryChannel === 'email' &&
-                                emailAddress === savedAccountEmail
-                                  ? 'border-brand/50 bg-brand/10 text-brand font-bold'
-                                  : 'border-border/60 bg-card hover:bg-muted text-muted-foreground hover:text-foreground'
-                              }`}
-                            >
-                              <Mail className="w-3 h-3 text-brand" />
-                              <span className="truncate max-w-[150px]">
-                                {savedAccountEmail}
-                              </span>
-                              <span className="text-[9px] font-sans opacity-70">
-                                (ایمیل شما)
-                              </span>
-                            </button>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Dynamic Input based on Selected Channel */}
-                      <div>
-                        {deliveryChannel === 'mobile' ? (
-                          <Input
-                            type="tel"
-                            dir="ltr"
-                            value={phone}
-                            onChange={(e) => {
-                              setPhone(e.target.value)
-                              setPhoneError(null)
-                            }}
-                            placeholder="09xxxxxxxxx (شماره موبایل جهت پیامک تحویل)"
-                            className="h-10 text-xs font-latin rounded-control bg-background border-border/80 focus:border-brand"
-                          />
-                        ) : (
-                          <Input
-                            type="email"
-                            dir="ltr"
-                            value={emailAddress}
-                            onChange={(e) => {
-                              setEmailAddress(e.target.value)
-                              setPhoneError(null)
-                            }}
-                            placeholder="name@example.com (آدرس ایمیل دریافت لایسنس)"
-                            className="h-10 text-xs font-latin rounded-control bg-background border-border/80 focus:border-brand"
-                          />
-                        )}
-
-                        {phoneError && (
-                          <p className="text-[11px] text-destructive font-bold mt-1">
-                            {phoneError}
-                          </p>
-                        )}
-                      </div>
+                {/* Guest Callout Banner (if not logged in) */}
+                {!isUserLoggedIn && (
+                  <div className="rounded-surface border border-border/80 bg-card p-4 shadow-surface flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+                    <div className="text-right space-y-0.5">
+                      <span className="font-bold text-foreground block">
+                        ورود به حساب کاربری جهت تسویه‌حساب
+                      </span>
+                      <span className="text-[11px] text-muted-foreground block">
+                        برای ثبت نهایی سفارش، صدور لایسنس و پیگیری، ابتدا وارد
+                        حساب خود شوید.
+                      </span>
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => setIsAuthModalOpen(true)}
+                      className="h-9 px-4 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs duration-motion ease-motion active:scale-[0.98] shadow-control flex items-center gap-1.5 cursor-pointer shrink-0"
+                    >
+                      <LogIn className="w-3.5 h-3.5" />
+                      <span>ورود / عضویت سریع</span>
+                    </button>
                   </div>
                 )}
 
@@ -1278,27 +1095,42 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                   </label>
                   <div className="space-y-1.5">
                     {availableGateways.map((p: PaymentGateway) => {
-                      const isSelected = selectedPlatform === p.platform
+                      const isDisabled = p.display_mode === 'disabled_visible'
+                      const isSelected =
+                        selectedPlatform === p.platform && !isDisabled
                       return (
                         <div
                           key={p.id}
-                          onClick={() => setSelectedPlatform(p.platform)}
-                          className={`flex items-center justify-between rounded-control border p-2.5 cursor-pointer transition-all duration-motion ease-motion ${
-                            isSelected
-                              ? 'border-primary bg-primary/10 ring-1 ring-primary/30 shadow-control'
-                              : 'border-border/60 bg-card hover:bg-muted/40'
+                          onClick={() => {
+                            if (isDisabled) return
+                            setSelectedPlatform(p.platform)
+                          }}
+                          className={`flex items-center justify-between rounded-control border p-2.5 transition-all duration-motion ease-motion ${
+                            isDisabled
+                              ? 'opacity-55 cursor-not-allowed bg-muted/20 border-border/40 select-none'
+                              : isSelected
+                                ? 'border-primary bg-primary/10 ring-1 ring-primary/30 shadow-control cursor-pointer'
+                                : 'border-border/60 bg-card hover:bg-muted/40 cursor-pointer'
                           }`}
                         >
                           <div className="flex items-center gap-2.5">
                             <div className="flex h-8 w-8 items-center justify-center rounded-control bg-secondary border border-border/80 text-foreground shrink-0 shadow-control">
-                              {getGatewayIcon(p.icon_type, p.platform)}
+                              {getGatewayIcon(
+                                p.icon_type,
+                                p.platform,
+                                p.icon_url,
+                              )}
                             </div>
                             <div>
                               <div className="flex items-center gap-1.5">
                                 <span className="text-xs font-bold text-foreground">
                                   {p.name}
                                 </span>
-                                {p.platform === 'balance' && (
+                                {isDisabled ? (
+                                  <span className="text-[9px] px-1.5 py-0.2 rounded-control font-bold bg-amber-500/10 text-amber-500 border border-amber-500/20">
+                                    موقتاً غیرفعال
+                                  </span>
+                                ) : p.platform === 'balance' ? (
                                   <span
                                     className={`text-[9px] px-1.5 py-0.2 rounded-control font-bold border ${
                                       isBalanceSufficient
@@ -1310,13 +1142,15 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                                       ? 'موجودی کافی ✓'
                                       : 'موجودی ناکافی'}
                                   </span>
-                                )}
+                                ) : null}
                               </div>
                               <p className="text-[10px] text-muted-foreground mt-0.5">
-                                {p.platform === 'balance'
-                                  ? `موجودی: ${walletBalance.toLocaleString('fa-IR')} تومان`
-                                  : p.description_fa ||
-                                    'پرداخت با کلیه کارت‌های شتاب'}
+                                {isDisabled
+                                  ? 'این درگاه موقتاً در دسترس نمی‌باشد'
+                                  : p.platform === 'balance'
+                                    ? `موجودی: ${formatToman(walletBalance)} تومان`
+                                    : p.description_fa ||
+                                      'پرداخت با کلیه کارت‌های شتاب'}
                               </p>
                             </div>
                           </div>
@@ -1491,7 +1325,20 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                       <div className="flex items-center gap-2 pt-1">
                         <button
                           type="button"
-                          onClick={() => setSelectedPlatform('zarinpal')}
+                          onClick={() => {
+                            const onlineGateway =
+                              availableGateways.find(
+                                (g) =>
+                                  g.platform !== 'balance' &&
+                                  g.display_mode !== 'disabled_visible',
+                              ) ||
+                              availableGateways.find(
+                                (g) => g.platform !== 'balance',
+                              )
+                            setSelectedPlatform(
+                              onlineGateway?.platform || 'zarinpal',
+                            )
+                          }}
                           className="px-3 py-1.5 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs duration-motion active:scale-95 shadow-control cursor-pointer"
                         >
                           سوییچ به درگاه شاپرک

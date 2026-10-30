@@ -23,6 +23,7 @@ import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { apiService } from '../../services/api'
 import type { CreateOrUpdateLoyaltyTierRequest, LoyaltyTier } from '../../types'
+import { formatNumber, formatToman } from '../../utils/formatters'
 import { ConfirmModal } from '../vibefarsi/ConfirmModal'
 import { ModalCloseButton } from '../vibefarsi/ModalCloseButton'
 import { useNotification } from '../vibefarsi/NotificationContext'
@@ -524,9 +525,9 @@ export const AdminLoyaltyTiersView: React.FC = () => {
                         <span className="text-muted-foreground">
                           حداقل حجم خرید:
                         </span>
-                        <span className="font-bold text-foreground font-latin">
+                        <span className="font-bold text-foreground font-sans">
                           {tier.min_spend_toman > 0
-                            ? `${tier.min_spend_toman.toLocaleString('fa-IR')} تومان`
+                            ? `${formatToman(tier.min_spend_toman)} تومان`
                             : '۰ تومان (عضویت رایگان)'}
                         </span>
                       </div>
@@ -556,8 +557,8 @@ export const AdminLoyaltyTiersView: React.FC = () => {
                         <span className="text-muted-foreground">
                           کاربران این سطح:
                         </span>
-                        <span className="font-bold text-brand font-latin">
-                          {(tier.user_count || 0).toLocaleString('fa-IR')} کاربر
+                        <span className="font-bold text-brand font-sans">
+                          {formatNumber(tier.user_count || 0)} کاربر
                         </span>
                       </div>
                     </div>
@@ -864,7 +865,7 @@ export const AdminLoyaltyTiersView: React.FC = () => {
                         className="w-full h-10 px-3.5 rounded-field border border-border/60 bg-muted/20 text-foreground font-mono font-latin outline-none focus:border-brand"
                       />
                       <span className="text-[11px] text-muted-foreground block font-latin">
-                        {formMinSpend.toLocaleString('fa-IR')} تومان
+                        {formatToman(formMinSpend)} تومان
                       </span>
                     </div>
 

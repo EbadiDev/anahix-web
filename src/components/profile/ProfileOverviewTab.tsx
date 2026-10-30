@@ -73,7 +73,7 @@ export const ProfileOverviewTab: React.FC<ProfileOverviewTabProps> = ({
             </div>
           </div>
           <div>
-            <div className="text-2xl font-black text-foreground font-latin">
+            <div className="text-2xl font-black text-foreground font-sans">
               {formatToman(customer.balance_toman || 0)}
               <span className="text-xs font-normal text-muted-foreground mr-1.5 font-sans">
                 تومان
@@ -106,7 +106,7 @@ export const ProfileOverviewTab: React.FC<ProfileOverviewTabProps> = ({
             </div>
           </div>
           <div>
-            <div className="text-2xl font-black text-foreground font-latin">
+            <div className="text-2xl font-black text-foreground font-sans">
               {toPersianDigits(orders.length)}
               <span className="text-xs font-normal text-muted-foreground mr-1.5 font-sans">
                 سفارش
@@ -137,7 +137,7 @@ export const ProfileOverviewTab: React.FC<ProfileOverviewTabProps> = ({
             </div>
           </div>
           <div>
-            <div className="text-2xl font-black text-foreground font-latin">
+            <div className="text-2xl font-black text-foreground font-sans">
               {toPersianDigits(completedOrders.length)}
               <span className="text-xs font-normal text-muted-foreground mr-1.5 font-sans">
                 سرویس
@@ -170,7 +170,7 @@ export const ProfileOverviewTab: React.FC<ProfileOverviewTabProps> = ({
             </div>
           </div>
           <div>
-            <div className="text-2xl font-black text-foreground font-latin">
+            <div className="text-2xl font-black text-foreground font-sans">
               {toPersianDigits(activeNumbers.length)}
               <span className="text-xs font-normal text-muted-foreground mr-1.5 font-sans">
                 شماره
@@ -301,8 +301,8 @@ export const ProfileOverviewTab: React.FC<ProfileOverviewTabProps> = ({
                   <span className="font-semibold text-foreground">
                     ثبت سفارش {order.product_title}
                   </span>
-                  <p className="text-[11px] text-muted-foreground font-mono mt-0.5">
-                    شماره سفارش: #{order.order_no} • مبلغ:{' '}
+                  <p className="text-[11px] text-muted-foreground font-sans mt-0.5">
+                    شماره سفارش: #{toPersianDigits(order.order_no)} • مبلغ:{' '}
                     {formatToman(order.amount_toman)} تومان
                   </p>
                 </div>

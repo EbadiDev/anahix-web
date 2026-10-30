@@ -83,7 +83,7 @@ export const ProfileWalletTab: React.FC<ProfileWalletTabProps> = ({
             <span>موجودی در دسترس کیف پول {getSiteBrandName()}</span>
           </div>
 
-          <div className="mt-2 text-3xl sm:text-4xl font-black text-foreground flex items-baseline gap-2 font-latin">
+          <div className="mt-2 text-3xl sm:text-4xl font-black text-foreground flex items-baseline gap-2 font-sans">
             {formatToman(balance)}
             <span className="text-base font-normal text-muted-foreground font-sans">
               تومان
@@ -272,7 +272,7 @@ export const ProfileWalletTab: React.FC<ProfileWalletTabProps> = ({
                       </div>
                     </div>
 
-                    <div className="text-left font-latin">
+                    <div className="text-left font-sans">
                       <span
                         className={`font-black text-sm block ${
                           isPlus ? 'text-emerald-400' : 'text-foreground'
@@ -281,8 +281,8 @@ export const ProfileWalletTab: React.FC<ProfileWalletTabProps> = ({
                         {isPlus ? '+' : '-'}
                         {formatToman(Math.abs(item.amount_toman))} تومان
                       </span>
-                      <span className="text-[10px] text-muted-foreground block font-mono">
-                        پیگیری: #{item.transaction_number}
+                      <span className="text-[10px] text-muted-foreground block font-sans">
+                        پیگیری: #{toPersianDigits(item.transaction_number)}
                       </span>
                     </div>
                   </div>

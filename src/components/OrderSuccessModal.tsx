@@ -13,6 +13,7 @@ import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import type { Order } from '../types'
+import { toPersianDigits } from '../utils/formatters'
 import { ModalCloseButton } from './vibefarsi/ModalCloseButton'
 import { useNotification } from './vibefarsi/NotificationContext'
 
@@ -98,8 +99,8 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
               </div>
               <p className="text-xs text-muted-foreground mt-0.5">
                 شماره پیگیری سفارش:{' '}
-                <span className="font-mono font-latin font-bold text-foreground">
-                  #{order.order_no}
+                <span className="font-sans font-bold text-foreground">
+                  #{toPersianDigits(order.order_no)}
                 </span>
               </p>
             </div>

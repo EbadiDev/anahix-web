@@ -1,10 +1,4 @@
-import {
-  ChevronLeft,
-  ChevronRight,
-  Package,
-  RefreshCw,
-  Sparkles,
-} from 'lucide-react'
+import { ChevronLeft, ChevronRight, Package, Sparkles } from 'lucide-react'
 import type React from 'react'
 import { useEffect, useMemo, useState } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
@@ -13,10 +7,12 @@ import { Header } from '../components/Header'
 import { OrderSuccessModal } from '../components/OrderSuccessModal'
 import { ProductCard } from '../components/ProductCard'
 import { Breadcrumb } from '../components/vibefarsi/Breadcrumb'
+import { LoadingState } from '../components/vibefarsi/LoadingState'
 import { RangeSlider } from '../components/vibefarsi/RangeSlider'
 import { SearchInput } from '../components/vibefarsi/SearchInput'
 import { api, apiService } from '../services/api'
 import type { BannerItem, ContentCategory, Order, Product } from '../types'
+import { formatNumber, toPersianDigits } from '../utils/formatters'
 
 export const CategoryDetailPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>()
@@ -454,19 +450,13 @@ export const CategoryDetailPage: React.FC = () => {
               <Sparkles className="h-5 w-5 text-brand" />
               <span>اشتراک‌های آماده سفارش {category?.name || ''}</span>
             </h2>
-            <span className="text-xs text-muted-foreground font-latin font-bold">
-              {Number(filteredProducts.length).toLocaleString('fa-IR')} محصول
-              آماده سفارش
+            <span className="text-xs text-muted-foreground font-sans font-bold">
+              {formatNumber(filteredProducts.length)} محصول آماده سفارش
             </span>
           </div>
 
           {loading ? (
-            <div className="py-20 text-center space-y-3">
-              <RefreshCw className="h-8 w-8 text-foreground animate-spin mx-auto" />
-              <p className="text-xs text-muted-foreground">
-                در حال بارگذاری محصولات دسته‌بندی...
-              </p>
-            </div>
+            <LoadingState message="در حال بارگذاری محصولات دسته‌بندی..." />
           ) : filteredProducts.length === 0 ? (
             <div className="rounded-surface border border-border/60 bg-card p-12 text-center text-muted-foreground space-y-3 shadow-surface">
               <Package className="h-10 w-10 mx-auto text-muted-foreground/60" />
@@ -506,10 +496,10 @@ export const CategoryDetailPage: React.FC = () => {
               {/* Full Pagination Controls */}
               {totalPages > 1 && (
                 <div className="flex items-center justify-between p-3.5 bg-card rounded-surface border border-border/80 shadow-surface text-xs">
-                  <span className="text-muted-foreground">
-                    صفحه {page} از {totalPages} (مجموع{' '}
-                    {Number(filteredProducts.length).toLocaleString('fa-IR')}{' '}
-                    محصول)
+                  <span className="text-muted-foreground font-sans">
+                    صفحه {toPersianDigits(page)} از{' '}
+                    {toPersianDigits(totalPages)} (مجموع{' '}
+                    {formatNumber(filteredProducts.length)} محصول)
                   </span>
                   <div className="flex items-center gap-1">
                     <button

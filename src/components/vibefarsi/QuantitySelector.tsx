@@ -79,7 +79,7 @@ export const QuantitySelector: React.FC<QuantitySelectorProps> = ({
         )}
       </button>
 
-      <span className="min-w-[28px] text-center font-black font-latin text-foreground px-1">
+      <span className="min-w-[28px] text-center font-black font-sans text-foreground px-1">
         {toPersianDigits(value)}
       </span>
 

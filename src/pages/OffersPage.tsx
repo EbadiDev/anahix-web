@@ -3,7 +3,6 @@ import {
   ChevronRight,
   Flame,
   HelpCircle,
-  RefreshCw,
   Sparkles,
 } from 'lucide-react'
 import type React from 'react'
@@ -12,9 +11,12 @@ import { CartDrawer } from '../components/CartDrawer'
 import { Header } from '../components/Header'
 import { ProductCard } from '../components/ProductCard'
 import { Breadcrumb } from '../components/vibefarsi/Breadcrumb'
+import { LoadingState } from '../components/vibefarsi/LoadingState'
 import { SearchInput } from '../components/vibefarsi/SearchInput'
 import { api, apiService } from '../services/api'
 import type { Order, Product, ThemeSettings } from '../types'
+import { getSiteBrandName } from '../utils/brand'
+import { formatNumber } from '../utils/formatters'
 
 export const OffersPage: React.FC = () => {
   const [discountedProducts, setDiscountedProducts] = useState<Product[]>([])
@@ -165,7 +167,7 @@ export const OffersPage: React.FC = () => {
               <Flame className="h-3.5 w-3.5 animate-pulse" />
               <span>
                 {themeSettings?.offers_badge_text ||
-                  'جشنواره سراسری تخفیف‌های زمان‌دار آناهیکس'}
+                  `جشنواره سراسری تخفیف‌های زمان‌دار ${getSiteBrandName('پلی شاپ')}`}
               </span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-black text-foreground">
@@ -262,18 +264,13 @@ export const OffersPage: React.FC = () => {
               <Sparkles className="h-5 w-5 text-brand" />
               <span>محصولات تخفیف‌دار آماده تحویل</span>
             </h2>
-            <span className="text-xs text-muted-foreground font-latin font-bold">
-              {Number(filteredOffers.length).toLocaleString('fa-IR')} محصول فعال
+            <span className="text-xs text-muted-foreground font-sans font-bold">
+              {formatNumber(filteredOffers.length)} محصول فعال
             </span>
           </div>
 
           {loading ? (
-            <div className="py-20 text-center space-y-3">
-              <RefreshCw className="h-8 w-8 text-brand animate-spin mx-auto" />
-              <p className="text-xs text-muted-foreground">
-                در حال دریافت لیست محصولات تخفیف‌دار...
-              </p>
-            </div>
+            <LoadingState message="در حال دریافت لیست محصولات تخفیف‌دار..." />
           ) : filteredOffers.length === 0 ? (
             <div className="rounded-surface border border-border/80 bg-card p-12 text-center text-muted-foreground space-y-3 shadow-surface">
               <HelpCircle className="h-10 w-10 mx-auto opacity-50" />

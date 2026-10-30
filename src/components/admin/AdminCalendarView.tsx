@@ -89,6 +89,7 @@ export const AdminCalendarView: React.FC = () => {
     info: notifyInfo,
   } = useNotification()
   const [selectedDate, setSelectedDate] = useState<string>('1405/01/01')
+  const [selectedEndDate, setSelectedEndDate] = useState<string>('')
   const [events, setEvents] = useState<CampaignCalendarEvent[]>(() => {
     const raw = localStorage.getItem('anahix_calendar_events')
     if (raw) {
@@ -101,6 +102,7 @@ export const AdminCalendarView: React.FC = () => {
       {
         id: 'evt-1',
         date: '1405/01/01',
+        endDate: '1405/01/15',
         title: 'آغاز سال نو و جشنواره بهاره نوروزی آناهیکس',
         type: 'holiday',
         badge: 'جشنواره نوروز',
@@ -313,9 +315,16 @@ export const AdminCalendarView: React.FC = () => {
       window.removeEventListener('anahix:theme:updated', handleThemeSync)
   }, [])
 
+  const normalizeJalaliDateInput = (val: string): string => {
+    if (!val) return ''
+    const en = val.replace(/[۰-۹]/g, (d) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)))
+    return en.trim().replace(/-/g, '/')
+  }
+
   const handleOpenEdit = (evt: CampaignCalendarEvent) => {
     setEditingEventId(evt.id || null)
     setSelectedDate(evt.date)
+    setSelectedEndDate(evt.endDate || '')
     setNewTitle(evt.title)
     setNewType((evt.type as any) || 'sale')
     setNewBadge(evt.badge || '')
@@ -340,6 +349,33 @@ export const AdminCalendarView: React.FC = () => {
     e.preventDefault()
     if (!newTitle.trim()) {
       setModalError('لطفاً عنوان رویداد یا کمپین را وارد نمایید')
+      setTimeout(() => setModalError(null), 4000)
+      return
+    }
+
+    const normStart = normalizeJalaliDateInput(selectedDate)
+    const normEnd = normalizeJalaliDateInput(selectedEndDate)
+
+    if (!/^\d{4}\/\d{2}\/\d{2}$/.test(normStart)) {
+      setModalError(
+        'فرمت تاریخ شروع باید به صورت YYYY/MM/DD باشد (مثال: ۱۴۰۵/۰۱/۰۱)',
+      )
+      setTimeout(() => setModalError(null), 4000)
+      return
+    }
+
+    if (normEnd && !/^\d{4}\/\d{2}\/\d{2}$/.test(normEnd)) {
+      setModalError(
+        'فرمت تاریخ پایان باید به صورت YYYY/MM/DD باشد (مثال: ۱۴۰۵/۰۱/۱۵)',
+      )
+      setTimeout(() => setModalError(null), 4000)
+      return
+    }
+
+    if (normEnd && normEnd < normStart) {
+      setModalError(
+        'تاریخ پایان جشنواره نباید قبل از تاریخ برگزاری / شروع باشد.',
+      )
       setTimeout(() => setModalError(null), 4000)
       return
     }
@@ -380,7 +416,8 @@ export const AdminCalendarView: React.FC = () => {
           e.id === editingEventId
             ? {
                 ...e,
-                date: selectedDate,
+                date: normStart,
+                endDate: normEnd || undefined,
                 title: newTitle.trim(),
                 type: newType,
                 badge: newBadge.trim() || undefined,
@@ -399,7 +436,8 @@ export const AdminCalendarView: React.FC = () => {
     } else {
       const newEvt: CampaignCalendarEvent = {
         id: `evt-${Date.now()}`,
-        date: selectedDate,
+        date: normStart,
+        endDate: normEnd || undefined,
         title: newTitle.trim(),
         type: newType,
         badge: newBadge.trim() || undefined,
@@ -438,6 +476,7 @@ export const AdminCalendarView: React.FC = () => {
     setNewBadge('')
     setNewCouponCode('')
     setNewCouponLabel('')
+    setSelectedEndDate('')
     setSyncWithBanner(false)
     setShowAddModal(false)
   }
@@ -661,7 +700,12 @@ export const AdminCalendarView: React.FC = () => {
   }, [events, tableFilter, tableSearch, todayJalaliDate])
 
   const selectedDateEvents = useMemo(() => {
-    return events.filter((e) => e.date === selectedDate)
+    return events.filter((e) => {
+      if (e.date === selectedDate) return true
+      if (e.endDate && selectedDate >= e.date && selectedDate <= e.endDate)
+        return true
+      return false
+    })
   }, [events, selectedDate])
 
   return (
@@ -737,6 +781,7 @@ export const AdminCalendarView: React.FC = () => {
                     type="button"
                     onClick={() => {
                       setEditingEventId(null)
+                      setSelectedEndDate('')
                       setNewTitle('')
                       setNewBadge('')
                       setNewCouponCode('')
@@ -1082,8 +1127,17 @@ export const AdminCalendarView: React.FC = () => {
                             <td className="p-3.5 font-bold text-foreground text-center">
                               {evt.title}
                             </td>
-                            <td className="p-3.5   text-brand font-bold font-latin text-center">
-                              {toPersianDigits(evt.date)}
+                            <td className="p-3.5 text-brand font-bold font-latin text-center">
+                              <div className="flex flex-col items-center justify-center gap-0.5">
+                                <span className="font-bold">
+                                  {toPersianDigits(evt.date)}
+                                </span>
+                                {evt.endDate && evt.endDate !== evt.date && (
+                                  <span className="text-[10px] text-muted-foreground font-normal">
+                                    تا {toPersianDigits(evt.endDate)}
+                                  </span>
+                                )}
+                              </div>
                             </td>
                             <td className="p-3.5 text-center">
                               <div className="flex items-center justify-center">
@@ -1555,6 +1609,72 @@ export const AdminCalendarView: React.FC = () => {
                     />
                   </div>
 
+                  {/* Persian Jalali Date Scheduling: Holding / Start Date and End Date */}
+                  <div className="p-3.5 rounded-surface bg-muted/20 border border-border/60 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <label className="font-bold text-foreground flex items-center gap-1.5 text-xs">
+                        <CalendarIcon className="w-3.5 h-3.5 text-brand" />
+                        <span>زمان‌بندی تقویم شمسی (تاریخ برگزاری و پایان)</span>
+                      </label>
+                      <span className="text-[10px] text-muted-foreground font-mono">
+                        فرمت: YYYY/MM/DD
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="space-y-1 text-right">
+                        <label className="text-[11px] font-bold text-muted-foreground block">
+                          تاریخ برگزاری / شروع رویداد *
+                        </label>
+                        <input
+                          type="text"
+                          dir="ltr"
+                          value={selectedDate}
+                          onChange={(e) => setSelectedDate(e.target.value)}
+                          placeholder="1405/01/01"
+                          className="w-full h-10 px-3 rounded-field border border-border/60 bg-card text-foreground font-mono font-latin text-xs outline-none focus:border-brand text-center"
+                          required
+                        />
+                      </div>
+
+                      <div className="space-y-1 text-right">
+                        <div className="flex items-center justify-between">
+                          <label className="text-[11px] font-bold text-muted-foreground block">
+                            تاریخ پایان جشنواره / رویداد
+                          </label>
+                          <span className="text-[10px] text-brand/80 font-bold">
+                            (اختیاری)
+                          </span>
+                        </div>
+                        <input
+                          type="text"
+                          dir="ltr"
+                          value={selectedEndDate}
+                          onChange={(e) => setSelectedEndDate(e.target.value)}
+                          placeholder="مثال: 1405/01/15"
+                          className="w-full h-10 px-3 rounded-field border border-border/60 bg-card text-foreground font-mono font-latin text-xs outline-none focus:border-brand text-center"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-1 border-t border-border/30">
+                      <span>
+                        {selectedEndDate.trim()
+                          ? `جشنواره به مدت ${toPersianDigits(selectedDate)} تا ${toPersianDigits(selectedEndDate)} برگزار خواهد شد.`
+                          : 'رویداد یک‌روزه (بدون تاریخ پایان). برای جشنواره‌های چند روزه، تاریخ پایان را تکمیل فرمایید.'}
+                      </span>
+                      {selectedEndDate && (
+                        <button
+                          type="button"
+                          onClick={() => setSelectedEndDate('')}
+                          className="text-[10px] text-destructive hover:underline cursor-pointer font-bold"
+                        >
+                          حذف تاریخ پایان
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
                   <div className="grid grid-cols-2 gap-3 text-right">
                     <div className="space-y-1.5">
                       <label className="font-bold text-foreground block">
@@ -1744,27 +1864,38 @@ export const AdminCalendarView: React.FC = () => {
                     </div>
                   )}
 
-                  {/* Active Toggle Switch */}
+                  {/* Active Toggle Switch - Clean & Consistent */}
                   <div className="p-3.5 rounded-surface bg-muted/20 border border-border/60 flex items-center justify-between gap-3">
-                    <div className="space-y-0.5">
-                      <span className="font-bold text-foreground block">
-                        وضعیت فعال بودن رویداد
-                      </span>
+                    <div className="space-y-0.5 text-right">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-foreground block">
+                          وضعیت فعال بودن رویداد
+                        </span>
+                        <span
+                          className={`px-2 py-0.5 rounded-control text-[10px] font-black border ${
+                            newIsActive
+                              ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30'
+                              : 'bg-muted text-muted-foreground border-border/60'
+                          }`}
+                        >
+                          {newIsActive ? 'فعال و معتبر' : 'غیرفعال'}
+                        </span>
+                      </div>
                       <p className="text-[11px] text-muted-foreground">
-                        در صورت فعال بودن، رویداد در تقویم و نوار اعلان فعال
-                        خواهد بود.
+                        در صورت فعال بودن، رویداد در تقویم، نشان‌ها و نوار اعلان
+                        فعال خواهد بود.
                       </p>
                     </div>
                     <ToggleSwitch
                       checked={newIsActive}
                       onChange={setNewIsActive}
-                      variant="primary"
+                      size="md"
                     />
                   </div>
 
                   {/* Auto-sync with holiday banner */}
                   <div className="p-3.5 rounded-surface bg-muted/20 border border-border/60 flex items-center justify-between gap-3">
-                    <div className="space-y-0.5">
+                    <div className="space-y-0.5 text-right">
                       <span className="font-bold text-foreground block">
                         همگام‌سازی و فعال‌سازی در نوار اعلان بالای سایت
                       </span>
@@ -1774,7 +1905,7 @@ export const AdminCalendarView: React.FC = () => {
                       </p>
                     </div>
                     <ToggleSwitch
-                      size="sm"
+                      size="md"
                       checked={syncWithBanner}
                       onChange={setSyncWithBanner}
                     />

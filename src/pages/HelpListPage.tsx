@@ -7,6 +7,7 @@ import {
   Clock,
   Code,
   FileText,
+  Heart,
   HelpCircle,
   KeyRound,
   LifeBuoy,
@@ -29,6 +30,8 @@ import type {
   HelpGuideListItem,
   ServiceTarget,
 } from '../types'
+import { getSiteBrandName } from '../utils/brand'
+import { getLocalWishlist, toggleItemFavorite } from '../utils/wishlist'
 
 export const HelpListPage: React.FC = () => {
   const [searchParams] = useSearchParams()
@@ -45,6 +48,47 @@ export const HelpListPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState<string>(initialSearch)
   const [isLoading, setIsLoading] = useState(true)
   const [isCartOpen, setIsCartOpen] = useState(false)
+  const [favoritedGuides, setFavoritedGuides] = useState<Set<string>>(() => {
+    const list = getLocalWishlist()
+    return new Set(
+      list.filter((it) => it.target_type === 'guide').map((it) => it.target_id),
+    )
+  })
+
+  useEffect(() => {
+    const handleSync = () => {
+      const list = getLocalWishlist()
+      setFavoritedGuides(
+        new Set(
+          list
+            .filter((it) => it.target_type === 'guide')
+            .map((it) => it.target_id),
+        ),
+      )
+    }
+    window.addEventListener('anahix:wishlist:updated', handleSync)
+    return () =>
+      window.removeEventListener('anahix:wishlist:updated', handleSync)
+  }, [])
+
+  const handleToggleFavoriteGuide = async (
+    g: HelpGuideListItem,
+    e: React.MouseEvent,
+  ) => {
+    e.preventDefault()
+    e.stopPropagation()
+    const res = await toggleItemFavorite({
+      target_type: 'guide',
+      target_id: g.slug,
+      title: g.title,
+    })
+    setFavoritedGuides((prev) => {
+      const next = new Set(prev)
+      if (res.is_favorite) next.add(g.slug)
+      else next.delete(g.slug)
+      return next
+    })
+  }
 
   // Fetch dynamic categories and service targets from database
   useEffect(() => {
@@ -106,7 +150,9 @@ export const HelpListPage: React.FC = () => {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center space-y-4">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 text-xs font-semibold">
               <LifeBuoy className="h-3.5 w-3.5" />
-              <span>پایگاه دانش و مرکز پشتیبانی هوشمند آناهیکس</span>
+              <span>
+                پایگاه دانش و مرکز پشتیبانی هوشمند {getSiteBrandName('پلی شاپ')}
+              </span>
             </div>
             <h1 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight text-foreground">
               چگونه می‌توانیم به شما{' '}
@@ -259,9 +305,33 @@ export const HelpListPage: React.FC = () => {
                   >
                     <div className="space-y-2">
                       <div className="flex items-center justify-between text-xs">
-                        <span className="font-semibold text-primary px-2.5 py-0.5 rounded-md bg-blue-500/10 text-[11px]">
-                          {g.category_name}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-primary px-2.5 py-0.5 rounded-md bg-blue-500/10 text-[11px]">
+                            {g.category_name}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={(e) => handleToggleFavoriteGuide(g, e)}
+                            title={
+                              favoritedGuides.has(g.slug)
+                                ? 'حذف از علاقه‌مندی‌ها'
+                                : 'افزودن به علاقه‌مندی‌ها'
+                            }
+                            className={`p-1.5 rounded-control border duration-motion active:scale-90 transition-all cursor-pointer ${
+                              favoritedGuides.has(g.slug)
+                                ? 'border-rose-500/50 bg-rose-500/10 text-rose-500 font-bold'
+                                : 'border-border/60 bg-muted/40 hover:bg-muted text-muted-foreground hover:text-rose-500'
+                            }`}
+                          >
+                            <Heart
+                              className={`h-3.5 w-3.5 ${
+                                favoritedGuides.has(g.slug)
+                                  ? 'fill-rose-500 text-rose-500'
+                                  : ''
+                              }`}
+                            />
+                          </button>
+                        </div>
                         <div className="flex items-center gap-2 text-muted-foreground text-[11px]">
                           <span className="flex items-center gap-1">
                             <Clock className="h-3 w-3 text-blue-500" />
@@ -318,8 +388,9 @@ export const HelpListPage: React.FC = () => {
                 هنوز پاسخ سوال یا مشکل خود را پیدا نکرده‌اید؟
               </h3>
               <p className="text-xs text-muted-foreground leading-relaxed max-w-xl">
-                کارشناسان فنی آناهیکس آماده‌اند تا در رفع خطاهای تحریم، راه‌اندازی
-                اکانت و دریافت پیامک شماره‌های مجازی شما را راهنمایی کنند.
+                کارشناسان فنی {getSiteBrandName('پلی شاپ')} آماده‌اند تا در رفع
+                خطاهای تحریم، راه‌اندازی اکانت و دریافت پیامک شماره‌های مجازی شما
+                را راهنمایی کنند.
               </p>
             </div>
             <div className="flex items-center gap-3 shrink-0">

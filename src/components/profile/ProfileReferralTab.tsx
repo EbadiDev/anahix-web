@@ -131,7 +131,7 @@ export const ProfileReferralTab: React.FC<ProfileReferralTabProps> = ({
             <span className="text-[10px] text-muted-foreground block font-bold">
               نرخ کمیسیون شما:
             </span>
-            <span className="text-2xl font-black text-brand font-latin">
+            <span className="text-2xl font-black text-brand font-sans">
               {toPersianDigits(stats?.commission_rate_percent ?? 10)}٪
             </span>
             <span className="text-[10px] text-muted-foreground block">
@@ -199,7 +199,7 @@ export const ProfileReferralTab: React.FC<ProfileReferralTabProps> = ({
               <Users className="w-4 h-4 text-brand" />
             </div>
           </div>
-          <div className="text-2xl font-black text-foreground font-latin">
+          <div className="text-2xl font-black text-foreground font-sans">
             {loading ? (
               <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
             ) : (
@@ -211,7 +211,7 @@ export const ProfileReferralTab: React.FC<ProfileReferralTabProps> = ({
               </>
             )}
           </div>
-          <p className="text-[11px] text-muted-foreground mt-1 font-latin">
+          <p className="text-[11px] text-muted-foreground mt-1 font-sans">
             کد: {referralCode}
           </p>
         </div>
@@ -226,7 +226,7 @@ export const ProfileReferralTab: React.FC<ProfileReferralTabProps> = ({
               <CheckCircle2 className="w-4 h-4 text-emerald-400" />
             </div>
           </div>
-          <div className="text-2xl font-black text-foreground font-latin">
+          <div className="text-2xl font-black text-foreground font-sans">
             {loading ? (
               <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
             ) : (
@@ -253,7 +253,7 @@ export const ProfileReferralTab: React.FC<ProfileReferralTabProps> = ({
               <Award className="w-4 h-4 text-brand" />
             </div>
           </div>
-          <div className="text-2xl font-black text-foreground font-latin">
+          <div className="text-2xl font-black text-foreground font-sans">
             {loading ? (
               <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
             ) : (
@@ -281,7 +281,7 @@ export const ProfileReferralTab: React.FC<ProfileReferralTabProps> = ({
                 <Wallet className="w-4 h-4 text-brand" />
               </div>
             </div>
-            <div className="text-2xl font-black text-foreground font-latin">
+            <div className="text-2xl font-black text-foreground font-sans">
               {loading ? (
                 <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
               ) : (

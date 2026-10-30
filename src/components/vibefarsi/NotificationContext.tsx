@@ -218,6 +218,19 @@ const ToastItem: React.FC<{
             {item.message}
           </p>
         )}
+        {item.type === 'cart' && (
+          <button
+            type="button"
+            onClick={() => {
+              window.dispatchEvent(new CustomEvent('anahix:cart:open'))
+              onDismiss()
+            }}
+            className="mt-2 h-7 px-3 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-[11px] flex items-center gap-1.5 duration-motion active:scale-95 shadow-control cursor-pointer"
+          >
+            <ShoppingCart className="h-3.5 w-3.5" />
+            <span>مشاهده و تسویه‌حساب سبد خرید</span>
+          </button>
+        )}
       </div>
 
       <button

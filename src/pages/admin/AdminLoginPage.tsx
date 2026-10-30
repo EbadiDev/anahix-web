@@ -12,6 +12,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { ThemeToggle } from '../../components/ThemeToggle'
 import { PasswordInput } from '../../components/vibefarsi/PasswordInput'
 import { apiService } from '../../services/api'
+import { getSiteBrandName } from '../../utils/brand'
 
 export const AdminLoginPage: React.FC = () => {
   const navigate = useNavigate()
@@ -56,7 +57,7 @@ export const AdminLoginPage: React.FC = () => {
           className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-blue-600 dark:text-slate-400 dark:hover:text-blue-400 transition-colors"
         >
           <ArrowLeft className="w-4 h-4 rotate-180" />
-          <span>بازگشت به فروشگاه آناهیکس</span>
+          <span>بازگشت به فروشگاه {getSiteBrandName('پلی شاپ')}</span>
         </Link>
         <ThemeToggle />
       </div>
@@ -69,7 +70,7 @@ export const AdminLoginPage: React.FC = () => {
             <ShieldCheck className="w-7 h-7" />
           </div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
-            ورود به پنل مدیریت آناهیکس
+            ورود به پنل مدیریت {getSiteBrandName('پلی شاپ')}
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
             ورود ایمن مدیران، کارشناسان پشتیبانی و اپراتورهای تحویل اکانت

@@ -1,5 +1,6 @@
 import { SlidersHorizontal } from 'lucide-react'
 import type React from 'react'
+import { formatToman } from '../../utils/formatters'
 
 interface RangeSliderProps {
   min: number
@@ -31,7 +32,7 @@ export const RangeSlider: React.FC<RangeSliderProps> = ({
 
   const displayVal = formatValue
     ? formatValue(value)
-    : `${Number(value).toLocaleString('fa-IR')} تومان`
+    : `${formatToman(value)} تومان`
 
   return (
     <div dir="rtl" className={`space-y-3 text-right select-none ${className}`}>
@@ -48,7 +49,7 @@ export const RangeSlider: React.FC<RangeSliderProps> = ({
           <span className="text-[11px] text-muted-foreground">
             حداکثر بودجه:
           </span>
-          <span className="px-2.5 py-1 rounded-control bg-brand/10 border border-brand/20 font-black text-brand font-latin text-xs">
+          <span className="px-2.5 py-1 rounded-control bg-brand/10 border border-brand/20 font-black text-brand font-sans text-xs">
             {displayVal}
           </span>
         </div>
@@ -73,10 +74,10 @@ export const RangeSlider: React.FC<RangeSliderProps> = ({
 
       {/* Min / Max & Quick Presets Footer */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1 border-t border-border/40 text-[11px]">
-        <div className="flex items-center gap-3 text-muted-foreground font-latin">
-          <span>حداقل: {Number(min).toLocaleString('fa-IR')} تومان</span>
+        <div className="flex items-center gap-3 text-muted-foreground font-sans">
+          <span>حداقل: {formatToman(min)} تومان</span>
           <span>•</span>
-          <span>حداکثر: {Number(max).toLocaleString('fa-IR')} تومان</span>
+          <span>حداکثر: {formatToman(max)} تومان</span>
         </div>
 
         {presets && presets.length > 0 && (

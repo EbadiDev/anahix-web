@@ -13,6 +13,7 @@ import { CartDrawer } from '../components/CartDrawer'
 import { Header } from '../components/Header'
 import { Breadcrumb } from '../components/vibefarsi/Breadcrumb'
 import { ScrollReveal } from '../components/vibefarsi/ScrollReveal'
+import { getSiteBrandName } from '../utils/brand'
 
 export const NotFoundPage: React.FC = () => {
   const navigate = useNavigate()
@@ -70,7 +71,7 @@ export const NotFoundPage: React.FC = () => {
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="جستجو در سرویس‌ها و مقالات آناهیکس..."
+                placeholder={`جستجو در سرویس‌ها و مقالات ${getSiteBrandName('پلی شاپ')}...`}
                 className="w-full h-11 pr-10 pl-24 rounded-field border border-border/60 bg-muted/20 text-xs text-foreground placeholder:text-muted-foreground outline-none focus:border-brand"
               />
               <Search className="w-4 h-4 text-muted-foreground absolute right-3.5 top-3.5 pointer-events-none" />

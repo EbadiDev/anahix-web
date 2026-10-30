@@ -24,6 +24,7 @@ import {
   toPersianDigits,
 } from '../../utils/formatters'
 import { FlipCard3D } from '../vibefarsi/FlipCard3D'
+import { LoadingState } from '../vibefarsi/LoadingState'
 
 interface ProfileLoyaltyTabProps {
   customer: CustomerProfile
@@ -112,12 +113,10 @@ export const ProfileLoyaltyTab: React.FC<ProfileLoyaltyTabProps> = ({
 
   if (loading && !profile) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[360px] p-8 space-y-4">
-        <div className="w-12 h-12 border-4 border-brand/20 border-t-brand rounded-full animate-spin" />
-        <p className="text-xs text-muted-foreground font-medium animate-pulse">
-          در حال بررسی سوابق خرید و سطح کاربری VIP شما...
-        </p>
-      </div>
+      <LoadingState
+        message="در حال بررسی سوابق خرید و سطح کاربری VIP شما..."
+        minHeight="360px"
+      />
     )
   }
 
@@ -386,8 +385,8 @@ export const ProfileLoyaltyTab: React.FC<ProfileLoyaltyTabProps> = ({
                 <span className="font-bold text-foreground">
                   پیشرفت تا سطح {nextTier.name}
                 </span>
-                <span className="font-mono font-bold text-brand font-latin">
-                  {toPersianDigits(profile?.progress_percent || 0)}%
+                <span className="font-bold text-brand font-sans">
+                  {toPersianDigits(profile?.progress_percent || 0)}٪
                 </span>
               </div>
 
@@ -403,13 +402,13 @@ export const ProfileLoyaltyTab: React.FC<ProfileLoyaltyTabProps> = ({
               <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-1">
                 <span>
                   خرید این دوره:{' '}
-                  <strong className="text-foreground font-latin">
+                  <strong className="text-foreground font-sans">
                     {formatToman(profile?.active_spent_toman || 0)} تومان
                   </strong>
                 </span>
                 <span>
                   هدف سطح بعدی:{' '}
-                  <strong className="text-brand font-mono font-latin">
+                  <strong className="text-brand font-sans">
                     {formatToman(nextTier.min_spend_toman)} تومان
                   </strong>
                 </span>
@@ -420,7 +419,7 @@ export const ProfileLoyaltyTab: React.FC<ProfileLoyaltyTabProps> = ({
                   <Flame className="w-4 h-4 text-brand shrink-0" />
                   <span>
                     تنها با{' '}
-                    <strong className="text-brand font-black font-latin">
+                    <strong className="text-brand font-black font-sans">
                       {formatToman(profile.required_for_next)} تومان
                     </strong>{' '}
                     خرید دیگر، فوراً به سطح {nextTier.name} ارتقا یافته و از{' '}
@@ -448,7 +447,7 @@ export const ProfileLoyaltyTab: React.FC<ProfileLoyaltyTabProps> = ({
               <span className="text-[11px] text-muted-foreground block">
                 سود ذخیره‌شده از تخفیف‌ها
               </span>
-              <span className="text-sm font-black text-emerald-400 mt-1 block font-latin">
+              <span className="text-sm font-black text-emerald-400 mt-1 block font-sans">
                 {formatToman(profile?.total_saved_toman || 0)} تومان
               </span>
             </div>
@@ -457,7 +456,7 @@ export const ProfileLoyaltyTab: React.FC<ProfileLoyaltyTabProps> = ({
               <span className="text-[11px] text-muted-foreground block">
                 کل خرید ۳۰ روز اخیر
               </span>
-              <span className="text-sm font-bold text-foreground mt-1 block font-latin">
+              <span className="text-sm font-bold text-foreground mt-1 block font-sans">
                 {formatToman(profile?.monthly_spent_toman || 0)} تومان
               </span>
             </div>
@@ -540,15 +539,15 @@ export const ProfileLoyaltyTab: React.FC<ProfileLoyaltyTabProps> = ({
                   <div className="bg-muted/20 p-3 rounded-control border border-border/40 space-y-1">
                     <div className="text-[11px] text-muted-foreground flex justify-between">
                       <span>حداقل خرید دوره:</span>
-                      <strong className="text-foreground font-mono font-latin">
+                      <strong className="text-foreground font-sans">
                         {t.min_spend_toman > 0
-                          ? `${formatToman(t.min_spend_toman)} ت`
+                          ? `${formatToman(t.min_spend_toman)} تومان`
                           : 'بدون شرط خرید'}
                       </strong>
                     </div>
                     <div className="text-[11px] text-muted-foreground flex justify-between">
                       <span>تخفیف خودکار:</span>
-                      <strong className="text-emerald-400 font-black font-latin">
+                      <strong className="text-emerald-400 font-black font-sans">
                         {t.discount_percent > 0
                           ? `${toPersianDigits(t.discount_percent)}٪ تخفیف`
                           : 'استاندارد'}

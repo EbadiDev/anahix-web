@@ -22,6 +22,7 @@ import type {
   PaymentGateway,
   Product,
 } from '../types'
+import { getSiteBrandName } from '../utils/brand'
 import { formatToman } from '../utils/formatters'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
@@ -320,9 +321,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               <div className="flex items-start gap-2 text-[11px] leading-relaxed text-muted-foreground pt-1">
                 <Lock className="h-3.5 w-3.5 shrink-0 text-blue-600 dark:text-blue-400 mt-0.5" />
                 <span>
-                  <b>ضمانت امنیت آناهیکس:</b> رمز عبور با AES-256-GCM رمزنگاری
-                  شده و بلافاصله پس از تکمیل سفارش، برای همیشه از سرور پاکسازی
-                  (Zeroize) خواهد شد.
+                  <b>ضمانت امنیت {getSiteBrandName('پلی شاپ')}:</b> رمز عبور با
+                  AES-256-GCM رمزنگاری شده و بلافاصله پس از تکمیل سفارش، برای
+                  همیشه از سرور پاکسازی (Zeroize) خواهد شد.
                 </span>
               </div>
             </div>
@@ -334,71 +335,95 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               انتخاب روش پرداخت:
             </label>
             <div className="space-y-2">
-              {payments.map((p) => {
-                const isSelected = selectedPlatform === p.platform
-                return (
-                  <div
-                    key={p.id}
-                    onClick={() => setSelectedPlatform(p.platform)}
-                    className={`flex items-center justify-between rounded-xl border p-3 cursor-pointer transition-all ${
-                      isSelected
-                        ? 'border-blue-600 bg-blue-500/10 shadow-sm shadow-blue-500/10 ring-1 ring-blue-600'
-                        : 'border-border bg-card hover:bg-muted/50'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-background border border-border">
-                        {p.icon_url ? (
-                          <img
-                            src={p.icon_url}
-                            alt={p.name}
-                            className="w-5 h-5 object-contain rounded-xs"
-                            onError={(e) => {
-                              ;(e.target as HTMLElement).style.display = 'none'
-                            }}
-                          />
-                        ) : (
-                          getGatewayIcon(p.icon_type)
-                        )}
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-foreground">
-                            {p.name}
-                          </span>
-                          {p.is_default && (
-                            <Badge
-                              variant="blue"
-                              className="text-[10px] py-0 px-1.5 font-normal"
-                            >
-                              پیش‌فرض
-                            </Badge>
+              {payments
+                .filter(
+                  (p) =>
+                    p.display_mode !== 'hidden' &&
+                    (p.enable !== false ||
+                      p.display_mode === 'disabled_visible'),
+                )
+                .map((p) => {
+                  const isDisabled = p.display_mode === 'disabled_visible'
+                  const isSelected =
+                    selectedPlatform === p.platform && !isDisabled
+                  return (
+                    <div
+                      key={p.id}
+                      onClick={() => {
+                        if (isDisabled) return
+                        setSelectedPlatform(p.platform)
+                      }}
+                      className={`flex items-center justify-between rounded-xl border p-3 transition-all ${
+                        isDisabled
+                          ? 'opacity-55 cursor-not-allowed bg-muted/20 border-border/40 select-none'
+                          : isSelected
+                            ? 'border-blue-600 bg-blue-500/10 shadow-sm shadow-blue-500/10 ring-1 ring-blue-600 cursor-pointer'
+                            : 'border-border bg-card hover:bg-muted/50 cursor-pointer'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-background border border-border">
+                          {p.icon_url ? (
+                            <img
+                              src={p.icon_url}
+                              alt={p.name}
+                              className={`w-5 h-5 object-contain rounded-xs ${isDisabled ? 'grayscale opacity-70' : ''}`}
+                              onError={(e) => {
+                                ;(e.target as HTMLElement).style.display =
+                                  'none'
+                              }}
+                            />
+                          ) : (
+                            getGatewayIcon(p.icon_type)
                           )}
                         </div>
-                        <p className="text-[11px] text-muted-foreground mt-0.5">
-                          {p.platform === 'balance'
-                            ? customer
-                              ? `موجودی شما: ${formatToman(userBalance)} تومان`
-                              : 'پرداخت از موجودی حساب (نیاز به ورود)'
-                            : p.description_fa}
-                        </p>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold text-foreground">
+                              {p.name}
+                            </span>
+                            {isDisabled ? (
+                              <Badge
+                                variant="amber"
+                                className="text-[10px] py-0 px-1.5 font-bold"
+                              >
+                                موقتاً غیرفعال
+                              </Badge>
+                            ) : p.is_default ? (
+                              <Badge
+                                variant="blue"
+                                className="text-[10px] py-0 px-1.5 font-normal"
+                              >
+                                پیش‌فرض
+                              </Badge>
+                            ) : null}
+                          </div>
+                          <p className="text-[11px] text-muted-foreground mt-0.5">
+                            {isDisabled
+                              ? 'این روش پرداخت در حال حاضر موقتاً در دسترس نیست'
+                              : p.platform === 'balance'
+                                ? customer
+                                  ? `موجودی شما: ${formatToman(userBalance)} تومان`
+                                  : 'پرداخت از موجودی حساب (نیاز به ورود)'
+                                : p.description_fa}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="text-left font-latin text-xs" dir="ltr">
+                        {p.fee_percentage === 0 ? (
+                          <span className="text-emerald-600 dark:text-emerald-400 font-medium">
+                            بدون کارمزد
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">
+                            کارمزد: {p.fee_percentage}%
+                          </span>
+                        )}
                       </div>
                     </div>
-
-                    <div className="text-left font-latin text-xs" dir="ltr">
-                      {p.fee_percentage === 0 ? (
-                        <span className="text-emerald-600 dark:text-emerald-400 font-medium">
-                          بدون کارمزد
-                        </span>
-                      ) : (
-                        <span className="text-muted-foreground">
-                          کارمزد: {p.fee_percentage}%
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                )
-              })}
+                  )
+                })}
             </div>
           </div>
 

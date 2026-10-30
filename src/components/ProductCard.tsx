@@ -18,6 +18,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { cartStore, useCart } from '../lib/cartStore'
 import type { Product, ProductPlan } from '../types'
+import { getSiteBrandName } from '../utils/brand'
 import { formatToman } from '../utils/formatters'
 import { ClaudeIcon, CursorIcon, GeminiIcon, OpenAIIcon } from './BrandIcons'
 import { PrePurchaseNoticeModal } from './PrePurchaseNoticeModal'
@@ -41,6 +42,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 }) => {
   const { cartAdded } = useNotification()
   const { items } = useCart()
+
+  // Selected plan state
 
   // Plans & Durations selection state
   const plans = product.plans || []
@@ -135,7 +138,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({
       ),
       bg: 'from-zinc-900 via-zinc-900/90 to-zinc-950',
       glow: 'bg-brand/10',
-      brandName: product.group_title_fa || 'سرویس آناهیکس',
+      brandName:
+        product.group_title_fa || `سرویس ${getSiteBrandName('پلی شاپ')}`,
     }
   }
 
@@ -324,18 +328,20 @@ export const ProductCard: React.FC<ProductCardProps> = ({
               )}
             </div>
 
-            {/* Two Distinct Badge Types (Timed vs Regular Discount) */}
-            {hasTimedDiscount && discountPercent > 0 ? (
-              <span className="inline-flex items-center gap-1 rounded-control bg-rose-600 text-white text-[10px] sm:text-[11px] font-black px-2.5 py-1 shadow-control border border-rose-400/40 animate-pulse">
-                <Flame className="h-3.5 w-3.5" />
-                <span>{toPersianDigits(discountPercent)}٪ تخفیف زمان‌دار</span>
-              </span>
-            ) : discountPercent > 0 ? (
-              <span className="inline-flex items-center gap-1 rounded-control bg-emerald-600 text-white text-[10px] sm:text-[11px] font-black px-2.5 py-1 shadow-control border border-emerald-400/30">
-                <Tag className="h-3 w-3" />
-                <span>{toPersianDigits(discountPercent)}٪ تخفیف</span>
-              </span>
-            ) : null}
+            {/* Two Distinct Badge Types */}
+            <div className="flex items-center gap-1.5">
+              {hasTimedDiscount && discountPercent > 0 ? (
+                <span className="inline-flex items-center gap-1 rounded-control bg-rose-600 text-white text-[10px] sm:text-[11px] font-black px-2.5 py-1 shadow-control border border-rose-400/40 animate-pulse">
+                  <Flame className="h-3.5 w-3.5" />
+                  <span>{toPersianDigits(discountPercent)}٪ تخفیف زمان‌دار</span>
+                </span>
+              ) : discountPercent > 0 ? (
+                <span className="inline-flex items-center gap-1 rounded-control bg-emerald-600 text-white text-[10px] sm:text-[11px] font-black px-2.5 py-1 shadow-control border border-emerald-400/30">
+                  <Tag className="h-3 w-3" />
+                  <span>{toPersianDigits(discountPercent)}٪ تخفیف</span>
+                </span>
+              ) : null}
+            </div>
           </div>
 
           {/* Timed Countdown Bar at Bottom of Artwork (100% Responsive, Sleek Vibe Farsi Style, No Wrap) */}

@@ -15,6 +15,7 @@ import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { apiService } from '../../services/api'
 import type { BotProviderSetting, InstantDeliverySettings } from '../../types'
+import { formatToman } from '../../utils/formatters'
 import { ModalCloseButton } from '../vibefarsi/ModalCloseButton'
 import { useNotification } from '../vibefarsi/NotificationContext'
 import { ToggleSwitch } from '../vibefarsi/ToggleSwitch'
@@ -392,8 +393,8 @@ export const AdminBotSettingsView: React.FC = () => {
                       ${bot.balance_usd?.toFixed(2) || '0.00'} USD
                     </span>
                   </div>
-                  <div className="text-left font-latin text-xs text-muted-foreground">
-                    معادل: {(bot.balance_toman || 0).toLocaleString('fa-IR')} ت
+                  <div className="text-left font-sans text-xs text-muted-foreground">
+                    معادل: {formatToman(bot.balance_toman || 0)} تومان
                   </div>
                 </div>
 

@@ -105,6 +105,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     }
   }, [isOpen, initialMode])
 
+  useEffect(() => {
+    const handleThemeSync = (e: any) => {
+      if (e?.detail) {
+        setThemeSettings((prev) => ({ ...prev, ...e.detail }))
+      }
+    }
+    window.addEventListener('anahix:theme:updated', handleThemeSync)
+    return () =>
+      window.removeEventListener('anahix:theme:updated', handleThemeSync)
+  }, [])
+
   // Close on Escape
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -506,85 +517,96 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         {step === 'main_form' && (
           <div className="space-y-4">
             {/* ONE-CLICK SOCIAL LOGIN BUTTONS */}
-            <div className="space-y-2.5">
-              <button
-                type="button"
-                onClick={() => handleSocialLogin('google')}
-                disabled={loading}
-                className="w-full flex items-center justify-center gap-3 rounded-control border border-border/60 bg-muted/30 hover:bg-muted text-foreground p-3 font-bold text-xs duration-motion ease-motion active:scale-[0.98] shadow-control cursor-pointer"
-              >
-                <div className="flex items-center justify-center">
-                  <GoogleIcon className="h-5 w-5" />
-                </div>
-                <span>
-                  {authMode === 'login'
-                    ? 'ورود سریع با حساب Google'
-                    : 'ثبت‌نام سریع با یک کلیک Google'}
-                </span>
-              </button>
+            {(themeSettings.auth_google_enabled ||
+              themeSettings.auth_github_enabled) && (
+              <div className="space-y-2.5">
+                {themeSettings.auth_google_enabled && (
+                  <button
+                    type="button"
+                    onClick={() => handleSocialLogin('google')}
+                    disabled={loading}
+                    className="w-full flex items-center justify-center gap-3 rounded-control border border-border/60 bg-muted/30 hover:bg-muted text-foreground p-3 font-bold text-xs duration-motion ease-motion active:scale-[0.98] shadow-control cursor-pointer"
+                  >
+                    <div className="flex items-center justify-center">
+                      <GoogleIcon className="h-5 w-5" />
+                    </div>
+                    <span>
+                      {authMode === 'login'
+                        ? 'ورود سریع با حساب Google'
+                        : 'ثبت‌نام سریع با یک کلیک Google'}
+                    </span>
+                  </button>
+                )}
 
-              <button
-                type="button"
-                onClick={() => handleSocialLogin('github')}
-                disabled={loading}
-                className="w-full flex items-center justify-center gap-3 rounded-control border border-border/60 bg-muted/30 hover:bg-muted text-foreground p-3 font-bold text-xs duration-motion ease-motion active:scale-[0.98] shadow-control cursor-pointer"
-              >
-                <div className="flex items-center justify-center">
-                  <GithubIcon className="h-5 w-5 text-foreground" />
-                </div>
-                <span>
-                  {authMode === 'login'
-                    ? 'ورود مستقیم با حساب GitHub'
-                    : 'ثبت‌نام مستقیم با حساب GitHub'}
-                </span>
-              </button>
-            </div>
-
-            {/* Divider */}
-            <div className="relative my-4 flex items-center justify-center">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-border/60" />
-              </div>
-              <div className="relative bg-card px-3 text-[11px] font-bold text-muted-foreground">
-                {authMode === 'login'
-                  ? 'یا با شماره موبایل / ایمیل'
-                  : 'یا با شماره تلفن همراه'}
-              </div>
-            </div>
-
-            {/* Registration Method Switcher (Phone vs Email) - Distinct Button Pills */}
-            {authMode === 'register' && (
-              <div className="grid grid-cols-2 gap-2 p-1 rounded-control bg-muted/30 border border-border/60 mb-3 text-xs">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setRegisterMethod('phone')
-                    setErrorMsg('')
-                  }}
-                  className={`py-2 px-2.5 rounded-control font-black transition-all duration-motion ease-motion cursor-pointer ${
-                    registerMethod === 'phone'
-                      ? 'bg-primary text-primary-foreground shadow-control'
-                      : 'bg-card text-muted-foreground hover:text-foreground border border-border/40'
-                  }`}
-                >
-                  ثبت‌نام با شماره موبایل
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setRegisterMethod('email')
-                    setErrorMsg('')
-                  }}
-                  className={`py-2 px-2.5 rounded-control font-black transition-all duration-motion ease-motion cursor-pointer ${
-                    registerMethod === 'email'
-                      ? 'bg-primary text-primary-foreground shadow-control'
-                      : 'bg-card text-muted-foreground hover:text-foreground border border-border/40'
-                  }`}
-                >
-                  ثبت‌نام با ایمیل و رمز
-                </button>
+                {themeSettings.auth_github_enabled && (
+                  <button
+                    type="button"
+                    onClick={() => handleSocialLogin('github')}
+                    disabled={loading}
+                    className="w-full flex items-center justify-center gap-3 rounded-control border border-border/60 bg-muted/30 hover:bg-muted text-foreground p-3 font-bold text-xs duration-motion ease-motion active:scale-[0.98] shadow-control cursor-pointer"
+                  >
+                    <div className="flex items-center justify-center">
+                      <GithubIcon className="h-5 w-5 text-foreground" />
+                    </div>
+                    <span>
+                      {authMode === 'login'
+                        ? 'ورود مستقیم با حساب GitHub'
+                        : 'ثبت‌نام مستقیم با حساب GitHub'}
+                    </span>
+                  </button>
+                )}
               </div>
             )}
+
+            {/* Divider */}
+            {(themeSettings.auth_google_enabled ||
+              themeSettings.auth_github_enabled) && (
+              <div className="relative my-4 flex items-center justify-center">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-border/60" />
+                </div>
+                <div className="relative bg-card px-3 text-[11px] font-bold text-muted-foreground">
+                  {authMode === 'login'
+                    ? 'یا با شماره موبایل / ایمیل'
+                    : 'یا با شماره تلفن همراه'}
+                </div>
+              </div>
+            )}
+
+            {/* Registration Method Switcher (Phone vs Email) - Distinct Button Pills */}
+            {authMode === 'register' &&
+              themeSettings.auth_email_enabled !== false && (
+                <div className="grid grid-cols-2 gap-2 p-1 rounded-control bg-muted/30 border border-border/60 mb-3 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRegisterMethod('phone')
+                      setErrorMsg('')
+                    }}
+                    className={`py-2 px-2.5 rounded-control font-black transition-all duration-motion ease-motion cursor-pointer ${
+                      registerMethod === 'phone'
+                        ? 'bg-primary text-primary-foreground shadow-control'
+                        : 'bg-card text-muted-foreground hover:text-foreground border border-border/40'
+                    }`}
+                  >
+                    ثبت‌نام با شماره موبایل
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRegisterMethod('email')
+                      setErrorMsg('')
+                    }}
+                    className={`py-2 px-2.5 rounded-control font-black transition-all duration-motion ease-motion cursor-pointer ${
+                      registerMethod === 'email'
+                        ? 'bg-primary text-primary-foreground shadow-control'
+                        : 'bg-card text-muted-foreground hover:text-foreground border border-border/40'
+                    }`}
+                  >
+                    ثبت‌نام با ایمیل و رمز
+                  </button>
+                </div>
+              )}
 
             {/* Email Registration Form */}
             {authMode === 'register' && registerMethod === 'email' ? (
@@ -661,7 +683,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       dir="ltr"
                       placeholder={
                         authMode === 'login'
-                          ? '09123456789 یا user@example.com'
+                          ? themeSettings.auth_email_enabled !== false
+                            ? '09123456789 یا user@example.com'
+                            : '09123456789'
                           : '09123456789'
                       }
                       value={phone}

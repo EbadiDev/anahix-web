@@ -1,7 +1,10 @@
 import {
+  Award,
   BellRing,
   Check,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   ChevronUp,
   Coins,
   Copy,
@@ -22,22 +25,24 @@ import {
   RefreshCw,
   Save,
   Settings,
+  ShieldCheck,
   Smartphone,
   Sparkles,
   Trash2,
   Upload,
 } from 'lucide-react'
 import type React from 'react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { api, apiService } from '../../services/api'
 import type {
+  FooterTrustBadge,
   PaymentGateway,
   SystemAnnouncement,
   ThemeSettings,
 } from '../../types'
-import { getSiteBrandName } from '../../utils/brand'
-import { toPersianDigits } from '../../utils/formatters'
+import { cleanMediaUrl, getSiteBrandName } from '../../utils/brand'
+import { formatToman, toPersianDigits } from '../../utils/formatters'
 import {
   getGatewayDisplay,
   registerPaymentGateways,
@@ -97,6 +102,13 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
 }) => {
   const [activeSubTab, setActiveSubTab] =
     useState<SettingsSubTab>(initialSubTab)
+  const settingsTabsRef = useRef<HTMLDivElement>(null)
+  const scrollSettingsTabs = (direction: 'left' | 'right') => {
+    if (settingsTabsRef.current) {
+      const amount = direction === 'left' ? -220 : 220
+      settingsTabsRef.current.scrollBy({ left: amount, behavior: 'smooth' })
+    }
+  }
 
   useEffect(() => {
     if (initialSubTab) {
@@ -167,6 +179,7 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
     auth_google_enabled: true,
     auth_github_enabled: true,
     auth_password_enabled: true,
+    auth_email_enabled: true,
     auth_otp_required: false,
   })
   const [authSaveLoading, setAuthSaveLoading] = useState(false)
@@ -232,6 +245,66 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
     },
     { id: '5', title: 'پیگیری سفارش و فاکتورها', link: '/track' },
   ])
+  const [footerDescription, setFooterDescription] = useState('')
+  const [footerBadges, setFooterBadges] = useState<FooterTrustBadge[]>([
+    {
+      id: 'enamad',
+      title: 'نماد اعتماد الکترونیکی (اینماد)',
+      image_url: '/images/enamad.png',
+      link_url: 'https://enamad.ir',
+      is_active: true,
+    },
+    {
+      id: 'samandehi',
+      title: 'نشان ساماندهی رسانه‌های دیجیتال',
+      image_url: '/images/samandehi.png',
+      link_url: 'https://samandehi.ir',
+      is_active: true,
+    },
+    {
+      id: 'union',
+      title: 'عضو اتحادیه کشوری کسب‌وکارهای مجازی',
+      image_url: '/images/union.png',
+      link_url: 'https://ecunion.ir',
+      is_active: true,
+    },
+    {
+      id: 'security_vault',
+      title: 'ضمانت امنیت داده‌ها و پروتکل Zeroize',
+      image_url: '/images/security-seal.png',
+      link_url: '#',
+      is_active: true,
+    },
+  ])
+  const [uploadingBadgeIdx, setUploadingBadgeIdx] = useState<number | null>(
+    null,
+  )
+
+  const handleUploadBadgeImage = async (
+    badgeIdx: number,
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadingBadgeIdx(badgeIdx)
+    try {
+      const res = await apiService.uploadMedia(file)
+      if (res.file_url) {
+        setFooterBadges((prev) =>
+          prev.map((b, i) =>
+            i === badgeIdx
+              ? { ...b, image_url: cleanMediaUrl(res.file_url) }
+              : b,
+          ),
+        )
+        notifySuccess('تصویر نماد ذخیره شد', 'فایل نماد با موفقیت آپلود گردید.')
+      }
+    } catch (err: any) {
+      notifyError('خطا در آپلود نماد', err.message)
+    } finally {
+      setUploadingBadgeIdx(null)
+    }
+  }
 
   const toggleSecretMask = (field: string) => {
     setShowSecrets((prev) => ({ ...prev, [field]: !prev[field] }))
@@ -255,6 +328,7 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
           auth_google_enabled: s.auth_google_enabled !== false,
           auth_github_enabled: s.auth_github_enabled !== false,
           auth_password_enabled: s.auth_password_enabled !== false,
+          auth_email_enabled: s.auth_email_enabled !== false,
           auth_otp_required: Boolean(s.auth_otp_required),
         })
 
@@ -277,6 +351,19 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
               setFooterLinks(parsed)
             }
           } catch {}
+        }
+
+        if (s.footer_badges_json) {
+          try {
+            const parsed = JSON.parse(s.footer_badges_json)
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              setFooterBadges(parsed)
+            }
+          } catch {}
+        }
+
+        if (s.footer_description) {
+          setFooterDescription(s.footer_description)
         }
       }
     } catch {
@@ -350,7 +437,23 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
           ...prev,
           site_favicon_url: res.file_url,
         }))
-        notifySuccess('فاوآیکون آپلود شد', 'فاوآیکون جدید ثبت گردید.')
+        // Immediately persist to backend database so refresh never loses it
+        await api.updateAdminThemeSettings({ site_favicon_url: res.file_url })
+        try {
+          localStorage.setItem('site_favicon_url', res.file_url)
+          const link: HTMLLinkElement | null =
+            document.querySelector("link[rel*='icon']")
+          if (link) link.href = res.file_url
+        } catch {}
+        window.dispatchEvent(
+          new CustomEvent('anahix:theme:updated', {
+            detail: { site_favicon_url: res.file_url },
+          }),
+        )
+        notifySuccess(
+          'فاوآیکون در دیتابیس ثبت شد',
+          'فاوآیکون جدید در سرور ذخیره گردید.',
+        )
       }
     } catch (err: any) {
       notifyError('خطا در آپلود', err.message)
@@ -367,7 +470,20 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
       const res = await apiService.uploadMedia(file)
       if (res.file_url) {
         setThemeSettings((prev) => ({ ...prev, site_logo_url: res.file_url }))
-        notifySuccess('لوگو آپلود شد', 'لوگوی جدید ثبت گردید.')
+        // Immediately persist to backend database so refresh never loses it
+        await api.updateAdminThemeSettings({ site_logo_url: res.file_url })
+        try {
+          localStorage.setItem('site_logo_url', res.file_url)
+        } catch {}
+        window.dispatchEvent(
+          new CustomEvent('anahix:theme:updated', {
+            detail: { site_logo_url: res.file_url },
+          }),
+        )
+        notifySuccess(
+          'لوگو در دیتابیس ثبت شد',
+          'لوگوی جدید رسمی در سرور ذخیره گردید.',
+        )
       }
     } catch (err: any) {
       notifyError('خطا در آپلود', err.message)
@@ -385,12 +501,22 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
     try {
       const res = await apiService.uploadMedia(file)
       if (res.file_url) {
-        setHeaderMenus((prev) =>
-          prev.map((m, i) =>
-            i === idx ? { ...m, icon_url: res.file_url } : m,
-          ),
+        const next = headerMenus.map((m, i) =>
+          i === idx ? { ...m, icon_url: res.file_url } : m,
         )
-        notifySuccess('آیکون منو آپلود شد', 'آیکون با موفقیت ثبت شد.')
+        setHeaderMenus(next)
+        await api.updateAdminThemeSettings({
+          header_menu_json: JSON.stringify(next),
+        })
+        window.dispatchEvent(
+          new CustomEvent('anahix:theme:updated', {
+            detail: { header_menu_json: JSON.stringify(next) },
+          }),
+        )
+        notifySuccess(
+          'آیکون منو در دیتابیس ذخیره شد',
+          'آیکون منو با موفقیت ثبت شد.',
+        )
       }
     } catch (err: any) {
       notifyError('خطا در آپلود آیکون', err.message)
@@ -407,19 +533,29 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
     try {
       const res = await apiService.uploadMedia(file)
       if (res.file_url) {
-        setHeaderMenus((prev) =>
-          prev.map((m, i) =>
-            i === menuIdx
-              ? {
-                  ...m,
-                  children: (m.children || []).map((c, ci) =>
-                    ci === subIdx ? { ...c, icon_url: res.file_url } : c,
-                  ),
-                }
-              : m,
-          ),
+        const next = headerMenus.map((m, i) =>
+          i === menuIdx
+            ? {
+                ...m,
+                children: (m.children || []).map((c, ci) =>
+                  ci === subIdx ? { ...c, icon_url: res.file_url } : c,
+                ),
+              }
+            : m,
         )
-        notifySuccess('آیکون زیرمنو آپلود شد', 'آیکون با موفقیت ثبت شد.')
+        setHeaderMenus(next)
+        await api.updateAdminThemeSettings({
+          header_menu_json: JSON.stringify(next),
+        })
+        window.dispatchEvent(
+          new CustomEvent('anahix:theme:updated', {
+            detail: { header_menu_json: JSON.stringify(next) },
+          }),
+        )
+        notifySuccess(
+          'آیکون زیرمنو در دیتابیس ذخیره شد',
+          'آیکون زیرمنو با موفقیت ثبت شد.',
+        )
       }
     } catch (err: any) {
       notifyError('خطا در آپلود آیکون زیرمنو', err.message)
@@ -573,9 +709,71 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
   const handleSaveThemeField = async (payload: Partial<ThemeSettings>) => {
     setSavingTheme(true)
     try {
-      const updated = { ...themeSettings, ...payload }
-      await api.updateAdminThemeSettings(payload)
+      const sanitizedPayload = { ...payload }
+      if (sanitizedPayload.site_favicon_url) {
+        sanitizedPayload.site_favicon_url = cleanMediaUrl(
+          sanitizedPayload.site_favicon_url,
+        )
+      }
+      if (sanitizedPayload.site_logo_url) {
+        sanitizedPayload.site_logo_url = cleanMediaUrl(
+          sanitizedPayload.site_logo_url,
+        )
+      }
+      if (sanitizedPayload.og_image_url) {
+        sanitizedPayload.og_image_url = cleanMediaUrl(
+          sanitizedPayload.og_image_url,
+        )
+      }
+      const updated = { ...themeSettings, ...sanitizedPayload }
+      await api.updateAdminThemeSettings(sanitizedPayload)
       setThemeSettings(updated)
+
+      if (sanitizedPayload.site_name_fa !== undefined) {
+        localStorage.setItem(
+          'site_name_fa',
+          sanitizedPayload.site_name_fa
+            ? sanitizedPayload.site_name_fa.trim()
+            : '',
+        )
+      }
+      if (sanitizedPayload.site_name_en !== undefined) {
+        localStorage.setItem(
+          'site_name_en',
+          sanitizedPayload.site_name_en
+            ? sanitizedPayload.site_name_en.trim()
+            : '',
+        )
+      }
+      if (sanitizedPayload.site_subtitle !== undefined) {
+        localStorage.setItem(
+          'site_subtitle',
+          sanitizedPayload.site_subtitle
+            ? sanitizedPayload.site_subtitle.trim()
+            : '',
+        )
+      }
+      if (sanitizedPayload.site_favicon_url) {
+        localStorage.setItem(
+          'site_favicon_url',
+          sanitizedPayload.site_favicon_url,
+        )
+        try {
+          const link: HTMLLinkElement | null =
+            document.querySelector("link[rel*='icon']")
+          if (link) link.href = sanitizedPayload.site_favicon_url
+        } catch {}
+      }
+      if (sanitizedPayload.site_logo_url) {
+        localStorage.setItem('site_logo_url', sanitizedPayload.site_logo_url)
+      }
+      if (sanitizedPayload.meta_title || sanitizedPayload.site_name_fa) {
+        document.title =
+          sanitizedPayload.meta_title ||
+          sanitizedPayload.site_name_fa ||
+          document.title
+      }
+
       window.dispatchEvent(
         new CustomEvent('anahix:theme:updated', { detail: updated }),
       )
@@ -614,6 +812,8 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
       const payload: Partial<ThemeSettings> = {
         header_menu_json: JSON.stringify(headerMenus),
         footer_menu_json: JSON.stringify(footerLinks),
+        footer_badges_json: JSON.stringify(footerBadges),
+        footer_description: footerDescription,
       }
       await api.updateAdminThemeSettings(payload)
       setThemeSettings((prev) => ({ ...prev, ...payload }))
@@ -621,8 +821,8 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
         new CustomEvent('anahix:theme:updated', { detail: payload }),
       )
       notifySuccess(
-        'منوهای سایت ذخیره شد',
-        'پیکربندی ناوبری هدر و پیوندهای فوتر در سرور و دیتابیس ثبت شد.',
+        'تنظیمات ناوبری و فوتر ذخیره شد',
+        'پیکربندی منوی هدر، پیوندها و نمادهای اعتماد فوتر در سرور و دیتابیس ثبت شد.',
       )
     } catch (err: any) {
       notifyError('خطا در ذخیره منوها', err.message)
@@ -662,7 +862,7 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
     },
     {
       id: 'site-menus' as const,
-      label: 'مدیریت منوها و ناوبری سایت',
+      label: 'مدیریت منوها، ناوبری و فوتر سایت',
       icon: LayoutTemplate,
     },
     {
@@ -691,11 +891,6 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
       icon: KeyRound,
     },
     {
-      id: 'notifications' as const,
-      label: 'مدیریت اعلان‌ها و پیام‌های سراسری (Announcements)',
-      icon: BellRing,
-    },
-    {
       id: 'audit-logs' as const,
       label: 'لاگ فعالیت مدیران',
       icon: History,
@@ -706,45 +901,58 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
     <div className="space-y-6 animate-in fade-in duration-300 pb-12" dir="rtl">
       {/* Top Banner Header */}
       <AdminHeaderBanner
-        icon={activeSubTab === 'notifications' ? BellRing : Settings}
-        title={
-          activeSubTab === 'notifications'
-            ? 'مدیریت اعلان‌ها و پیام‌های سراسری'
-            : 'تنظیمات و پیکربندی سیستم'
-        }
-        subtitle={
-          activeSubTab === 'notifications'
-            ? 'ارسال پیام‌های بازشو (پاپ‌آپ) در لود اول، بنرهای اعلان بالای سایت و اطلاعیه‌های زنگوله هدر و پنل کاربری'
-            : 'مدیریت متمرکز هویت برند، فاوآیکون، سئو، منوهای سایت، کلیدهای وب‌سرویس، فاکتور رسمی، درگاه‌های پرداخت و احراز هویت'
-        }
-        badgeText={
-          activeSubTab === 'notifications'
-            ? 'سیستم هوشمند اعلان‌ها'
-            : 'پیکربندی هسته سیستم'
-        }
+        icon={Settings}
+        title="تنظیمات و پیکربندی سیستم"
+        subtitle="مدیریت متمرکز هویت برند، فاوآیکون، سئو، منوهای سایت، کلیدهای وب‌سرویس، فاکتور رسمی، درگاه‌های پرداخت و احراز هویت"
+        badgeText="پیکربندی هسته سیستم"
       />
 
-      {/* Modern Subtabs Navigation */}
-      <div className="flex items-center gap-1.5 p-1 bg-muted/40 rounded-surface border border-border/60 overflow-x-auto scrollbar-none">
-        {subTabs.map((tab) => {
-          const Icon = tab.icon
-          const isActive = activeSubTab === tab.id
-          return (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setActiveSubTab(tab.id)}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-control text-xs font-bold transition-all whitespace-nowrap cursor-pointer duration-motion active:scale-[0.98] ${
-                isActive
-                  ? 'bg-primary text-primary-foreground shadow-control'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
-              }`}
-            >
-              <Icon className="w-4 h-4 shrink-0" />
-              <span>{tab.label}</span>
-            </button>
-          )
-        })}
+      {/* Modern Subtabs Navigation with Right & Left Arrow Controls (Image 5 Standard) */}
+      <div className="relative flex items-center">
+        <button
+          type="button"
+          onClick={() => scrollSettingsTabs('right')}
+          className="p-1.5 rounded-control bg-secondary hover:bg-muted border border-border/60 text-muted-foreground hover:text-foreground shadow-xs shrink-0 cursor-pointer ml-1 duration-motion active:scale-95"
+          title="اسکرول به راست"
+          aria-label="اسکرول به راست"
+        >
+          <ChevronRight className="w-4 h-4" />
+        </button>
+
+        <div
+          ref={settingsTabsRef}
+          className="flex-1 flex items-center gap-1.5 p-1 bg-muted/40 rounded-surface border border-border/60 overflow-x-auto scrollbar-none scroll-smooth"
+        >
+          {subTabs.map((tab) => {
+            const Icon = tab.icon
+            const isActive = activeSubTab === tab.id
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveSubTab(tab.id)}
+                className={`flex items-center gap-2 px-3.5 py-2 rounded-control text-xs font-bold transition-all whitespace-nowrap cursor-pointer duration-motion active:scale-[0.98] ${
+                  isActive
+                    ? 'bg-primary text-primary-foreground shadow-control'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+                }`}
+              >
+                <Icon className="w-4 h-4 shrink-0" />
+                <span>{tab.label}</span>
+              </button>
+            )
+          })}
+        </div>
+
+        <button
+          type="button"
+          onClick={() => scrollSettingsTabs('left')}
+          className="p-1.5 rounded-control bg-secondary hover:bg-muted border border-border/60 text-muted-foreground hover:text-foreground shadow-xs shrink-0 cursor-pointer mr-1 duration-motion active:scale-95"
+          title="اسکرول به چپ"
+          aria-label="اسکرول به چپ"
+        >
+          <ChevronLeft className="w-4 h-4" />
+        </button>
       </div>
 
       {/* TAB CONTENT 0: BRANDING, FAVICON & ADVANCED SEO */}
@@ -799,7 +1007,8 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
                   <div className="w-12 h-12 rounded-control bg-card border border-border/80 flex items-center justify-center shrink-0 shadow-xs p-1">
                     {themeSettings.site_favicon_url ? (
                       <img
-                        src={themeSettings.site_favicon_url}
+                        key={themeSettings.site_favicon_url}
+                        src={cleanMediaUrl(themeSettings.site_favicon_url)}
                         alt="پیش‌نمایش FavIcon"
                         className="w-7 h-7 object-contain"
                         onError={(e) => {
@@ -819,6 +1028,15 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
                         site_favicon_url: e.target.value,
                       }))
                     }
+                    onBlur={(e) => {
+                      const cleaned = cleanMediaUrl(e.target.value)
+                      if (cleaned !== e.target.value) {
+                        setThemeSettings((prev) => ({
+                          ...prev,
+                          site_favicon_url: cleaned,
+                        }))
+                      }
+                    }}
                     placeholder="/favicon.svg یا https://..."
                     className="flex-1 h-10 px-3.5 rounded-field border border-border/60 bg-card text-xs text-foreground focus:outline-none focus:border-brand font-mono font-latin dir-ltr text-left"
                   />
@@ -857,7 +1075,8 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
                   <div className="h-12 w-20 rounded-control bg-card border border-border/80 flex items-center justify-center shrink-0 shadow-xs p-1">
                     {themeSettings.site_logo_url ? (
                       <img
-                        src={themeSettings.site_logo_url}
+                        key={themeSettings.site_logo_url}
+                        src={cleanMediaUrl(themeSettings.site_logo_url)}
                         alt="پیش‌نمایش لوگو"
                         className="max-h-8 max-w-full object-contain"
                         onError={(e) => {
@@ -879,6 +1098,15 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
                         site_logo_url: e.target.value,
                       }))
                     }
+                    onBlur={(e) => {
+                      const cleaned = cleanMediaUrl(e.target.value)
+                      if (cleaned !== e.target.value) {
+                        setThemeSettings((prev) => ({
+                          ...prev,
+                          site_logo_url: cleaned,
+                        }))
+                      }
+                    }}
                     placeholder="/images/logo.png یا https://..."
                     className="flex-1 h-10 px-3.5 rounded-field border border-border/60 bg-card text-xs text-foreground focus:outline-none focus:border-brand font-mono font-latin dir-ltr text-left"
                   />
@@ -903,12 +1131,17 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
               </div>
             </div>
 
-            {/* Names & Slogans */}
+            {/* Names & Slogans (Optional fields) */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="space-y-1.5">
-                <label className="text-xs font-black text-foreground">
-                  نام فارسی وب‌سایت:
-                </label>
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-black text-foreground">
+                    نام فارسی وب‌سایت:
+                  </label>
+                  <span className="text-[10px] text-muted-foreground font-bold">
+                    (اختیاری)
+                  </span>
+                </div>
                 <input
                   type="text"
                   value={themeSettings.site_name_fa || ''}
@@ -918,15 +1151,20 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
                       site_name_fa: e.target.value,
                     }))
                   }
-                  placeholder="مثلاً: آناهیکس"
+                  placeholder="اختیاری (مثلاً: پلی شاپ)"
                   className="w-full h-10 px-3.5 rounded-field border border-border/60 bg-muted/20 text-xs text-foreground focus:outline-none focus:border-brand font-bold"
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-black text-foreground">
-                  نام لاتین برند:
-                </label>
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-black text-foreground">
+                    نام لاتین برند:
+                  </label>
+                  <span className="text-[10px] text-muted-foreground font-bold">
+                    (اختیاری)
+                  </span>
+                </div>
                 <input
                   type="text"
                   value={themeSettings.site_name_en || ''}
@@ -936,15 +1174,20 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
                       site_name_en: e.target.value,
                     }))
                   }
-                  placeholder="e.g. ANAHIX"
+                  placeholder="اختیاری (e.g. plyshop)"
                   className="w-full h-10 px-3.5 rounded-field border border-border/60 bg-muted/20 text-xs text-foreground focus:outline-none focus:border-brand font-mono font-latin"
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-black text-foreground">
-                  شعار و زیرعنوان هدر:
-                </label>
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-black text-foreground">
+                    شعار و زیرعنوان هدر:
+                  </label>
+                  <span className="text-[10px] text-muted-foreground font-bold">
+                    (اختیاری)
+                  </span>
+                </div>
                 <input
                   type="text"
                   value={themeSettings.site_subtitle || ''}
@@ -954,7 +1197,7 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
                       site_subtitle: e.target.value,
                     }))
                   }
-                  placeholder="فروشگاه رسمی سرویس‌های بین‌المللی و شماره مجازی"
+                  placeholder="اختیاری (مثلاً: فروشگاه رسمی سرویس‌های بین‌المللی)"
                   className="w-full h-10 px-3.5 rounded-field border border-border/60 bg-muted/20 text-xs text-foreground focus:outline-none focus:border-brand font-medium"
                 />
               </div>
@@ -1633,6 +1876,233 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
                 ))}
               </div>
             </div>
+
+            {/* Footer About Text / Description */}
+            <div className="pt-6 border-t border-border/60 space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-black text-foreground flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-brand" />
+                  <span>متن معرفی و توضیحات زیر لوگوی فوتر (Footer Bio)</span>
+                </h4>
+              </div>
+              <textarea
+                rows={3}
+                value={footerDescription}
+                onChange={(e) => setFooterDescription(e.target.value)}
+                placeholder="توضیحات کوتاه درباره فروشگاه، ضمانت‌ها و مجوزها در فوتر سایت..."
+                className="w-full p-3 rounded-field border border-border/60 bg-muted/20 text-xs text-foreground focus:outline-none focus:border-brand resize-none leading-relaxed"
+              />
+            </div>
+
+            {/* Footer Trust Badges & Certification Management */}
+            <div className="pt-6 border-t border-border/60 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <h4 className="text-xs font-black text-foreground flex items-center gap-2">
+                    <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                    <span>
+                      مدیریت نمادهای اعتماد و مجوزهای رسمی فوتر (Trust Badges &
+                      E-Namad)
+                    </span>
+                  </h4>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    افزودن و آپلود نماد اعتماد الکترونیکی (اینماد)، نشان
+                    ساماندهی، اتحادیه کشوری و امکان لینک‌گذاری اختصاصی
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const defaults: FooterTrustBadge[] = [
+                        {
+                          id: `badge-${Date.now()}-1`,
+                          title: 'نماد اعتماد الکترونیکی (اینماد)',
+                          image_url: '/images/enamad.png',
+                          link_url: 'https://enamad.ir',
+                          is_active: true,
+                        },
+                        {
+                          id: `badge-${Date.now()}-2`,
+                          title: 'نشان ساماندهی رسانه‌های دیجیتال',
+                          image_url: '/images/samandehi.png',
+                          link_url: 'https://samandehi.ir',
+                          is_active: true,
+                        },
+                        {
+                          id: `badge-${Date.now()}-3`,
+                          title: 'عضو اتحادیه کشوری کسب‌وکارهای مجازی',
+                          image_url: '/images/union.png',
+                          link_url: 'https://ecunion.ir',
+                          is_active: true,
+                        },
+                        {
+                          id: `badge-${Date.now()}-4`,
+                          title: 'پرداخت امن شاپرک و تتر TRC20',
+                          image_url: '/images/security-seal.png',
+                          link_url: '#',
+                          is_active: true,
+                        },
+                      ]
+                      setFooterBadges(defaults)
+                      notifySuccess(
+                        'نمادهای پیش‌فرض درج شدند',
+                        '۴ نماد معتبر جهت ویرایش آماده شد.',
+                      )
+                    }}
+                    className="h-8 px-3 rounded-control bg-secondary text-brand hover:bg-muted text-xs font-bold border border-border/60 flex items-center gap-1.5 cursor-pointer shadow-xs"
+                  >
+                    <Award className="w-3.5 h-3.5" />
+                    <span>درج نمادهای آماده</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setFooterBadges((prev) => [
+                        ...prev,
+                        {
+                          id: `badge-${Date.now()}`,
+                          title: 'نماد جدید',
+                          image_url: '',
+                          link_url: '',
+                          is_active: true,
+                        },
+                      ])
+                    }
+                    className="h-8 px-3 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground text-xs font-black flex items-center gap-1.5 shadow-control cursor-pointer duration-motion active:scale-95"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>افزودن نماد</span>
+                  </button>
+                </div>
+              </div>
+
+              {footerBadges.length === 0 ? (
+                <div className="py-8 text-center bg-muted/10 border border-dashed border-border/60 rounded-surface space-y-2">
+                  <ShieldCheck className="w-8 h-8 text-muted-foreground/40 mx-auto" />
+                  <p className="text-xs text-muted-foreground font-bold">
+                    هیچ نمادی تعریف نشده است. با زدن دکمه «درج نمادهای آماده» یا
+                    «افزودن نماد» موارد دلخواه را اضافه نمایید.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {footerBadges.map((badge, bIdx) => (
+                    <div
+                      key={badge.id}
+                      className="p-3 rounded-surface border border-border/60 bg-muted/20 space-y-2.5"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          {/* Live Badge Preview Box */}
+                          <div className="w-12 h-12 rounded-control bg-card border border-border/80 flex items-center justify-center shrink-0 p-1 shadow-xs">
+                            {badge.image_url ? (
+                              <img
+                                src={cleanMediaUrl(badge.image_url)}
+                                alt={badge.title}
+                                className="max-h-9 max-w-full object-contain"
+                                onError={(e) => {
+                                  ;(e.target as HTMLElement).style.display =
+                                    'none'
+                                }}
+                              />
+                            ) : (
+                              <ShieldCheck className="w-6 h-6 text-muted-foreground/50" />
+                            )}
+                          </div>
+
+                          <div className="space-y-1">
+                            <input
+                              type="text"
+                              value={badge.title}
+                              onChange={(e) =>
+                                setFooterBadges((prev) =>
+                                  prev.map((b, i) =>
+                                    i === bIdx
+                                      ? { ...b, title: e.target.value }
+                                      : b,
+                                  ),
+                                )
+                              }
+                              placeholder="عنوان نماد (مثلاً: اینماد)"
+                              className="h-8 px-2.5 rounded-field border border-border/60 bg-card text-xs font-bold text-foreground focus:outline-none focus:border-brand w-48 sm:w-56"
+                            />
+                            <div className="flex items-center gap-1.5">
+                              <label className="text-[10px] text-brand hover:underline font-bold flex items-center gap-1 cursor-pointer">
+                                <Upload className="w-3 h-3" />
+                                <span>
+                                  {uploadingBadgeIdx === bIdx
+                                    ? 'در حال آپلود...'
+                                    : 'آپلود تصویر'}
+                                </span>
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  disabled={uploadingBadgeIdx === bIdx}
+                                  onChange={(e) =>
+                                    handleUploadBadgeImage(bIdx, e)
+                                  }
+                                  className="hidden"
+                                />
+                              </label>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                          <ToggleSwitch
+                            size="sm"
+                            checked={badge.is_active}
+                            onChange={(checked) =>
+                              setFooterBadges((prev) =>
+                                prev.map((b, i) =>
+                                  i === bIdx ? { ...b, is_active: checked } : b,
+                                ),
+                              )
+                            }
+                          />
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setFooterBadges((prev) =>
+                                prev.filter((_, i) => i !== bIdx),
+                              )
+                            }
+                            className="p-1 rounded-control text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 transition cursor-pointer"
+                            title="حذف این نماد"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] text-muted-foreground font-bold block">
+                          لینک استعلام یا مقصد نماد (URL):
+                        </label>
+                        <input
+                          type="text"
+                          dir="ltr"
+                          value={badge.link_url || ''}
+                          onChange={(e) =>
+                            setFooterBadges((prev) =>
+                              prev.map((b, i) =>
+                                i === bIdx
+                                  ? { ...b, link_url: e.target.value }
+                                  : b,
+                              ),
+                            )
+                          }
+                          placeholder="https://trustseal.enamad.ir/?id=..."
+                          className="w-full h-8 px-2.5 rounded-field border border-border/60 bg-card text-xs font-mono font-latin dir-ltr text-left text-foreground focus:outline-none focus:border-brand"
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -2104,14 +2574,13 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
                 <label className="text-xs font-bold text-foreground block">
                   نرخ موثر اعمالی در سایت:
                 </label>
-                <div className="h-10 px-3.5 rounded-field border border-border/40 bg-muted/40 text-foreground text-xs flex items-center justify-between font-mono font-latin font-bold">
+                <div className="h-10 px-3.5 rounded-field border border-border/40 bg-muted/40 text-foreground text-xs flex items-center justify-between font-sans font-bold">
                   <span>
-                    {toPersianDigits(
-                      (exchangeRateSettings.rate_priority === 'swapwallet' &&
-                      exchangeRateSettings.live_usd_rate
+                    {formatToman(
+                      exchangeRateSettings.rate_priority === 'swapwallet' &&
+                        exchangeRateSettings.live_usd_rate
                         ? exchangeRateSettings.live_usd_rate
-                        : exchangeRateSettings.usd_rate
-                      ).toLocaleString('fa-IR'),
+                        : exchangeRateSettings.usd_rate,
                     )}{' '}
                     تومان
                   </span>
@@ -2194,9 +2663,19 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
                         </div>
 
                         <span
-                          className={`px-2 py-0.5 rounded-control text-[10px] font-bold border ${gw.badgeClass}`}
+                          className={`px-2 py-0.5 rounded-control text-[10px] font-bold border ${
+                            p.display_mode === 'disabled_visible'
+                              ? 'bg-amber-500/10 text-amber-500 border-amber-500/30'
+                              : p.display_mode === 'hidden'
+                                ? 'bg-muted text-muted-foreground border-border/40'
+                                : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                          }`}
                         >
-                          {p.is_default ? 'پیش‌فرض' : 'فعال'}
+                          {p.display_mode === 'disabled_visible'
+                            ? 'نمایش غیرفعال'
+                            : p.display_mode === 'hidden'
+                              ? 'مخفی'
+                              : 'فعال جهت پرداخت'}
                         </span>
                       </div>
 
@@ -2259,6 +2738,42 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
                             </label>
                           </div>
                         </div>
+                        {/* Display & Processing Status Selector */}
+                        <div>
+                          <label className="text-[11px] font-bold text-muted-foreground block mb-1">
+                            وضعیت نمایش و تسویه درگاه:
+                          </label>
+                          <select
+                            value={
+                              p.display_mode ||
+                              (p.enable !== false ? 'active' : 'hidden')
+                            }
+                            onChange={(e: any) =>
+                              setPayments((prev) =>
+                                prev.map((item) =>
+                                  item.id === p.id
+                                    ? {
+                                        ...item,
+                                        display_mode: e.target.value,
+                                        enable: e.target.value === 'active',
+                                      }
+                                    : item,
+                                ),
+                              )
+                            }
+                            className="w-full h-8 px-2.5 text-xs rounded-control border border-border/60 bg-card text-foreground font-bold outline-none focus:border-brand cursor-pointer"
+                          >
+                            <option value="active">
+                              🟢 فعال و قابل پرداخت (نمایش بده)
+                            </option>
+                            <option value="disabled_visible">
+                              🟡 نمایش بده ولی غیرفعال (غیرقابل کلیک)
+                            </option>
+                            <option value="hidden">
+                              ⚪ مخفی (عدم نمایش در فروشگاه و پنل)
+                            </option>
+                          </select>
+                        </div>
                       </div>
                     </div>
 
@@ -2272,6 +2787,9 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
                         onClick={async () => {
                           setUpdatingPaymentId(p.id)
                           try {
+                            const curMode =
+                              p.display_mode ||
+                              (p.enable !== false ? 'active' : 'hidden')
                             registerPaymentGateways([
                               {
                                 platform: p.platform,
@@ -2282,6 +2800,8 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
                             await apiService.adminUpdatePayment(p.id, {
                               name_fa: p.name,
                               icon: p.icon_url,
+                              display_mode: curMode,
+                              enable: curMode === 'active',
                             })
                             notifySuccess(
                               'درگاه ذخیره شد',
@@ -2428,6 +2948,34 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
                 </div>
                 <div className="text-[10px] font-bold text-brand">
                   BCrypt Auth Flow
+                </div>
+              </div>
+
+              {/* Email Authentication */}
+              <div className="p-4 rounded-surface border border-border/60 bg-muted/20 space-y-3 flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between pb-2 border-b border-border/40">
+                    <span className="font-bold text-foreground">
+                      ثبت‌نام و ورود با ایمیل
+                    </span>
+                    <ToggleSwitch
+                      size="sm"
+                      checked={authSettings.auth_email_enabled !== false}
+                      onChange={(checked) =>
+                        setAuthSettings((prev) => ({
+                          ...prev,
+                          auth_email_enabled: checked,
+                        }))
+                      }
+                    />
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-2 leading-relaxed">
+                    امکان عضویت و ورود مستقیم با آدرس ایمیل، تایید هویت ایمیلی و
+                    بازیابی حساب.
+                  </p>
+                </div>
+                <div className="text-[10px] font-bold text-brand">
+                  Email Authentication
                 </div>
               </div>
 

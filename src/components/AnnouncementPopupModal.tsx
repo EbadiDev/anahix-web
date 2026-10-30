@@ -35,9 +35,22 @@ export const AnnouncementPopupModal: React.FC = () => {
         )
           return false
 
-        // Check if dismissed in this session
+        // Check if dismissed in localStorage within the configured duration (24h, 7d, 30d, etc.)
         const dismissedKey = `dismissed_announcement_${item.id}`
-        if (sessionStorage.getItem(dismissedKey)) return false
+        const rawDismiss = localStorage.getItem(dismissedKey)
+        if (rawDismiss) {
+          try {
+            const parsed = JSON.parse(rawDismiss)
+            if (parsed?.expiresAt && Date.now() < parsed.expiresAt) {
+              return false // Still dismissed
+            }
+          } catch {
+            // If legacy string was stored
+            if (rawDismiss === 'true') {
+              return false
+            }
+          }
+        }
 
         // Match target pages
         const pages = (item.target_pages || 'all')
@@ -67,7 +80,32 @@ export const AnnouncementPopupModal: React.FC = () => {
 
   const handleDismiss = () => {
     if (activePopup) {
-      sessionStorage.setItem(`dismissed_announcement_${activePopup.id}`, 'true')
+      const duration = activePopup.dismiss_duration || '7d'
+      let ttlMs = 7 * 24 * 60 * 60 * 1000 // default 7 days
+      if (duration === '24h') {
+        ttlMs = 24 * 60 * 60 * 1000 // 24 hours
+      } else if (duration === '7d') {
+        ttlMs = 7 * 24 * 60 * 60 * 1000 // 7 days
+      } else if (duration === '30d') {
+        ttlMs = 30 * 24 * 60 * 60 * 1000 // 30 days
+      } else if (duration === 'forever') {
+        ttlMs = 365 * 24 * 60 * 60 * 1000 // 1 year (permanent)
+      } else if (duration === 'every_load') {
+        ttlMs = 2 * 60 * 60 * 1000 // 2 hours temporary dismissal
+      }
+
+      const dismissData = {
+        announcementId: activePopup.id,
+        dismissedAt: Date.now(),
+        expiresAt: Date.now() + ttlMs,
+        duration,
+      }
+      try {
+        localStorage.setItem(
+          `dismissed_announcement_${activePopup.id}`,
+          JSON.stringify(dismissData),
+        )
+      } catch {}
     }
     setIsOpen(false)
   }

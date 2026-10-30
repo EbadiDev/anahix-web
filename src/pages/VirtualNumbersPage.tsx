@@ -17,7 +17,6 @@ import {
   Loader2,
   Mail,
   MessageCircle,
-  RefreshCw,
   Search,
   ShieldCheck,
   ShoppingBag,
@@ -34,6 +33,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { CartDrawer } from '../components/CartDrawer'
 import { Header } from '../components/Header'
+import { LoadingState } from '../components/vibefarsi/LoadingState'
 import { useNotification } from '../components/vibefarsi/NotificationContext'
 import { QuantitySelector } from '../components/vibefarsi/QuantitySelector'
 import { CountryFlag } from '../components/virtual/CountryFlag'
@@ -48,6 +48,7 @@ import type {
   VirtualNumberOrder,
   VirtualNumberService,
 } from '../types'
+import { getSiteBrandName } from '../utils/brand'
 import { formatToman, toPersianDigits } from '../utils/formatters'
 
 // Country Aliases for flexible searching (e.g. آمریکا, امریکا, USA, usa, ایالات متحده)
@@ -905,7 +906,9 @@ export const VirtualNumbersPage: React.FC = () => {
             <div className="text-center space-y-3.5 max-w-3xl mx-auto pt-2">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-control bg-brand/10 border border-brand/30 text-brand text-xs font-bold">
                 <ShieldCheck className="w-3.5 h-3.5" />
-                <span>سامانه هوشمند شماره‌های مجازی آناهیکس</span>
+                <span>
+                  سامانه هوشمند شماره‌های مجازی {getSiteBrandName('پلی شاپ')}
+                </span>
               </div>
               <h1 className="text-2xl sm:text-4xl font-black text-foreground tracking-tight leading-tight">
                 خرید شماره مجازی دریافت پیامک (SMS OTP)
@@ -1097,12 +1100,7 @@ export const VirtualNumbersPage: React.FC = () => {
 
             {/* Services Grid with Numberland-Style Cards */}
             {servicesLoading ? (
-              <div className="py-24 text-center space-y-3">
-                <RefreshCw className="w-8 h-8 text-foreground animate-spin mx-auto" />
-                <p className="text-xs text-muted-foreground">
-                  در حال بارگذاری لیست زنده سرویس‌ها...
-                </p>
-              </div>
+              <LoadingState message="در حال بارگذاری لیست زنده سرویس‌ها..." />
             ) : filteredServices.length === 0 ? (
               <div className="py-16 text-center space-y-2 rounded-surface border border-border/60 bg-card p-8">
                 <HelpCircle className="w-8 h-8 text-muted-foreground mx-auto" />
@@ -1341,12 +1339,7 @@ export const VirtualNumbersPage: React.FC = () => {
 
             {/* Country Cards Grid with Live Flags & Progressive Pagination */}
             {countriesLoading ? (
-              <div className="py-24 text-center space-y-3">
-                <RefreshCw className="w-8 h-8 text-foreground animate-spin mx-auto" />
-                <p className="text-xs text-muted-foreground">
-                  در حال استعلام قیمت و موجودی زنده اپراتورها...
-                </p>
-              </div>
+              <LoadingState message="در حال استعلام قیمت و موجودی زنده اپراتورها..." />
             ) : filteredCountries.length === 0 ? (
               <div className="py-16 text-center space-y-2 rounded-surface border border-border/60 bg-card p-8">
                 <HelpCircle className="w-8 h-8 text-muted-foreground mx-auto" />

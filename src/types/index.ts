@@ -212,6 +212,8 @@ export interface PaymentGateway {
   platform: string
   fee_percentage: number
   is_default: boolean
+  enable?: boolean
+  display_mode?: 'active' | 'disabled_visible' | 'hidden'
   icon_type: string
   icon_url?: string
   description_fa: string
@@ -230,6 +232,7 @@ export interface SystemAnnouncement {
     | 'bell_and_popup'
   severity: 'info' | 'discount' | 'warning' | 'success'
   is_active: boolean
+  dismiss_duration?: 'every_load' | '24h' | '7d' | '30d' | 'forever'
   expires_at?: string
   created_at: string
 }
@@ -590,13 +593,8 @@ export interface ThemeSettings {
   auth_google_enabled: boolean
   auth_github_enabled: boolean
   auth_password_enabled: boolean
+  auth_email_enabled?: boolean
   auth_otp_required: boolean
-  checkout_channel_section_enabled?: boolean
-  checkout_channel_sms_enabled?: boolean
-  checkout_channel_email_enabled?: boolean
-  checkout_channel_title?: string
-  checkout_channel_sms_label?: string
-  checkout_channel_email_label?: string
   offers_badge_text?: string
   offers_title?: string
   offers_subtitle?: string
@@ -613,8 +611,24 @@ export interface ThemeSettings {
   support_telegram?: string
   header_menu_json?: string
   footer_menu_json?: string
+  footer_badges_json?: string
+  footer_description?: string
   ticket_sms_mode?: 'default_on' | 'default_off' | 'disabled'
   ticket_email_mode?: 'default_on' | 'default_off' | 'disabled'
+  trust_ticker_enabled?: boolean
+  trust_ticker_json?: string
+  scrolling_announcement_enabled?: boolean
+  scrolling_announcement_text?: string
+  scrolling_announcement_icon?: string
+  scrolling_announcement_badge?: string
+  hero_badge_text?: string
+  hero_title?: string
+  hero_typewriter_words?: string
+  hero_description?: string
+  hero_btn1_text?: string
+  hero_btn1_link?: string
+  hero_btn2_text?: string
+  hero_btn2_link?: string
   sms_api_key?: string
   sms_line_number?: string
   zarinpal_merchant_id?: string
@@ -1260,6 +1274,14 @@ export interface TOCItem {
   id: string
   text: string
   level: number
+}
+
+export interface FooterTrustBadge {
+  id: string
+  title: string
+  image_url: string
+  link_url?: string
+  is_active: boolean
 }
 
 export interface ArticleComment {

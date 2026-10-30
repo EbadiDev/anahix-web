@@ -205,6 +205,10 @@ function normalizePayment(raw: any): PaymentGateway {
     platform: raw.platform,
     fee_percentage: raw.fee_percentage ?? 0,
     is_default: raw.id === -1 || raw.platform === 'balance',
+    enable: raw.enable !== false,
+    display_mode:
+      raw.display_mode ||
+      (raw.enable === false ? 'disabled_visible' : 'active'),
     icon_type: isCustomUrl ? 'custom' : iconStr,
     icon_url: isCustomUrl ? iconStr : raw.icon_url || undefined,
     description_fa: raw.description || raw.description_fa || '',
@@ -240,9 +244,12 @@ function isJwtExpired(token: string | null): boolean {
 }
 
 export const apiService = {
-  async getProducts(): Promise<Product[]> {
+  async getProducts(search?: string): Promise<Product[]> {
     try {
-      const res = await fetch('/api/v1/products')
+      const url = search?.trim()
+        ? `/api/v1/products?search=${encodeURIComponent(search.trim())}`
+        : '/api/v1/products'
+      const res = await fetch(url)
       if (res.ok) {
         const json = await res.json()
         if (json.data && Array.isArray(json.data)) {
@@ -310,6 +317,7 @@ export const apiService = {
       icon?: string
       description?: string
       enable?: boolean
+      display_mode?: string
       sort?: number
     },
   ): Promise<any> {
@@ -399,6 +407,53 @@ export const apiService = {
     })
     if (!res.ok) {
       throw new Error('خطا در حذف اعلان')
+    }
+  },
+
+  async adminListCustomerNotifications(): Promise<any[]> {
+    const token = this.getAdminToken()
+    const res = await fetch('/api/v1/admin/customer-notifications', {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (res.ok) {
+      const json = await res.json()
+      return json.data || []
+    }
+    return []
+  },
+
+  async adminSendCustomerNotification(payload: {
+    target?: 'all' | 'specific'
+    customer_id?: string
+    title: string
+    message: string
+    type?: string
+    link?: string
+  }): Promise<any> {
+    const token = this.getAdminToken()
+    const res = await fetch('/api/v1/admin/customer-notifications', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(payload),
+    })
+    const json = await safeJsonParse(res)
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'خطا در ارسال پیام به کاربر')
+    }
+    return json.data
+  },
+
+  async adminDeleteCustomerNotification(id: string): Promise<void> {
+    const token = this.getAdminToken()
+    const res = await fetch(`/api/v1/admin/customer-notifications/${id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (!res.ok) {
+      throw new Error('خطا در حذف پیام کاربر')
     }
   },
 
@@ -3619,11 +3674,15 @@ export const apiService = {
   // Dynamic Holiday Theme & System Settings
   // ==========================================
   async getThemeSettings(): Promise<ThemeSettings> {
-    const res = await fetch('/api/v1/system/theme')
-    const json = await safeJsonParse(res)
-    if (res.ok && json.code === 200 && json.data) {
-      return json.data
-    }
+    try {
+      const res = await fetch(`/api/v1/system/theme?_t=${Date.now()}`, {
+        cache: 'no-store',
+      })
+      const json = await safeJsonParse(res)
+      if (res.ok && json.code === 200 && json.data) {
+        return json.data
+      }
+    } catch {}
     return {
       default_theme: 'graphite',
       event_name: 'عادی',
@@ -3638,26 +3697,27 @@ export const apiService = {
       auth_github_enabled: true,
       auth_password_enabled: true,
       auth_otp_required: false,
+      trust_ticker_enabled: true,
+      scrolling_announcement_enabled: true,
     }
   },
 
   async getAdminThemeSettings(): Promise<ThemeSettings> {
     const token = this.getAdminToken()
-    const res = await fetch('/api/v1/admin/settings/theme', {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-    const json = await safeJsonParse(res)
-    if (res.ok && json.code === 200 && json.data) {
-      return json.data
-    }
+    try {
+      const res = await fetch(`/api/v1/admin/settings/theme?_t=${Date.now()}`, {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: 'no-store',
+      })
+      const json = await safeJsonParse(res)
+      if (res.ok && json.code === 200 && json.data) {
+        return json.data
+      }
+    } catch {}
     return this.getThemeSettings()
   },
 
   async updateAdminThemeSettings(data: Partial<ThemeSettings>): Promise<void> {
-    const current = await this.getThemeSettings().catch(
-      () => ({}) as ThemeSettings,
-    )
-    const merged = { ...current, ...data }
     const token = this.getAdminToken()
     const res = await fetch('/api/v1/admin/settings/theme', {
       method: 'POST',
@@ -3665,7 +3725,7 @@ export const apiService = {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(merged),
+      body: JSON.stringify(data),
     })
     const json = await safeJsonParse(res)
     if (!res.ok || json.code !== 200) {

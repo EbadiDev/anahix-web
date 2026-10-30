@@ -1,5 +1,6 @@
 import {
   ArrowLeft,
+  Bookmark,
   BookOpen,
   Clock,
   Eye,
@@ -16,11 +17,9 @@ import { LikeButton } from '../components/vibefarsi/LikeButton'
 import { SearchInput } from '../components/vibefarsi/SearchInput'
 import { api } from '../services/api'
 import type { ArticleListItem, ContentCategory } from '../types'
-
-function toPersianDigits(n: number | string): string {
-  const f = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹']
-  return String(n).replace(/\d/g, (d) => f[Number(d)])
-}
+import { getSiteBrandName } from '../utils/brand'
+import { formatNumber, toPersianDigits } from '../utils/formatters'
+import { getLocalWishlist, toggleItemFavorite } from '../utils/wishlist'
 
 export const BlogListPage: React.FC = () => {
   const [searchParams] = useSearchParams()
@@ -40,6 +39,45 @@ export const BlogListPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true)
   const [isCartOpen, setIsCartOpen] = useState(false)
   const [siteLogoUrl, setSiteLogoUrl] = useState<string>('')
+  const [favoritedSlugs, setFavoritedSlugs] = useState<Set<string>>(() => {
+    const list = getLocalWishlist()
+    return new Set(
+      list
+        .filter((it) => it.target_type === 'article')
+        .map((it) => it.target_id),
+    )
+  })
+
+  useEffect(() => {
+    const handleSync = () => {
+      const list = getLocalWishlist()
+      setFavoritedSlugs(
+        new Set(
+          list
+            .filter((it) => it.target_type === 'article')
+            .map((it) => it.target_id),
+        ),
+      )
+    }
+    window.addEventListener('anahix:wishlist:updated', handleSync)
+    return () =>
+      window.removeEventListener('anahix:wishlist:updated', handleSync)
+  }, [])
+
+  const handleToggleFavorite = async (art: ArticleListItem) => {
+    const res = await toggleItemFavorite({
+      target_type: 'article',
+      target_id: art.slug,
+      title: art.title,
+      image_url: art.cover_image,
+    })
+    setFavoritedSlugs((prev) => {
+      const next = new Set(prev)
+      if (res.is_favorite) next.add(art.slug)
+      else next.delete(art.slug)
+      return next
+    })
+  }
 
   // Load Categories & Theme Settings on mount
   useEffect(() => {
@@ -97,7 +135,9 @@ export const BlogListPage: React.FC = () => {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center space-y-4">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 text-xs font-semibold">
               <Sparkles className="h-3.5 w-3.5" />
-              <span>وبلاگ تخصصی و پایگاه سئو آناهیکس</span>
+              <span>
+                وبلاگ تخصصی و پایگاه سئو {getSiteBrandName('پلی شاپ')}
+              </span>
             </div>
             <h1 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight text-foreground">
               آموزش‌ها، بنچمارک‌ها و تازه‌های{' '}
@@ -200,10 +240,10 @@ export const BlogListPage: React.FC = () => {
                         )}
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-control bg-muted/40 border border-border/60 text-[11px] font-bold text-muted-foreground">
                           <Clock className="h-3.5 w-3.5 text-brand" />
-                          <span>
-                            {Number(
+                          <span className="font-sans">
+                            {toPersianDigits(
                               featuredArticle.reading_time_minutes || 5,
-                            ).toLocaleString('fa-IR')}{' '}
+                            )}{' '}
                             دقیقه مطالعه
                           </span>
                         </span>
@@ -231,7 +271,7 @@ export const BlogListPage: React.FC = () => {
                         ) : siteLogoUrl ? (
                           <img
                             src={siteLogoUrl}
-                            alt="لوگوی آناهیکس"
+                            alt={`لوگوی ${getSiteBrandName('پلی شاپ')}`}
                             className="w-8 h-8 rounded-control object-contain p-0.5 border border-border/60 bg-muted/20"
                           />
                         ) : (
@@ -332,11 +372,8 @@ export const BlogListPage: React.FC = () => {
                           </span>
                           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-control bg-muted/40 border border-border/60 text-[11px] font-bold text-muted-foreground">
                             <Eye className="h-3.5 w-3.5 text-muted-foreground" />
-                            <span className="font-latin">
-                              {Number(art.view_count || 0).toLocaleString(
-                                'fa-IR',
-                              )}{' '}
-                              بازدید
+                            <span className="font-sans">
+                              {formatNumber(art.view_count || 0)} بازدید
                             </span>
                           </span>
                         </div>
@@ -353,7 +390,7 @@ export const BlogListPage: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* Footer: Action Button & Interactive Like Button */}
+                    {/* Footer: Action Button & Interactive Like + Favorite Buttons */}
                     <div className="p-5 pt-0 flex items-center gap-2 mt-1">
                       <Link
                         to={`/blog/${art.slug}`}
@@ -362,6 +399,31 @@ export const BlogListPage: React.FC = () => {
                         <span>مطالعه مقاله</span>
                         <ArrowLeft className="h-3.5 w-3.5" />
                       </Link>
+                      <button
+                        type="button"
+                        onClick={() => handleToggleFavorite(art)}
+                        title={
+                          favoritedSlugs.has(art.slug)
+                            ? 'حذف از نشان‌شده‌ها'
+                            : 'نشان کردن مقاله'
+                        }
+                        className={`h-9 px-2.5 rounded-control border flex items-center gap-1.5 shrink-0 duration-motion active:scale-95 cursor-pointer shadow-control transition-all ${
+                          favoritedSlugs.has(art.slug)
+                            ? 'border-brand bg-brand/10 text-brand font-black'
+                            : 'border-border/60 bg-secondary/80 hover:bg-muted text-muted-foreground hover:text-foreground'
+                        }`}
+                      >
+                        <Bookmark
+                          className={`h-4 w-4 ${
+                            favoritedSlugs.has(art.slug)
+                              ? 'fill-brand text-brand'
+                              : ''
+                          }`}
+                        />
+                        <span className="text-[11px] font-bold hidden sm:inline">
+                          {favoritedSlugs.has(art.slug) ? 'نشان‌شده' : 'نشان'}
+                        </span>
+                      </button>
                       <LikeButton
                         slug={art.slug}
                         initialCount={art.like_count || 0}

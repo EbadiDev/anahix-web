@@ -345,15 +345,15 @@ export const ProfileOrdersTab: React.FC<ProfileOrdersTabProps> = ({
                     <h4 className="text-xs sm:text-sm font-bold text-foreground">
                       {item.title}
                     </h4>
-                    <span className="font-mono text-[11px] text-muted-foreground">
-                      #{item.orderNo}
+                    <span className="font-mono text-[11px] text-muted-foreground font-sans">
+                      #{toPersianDigits(item.orderNo)}
                     </span>
                   </div>
 
                   <div className="flex flex-wrap items-center gap-y-1 gap-x-3 text-[11px] text-muted-foreground mt-1">
                     <span>{item.subtitle}</span>
                     <span>•</span>
-                    <span className="font-bold text-foreground font-latin">
+                    <span className="font-bold text-foreground font-sans">
                       {formatToman(item.amount)} تومان
                     </span>
                     <span>•</span>
@@ -634,7 +634,7 @@ export const ProfileOrdersTab: React.FC<ProfileOrdersTabProps> = ({
                     <span className="font-bold text-foreground">
                       مبلغ پرداخت‌شده:
                     </span>
-                    <span className="font-black text-foreground font-latin">
+                    <span className="font-black text-foreground font-sans">
                       {formatToman(selectedOrder.amount_toman)} تومان
                     </span>
                   </div>

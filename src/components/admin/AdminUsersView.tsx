@@ -45,7 +45,13 @@ import type {
   AdminUpdateCustomerStatusRequest,
   CustomerTier,
 } from '../../types'
+import {
+  formatNumber,
+  formatToman,
+  toPersianDigits,
+} from '../../utils/formatters'
 import { ConfirmModal } from '../vibefarsi/ConfirmModal'
+import { LoadingState } from '../vibefarsi/LoadingState'
 import { ModalCloseButton } from '../vibefarsi/ModalCloseButton'
 import { useNotification } from '../vibefarsi/NotificationContext'
 import { SearchInput } from '../vibefarsi/SearchInput'
@@ -470,8 +476,8 @@ export const AdminUsersView: React.FC = () => {
             <span>کل کاربران ثبت‌نامی</span>
             <Users className="w-4 h-4 text-brand" />
           </div>
-          <div className="text-2xl font-black text-foreground font-mono font-latin">
-            {(data?.total || 0).toLocaleString('fa-IR')}
+          <div className="text-2xl font-black text-foreground font-sans">
+            {formatNumber(data?.total || 0)}
           </div>
         </div>
 
@@ -480,8 +486,8 @@ export const AdminUsersView: React.FC = () => {
             <span>کاربران فعال</span>
             <UserCheck className="w-4 h-4 text-emerald-400" />
           </div>
-          <div className="text-2xl font-black text-emerald-400 font-mono font-latin">
-            {(data?.total_active || 0).toLocaleString('fa-IR')}
+          <div className="text-2xl font-black text-emerald-400 font-sans">
+            {formatNumber(data?.total_active || 0)}
           </div>
         </div>
 
@@ -490,8 +496,8 @@ export const AdminUsersView: React.FC = () => {
             <span>همکاران و مشترکین VIP</span>
             <Award className="w-4 h-4 text-amber-500" />
           </div>
-          <div className="text-2xl font-black text-amber-500 font-mono font-latin">
-            {(data?.total_vip || 0).toLocaleString('fa-IR')}
+          <div className="text-2xl font-black text-amber-500 font-sans">
+            {formatNumber(data?.total_vip || 0)}
           </div>
         </div>
 
@@ -500,8 +506,8 @@ export const AdminUsersView: React.FC = () => {
             <span>کل موجودی کیف پول‌ها</span>
             <Wallet className="w-4 h-4 text-cyan-500" />
           </div>
-          <div className="text-xl sm:text-2xl font-black font-mono font-latin text-foreground truncate">
-            {(data?.total_balance_toman || 0).toLocaleString('fa-IR')}{' '}
+          <div className="text-xl sm:text-2xl font-black font-sans text-foreground truncate">
+            {formatToman(data?.total_balance_toman || 0)}{' '}
             <span className="text-xs font-normal text-muted-foreground font-sans">
               تومان
             </span>
@@ -639,9 +645,8 @@ export const AdminUsersView: React.FC = () => {
             <tbody className="divide-y divide-border/60">
               {loading && (
                 <tr>
-                  <td colSpan={6} className="py-16 text-center text-slate-400">
-                    <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-blue-600" />
-                    <span>در حال فراخوانی اطلاعات کاربران...</span>
+                  <td colSpan={6} className="p-0">
+                    <LoadingState message="در حال فراخوانی اطلاعات کاربران..." />
                   </td>
                 </tr>
               )}
@@ -738,7 +743,7 @@ export const AdminUsersView: React.FC = () => {
                       </td>
 
                       {/* Current Balance */}
-                      <td className="py-3.5 px-4 font-mono font-latin text-center">
+                      <td className="py-3.5 px-4 font-sans text-center">
                         <span
                           className={`font-bold text-sm ${
                             isPositiveBalance
@@ -746,7 +751,7 @@ export const AdminUsersView: React.FC = () => {
                               : 'text-muted-foreground'
                           }`}
                         >
-                          {user.balance_toman.toLocaleString('fa-IR')}
+                          {formatToman(user.balance_toman)}
                         </span>
                         <span className="text-[10px] text-muted-foreground mr-1 font-sans">
                           تومان
@@ -756,16 +761,16 @@ export const AdminUsersView: React.FC = () => {
                       {/* Orders Count */}
                       <td className="py-3.5 px-4 text-center">
                         <div className="inline-flex flex-col items-center">
-                          <span className="font-mono font-latin font-bold text-foreground">
-                            {user.total_orders_count.toLocaleString('fa-IR')}
+                          <span className="font-sans font-bold text-foreground">
+                            {formatNumber(user.total_orders_count)}
                           </span>
                           <span className="text-[10px] text-muted-foreground font-sans">
                             (
                             {user.store_orders_count > 0
-                              ? `${user.store_orders_count} اشتراک`
+                              ? `${toPersianDigits(user.store_orders_count)} اشتراک`
                               : '۰'}
                             {user.virtual_orders_count > 0
-                              ? ` + ${user.virtual_orders_count} شماره`
+                              ? ` + ${toPersianDigits(user.virtual_orders_count)} شماره`
                               : ''}
                             )
                           </span>
@@ -773,9 +778,9 @@ export const AdminUsersView: React.FC = () => {
                       </td>
 
                       {/* Referral Income */}
-                      <td className="py-3.5 px-4 font-mono font-latin text-center">
+                      <td className="py-3.5 px-4 font-sans text-center">
                         <div className="font-bold text-foreground">
-                          {user.referral_balance_toman.toLocaleString('fa-IR')}{' '}
+                          {formatToman(user.referral_balance_toman)}{' '}
                           <span className="text-[10px] font-sans font-normal text-muted-foreground">
                             تومان
                           </span>
@@ -838,10 +843,10 @@ export const AdminUsersView: React.FC = () => {
         {/* Pagination Bar */}
         {data && data.total > 0 && (
           <div className="p-4 border-t border-border/60 flex items-center justify-between text-xs text-muted-foreground">
-            <div>
-              نمایش صفحه {data.page} از{' '}
-              {Math.ceil(data.total / data.page_size) || 1} (مجموع{' '}
-              {data.total.toLocaleString('fa-IR')} کاربر)
+            <div className="font-sans">
+              نمایش صفحه {toPersianDigits(data.page)} از{' '}
+              {toPersianDigits(Math.ceil(data.total / data.page_size) || 1)}{' '}
+              (مجموع {formatNumber(data.total)} کاربر)
             </div>
 
             <div className="flex items-center gap-1.5">
@@ -1027,10 +1032,7 @@ export const AdminUsersView: React.FC = () => {
                 {/* Drawer Body Area */}
                 <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-6">
                   {drawerLoading && (
-                    <div className="py-24 text-center text-slate-400">
-                      <RefreshCw className="w-8 h-8 animate-spin mx-auto mb-3 text-blue-600" />
-                      <span>در حال بارگذاری پرونده ۳۶۰ درجه مشتری...</span>
-                    </div>
+                    <LoadingState message="در حال بارگذاری پرونده ۳۶۰ درجه مشتری..." />
                   )}
 
                   {!drawerLoading && customer360 && (

@@ -20,6 +20,7 @@ import type React from 'react'
 import { useEffect, useState } from 'react'
 import { api } from '../../services/api'
 import type { SMSSettings } from '../../types'
+import { formatNumber } from '../../utils/formatters'
 import { useNotification } from '../vibefarsi/NotificationContext'
 import { ToggleSwitch } from '../vibefarsi/ToggleSwitch'
 
@@ -253,9 +254,9 @@ export const SMSGatewayView: React.FC = () => {
               <div className="text-[11px] text-muted-foreground font-medium">
                 مانده اعتبار ریالی
               </div>
-              <div className="text-sm font-black text-foreground mt-0.5 font-mono font-latin">
+              <div className="text-sm font-black text-foreground mt-0.5 font-sans">
                 {settings?.live_credit
-                  ? settings.live_credit.toLocaleString('fa-IR')
+                  ? formatNumber(settings.live_credit)
                   : '۱,۰۰۰'}{' '}
                 <span className="text-[11px] font-sans font-normal text-muted-foreground">
                   ریال

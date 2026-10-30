@@ -4,6 +4,7 @@ import {
   Clock,
   Copy,
   Eye,
+  Heart,
   LifeBuoy,
   ListOrdered,
   MessageSquare,
@@ -24,15 +25,48 @@ import { LikeButton } from '../components/vibefarsi/LikeButton'
 import { useNotification } from '../components/vibefarsi/NotificationContext'
 import { api } from '../services/api'
 import type { ArticleDetail } from '../types'
-import { formatToman, toPersianDigits } from '../utils/formatters'
+import { getSiteBrandName } from '../utils/brand'
+import { formatNumber, formatToman, toPersianDigits } from '../utils/formatters'
+import { isItemFavorited, toggleItemFavorite } from '../utils/wishlist'
 
 export const BlogDetailPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>()
   const navigate = useNavigate()
+  const { success: notifySuccess, info: notifyInfo } = useNotification()
+
   const [article, setArticle] = useState<ArticleDetail | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isCopied, setIsCopied] = useState(false)
   const [isCartOpen, setIsCartOpen] = useState(false)
+  const [isFavorite, setIsFavorite] = useState(false)
+
+  useEffect(() => {
+    if (article) {
+      setIsFavorite(isItemFavorited('article', String(article.slug || slug)))
+    }
+  }, [article, slug])
+
+  const handleToggleWishlist = async () => {
+    if (!article) return
+    const res = await toggleItemFavorite({
+      target_type: 'article',
+      target_id: String(article.slug || slug),
+      title: article.title,
+      image_url: article.cover_image,
+    })
+    setIsFavorite(res.is_favorite)
+    if (res.is_favorite) {
+      notifySuccess(
+        'علاقه‌مندی‌ها',
+        `«${article.title}» به لیست علاقه‌مندی‌ها اضافه شد.`,
+      )
+    } else {
+      notifyInfo(
+        'علاقه‌مندی‌ها',
+        `«${article.title}» از لیست علاقه‌مندی‌ها حذف شد.`,
+      )
+    }
+  }
   const [isAuthOpen, setIsAuthOpen] = useState(false)
   const { warning } = useNotification()
 
@@ -61,7 +95,8 @@ export const BlogDetailPage: React.FC = () => {
       .then((data) => {
         setArticle(data)
         // Set SEO Meta Title and Description
-        document.title = data.meta_title || `${data.title} | آناهیکس`
+        document.title =
+          data.meta_title || `${data.title} | ${getSiteBrandName('پلی شاپ')}`
       })
       .catch((err) => {
         console.error(err)
@@ -195,9 +230,8 @@ export const BlogDetailPage: React.FC = () => {
               </span>
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-control bg-muted/40 border border-border/60 text-[11px] font-bold text-muted-foreground">
                 <Eye className="h-3.5 w-3.5 text-muted-foreground" />
-                <span className="font-latin">
-                  {Number(article.view_count || 0).toLocaleString('fa-IR')}{' '}
-                  بازدید
+                <span className="font-sans">
+                  {formatNumber(article.view_count || 0)} بازدید
                 </span>
               </span>
             </div>
@@ -224,7 +258,7 @@ export const BlogDetailPage: React.FC = () => {
                 ) : siteLogoUrl ? (
                   <img
                     src={siteLogoUrl}
-                    alt="لوگوی آناهیکس"
+                    alt={`لوگوی ${getSiteBrandName('پلی شاپ')}`}
                     className="w-10 h-10 rounded-full object-contain p-1 border border-border/80 bg-muted/20 shadow-xs"
                   />
                 ) : (
@@ -242,8 +276,26 @@ export const BlogDetailPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Share & Like buttons in Header */}
-              <div className="flex items-center gap-2">
+              {/* Share & Like & Wishlist buttons in Header */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  type="button"
+                  onClick={handleToggleWishlist}
+                  className={`h-9 px-3.5 rounded-control border text-xs font-bold transition-all flex items-center gap-1.5 duration-motion active:scale-[0.98] cursor-pointer shadow-control ${
+                    isFavorite
+                      ? 'border-rose-500/50 bg-rose-500/10 text-rose-500 font-black'
+                      : 'border-border/60 bg-secondary/80 hover:bg-muted text-foreground'
+                  }`}
+                >
+                  <Heart
+                    className={`h-4 w-4 ${isFavorite ? 'fill-rose-500 text-rose-500' : ''}`}
+                  />
+                  <span>
+                    {isFavorite
+                      ? 'نشان‌شده در علاقه‌مندی‌ها'
+                      : 'افزودن به علاقه‌مندی‌ها'}
+                  </span>
+                </button>
                 <LikeButton
                   slug={article.slug}
                   initialCount={article.like_count || 0}
@@ -354,8 +406,8 @@ export const BlogDetailPage: React.FC = () => {
                     آیا این مقاله و آموزش برای شما مفید بود؟
                   </h4>
                   <p className="text-xs text-muted-foreground">
-                    با پسندیدن این مطلب به ارتقای محتوای آموزشی آناهیکس کمک
-                    می‌کنید.
+                    با پسندیدن این مطلب به ارتقای محتوای آموزشی{' '}
+                    {getSiteBrandName('پلی شاپ')} کمک می‌کنید.
                   </p>
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
@@ -379,7 +431,7 @@ export const BlogDetailPage: React.FC = () => {
                     </h3>
                     <p className="text-xs text-muted-foreground leading-relaxed">
                       تحویل آنی اکانت قانونی، گارانتی تعویض تا آخرین روز اشتراک
-                      و پشتیبانی اختصاصی در آناهیکس.
+                      و پشتیبانی اختصاصی در {getSiteBrandName('پلی شاپ')}.
                     </p>
                     {article.related_product_price &&
                       article.related_product_price > 0 && (
@@ -407,6 +459,45 @@ export const BlogDetailPage: React.FC = () => {
                   </div>
                 </div>
               )}
+
+              {/* Article Footer Actions & Wishlist Bar */}
+              <div className="bg-card border border-border/80 rounded-surface p-4 sm:p-5 shadow-surface flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="flex items-center gap-2.5 text-right w-full sm:w-auto">
+                  <div className="p-2 rounded-control bg-rose-500/10 text-rose-500 border border-rose-500/20">
+                    <Heart className="w-5 h-5 fill-rose-500" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs sm:text-sm font-black text-foreground">
+                      ذخیره و نشان کردن مقاله در پنل کاربری
+                    </h4>
+                    <p className="text-[11px] text-muted-foreground">
+                      برای مطالعه در فرصت‌های بعدی به لیست علاقه‌مندی‌ها اضافه
+                      نمایید.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 w-full sm:w-auto justify-end flex-wrap">
+                  <button
+                    type="button"
+                    onClick={handleToggleWishlist}
+                    className={`h-9 px-4 rounded-control border text-xs font-black transition-all flex items-center justify-center gap-2 duration-motion active:scale-[0.98] cursor-pointer shadow-control flex-1 sm:flex-initial ${
+                      isFavorite
+                        ? 'border-rose-500/50 bg-rose-500/10 text-rose-500'
+                        : 'border-primary/40 bg-primary/10 hover:bg-primary/20 text-brand'
+                    }`}
+                  >
+                    <Heart
+                      className={`h-4 w-4 ${isFavorite ? 'fill-rose-500 text-rose-500' : ''}`}
+                    />
+                    <span>
+                      {isFavorite
+                        ? 'نشان‌شده در علاقه‌مندی‌ها ✓'
+                        : 'افزودن به علاقه‌مندی‌ها'}
+                    </span>
+                  </button>
+                </div>
+              </div>
 
               {/* Comments Section */}
               <div className="bg-card border border-border rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
@@ -500,7 +591,7 @@ export const BlogDetailPage: React.FC = () => {
                             {c.admin_reply && (
                               <div className="mr-3 p-3 rounded-xl bg-blue-50/60 dark:bg-blue-950/30 border-r-2 border-primary mt-2">
                                 <span className="font-bold text-primary block mb-0.5">
-                                  پاسخ تحریریه آناهیکس:
+                                  پاسخ تحریریه {getSiteBrandName('پلی شاپ')}:
                                 </span>
                                 <p className="text-slate-600 dark:text-slate-300">
                                   {c.admin_reply}
@@ -590,8 +681,8 @@ export const BlogDetailPage: React.FC = () => {
                     هنوز موفق به حل مشکل نشده‌اید؟
                   </h4>
                   <p className="text-xs text-muted-foreground leading-relaxed max-w-xs mx-auto">
-                    اپراتورهای پشتیبانی فنی آناهیکس آماده‌اند خطای شما را به صورت
-                    دستی و اختصاصی بررسی نمایند.
+                    اپراتورهای پشتیبانی فنی {getSiteBrandName('پلی شاپ')}{' '}
+                    آماده‌اند خطای شما را به صورت دستی و اختصاصی بررسی نمایند.
                   </p>
                 </div>
                 <div className="pt-1">

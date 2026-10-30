@@ -38,12 +38,19 @@ import type {
   Product,
   ServiceTarget,
 } from '../../types'
+import { getSiteBrandName } from '../../utils/brand'
+import {
+  formatNumber,
+  formatToman,
+  toPersianDigits,
+} from '../../utils/formatters'
 import { RichContentEditor } from '../content/RichContentEditor'
 import { ConfirmModal } from '../vibefarsi/ConfirmModal'
 import { ModalCloseButton } from '../vibefarsi/ModalCloseButton'
 import { useNotification } from '../vibefarsi/NotificationContext'
 import { SearchInput } from '../vibefarsi/SearchInput'
 import { ToggleSwitch } from '../vibefarsi/ToggleSwitch'
+import { AdminHeaderBanner } from './AdminHeaderBanner'
 
 type ContentSubTab =
   | 'articles'
@@ -52,13 +59,25 @@ type ContentSubTab =
   | 'templates'
   | 'comments'
 
-export const AdminContentView: React.FC = () => {
+interface AdminContentViewProps {
+  initialSubTab?: ContentSubTab
+}
+
+export const AdminContentView: React.FC<AdminContentViewProps> = ({
+  initialSubTab = 'articles',
+}) => {
   const {
     success: notifySuccess,
     error: notifyError,
     info: notifyInfo,
   } = useNotification()
-  const [activeSubTab, setActiveSubTab] = useState<ContentSubTab>('articles')
+  const [activeSubTab, setActiveSubTab] = useState<ContentSubTab>(initialSubTab)
+
+  useEffect(() => {
+    if (initialSubTab) {
+      setActiveSubTab(initialSubTab)
+    }
+  }, [initialSubTab])
   const [categories, setCategories] = useState<ContentCategory[]>([])
   const [services, setServices] = useState<ServiceTarget[]>([])
   const [templates, setTemplates] = useState<ContentTemplate[]>([])
@@ -93,7 +112,7 @@ export const AdminContentView: React.FC = () => {
     category_slug: 'tutorials',
     category_name: 'آموزش و ترفندها',
     tags: [],
-    author_name: 'تحریریه آناهیکس',
+    author_name: `تحریریه ${getSiteBrandName('پلی شاپ')}`,
     author_role: 'کارشناس هوش مصنوعی و امنیت',
     author_avatar: '',
     reading_time_minutes: 5,
@@ -133,7 +152,7 @@ export const AdminContentView: React.FC = () => {
     icon: 'AlertTriangle',
     difficulty: 'ساده',
     service_target: 'general',
-    author_name: 'تیم پشتیبانی و فنی آناهیکس',
+    author_name: `تیم پشتیبانی و فنی ${getSiteBrandName('پلی شاپ')}`,
     author_role: 'کارشناس رفع تحریم و شبکه',
     author_avatar: '',
     reading_time_minutes: 3,
@@ -720,25 +739,13 @@ export const AdminContentView: React.FC = () => {
 
   return (
     <div className="space-y-6 text-right dir-rtl">
-      {/* Top Header Card */}
-      <div className="bg-card border border-border rounded-2xl p-6 shadow-sm relative overflow-hidden">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2.5 mb-1.5">
-              <span className="p-2 rounded-xl bg-blue-500/10 text-primary">
-                <BookOpen className="h-6 w-6" />
-              </span>
-              <h1 className="text-xl font-bold text-foreground">
-                وبلاگ و پایگاه دانش (SEO & Knowledge Base Engine)
-              </h1>
-            </div>
-            <p className="text-xs text-muted-foreground leading-relaxed max-w-2xl">
-              تولید و مدیریت مقالات سئو محور، مقایسه تخصصی مدل‌ها (GPT-4o vs
-              o3/o1)، راهنماهای رفع ارورهای تحریم و خطای ۴۰۳، و ارتباط مستقیم با
-              محصولات فروشگاه جهت افزایش نرخ تبدیل.
-            </p>
-          </div>
-
+      {/* Unified Admin Header Banner */}
+      <AdminHeaderBanner
+        icon={BookOpen}
+        title="وبلاگ و پایگاه دانش (SEO & Knowledge Base Engine)"
+        subtitle="تولید و مدیریت مقالات سئو محور، مقایسه تخصصی مدل‌ها، راهنماهای رفع ارورهای تحریم و خطای ۴۰۳، و ارتباط مستقیم با محصولات فروشگاه جهت افزایش نرخ تبدیل"
+        badgeText="محتوا و سئو"
+        actions={
           <div className="flex items-center gap-2">
             {activeSubTab === 'articles' && !isEditingArticle && (
               <button
@@ -807,96 +814,136 @@ export const AdminContentView: React.FC = () => {
               </button>
             )}
           </div>
-        </div>
+        }
+      />
 
-        {/* Sub-Navigation Tabs */}
-        <div className="flex items-center gap-2 mt-6 border-b border-border/80 pb-2 overflow-x-auto scrollbar-none">
-          <button
-            type="button"
-            onClick={() => {
-              setActiveSubTab('articles')
-              setIsEditingArticle(false)
-            }}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all shrink-0 ${
-              activeSubTab === 'articles'
-                ? 'bg-primary text-primary-foreground shadow-xs'
-                : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-            }`}
-          >
-            <FileText className="h-4 w-4" />
-            <span>مقالات وبلاگ و اخبار</span>
-            <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-background/20">
-              {articles.length}
+      {/* Vibe Farsi Segmented Subtab Navigation Bar (Identical to Operations Center) */}
+      <div className="flex items-center gap-1.5 p-1.5 rounded-surface border border-border/80 bg-card overflow-x-auto shadow-surface scrollbar-none">
+        <button
+          type="button"
+          onClick={() => {
+            setActiveSubTab('articles')
+            setIsEditingArticle(false)
+          }}
+          className={`flex items-center gap-2 px-3.5 py-2 rounded-control text-xs font-bold transition-all whitespace-nowrap cursor-pointer duration-motion active:scale-[0.98] ${
+            activeSubTab === 'articles'
+              ? 'bg-primary text-primary-foreground font-black shadow-control'
+              : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+          }`}
+        >
+          <FileText className="w-4 h-4" />
+          <span>مقالات وبلاگ و اخبار</span>
+          {articles.length > 0 && (
+            <span
+              className={`text-[10px] px-1.5 py-0.2 rounded-control font-bold ${
+                activeSubTab === 'articles'
+                  ? 'bg-primary-foreground/20 text-primary-foreground'
+                  : 'bg-muted text-muted-foreground'
+              }`}
+            >
+              {toPersianDigits(articles.length)}
             </span>
-          </button>
+          )}
+        </button>
 
-          <button
-            type="button"
-            onClick={() => {
-              setActiveSubTab('guides')
-              setIsEditingGuide(false)
-            }}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all shrink-0 ${
-              activeSubTab === 'guides'
-                ? 'bg-primary text-primary-foreground shadow-xs'
-                : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-            }`}
-          >
-            <HelpCircle className="h-4 w-4" />
-            <span>پایگاه دانش و رفع ارورها</span>
-            <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-background/20">
-              {guides.length}
+        <button
+          type="button"
+          onClick={() => {
+            setActiveSubTab('guides')
+            setIsEditingGuide(false)
+          }}
+          className={`flex items-center gap-2 px-3.5 py-2 rounded-control text-xs font-bold transition-all whitespace-nowrap cursor-pointer duration-motion active:scale-[0.98] ${
+            activeSubTab === 'guides'
+              ? 'bg-primary text-primary-foreground font-black shadow-control'
+              : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+          }`}
+        >
+          <HelpCircle className="w-4 h-4" />
+          <span>پایگاه دانش و رفع ارورها</span>
+          {guides.length > 0 && (
+            <span
+              className={`text-[10px] px-1.5 py-0.2 rounded-control font-bold ${
+                activeSubTab === 'guides'
+                  ? 'bg-primary-foreground/20 text-primary-foreground'
+                  : 'bg-muted text-muted-foreground'
+              }`}
+            >
+              {toPersianDigits(guides.length)}
             </span>
-          </button>
+          )}
+        </button>
 
-          <button
-            type="button"
-            onClick={() => setActiveSubTab('categories')}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all shrink-0 ${
-              activeSubTab === 'categories'
-                ? 'bg-primary text-primary-foreground shadow-xs'
-                : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-            }`}
-          >
-            <Layers className="h-4 w-4" />
-            <span>دسته‌بندی‌ها و سرفصل‌ها</span>
-            <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-background/20">
-              {categories.length}
+        <button
+          type="button"
+          onClick={() => setActiveSubTab('categories')}
+          className={`flex items-center gap-2 px-3.5 py-2 rounded-control text-xs font-bold transition-all whitespace-nowrap cursor-pointer duration-motion active:scale-[0.98] ${
+            activeSubTab === 'categories'
+              ? 'bg-primary text-primary-foreground font-black shadow-control'
+              : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+          }`}
+        >
+          <Layers className="w-4 h-4" />
+          <span>دسته‌بندی‌ها و سرفصل‌ها</span>
+          {categories.length > 0 && (
+            <span
+              className={`text-[10px] px-1.5 py-0.2 rounded-control font-bold ${
+                activeSubTab === 'categories'
+                  ? 'bg-primary-foreground/20 text-primary-foreground'
+                  : 'bg-muted text-muted-foreground'
+              }`}
+            >
+              {toPersianDigits(categories.length)}
             </span>
-          </button>
+          )}
+        </button>
 
-          <button
-            type="button"
-            onClick={() => setActiveSubTab('templates')}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all shrink-0 ${
-              activeSubTab === 'templates'
-                ? 'bg-primary text-primary-foreground shadow-xs'
-                : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-            }`}
-          >
-            <Sparkles className="h-4 w-4" />
-            <span>قالب‌های آماده نگارش (دیتابیس)</span>
-            <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-background/20">
-              {templates.length}
+        <button
+          type="button"
+          onClick={() => setActiveSubTab('templates')}
+          className={`flex items-center gap-2 px-3.5 py-2 rounded-control text-xs font-bold transition-all whitespace-nowrap cursor-pointer duration-motion active:scale-[0.98] ${
+            activeSubTab === 'templates'
+              ? 'bg-primary text-primary-foreground font-black shadow-control'
+              : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+          }`}
+        >
+          <Sparkles className="w-4 h-4" />
+          <span>قالب‌های آماده نگارش (دیتابیس)</span>
+          {templates.length > 0 && (
+            <span
+              className={`text-[10px] px-1.5 py-0.2 rounded-control font-bold ${
+                activeSubTab === 'templates'
+                  ? 'bg-primary-foreground/20 text-primary-foreground'
+                  : 'bg-muted text-muted-foreground'
+              }`}
+            >
+              {toPersianDigits(templates.length)}
             </span>
-          </button>
+          )}
+        </button>
 
-          <button
-            type="button"
-            onClick={() => setActiveSubTab('comments')}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all shrink-0 ${
-              activeSubTab === 'comments'
-                ? 'bg-primary text-primary-foreground shadow-xs'
-                : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-            }`}
-          >
-            <MessageSquare className="h-4 w-4" />
-            <span>دیدگاه‌های خوانندگان</span>
-            <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-background/20">
-              {comments.length}
+        <button
+          type="button"
+          onClick={() => setActiveSubTab('comments')}
+          className={`flex items-center gap-2 px-3.5 py-2 rounded-control text-xs font-bold transition-all whitespace-nowrap cursor-pointer duration-motion active:scale-[0.98] ${
+            activeSubTab === 'comments'
+              ? 'bg-primary text-primary-foreground font-black shadow-control'
+              : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+          }`}
+        >
+          <MessageSquare className="w-4 h-4" />
+          <span>دیدگاه‌های خوانندگان</span>
+          {comments.length > 0 && (
+            <span
+              className={`text-[10px] px-1.5 py-0.2 rounded-control font-bold ${
+                activeSubTab === 'comments'
+                  ? 'bg-primary-foreground/20 text-primary-foreground'
+                  : 'bg-muted text-muted-foreground'
+              }`}
+            >
+              {toPersianDigits(comments.length)}
             </span>
-          </button>
-        </div>
+          )}
+        </button>
       </div>
 
       {/* ----------------- SUB-TAB 1: BLOG ARTICLES ----------------- */}
@@ -1139,8 +1186,7 @@ export const AdminContentView: React.FC = () => {
                     <option value="">بدون اتصال به محصول</option>
                     {products.map((p) => (
                       <option key={p.id} value={String(p.id)}>
-                        {p.title_fa} - {p.price_toman.toLocaleString('fa-IR')}{' '}
-                        تومان
+                        {p.title_fa} - {formatToman(p.price_toman)} تومان
                       </option>
                     ))}
                   </select>
@@ -1553,11 +1599,11 @@ export const AdminContentView: React.FC = () => {
 
                               {/* Views */}
                               <div
-                                className="inline-flex items-center gap-1.5 text-muted-foreground font-mono font-latin text-[11px] hover:text-foreground transition-colors cursor-default"
-                                title={`تعداد کل بازدیدها: ${art.view_count.toLocaleString()} بار`}
+                                className="inline-flex items-center gap-1.5 text-muted-foreground font-sans text-[11px] hover:text-foreground transition-colors cursor-default"
+                                title={`تعداد کل بازدیدها: ${formatNumber(art.view_count)} بار`}
                               >
                                 <Eye className="h-3 w-3 text-slate-400 shrink-0" />
-                                <span>{art.view_count.toLocaleString()}</span>
+                                <span>{formatNumber(art.view_count)}</span>
                                 <span className="text-[10px] text-muted-foreground/80 font-sans">
                                   بازدید
                                 </span>
@@ -1565,13 +1611,11 @@ export const AdminContentView: React.FC = () => {
 
                               {/* Likes */}
                               <div
-                                className="inline-flex items-center gap-1.5 text-rose-500 font-mono font-latin text-[11px] hover:text-rose-600 transition-colors cursor-default"
-                                title={`تعداد پسندیدن و لایک: ${(art.like_count || 0).toLocaleString()} کاربر`}
+                                className="inline-flex items-center gap-1.5 text-rose-500 font-sans text-[11px] hover:text-rose-600 transition-colors cursor-default"
+                                title={`تعداد پسندیدن و لایک: ${formatNumber(art.like_count || 0)} کاربر`}
                               >
                                 <Heart className="h-3 w-3 fill-rose-500 text-rose-500 shrink-0" />
-                                <span>
-                                  {(art.like_count || 0).toLocaleString()}
-                                </span>
+                                <span>{formatNumber(art.like_count || 0)}</span>
                                 <span className="text-[10px] text-rose-500/80 font-sans">
                                   پسندیدن
                                 </span>
@@ -2164,31 +2208,31 @@ export const AdminContentView: React.FC = () => {
                               {g.difficulty}
                             </span>
                           </td>
-                          <td className="p-3.5 text-center font-mono font-latin whitespace-nowrap">
-                            <div className="inline-flex items-center justify-center gap-3 text-xs">
+                          <td className="p-3.5 text-center font-sans whitespace-nowrap">
+                            <div className="inline-flex items-center justify-center gap-3 text-xs font-sans">
                               <span
-                                className="text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1 cursor-default"
-                                title={`تعداد کاربران راضی: ${g.helpful_yes.toLocaleString()} نفر`}
+                                className="text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1 cursor-default font-sans"
+                                title={`تعداد کاربران راضی: ${formatNumber(g.helpful_yes)} نفر`}
                               >
                                 <ThumbsUp className="h-3.5 w-3.5" />
-                                {g.helpful_yes.toLocaleString()}
+                                {formatNumber(g.helpful_yes)}
                               </span>
                               <span
-                                className="text-rose-500 font-bold flex items-center gap-1 cursor-default"
-                                title={`تعداد کاربران ناراضی: ${g.helpful_no.toLocaleString()} نفر`}
+                                className="text-rose-500 font-bold flex items-center gap-1 cursor-default font-sans"
+                                title={`تعداد کاربران ناراضی: ${formatNumber(g.helpful_no)} نفر`}
                               >
                                 <ThumbsDown className="h-3.5 w-3.5" />
-                                {g.helpful_no.toLocaleString()}
+                                {formatNumber(g.helpful_no)}
                               </span>
                             </div>
                           </td>
-                          <td className="p-3.5 text-center font-mono font-latin whitespace-nowrap">
+                          <td className="p-3.5 text-center font-sans whitespace-nowrap">
                             <span
-                              className="inline-flex items-center justify-center gap-1 text-muted-foreground font-medium text-xs cursor-default"
-                              title={`تعداد کل بازدیدها: ${g.view_count.toLocaleString()} بار`}
+                              className="inline-flex items-center justify-center gap-1 text-muted-foreground font-medium text-xs cursor-default font-sans"
+                              title={`تعداد کل بازدیدها: ${formatNumber(g.view_count)} بار`}
                             >
                               <Eye className="h-3.5 w-3.5 text-muted-foreground/70" />
-                              <span>{g.view_count.toLocaleString()}</span>
+                              <span>{formatNumber(g.view_count)}</span>
                             </span>
                           </td>
                           <td className="p-3.5 text-center whitespace-nowrap">

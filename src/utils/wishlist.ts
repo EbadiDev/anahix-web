@@ -3,7 +3,7 @@ import { apiService } from '../services/api'
 const WISHLIST_LOCAL_KEY = 'anahix_wishlist_local'
 
 export interface WishlistItem {
-  target_type: 'product' | 'article' | 'guide'
+  target_type: 'article' | 'guide'
   target_id: string
   title: string
   image_url?: string
@@ -16,14 +16,20 @@ export function getLocalWishlist(): WishlistItem[] {
     const raw = localStorage.getItem(WISHLIST_LOCAL_KEY)
     if (raw) {
       const parsed = JSON.parse(raw)
-      if (Array.isArray(parsed)) return parsed
+      if (Array.isArray(parsed)) {
+        // Exclude products - favorites are exclusively reserved for blog articles and tutorial guides
+        return parsed.filter(
+          (it) =>
+            it && (it.target_type === 'article' || it.target_type === 'guide'),
+        )
+      }
     }
   } catch {}
   return []
 }
 
 export function isItemFavorited(
-  targetType: 'product' | 'article' | 'guide',
+  targetType: 'article' | 'guide',
   targetId: string,
 ): boolean {
   const list = getLocalWishlist()

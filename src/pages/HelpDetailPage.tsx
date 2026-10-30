@@ -3,6 +3,7 @@ import {
   Clock,
   Copy,
   Eye,
+  Heart,
   LifeBuoy,
   ListOrdered,
   ShoppingCart,
@@ -16,17 +17,46 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { CartDrawer } from '../components/CartDrawer'
 import { MarkdownRenderer } from '../components/content/MarkdownRenderer'
 import { Header } from '../components/Header'
+import { useNotification } from '../components/vibefarsi/NotificationContext'
 import { api } from '../services/api'
 import type { HelpGuideDetail } from '../types'
-import { formatToman, toPersianDigits } from '../utils/formatters'
+import { getSiteBrandName } from '../utils/brand'
+import { formatNumber, formatToman, toPersianDigits } from '../utils/formatters'
+import { isItemFavorited, toggleItemFavorite } from '../utils/wishlist'
 
 export const HelpDetailPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>()
   const navigate = useNavigate()
+  const { success: notifySuccess, info: notifyInfo } = useNotification()
   const [guide, setGuide] = useState<HelpGuideDetail | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isCopied, setIsCopied] = useState(false)
   const [isCartOpen, setIsCartOpen] = useState(false)
+  const [isFavorite, setIsFavorite] = useState(false)
+
+  useEffect(() => {
+    if (guide) {
+      setIsFavorite(isItemFavorited('guide', String(guide.slug || slug)))
+    }
+  }, [guide, slug])
+
+  const handleToggleWishlist = async () => {
+    if (!guide) return
+    const res = await toggleItemFavorite({
+      target_type: 'guide',
+      target_id: String(guide.slug || slug),
+      title: guide.title,
+    })
+    setIsFavorite(res.is_favorite)
+    if (res.is_favorite) {
+      notifySuccess(
+        'علاقه‌مندی‌ها',
+        `«${guide.title}» به لیست علاقه‌مندی‌ها اضافه شد.`,
+      )
+    } else {
+      notifyInfo('علاقه‌مندی‌ها', `«${guide.title}» از لیست علاقه‌مندی‌ها حذف شد.`)
+    }
+  }
 
   // Feedback State (Tracked with live DB counts & Toggle)
   const [userVote, setUserVote] = useState<'yes' | 'no' | null>(() => {
@@ -70,7 +100,8 @@ export const HelpDetailPage: React.FC = () => {
       .then((data) => {
         setGuide(data)
         document.title =
-          data.meta_title || `${data.title} | مرکز راهنمای آناهیکس`
+          data.meta_title ||
+          `${data.title} | مرکز راهنمای ${getSiteBrandName('پلی شاپ')}`
       })
       .catch((err) => {
         console.error(err)
@@ -210,7 +241,7 @@ export const HelpDetailPage: React.FC = () => {
               ) : siteLogoUrl ? (
                 <img
                   src={siteLogoUrl}
-                  alt="لوگوی آناهیکس"
+                  alt={`لوگوی ${getSiteBrandName('پلی شاپ')}`}
                   className="w-6 h-6 rounded-full object-contain p-0.5 border border-border/80 bg-muted/20"
                 />
               ) : (
@@ -219,7 +250,8 @@ export const HelpDetailPage: React.FC = () => {
                 </div>
               )}
               <span className="font-bold text-foreground text-xs">
-                {guide.author_name || 'تیم پشتیبانی و فنی آناهیکس'}
+                {guide.author_name ||
+                  `تیم پشتیبانی و فنی ${getSiteBrandName('پلی شاپ')}`}
               </span>
             </div>
             <span className="flex items-center gap-1 text-muted-foreground">
@@ -229,11 +261,9 @@ export const HelpDetailPage: React.FC = () => {
               </span>
             </span>
             <span className="text-muted-foreground">•</span>
-            <span className="flex items-center gap-1 text-muted-foreground font-latin">
+            <span className="flex items-center gap-1 text-muted-foreground font-sans">
               <Eye className="h-3.5 w-3.5" />
-              <span>
-                {toPersianDigits(guide.view_count.toLocaleString())} بازدید
-              </span>
+              <span>{formatNumber(guide.view_count)} بازدید</span>
             </span>
           </div>
 
@@ -269,23 +299,44 @@ export const HelpDetailPage: React.FC = () => {
               )}
             </div>
 
-            <button
-              type="button"
-              onClick={handleCopyLink}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-control border border-border/60 bg-card hover:bg-muted text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-            >
-              {isCopied ? (
-                <>
-                  <Check className="h-3.5 w-3.5 text-emerald-400" />
-                  <span className="text-emerald-400">کپی شد</span>
-                </>
-              ) : (
-                <>
-                  <Copy className="h-3.5 w-3.5" />
-                  <span>اشتراک‌گذاری لینک</span>
-                </>
-              )}
-            </button>
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                type="button"
+                onClick={handleToggleWishlist}
+                className={`h-9 px-3.5 rounded-control border text-xs font-bold transition-all flex items-center gap-1.5 duration-motion active:scale-[0.98] cursor-pointer shadow-control ${
+                  isFavorite
+                    ? 'border-rose-500/50 bg-rose-500/10 text-rose-500 font-black'
+                    : 'border-border/60 bg-secondary/80 hover:bg-muted text-foreground'
+                }`}
+              >
+                <Heart
+                  className={`h-4 w-4 ${isFavorite ? 'fill-rose-500 text-rose-500' : ''}`}
+                />
+                <span>
+                  {isFavorite
+                    ? 'نشان‌شده در علاقه‌مندی‌ها'
+                    : 'افزودن به علاقه‌مندی‌ها'}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleCopyLink}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-control border border-border/60 bg-card hover:bg-muted text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+              >
+                {isCopied ? (
+                  <>
+                    <Check className="h-3.5 w-3.5 text-emerald-400" />
+                    <span className="text-emerald-400">کپی شد</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="h-3.5 w-3.5" />
+                    <span>اشتراک‌گذاری لینک</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
 
@@ -403,8 +454,9 @@ export const HelpDetailPage: React.FC = () => {
                       {guide.related_product_title}
                     </h3>
                     <p className="text-xs text-muted-foreground leading-relaxed">
-                      اکانت‌های قانونی آناهیکس همراه با گارانتی تعویض و سرورهای
-                      اختصاصی بدون ریسک بلاک شدن تحویل داده می‌شوند.
+                      اکانت‌های قانونی {getSiteBrandName('پلی شاپ')} همراه با
+                      گارانتی تعویض و سرورهای اختصاصی بدون ریسک بلاک شدن تحویل
+                      داده می‌شوند.
                     </p>
                     {guide.related_product_price &&
                       guide.related_product_price > 0 && (
@@ -530,8 +582,8 @@ export const HelpDetailPage: React.FC = () => {
                   هنوز موفق به حل مشکل نشده‌اید؟
                 </h4>
                 <p className="text-[11px] text-muted-foreground leading-relaxed">
-                  اپراتورهای پشتیبانی فنی آناهیکس آماده‌اند خطای شما را به صورت
-                  دستی و اختصاصی بررسی نمایند.
+                  اپراتورهای پشتیبانی فنی {getSiteBrandName('پلی شاپ')} آماده‌اند
+                  خطای شما را به صورت دستی و اختصاصی بررسی نمایند.
                 </p>
                 <div className="space-y-2 pt-1">
                   <Link

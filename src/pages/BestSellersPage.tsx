@@ -2,7 +2,6 @@ import {
   ChevronLeft,
   ChevronRight,
   HelpCircle,
-  RefreshCw,
   Star,
   TrendingUp,
 } from 'lucide-react'
@@ -12,9 +11,12 @@ import { CartDrawer } from '../components/CartDrawer'
 import { Header } from '../components/Header'
 import { ProductCard } from '../components/ProductCard'
 import { Breadcrumb } from '../components/vibefarsi/Breadcrumb'
+import { LoadingState } from '../components/vibefarsi/LoadingState'
 import { SearchInput } from '../components/vibefarsi/SearchInput'
 import { api, apiService } from '../services/api'
 import type { Order, Product } from '../types'
+import { getSiteBrandName } from '../utils/brand'
+import { formatNumber } from '../utils/formatters'
 
 export const BestSellersPage: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([])
@@ -146,7 +148,9 @@ export const BestSellersPage: React.FC = () => {
           <div className="relative z-10 text-right space-y-2">
             <div className="inline-flex items-center gap-2 rounded-control border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs font-bold text-amber-500">
               <Star className="h-3.5 w-3.5 fill-amber-500" />
-              <span>برترین و محبوب‌ترین اشتراک‌های آناهیکس</span>
+              <span>
+                برترین و محبوب‌ترین اشتراک‌های {getSiteBrandName('پلی شاپ')}
+              </span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-black text-foreground">
               پرفروش‌ترین و محبوب‌ترین اشتراک‌های هوش مصنوعی
@@ -241,19 +245,13 @@ export const BestSellersPage: React.FC = () => {
               <TrendingUp className="h-5 w-5 text-amber-500" />
               <span>لیست اشتراک‌های پرفروش و محبوب</span>
             </h2>
-            <span className="text-xs text-muted-foreground font-latin font-bold">
-              {Number(filteredAndSorted.length).toLocaleString('fa-IR')} محصول
-              آماده سفارش
+            <span className="text-xs text-muted-foreground font-sans font-bold">
+              {formatNumber(filteredAndSorted.length)} محصول آماده سفارش
             </span>
           </div>
 
           {loading ? (
-            <div className="py-20 text-center space-y-3">
-              <RefreshCw className="h-8 w-8 text-brand animate-spin mx-auto" />
-              <p className="text-xs text-muted-foreground">
-                در حال دریافت محبوب‌ترین اشتراک‌ها...
-              </p>
-            </div>
+            <LoadingState message="در حال دریافت محبوب‌ترین اشتراک‌ها..." />
           ) : filteredAndSorted.length === 0 ? (
             <div className="rounded-surface border border-border/80 bg-card p-12 text-center text-muted-foreground space-y-3 shadow-surface">
               <HelpCircle className="h-10 w-10 mx-auto opacity-50" />

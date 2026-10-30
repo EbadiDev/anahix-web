@@ -3,6 +3,7 @@ import type React from 'react'
 import { useEffect, useState } from 'react'
 import { LIKED_ARTICLES_KEY } from '../../constants/theme'
 import { api } from '../../services/api'
+import { formatNumber } from '../../utils/formatters'
 import { AuthModal } from '../AuthModal'
 import { useNotification } from './NotificationContext'
 
@@ -153,8 +154,8 @@ export const LikeButton: React.FC<LikeButtonProps> = ({
             }`}
           />
         )}
-        <span className="font-latin text-xs font-bold">
-          {Number(likes).toLocaleString('fa-IR')}
+        <span className="font-sans text-xs font-bold">
+          {formatNumber(likes)}
         </span>
       </button>
 

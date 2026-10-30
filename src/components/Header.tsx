@@ -2,11 +2,14 @@ import {
   Bell,
   BookOpen,
   Bot,
+  Check,
   CheckCircle2,
   ChevronDown,
   ChevronLeft,
   Code2,
   Crown,
+  ExternalLink,
+  Heart,
   HelpCircle,
   Lock,
   LogIn,
@@ -35,10 +38,14 @@ import type {
   CustomerProfile,
   ThemeSettings,
 } from '../types'
+import { cleanMediaUrl, getSiteBrandName } from '../utils/brand'
 import { formatDisplayPhone, formatToman } from '../utils/formatters'
+import { getLocalWishlist } from '../utils/wishlist'
 import { AuthModal } from './AuthModal'
+import { MarkdownRenderer } from './content/MarkdownRenderer'
 import { ThemeToggle } from './ThemeToggle'
 import { HolidayThemeBanner } from './vibefarsi/HolidayThemeBanner'
+import { ModalCloseButton } from './vibefarsi/ModalCloseButton'
 import { ScrollingAnnouncement } from './vibefarsi/ScrollingAnnouncement'
 
 interface HeaderProps {
@@ -68,6 +75,18 @@ export const Header: React.FC<HeaderProps> = ({
   const isAdminPage = hideNavLinks || pathname.startsWith('/admin')
 
   const { itemCount } = useCart()
+  const [wishlistCount, setWishlistCount] = useState<number>(
+    () => getLocalWishlist().length,
+  )
+
+  useEffect(() => {
+    const handleWishlistSync = () => {
+      setWishlistCount(getLocalWishlist().length)
+    }
+    window.addEventListener('anahix:wishlist:updated', handleWishlistSync)
+    return () =>
+      window.removeEventListener('anahix:wishlist:updated', handleWishlistSync)
+  }, [])
   const [customer, setCustomer] = useState<CustomerProfile | null>(null)
   const [themeSettings, setThemeSettings] = useState<ThemeSettings | null>(null)
   const [dynamicCategories, setDynamicCategories] = useState<ContentCategory[]>(
@@ -88,9 +107,55 @@ export const Header: React.FC<HeaderProps> = ({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   const [notifDropdownOpen, setNotifDropdownOpen] = useState(false)
+  const [selectedHeaderAnnounce, setSelectedHeaderAnnounce] = useState<
+    any | null
+  >(null)
   const [inAppNotifs, setInAppNotifs] = useState<CustomerNotificationItem[]>([])
   const [systemAnnouncements, setSystemAnnouncements] = useState<any[]>([])
   const [unreadNotifCount, setUnreadNotifCount] = useState<number>(0)
+  const [seenAnnounceIds, setSeenAnnounceIds] = useState<Set<string>>(() => {
+    try {
+      const raw = localStorage.getItem('anahix_seen_announcements')
+      if (raw) return new Set(JSON.parse(raw))
+    } catch {}
+    return new Set()
+  })
+
+  const bellAnnouncements = useMemo(() => {
+    return systemAnnouncements.filter(
+      (sa) =>
+        sa &&
+        sa.is_active !== false &&
+        (sa.display_type === 'bell_only' ||
+          sa.display_type === 'bell_and_popup' ||
+          !sa.display_type),
+    )
+  }, [systemAnnouncements])
+
+  const unseenAnnouncementsCount = useMemo(() => {
+    return bellAnnouncements.filter((sa) => !seenAnnounceIds.has(String(sa.id)))
+      .length
+  }, [bellAnnouncements, seenAnnounceIds])
+
+  const totalBellUnread = unreadNotifCount + unseenAnnouncementsCount
+
+  const handleMarkAllBellAsRead = async () => {
+    if (customer && unreadNotifCount > 0) {
+      await api.markAllNotificationsAsRead().catch(() => {})
+      setUnreadNotifCount(0)
+      setInAppNotifs((prev) => prev.map((n) => ({ ...n, is_read: true })))
+    }
+    const allIds = bellAnnouncements.map((sa) => String(sa.id))
+    const updated = new Set([...seenAnnounceIds, ...allIds])
+    setSeenAnnounceIds(updated)
+    try {
+      localStorage.setItem(
+        'anahix_seen_announcements',
+        JSON.stringify(Array.from(updated)),
+      )
+    } catch {}
+    window.dispatchEvent(new CustomEvent('anahix:notifications:read'))
+  }
   const [loyaltyProfile, setLoyaltyProfile] =
     useState<CustomerLoyaltyProfile | null>(null)
 
@@ -150,6 +215,25 @@ export const Header: React.FC<HeaderProps> = ({
         setSystemAnnouncements(list || [])
       })
       .catch(() => {})
+
+    const handleNotifsSync = () => {
+      try {
+        const raw = localStorage.getItem('anahix_seen_announcements')
+        if (raw) setSeenAnnounceIds(new Set(JSON.parse(raw)))
+      } catch {}
+      if (api.isCustomerLoggedIn()) {
+        api
+          .getInAppNotifications()
+          .then((res) => {
+            if (res) {
+              setInAppNotifs(res.items || [])
+              setUnreadNotifCount(res.unread_count || 0)
+            }
+          })
+          .catch(() => {})
+      }
+    }
+    window.addEventListener('anahix:notifications:read', handleNotifsSync)
 
     const handleThemeSync = (e: any) => {
       if (e.detail) {
@@ -382,40 +466,58 @@ export const Header: React.FC<HeaderProps> = ({
               </button>
             )}
 
-            {/* Logo */}
+            {/* Logo & Brand Display */}
             <Link to="/" className="flex items-center gap-2.5 group">
               {themeSettings?.site_logo_url ? (
                 <img
-                  src={themeSettings.site_logo_url}
-                  alt={themeSettings?.site_name_fa || 'آناهیکس'}
+                  src={cleanMediaUrl(themeSettings.site_logo_url)}
+                  alt={
+                    themeSettings?.site_name_fa ||
+                    getSiteBrandName('') ||
+                    'Logo'
+                  }
                   className="h-9 w-auto max-w-[120px] object-contain group-hover:scale-105 transition-transform"
                 />
-              ) : (
+              ) : themeSettings?.site_name_en || themeSettings?.site_name_fa ? (
                 <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-600 text-white font-black text-lg shadow-sm shadow-blue-600/30 group-hover:scale-105 transition-transform font-latin">
-                  {(themeSettings?.site_name_en || 'A').charAt(0).toUpperCase()}
+                  {(
+                    themeSettings?.site_name_en ||
+                    themeSettings?.site_name_fa ||
+                    ''
+                  )
+                    .charAt(0)
+                    .toUpperCase()}
+                </div>
+              ) : null}
+              {(themeSettings?.site_name_fa ||
+                themeSettings?.site_name_en ||
+                themeSettings?.site_subtitle ||
+                isAdminPage) && (
+                <div>
+                  <div className="flex items-baseline gap-1.5">
+                    {themeSettings?.site_name_fa ? (
+                      <span className="text-base font-black tracking-tight text-foreground">
+                        {themeSettings.site_name_fa}
+                      </span>
+                    ) : null}
+                    {themeSettings?.site_name_en ? (
+                      <span className="font-latin text-xs font-bold text-blue-600 dark:text-blue-400">
+                        {themeSettings.site_name_en}
+                      </span>
+                    ) : null}
+                    {isAdminPage && (
+                      <span className="text-[10px] bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 font-bold px-1.5 py-0.5 rounded-md mr-1">
+                        پنل مدیریت
+                      </span>
+                    )}
+                  </div>
+                  {themeSettings?.site_subtitle ? (
+                    <p className="text-[10px] text-muted-foreground leading-none">
+                      {themeSettings.site_subtitle}
+                    </p>
+                  ) : null}
                 </div>
               )}
-              <div>
-                <div className="flex items-baseline gap-1.5">
-                  <span className="text-base font-black tracking-tight text-foreground">
-                    {themeSettings?.site_name_fa || 'آناهیکس'}
-                  </span>
-                  <span className="font-latin text-xs font-bold text-blue-600 dark:text-blue-400">
-                    {themeSettings?.site_name_en || 'ANAHIX'}
-                  </span>
-                  {isAdminPage && (
-                    <span className="text-[10px] bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 font-bold px-1.5 py-0.5 rounded-md mr-1">
-                      پنل مدیریت
-                    </span>
-                  )}
-                </div>
-                <p className="text-[10px] text-muted-foreground leading-none">
-                  {isAdminPage
-                    ? 'داشبورد کنترل عملیات و سفارش‌ها'
-                    : themeSettings?.site_subtitle ||
-                      'فروشگاه رسمی سرویس‌های بین‌المللی و شماره مجازی'}
-                </p>
-              </div>
             </Link>
 
             {/* Desktop Navigation Links (Visible on xl screens to guarantee zero breaking) */}
@@ -806,6 +908,22 @@ export const Header: React.FC<HeaderProps> = ({
                         <span>پیگیری سفارش‌های من</span>
                       </Link>
 
+                      <Link
+                        to="/profile?tab=favorites"
+                        onClick={() => setUserDropdownOpen(false)}
+                        className="flex items-center justify-between px-2.5 py-1.5 rounded-control text-xs font-bold text-rose-500 hover:bg-rose-500/10 transition-colors text-right group"
+                      >
+                        <div className="flex items-center gap-2">
+                          <Heart className="h-3.5 w-3.5 text-rose-500 transition-transform group-hover:scale-110" />
+                          <span>علاقه‌مندی‌های من</span>
+                        </div>
+                        {wishlistCount > 0 && (
+                          <span className="text-[10px] px-1.5 py-0.2 rounded-control bg-rose-500/15 text-rose-500 font-black">
+                            {toPersianDigits(wishlistCount)}
+                          </span>
+                        )}
+                      </Link>
+
                       {/* Small Mobile ONLY: Notifications & Theme Switcher (< 425px) */}
                       <div className="min-[425px]:hidden pt-1 mt-1 border-t border-border/40 space-y-1">
                         <Link
@@ -817,9 +935,9 @@ export const Header: React.FC<HeaderProps> = ({
                             <Bell className="h-3.5 w-3.5 text-brand" />
                             <span>اعلان‌ها و پیام‌ها</span>
                           </div>
-                          {unreadNotifCount > 0 ? (
+                          {totalBellUnread > 0 ? (
                             <span className="px-1.5 py-0.2 rounded-control bg-brand text-brand-foreground text-[10px] font-black animate-pulse font-latin">
-                              {toPersianDigits(unreadNotifCount)} جدید
+                              {toPersianDigits(totalBellUnread)} جدید
                             </span>
                           ) : (
                             <span className="text-[10px] text-muted-foreground font-normal">
@@ -899,13 +1017,9 @@ export const Header: React.FC<HeaderProps> = ({
                   aria-label="اعلان‌ها و اطلاعیه‌ها"
                 >
                   <Bell className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
-                  {(unreadNotifCount > 0 || systemAnnouncements.length > 0) && (
-                    <span className="absolute -top-1 -right-1 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-control bg-brand text-brand-foreground text-[10px] font-black shadow-control animate-pulse">
-                      {toPersianDigits(
-                        unreadNotifCount > 0
-                          ? unreadNotifCount
-                          : systemAnnouncements.length,
-                      )}
+                  {totalBellUnread > 0 && (
+                    <span className="absolute -top-1 -right-1 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-control bg-brand text-brand-foreground text-[10px] font-black shadow-control animate-pulse font-latin">
+                      {toPersianDigits(totalBellUnread)}
                     </span>
                   )}
                 </button>
@@ -923,27 +1037,17 @@ export const Header: React.FC<HeaderProps> = ({
                         <span className="text-xs font-black text-foreground">
                           اعلان‌ها و اطلاعیه‌ها
                         </span>
-                        {(unreadNotifCount > 0 ||
-                          systemAnnouncements.length > 0) && (
+                        {totalBellUnread > 0 && (
                           <span className="text-[10px] px-1.5 py-0.2 rounded-control bg-brand/10 text-brand font-bold border border-brand/20">
-                            {toPersianDigits(
-                              unreadNotifCount + systemAnnouncements.length,
-                            )}{' '}
-                            پیام
+                            {toPersianDigits(totalBellUnread)} پیام جدید
                           </span>
                         )}
                       </div>
 
-                      {customer && unreadNotifCount > 0 && (
+                      {totalBellUnread > 0 && (
                         <button
                           type="button"
-                          onClick={async () => {
-                            await api.markAllNotificationsAsRead()
-                            setUnreadNotifCount(0)
-                            setInAppNotifs((prev) =>
-                              prev.map((n) => ({ ...n, is_read: true })),
-                            )
-                          }}
+                          onClick={handleMarkAllBellAsRead}
                           className="text-[10px] text-brand hover:underline cursor-pointer font-bold"
                         >
                           خوانده‌شدن همه
@@ -952,50 +1056,90 @@ export const Header: React.FC<HeaderProps> = ({
                     </div>
 
                     {/* System Broadcast Announcements */}
-                    {systemAnnouncements.length > 0 && (
+                    {bellAnnouncements.length > 0 && (
                       <div className="space-y-1.5 pb-2 border-b border-border/40">
                         <span className="text-[10px] font-bold text-muted-foreground block px-1">
                           اطلاعیه‌های سراسری سایت:
                         </span>
-                        {systemAnnouncements.slice(0, 2).map((sa) => (
+                        {bellAnnouncements.slice(0, 3).map((sa) => (
                           <div
                             key={sa.id}
-                            className="p-2.5 rounded-control bg-brand/5 border border-brand/20 space-y-1 text-right"
+                            onClick={() => {
+                              setSelectedHeaderAnnounce(sa)
+                              setNotifDropdownOpen(false)
+                            }}
+                            className="p-2.5 rounded-control bg-brand/5 hover:bg-brand/10 border border-brand/20 space-y-1.5 text-right transition-colors cursor-pointer group"
                           >
                             <div className="flex items-center justify-between">
-                              <span className="font-bold text-xs text-foreground truncate">
+                              <span className="font-bold text-xs text-foreground group-hover:text-brand transition-colors truncate">
                                 {sa.title}
                               </span>
-                              <span className="text-[9px] px-1.5 py-0.2 rounded-control bg-brand/10 text-brand font-bold">
-                                {sa.severity === 'discount'
-                                  ? 'تخفیف'
-                                  : 'اطلاعیه'}
-                              </span>
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                <span
+                                  className={`text-[9px] px-1.5 py-0.2 rounded-control font-bold ${
+                                    sa.severity === 'discount'
+                                      ? 'bg-rose-500/10 text-rose-500 border border-rose-500/20'
+                                      : sa.severity === 'warning'
+                                        ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
+                                        : 'bg-brand/10 text-brand border border-brand/20'
+                                  }`}
+                                >
+                                  {sa.severity === 'discount'
+                                    ? 'تخفیف'
+                                    : sa.severity === 'warning'
+                                      ? 'هشدار'
+                                      : 'اطلاعیه'}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.preventDefault()
+                                    e.stopPropagation()
+                                    const updated = new Set([
+                                      ...seenAnnounceIds,
+                                      String(sa.id),
+                                    ])
+                                    setSeenAnnounceIds(updated)
+                                    try {
+                                      localStorage.setItem(
+                                        'anahix_seen_announcements',
+                                        JSON.stringify(Array.from(updated)),
+                                      )
+                                    } catch {}
+                                    window.dispatchEvent(
+                                      new CustomEvent(
+                                        'anahix:notifications:read',
+                                      ),
+                                    )
+                                  }}
+                                  className="text-[10px] text-brand hover:underline cursor-pointer font-bold px-1"
+                                  title="علامت‌گذاری به عنوان دیده شده"
+                                >
+                                  ✓
+                                </button>
+                              </div>
                             </div>
                             <p className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed">
                               {sa.content}
                             </p>
+                            <div className="flex items-center justify-between pt-1 text-[10px] text-brand font-bold">
+                              <span>مشاهده متن کامل و جزئیات ←</span>
+                              {!seenAnnounceIds.has(String(sa.id)) && (
+                                <span className="w-1.5 h-1.5 rounded-full bg-brand animate-pulse" />
+                              )}
+                            </div>
                           </div>
                         ))}
                       </div>
                     )}
 
-                    {/* Notification Items List - Only display unread, clean empty state when read */}
-                    <div className="max-h-72 overflow-y-auto space-y-1.5 pr-0.5">
-                      {inAppNotifs.filter((n) => !n.is_read).length === 0 ? (
-                        <div className="py-7 text-center space-y-2 select-none">
-                          <div className="w-10 h-10 rounded-control bg-secondary text-secondary-foreground border border-border/60 flex items-center justify-center mx-auto shadow-control">
-                            <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-                          </div>
-                          <p className="text-xs font-black text-foreground">
-                            تمامی اعلان‌ها خوانده شده‌اند
-                          </p>
-                          <p className="text-[11px] text-muted-foreground">
-                            در حال حاضر پیام یا اطلاع‌رسانی جدیدی وجود ندارد.
-                          </p>
-                        </div>
-                      ) : (
-                        inAppNotifs
+                    {/* Customer In-App Account Notifications List */}
+                    {inAppNotifs.filter((n) => !n.is_read).length > 0 ? (
+                      <div className="max-h-72 overflow-y-auto space-y-1.5 pr-0.5">
+                        <span className="text-[10px] font-bold text-muted-foreground block px-1">
+                          پیام‌های اختصاصی حساب:
+                        </span>
+                        {inAppNotifs
                           .filter((n) => !n.is_read)
                           .slice(0, 4)
                           .map((item) => (
@@ -1018,17 +1162,11 @@ export const Header: React.FC<HeaderProps> = ({
                                   )
                                 }
                               }}
-                              className={`block p-2.5 rounded-control transition-all border duration-motion ease-motion text-right group ${
-                                !item.is_read
-                                  ? 'bg-secondary border-border/80'
-                                  : 'bg-muted/10 border-transparent hover:bg-muted/30'
-                              }`}
+                              className="block p-2.5 rounded-control transition-all border duration-motion ease-motion text-right group bg-secondary border-border/80"
                             >
                               <div className="flex items-start justify-between gap-2">
                                 <div className="flex items-center gap-2 min-w-0">
-                                  {!item.is_read && (
-                                    <span className="w-1.5 h-1.5 rounded-full bg-brand shrink-0 animate-pulse" />
-                                  )}
+                                  <span className="w-1.5 h-1.5 rounded-full bg-brand shrink-0 animate-pulse" />
                                   <h5 className="text-xs font-bold text-foreground group-hover:text-primary transition-colors truncate">
                                     {item.title}
                                   </h5>
@@ -1043,9 +1181,25 @@ export const Header: React.FC<HeaderProps> = ({
                                 {item.message}
                               </p>
                             </Link>
-                          ))
-                      )}
-                    </div>
+                          ))}
+                      </div>
+                    ) : bellAnnouncements.length === 0 ? (
+                      <div className="py-7 text-center space-y-2 select-none">
+                        <div className="w-10 h-10 rounded-control bg-secondary text-secondary-foreground border border-border/60 flex items-center justify-center mx-auto shadow-control">
+                          <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                        </div>
+                        <p className="text-xs font-black text-foreground">
+                          تمامی اعلان‌ها خوانده شده‌اند
+                        </p>
+                        <p className="text-[11px] text-muted-foreground">
+                          در حال حاضر پیام یا اطلاع‌رسانی جدیدی وجود ندارد.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="py-2 text-center text-[11px] text-muted-foreground select-none">
+                        پیام شخصی جدیدی برای حساب شما وجود ندارد ✓
+                      </div>
+                    )}
 
                     {/* Footer */}
                     <div className="pt-2 border-t border-border/60 text-center">
@@ -1107,7 +1261,9 @@ export const Header: React.FC<HeaderProps> = ({
                       A
                     </div>
                     <span className="font-black text-popover-foreground text-sm">
-                      منوی فروشگاه آناهیکس
+                      منوی فروشگاه{' '}
+                      {themeSettings?.site_name_fa ||
+                        getSiteBrandName('پلی شاپ')}
                     </span>
                   </div>
                   <button
@@ -1219,7 +1375,16 @@ export const Header: React.FC<HeaderProps> = ({
                                 onClick={() => setMobileMenuOpen(false)}
                                 className="flex items-center justify-between p-2 rounded-control text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-accent duration-motion ease-motion"
                               >
-                                <span>{sub.title}</span>
+                                <div className="flex items-center gap-2">
+                                  {(sub as any).icon_url && (
+                                    <img
+                                      src={(sub as any).icon_url}
+                                      alt=""
+                                      className="w-3.5 h-3.5 object-contain rounded-xs shrink-0 brightness-90 dark:brightness-100"
+                                    />
+                                  )}
+                                  <span>{sub.title}</span>
+                                </div>
                                 <ChevronLeft className="h-3 w-3 opacity-40" />
                               </Link>
                             ))}
@@ -1228,6 +1393,34 @@ export const Header: React.FC<HeaderProps> = ({
                       </div>
                     )
                   })}
+                </div>
+
+                {/* Mobile Drawer Cart Action */}
+                <div className="border-t border-border pt-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMobileMenuOpen(false)
+                      if (onOpenCart) {
+                        onOpenCart()
+                      } else {
+                        window.dispatchEvent(
+                          new CustomEvent('anahix:cart:open'),
+                        )
+                      }
+                    }}
+                    className="w-full flex items-center justify-between p-2.5 rounded-control bg-primary/10 border border-brand/30 text-xs font-black text-brand hover:bg-primary/20 duration-motion ease-motion cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <ShoppingCart className="h-4 w-4" />
+                      <span>سبد خرید و تسویه‌حساب</span>
+                    </div>
+                    {itemCount > 0 && (
+                      <span className="flex h-5 min-w-[20px] px-1.5 items-center justify-center rounded-control bg-primary text-primary-foreground text-[10px] font-black">
+                        {toPersianDigits(itemCount)}
+                      </span>
+                    )}
+                  </button>
                 </div>
 
                 {/* Main Nav Links */}
@@ -1286,6 +1479,132 @@ export const Header: React.FC<HeaderProps> = ({
           )}
       </header>
 
+      {/* Announcement Detail Modal in Header */}
+      {selectedHeaderAnnounce &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[2147483600] flex items-center justify-center p-4 bg-background/85 backdrop-blur-md animate-in fade-in duration-200"
+            dir="rtl"
+          >
+            <div className="w-full max-w-lg bg-card rounded-surface border border-border/80 shadow-surface overflow-hidden space-y-4 text-right animate-in zoom-in-95 duration-200 text-foreground">
+              {selectedHeaderAnnounce.image_url && (
+                <div className="w-full h-44 sm:h-52 overflow-hidden bg-muted relative">
+                  <img
+                    src={selectedHeaderAnnounce.image_url}
+                    alt={selectedHeaderAnnounce.title}
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute top-3 left-3">
+                    <ModalCloseButton
+                      onClick={() => setSelectedHeaderAnnounce(null)}
+                      size="sm"
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div className="p-5 sm:p-6 space-y-4 pt-2">
+                {!selectedHeaderAnnounce.image_url && (
+                  <div className="flex items-center justify-between border-b border-border/60 pb-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-9 h-9 rounded-control bg-secondary text-brand border border-border/60 flex items-center justify-center shadow-xs">
+                        <Bell className="w-5 h-5 text-brand" />
+                      </div>
+                      <div>
+                        <span className="px-2 py-0.5 rounded-control text-[10px] font-bold border bg-brand/10 text-brand border-brand/20">
+                          {selectedHeaderAnnounce.severity === 'discount'
+                            ? '🔥 تخفیف و جشنواره'
+                            : selectedHeaderAnnounce.severity === 'warning'
+                              ? '⚠️ هشدار مهم'
+                              : '📢 اطلاعیه سراسری'}
+                        </span>
+                        <h3 className="font-bold text-sm sm:text-base text-foreground mt-0.5">
+                          {selectedHeaderAnnounce.title}
+                        </h3>
+                      </div>
+                    </div>
+                    <ModalCloseButton
+                      onClick={() => setSelectedHeaderAnnounce(null)}
+                      size="sm"
+                    />
+                  </div>
+                )}
+
+                {selectedHeaderAnnounce.image_url && (
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-bold text-sm sm:text-base text-foreground">
+                      {selectedHeaderAnnounce.title}
+                    </h3>
+                    <span className="px-2 py-0.5 rounded-control text-[10px] font-bold border bg-brand/10 text-brand border-brand/20">
+                      {selectedHeaderAnnounce.severity === 'discount'
+                        ? '🔥 تخفیف ویژه'
+                        : '📢 اطلاعیه'}
+                    </span>
+                  </div>
+                )}
+
+                <div className="text-xs text-muted-foreground leading-relaxed max-h-64 overflow-y-auto pr-1">
+                  <MarkdownRenderer content={selectedHeaderAnnounce.content} />
+                </div>
+
+                <div className="pt-3 border-t border-border/60 flex items-center justify-between gap-2">
+                  {selectedHeaderAnnounce.target_pages &&
+                  selectedHeaderAnnounce.target_pages !== 'all' ? (
+                    <Link
+                      to={selectedHeaderAnnounce.target_pages}
+                      onClick={() => {
+                        const updated = new Set([
+                          ...seenAnnounceIds,
+                          String(selectedHeaderAnnounce.id),
+                        ])
+                        setSeenAnnounceIds(updated)
+                        try {
+                          localStorage.setItem(
+                            'anahix_seen_announcements',
+                            JSON.stringify(Array.from(updated)),
+                          )
+                        } catch {}
+                        setSelectedHeaderAnnounce(null)
+                      }}
+                      className="h-9 px-4 rounded-control bg-secondary hover:bg-muted text-foreground border border-border/60 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5 text-brand" />
+                      <span>مشاهده صفحه مرتبط</span>
+                    </Link>
+                  ) : (
+                    <div />
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const updated = new Set([
+                        ...seenAnnounceIds,
+                        String(selectedHeaderAnnounce.id),
+                      ])
+                      setSeenAnnounceIds(updated)
+                      try {
+                        localStorage.setItem(
+                          'anahix_seen_announcements',
+                          JSON.stringify(Array.from(updated)),
+                        )
+                      } catch {}
+                      window.dispatchEvent(
+                        new CustomEvent('anahix:notifications:read'),
+                      )
+                      setSelectedHeaderAnnounce(null)
+                    }}
+                    className="h-9 px-5 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs shadow-control flex items-center gap-1.5 cursor-pointer duration-motion active:scale-[0.98]"
+                  >
+                    <Check className="w-3.5 h-3.5" />
+                    <span>متوجه شدم</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
       {/* Customer Auth Modal */}
       <AuthModal
         isOpen={isAuthOpen}

@@ -17,6 +17,7 @@ import { Link } from 'react-router-dom'
 import { apiService } from '../../services/api'
 import type { ReviewItem } from '../../types'
 import { toPersianDigits } from '../../utils/formatters'
+import { LoadingState } from '../vibefarsi/LoadingState'
 
 export const ProfileReviewsTab: React.FC = () => {
   const [reviews, setReviews] = useState<ReviewItem[]>([])
@@ -144,10 +145,7 @@ export const ProfileReviewsTab: React.FC = () => {
       {/* Reviews List */}
       <div className="space-y-4">
         {loading ? (
-          <div className="py-16 text-center text-xs text-muted-foreground space-y-2">
-            <RefreshCw className="h-6 w-6 text-foreground animate-spin mx-auto" />
-            <p>در حال بارگذاری سوابق نظرات شما...</p>
-          </div>
+          <LoadingState message="در حال بارگذاری سوابق نظرات شما..." />
         ) : error ? (
           <div className="p-4 rounded-surface bg-destructive/10 border border-destructive/20 text-destructive text-xs flex items-center gap-2">
             <AlertCircle className="h-4 w-4 shrink-0" />

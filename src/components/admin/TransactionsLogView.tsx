@@ -21,7 +21,11 @@ import type {
   TransactionStatus,
   TransactionType,
 } from '../../types'
-import { formatToman, toPersianDigits } from '../../utils/formatters'
+import {
+  formatNumber,
+  formatToman,
+  toPersianDigits,
+} from '../../utils/formatters'
 import { getGatewayDisplay } from '../../utils/paymentIcons'
 import { LoadingState } from '../vibefarsi/LoadingState'
 import { ModalCloseButton } from '../vibefarsi/ModalCloseButton'
@@ -637,10 +641,13 @@ export const TransactionsLogView: React.FC<TransactionsLogViewProps> = ({
 
         {/* Pagination Footer */}
         <div className="p-4 border-t border-border/60 bg-muted/20 flex items-center justify-between text-xs text-muted-foreground">
-          <div>
-            نمایش {transactions.length > 0 ? (page - 1) * pageSize + 1 : 0} تا{' '}
-            {Math.min(page * pageSize, total)} از{' '}
-            {total.toLocaleString('fa-IR')} تراکنش
+          <div className="font-sans">
+            نمایش{' '}
+            {toPersianDigits(
+              transactions.length > 0 ? (page - 1) * pageSize + 1 : 0,
+            )}{' '}
+            تا {toPersianDigits(Math.min(page * pageSize, total))} از{' '}
+            {formatNumber(total)} تراکنش
           </div>
 
           <div className="flex items-center gap-1.5">

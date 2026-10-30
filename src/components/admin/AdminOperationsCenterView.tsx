@@ -263,7 +263,7 @@ export const AdminOperationsCenterView: React.FC<
           }`}
         >
           <Layers className="w-4 h-4" />
-          <span>صف سفارشات اپراتور (Mode C)</span>
+          <span>صف سفارشات دستی اپراتور</span>
           {queueOrders.length > 0 && (
             <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500 text-slate-950 font-black animate-pulse">
               {queueOrders.length}
@@ -362,7 +362,7 @@ export const AdminOperationsCenterView: React.FC<
             <div>
               <h4 className="text-sm font-black text-foreground flex items-center gap-2">
                 <Layers className="w-4 h-4 text-brand" />
-                صف سفارشات اپراتور (Mode C & 2FA Interactive Handshake)
+                صف سفارشات دستی اپراتور (هندشیک تعاملی ۲FA)
               </h4>
               <p className="text-xs text-muted-foreground mt-0.5">
                 پردازش دستی، درخواست کد ۲FA، اجرای Zeroize و تلاش مجدد صدور آنی
@@ -411,7 +411,7 @@ export const AdminOperationsCenterView: React.FC<
             <div className="bg-card rounded-surface border border-border/80 shadow-surface">
               <LoadingState
                 message="در حال فراخوانی صف سفارشات اپراتور..."
-                subMessage="بررسی وضعیت کدهای ۲FA و سفارشات Mode C"
+                subMessage="بررسی وضعیت کدهای ۲FA و سفارشات دستی اپراتور"
               />
             </div>
           ) : queueOrders.length === 0 ? (

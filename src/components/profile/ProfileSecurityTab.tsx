@@ -15,12 +15,13 @@ import { useMemo, useState } from 'react'
 import { apiService } from '../../services/api'
 import type { CustomerProfile } from '../../types'
 import { formatDisplayPhone } from '../../utils/formatters'
+import { LoadingState } from '../vibefarsi/LoadingState'
 import { useNotification } from '../vibefarsi/NotificationContext'
 import { OtpField } from '../vibefarsi/OtpField'
 import { PasswordInput } from '../vibefarsi/PasswordInput'
 
 interface ProfileSecurityTabProps {
-  customer: CustomerProfile
+  customer?: CustomerProfile | null
   onLogout: () => void
 }
 
@@ -64,14 +65,6 @@ export const ProfileSecurityTab: React.FC<ProfileSecurityTabProps> = ({
   const clientEnv = useMemo(() => detectClientEnv(), [])
   const { success, error, info } = useNotification()
 
-  const isRealPhone = Boolean(
-    customer.phone && !/^098[0-9a-f]{8}$/i.test(customer.phone),
-  )
-  const isEmailVerified = Boolean(
-    customer.email_verified ||
-      customer.auth_provider === 'google' ||
-      customer.auth_provider === 'github',
-  )
   const [resetStep, setResetStep] = useState<
     'choose_channel' | 'verify_otp' | 'set_new_password'
   >('choose_channel')
@@ -80,6 +73,23 @@ export const ProfileSecurityTab: React.FC<ProfileSecurityTabProps> = ({
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [loading, setLoading] = useState(false)
+
+  if (!customer) {
+    return (
+      <LoadingState
+        message="در حال بارگذاری تنظیمات امنیتی حساب کاربری..."
+        minHeight="300px"
+      />
+    )
+  }
+
+  const phone = customer.phone || ''
+  const isRealPhone = Boolean(phone && !/^098[0-9a-f]{8}$/i.test(phone))
+  const isEmailVerified = Boolean(
+    customer.email_verified ||
+      customer.auth_provider === 'google' ||
+      customer.auth_provider === 'github',
+  )
 
   // Step 1: Send verification code via chosen channel
   const handleSendCode = async () => {

@@ -1,6 +1,7 @@
 import type React from 'react'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { AdminAnnouncementsView } from '../../components/admin/AdminAnnouncementsView'
 import { AdminBannersView } from '../../components/admin/AdminBannersView'
 import { AdminBIAnalyticsView } from '../../components/admin/AdminBIAnalyticsView'
 import { AdminCalendarView } from '../../components/admin/AdminCalendarView'
@@ -129,10 +130,8 @@ export const AdminDashboardPage: React.FC = () => {
           {/* TAB: BANNERS & PROMOTIONS MANAGEMENT */}
           {activeTab === 'banners' && <AdminBannersView />}
 
-          {/* TAB: ANNOUNCEMENTS & POPUP BROADCAST ENGINE */}
-          {activeTab === 'announcements' && (
-            <AdminCoreSettingsView initialSubTab="notifications" />
-          )}
+          {/* TAB: ANNOUNCEMENTS & POPUP BROADCAST ENGINE (STANDALONE DESK) */}
+          {activeTab === 'announcements' && <AdminAnnouncementsView />}
 
           {/* TAB: COUPONS & DISCOUNT ENGINE */}
           {activeTab === 'coupons' && <AdminCouponsView />}

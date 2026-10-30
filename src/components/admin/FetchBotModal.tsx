@@ -25,6 +25,11 @@ import type {
   BotCatalogProduct,
   BotProviderSetting,
 } from '../../types'
+import {
+  formatNumber,
+  formatToman,
+  toPersianDigits,
+} from '../../utils/formatters'
 import { RichContentEditor } from '../content/RichContentEditor'
 import { LoadingState } from '../vibefarsi/LoadingState'
 import { ModalCloseButton } from '../vibefarsi/ModalCloseButton'
@@ -537,8 +542,8 @@ export const FetchBotModal: React.FC<FetchBotModalProps> = ({
             <span className="font-bold text-foreground">
               نرخ زنده تبدیل تتر (SwapWallet Engine):
             </span>
-            <span className="font-mono font-latin font-bold text-brand">
-              {liveUSDTRate.toLocaleString('fa-IR')} تومان
+            <span className="font-bold text-brand font-sans">
+              {formatToman(liveUSDTRate)} تومان
             </span>
             <span className="text-[11px] text-muted-foreground">
               (مبنای قیمت‌گذاری و تسویه ریالی خودکار)
@@ -614,11 +619,10 @@ export const FetchBotModal: React.FC<FetchBotModalProps> = ({
                             ${prov.balance_usd?.toFixed(2) || '0.00'}
                           </span>
                         </div>
-                        <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                        <div className="flex items-center justify-between text-[10px] text-muted-foreground font-sans">
                           <span>معادل:</span>
-                          <span className="font-latin">
-                            {(prov.balance_toman || 0).toLocaleString('fa-IR')}{' '}
-                            ت
+                          <span className="font-sans font-bold">
+                            {formatToman(prov.balance_toman || 0)} تومان
                           </span>
                         </div>
                       </div>
@@ -765,11 +769,13 @@ export const FetchBotModal: React.FC<FetchBotModalProps> = ({
                             </td>
 
                             {/* Unified Vertical Stacked Financial & Stock Column */}
-                            <td className="py-3.5 px-4 text-center font-latin">
-                              <div className="font-bold text-xs text-foreground">
-                                {Math.round(
-                                  (prod.price_usd || 0) * liveUSDTRate,
-                                ).toLocaleString('fa-IR')}{' '}
+                            <td className="py-3.5 px-4 text-center font-sans">
+                              <div className="font-bold text-xs text-foreground font-sans">
+                                {formatToman(
+                                  Math.round(
+                                    (prod.price_usd || 0) * liveUSDTRate,
+                                  ),
+                                )}{' '}
                                 <span className="font-sans font-normal text-[10px] text-muted-foreground">
                                   تومان
                                 </span>
@@ -788,7 +794,7 @@ export const FetchBotModal: React.FC<FetchBotModalProps> = ({
                                   {prod.unlimited
                                     ? 'نامحدود (∞)'
                                     : isAvailable
-                                      ? `${prod.stock} عدد موجود`
+                                      ? `${formatNumber(prod.stock)} عدد موجود`
                                       : 'ناموجود'}
                                 </span>
                               </div>
@@ -867,8 +873,8 @@ export const FetchBotModal: React.FC<FetchBotModalProps> = ({
                     ماشین‌حساب هوشمند و دوطرفه قیمت‌گذاری (Dual-Priority Pricing
                     Engine)
                   </span>
-                  <span className="text-[11px] font-mono font-latin text-muted-foreground">
-                    نرخ تتر: {liveUSDTRate.toLocaleString('fa-IR')} تومان
+                  <span className="text-[11px] font-sans font-bold text-muted-foreground">
+                    نرخ تتر: {formatToman(liveUSDTRate)} تومان
                   </span>
                 </div>
 
@@ -976,9 +982,9 @@ export const FetchBotModal: React.FC<FetchBotModalProps> = ({
 
                 <div className="text-[11px] text-muted-foreground flex items-center justify-between pt-1">
                   <span>سود ناخالص هر فروش:</span>
-                  <span className="font-mono font-latin font-bold text-emerald-400">
-                    +{(sellToman - costToman).toLocaleString('fa-IR')} تومان (
-                    {marginPercent}٪)
+                  <span className="font-sans font-bold text-emerald-400">
+                    +{formatToman(sellToman - costToman)} تومان (
+                    {toPersianDigits(marginPercent)}٪)
                   </span>
                 </div>
               </div>
@@ -1082,7 +1088,7 @@ export const FetchBotModal: React.FC<FetchBotModalProps> = ({
                       ⚡ تحویل آنی خودکار از ربات (Instant)
                     </option>
                     <option value="manual_operator">
-                      🔷 تحویل دستی در صف اپراتور (Mode C)
+                      🔷 تحویل دستی در صف اپراتور (دستی اپراتور)
                     </option>
                   </select>
                 </div>
@@ -1100,7 +1106,7 @@ export const FetchBotModal: React.FC<FetchBotModalProps> = ({
                       بدون نیاز به ورودی (خرید مستقیم)
                     </option>
                     <option value="account_creds">
-                      ایمیل و رمز عبور کاربر (Mode C)
+                      ایمیل و رمز عبور کاربر (دستی اپراتور)
                     </option>
                     <option value="telegram_username">
                       آیدی تلگرام (@username)

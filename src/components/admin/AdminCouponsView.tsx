@@ -15,8 +15,13 @@ import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { apiService } from '../../services/api'
 import type { AdminProduct, CouponItem } from '../../types'
-import { formatToman, toPersianDigits } from '../../utils/formatters'
+import {
+  formatNumber,
+  formatToman,
+  toPersianDigits,
+} from '../../utils/formatters'
 import { ConfirmModal } from '../vibefarsi/ConfirmModal'
+import { LoadingState } from '../vibefarsi/LoadingState'
 import { ModalCloseButton } from '../vibefarsi/ModalCloseButton'
 import { useNotification } from '../vibefarsi/NotificationContext'
 import { SearchInput } from '../vibefarsi/SearchInput'
@@ -457,8 +462,8 @@ export const AdminCouponsView: React.FC = () => {
             <span className="text-[11px] text-muted-foreground font-bold">
               کل کدهای تخفیف
             </span>
-            <div className="text-xl font-black text-foreground font-latin">
-              {toPersianDigits(stats.total)}
+            <div className="text-xl font-black text-foreground font-sans">
+              {formatNumber(stats.total)}
             </div>
           </div>
           <div className="w-10 h-10 rounded-control bg-secondary text-brand flex items-center justify-center border border-border/60">
@@ -471,8 +476,8 @@ export const AdminCouponsView: React.FC = () => {
             <span className="text-[11px] text-muted-foreground font-bold">
               کدهای فعال و قابل استفاده
             </span>
-            <div className="text-xl font-black text-brand font-latin">
-              {toPersianDigits(stats.activeCount)}
+            <div className="text-xl font-black text-brand font-sans">
+              {formatNumber(stats.activeCount)}
             </div>
           </div>
           <div className="w-10 h-10 rounded-control bg-brand/10 text-brand flex items-center justify-center border border-brand/20">
@@ -485,8 +490,8 @@ export const AdminCouponsView: React.FC = () => {
             <span className="text-[11px] text-muted-foreground font-bold">
               مجموع دفعات استفاده‌شده
             </span>
-            <div className="text-xl font-black text-foreground font-latin">
-              {toPersianDigits(stats.totalUsage)}
+            <div className="text-xl font-black text-foreground font-sans">
+              {formatNumber(stats.totalUsage)}
             </div>
           </div>
           <div className="w-10 h-10 rounded-control bg-secondary text-brand flex items-center justify-center border border-border/60">
@@ -563,12 +568,8 @@ export const AdminCouponsView: React.FC = () => {
             <tbody className="divide-y divide-border/60">
               {loading ? (
                 <tr>
-                  <td
-                    colSpan={9}
-                    className="p-12 text-center text-muted-foreground text-xs"
-                  >
-                    <Loader2 className="w-6 h-6 animate-spin text-brand mx-auto mb-2" />
-                    <span>در حال دریافت کدهای تخفیف...</span>
+                  <td colSpan={9} className="p-0">
+                    <LoadingState message="در حال دریافت کدهای تخفیف..." />
                   </td>
                 </tr>
               ) : filteredCoupons.length === 0 ? (
@@ -632,7 +633,7 @@ export const AdminCouponsView: React.FC = () => {
                       {/* Value */}
                       <td className="p-3.5 text-center">
                         {c.discount_type === 'percentage' ? (
-                          <span className="px-2 py-0.5 rounded-control bg-rose-500/10 text-rose-500 border border-rose-500/20 font-black font-latin text-xs">
+                          <span className="px-2 py-0.5 rounded-control bg-rose-500/10 text-rose-500 border border-rose-500/20 font-black font-sans text-xs">
                             {toPersianDigits(c.discount_value)}٪ تخفیف
                           </span>
                         ) : (

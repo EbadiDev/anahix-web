@@ -36,13 +36,26 @@ export function toEnDigits(str: string | null | undefined): string {
 
 /**
  * Formats a number to Iranian Toman with thousands separator and Persian digits. Pure function.
+ * Guaranteed to format as "۳۱۸,۰۰۰" on every browser and environment.
  */
 export function formatToman(amount: number | null | undefined): string {
   if (amount === null || amount === undefined || Number.isNaN(amount)) {
     return '۰'
   }
-  // Enforce Persian digits across all browsers and operating environments
-  return toPersianDigits(Math.round(amount).toLocaleString('fa-IR'))
+  const formattedWithCommas = Math.round(amount).toLocaleString('en-US')
+  return toPersianDigits(formattedWithCommas)
+}
+
+/**
+ * Formats any count or metric (views, likes, orders, stock) with thousands separator and Persian digits.
+ * E.g. 15400 -> "۱۵,۴۰۰", 2 -> "۲"
+ */
+export function formatNumber(n: number | string | null | undefined): string {
+  if (n === null || n === undefined) return '۰'
+  const num = typeof n === 'number' ? n : Number(n)
+  if (Number.isNaN(num)) return '۰'
+  const formattedWithCommas = Math.round(num).toLocaleString('en-US')
+  return toPersianDigits(formattedWithCommas)
 }
 
 /**

@@ -42,8 +42,10 @@ import { SidebarProfileAvatar } from '../components/profile/SidebarProfileAvatar
 import { WalletTopupModal } from '../components/profile/WalletTopupModal'
 import { TelegramIcon } from '../components/SocialIcons'
 import { Button } from '../components/ui/button'
+import { LoadingState } from '../components/vibefarsi/LoadingState'
 import { apiService } from '../services/api'
 import type { CustomerProfile, Order, VirtualNumberOrder } from '../types'
+import { getSiteBrandName } from '../utils/brand'
 import { toPersianDigits } from '../utils/formatters'
 
 type ProfileTabId =
@@ -76,7 +78,7 @@ export const UserProfilePage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams()
 
   const [customer, setCustomer] = useState<CustomerProfile | null>(null)
-  const [, setLoading] = useState(true)
+  const [loading, setLoading] = useState(true)
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
   const [isWalletModalOpen, setIsWalletModalOpen] = useState(false)
   const [isCartOpen, setIsCartOpen] = useState(false)
@@ -95,6 +97,7 @@ export const UserProfilePage: React.FC = () => {
     'overview',
     'loyalty',
     'personal',
+    'favorites',
     'security',
     'orders',
     'reviews',
@@ -721,7 +724,14 @@ export const UserProfilePage: React.FC = () => {
 
           {/* Main Tab Content Panel */}
           <section className="col-span-12 lg:col-span-9">
-            {customer ? (
+            {loading ? (
+              <div className="rounded-2xl border border-border bg-card p-12 shadow-surface">
+                <LoadingState
+                  message="در حال بارگذاری اطلاعات حساب کاربری..."
+                  minHeight="40vh"
+                />
+              </div>
+            ) : customer ? (
               <>
                 {activeTab === 'overview' && (
                   <ProfileOverviewTab
@@ -850,7 +860,7 @@ export const UserProfilePage: React.FC = () => {
                 </div>
                 <div className="space-y-1 max-w-md mx-auto">
                   <h3 className="text-lg font-bold text-foreground">
-                    ورود به حساب کاربری آناهیکس
+                    ورود به حساب کاربری {getSiteBrandName('پلی شاپ')}
                   </h3>
                   <p className="text-xs text-muted-foreground">
                     جهت مشاهده سفارشات، موجودی کیف پول و بخش‌های مختلف حساب

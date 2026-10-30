@@ -20,16 +20,12 @@ import type {
   ProductDetail,
   ProductReviewsResponse,
 } from '../../types'
+import { formatNumber, toPersianDigits } from '../../utils/formatters'
 import { AuthModal } from '../AuthModal'
 import { Button } from '../ui/button'
 import { useNotification } from '../vibefarsi/NotificationContext'
 import { ToggleSwitch } from '../vibefarsi/ToggleSwitch'
 import { SubmitReviewModal } from './SubmitReviewModal'
-
-function toPersianDigits(n: number | string): string {
-  const f = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹']
-  return String(n).replace(/\d/g, (d) => f[Number(d)])
-}
 
 interface ProductReviewsSectionProps {
   product: ProductDetail
@@ -222,13 +218,15 @@ export const ProductReviewsSection: React.FC<ProductReviewsSectionProps> = ({
         {/* Left: Overall Big Score */}
         <div className="lg:col-span-4 flex flex-col items-center justify-center p-6 bg-card border border-border/80 rounded-surface text-center space-y-3 shadow-xs">
           <div className="flex items-baseline gap-1">
-            <span className="text-4xl sm:text-5xl font-black text-foreground tracking-tight font-latin">
+            <span className="text-4xl sm:text-5xl font-black text-foreground tracking-tight font-sans">
               {(() => {
                 const r = summary.average_rating
-                return r % 1 === 0 ? r.toLocaleString('fa-IR') : r.toFixed(1)
+                return toPersianDigits(
+                  r % 1 === 0 ? r.toString() : r.toFixed(1),
+                )
               })()}
             </span>
-            <span className="text-sm font-bold text-muted-foreground">
+            <span className="text-sm font-bold text-muted-foreground font-sans">
               از ۵
             </span>
           </div>
@@ -249,14 +247,12 @@ export const ProductReviewsSection: React.FC<ProductReviewsSectionProps> = ({
             })}
           </div>
 
-          <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
-            <span className="text-xs font-bold text-emerald-500 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-control">
-              {Number(summary.satisfaction_rate).toLocaleString('fa-IR')}٪ رضایت
-              کامل خریداران
+          <div className="flex flex-wrap items-center justify-center gap-2 pt-1 font-sans">
+            <span className="text-xs font-bold text-emerald-500 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-control font-sans">
+              {toPersianDigits(summary.satisfaction_rate)}٪ رضایت کامل خریداران
             </span>
-            <span className="text-xs font-medium text-muted-foreground">
-              بر اساس {Number(summary.total_reviews).toLocaleString('fa-IR')}{' '}
-              تجربه خرید واقعی
+            <span className="text-xs font-medium text-muted-foreground font-sans">
+              بر اساس {formatNumber(summary.total_reviews)} تجربه خرید واقعی
             </span>
           </div>
 

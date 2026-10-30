@@ -5,6 +5,8 @@ import {
   Check,
   CheckCircle2,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   ChevronUp,
   Clock,
   Copy,
@@ -12,6 +14,7 @@ import {
   Edit2,
   ExternalLink,
   Flame,
+  FolderPlus,
   Globe,
   GripVertical,
   HelpCircle,
@@ -30,7 +33,7 @@ import {
   Zap,
 } from 'lucide-react'
 import type React from 'react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { apiService } from '../../services/api'
 import type {
@@ -41,6 +44,11 @@ import type {
   StoreCategory,
 } from '../../types'
 import { getSiteBrandName } from '../../utils/brand'
+import {
+  formatNumber,
+  formatToman,
+  toPersianDigits,
+} from '../../utils/formatters'
 import { RichContentEditor } from '../content/RichContentEditor'
 import { ConfirmModal } from '../vibefarsi/ConfirmModal'
 import { ModalCloseButton } from '../vibefarsi/ModalCloseButton'
@@ -123,6 +131,13 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
     | 'trust'
     | 'seo'
   >('general')
+  const productTabsRef = useRef<HTMLDivElement>(null)
+  const scrollProductTabs = (direction: 'left' | 'right') => {
+    if (productTabsRef.current) {
+      const amount = direction === 'left' ? -240 : 240
+      productTabsRef.current.scrollBy({ left: amount, behavior: 'smooth' })
+    }
+  }
   const [pTitleFA, setPTitleFA] = useState('')
   const [pTitleEN, setPTitleEN] = useState('')
   const [pSlug, setPSlug] = useState('')
@@ -171,9 +186,32 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
   const [pMarginPercent, setPMarginPercent] = useState<number | string>(25.0)
   const [storeCategories, setStoreCategories] = useState<StoreCategory[]>([])
 
-  // Computed distinct group tags from database products
+  // Quick Category & Subcategory Creation State (accessible from Toolbar and Product Modal)
+  const [isQuickCatModalOpen, setIsQuickCatModalOpen] = useState(false)
+  const [quickCatTitleFA, setQuickCatTitleFA] = useState('')
+  const [quickCatSlug, setQuickCatSlug] = useState('')
+  const [quickCatParentId, setQuickCatParentId] = useState('')
+  const [savingQuickCat, setSavingQuickCat] = useState(false)
+  const [quickCatSource, setQuickCatSource] = useState<
+    'toolbar' | 'product_modal'
+  >('toolbar')
+
+  // Quick Group / Brand Creation State
+  const [isQuickGroupModalOpen, setIsQuickGroupModalOpen] = useState(false)
+  const [quickGroupTag, setQuickGroupTag] = useState('')
+  const [quickGroupTitleFA, setQuickGroupTitleFA] = useState('')
+
+  // Computed distinct group tags from database products + popular defaults
   const uniqueGroupTags = useMemo(() => {
     const map = new Map<string, string>()
+    map.set('chatgpt', 'ChatGPT / OpenAI')
+    map.set('claude', 'Claude / Anthropic')
+    map.set('gemini', 'Gemini / Google')
+    map.set('cursor', 'Cursor AI')
+    map.set('vpn', 'VPN / شبکه')
+    map.set('dev_tools', 'ابزارهای برنامه‌نویسی')
+    map.set('general', 'عمومی (General)')
+
     adminProducts.forEach((p) => {
       if (p.group_tag) {
         map.set(p.group_tag, p.group_title_fa || p.group_tag)
@@ -279,6 +317,66 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
         .catch(() => setItems([]))
     }
   }, [selectedProduct, selectedStatus, activeSubtab])
+
+  const handleSaveQuickCategory = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!quickCatTitleFA.trim() || !quickCatSlug.trim()) {
+      notifyError('خطا', 'نام فارسی و شناسه یکتا (اسلاگ) الزامی است.')
+      return
+    }
+    setSavingQuickCat(true)
+    try {
+      const payload = {
+        title_fa: quickCatTitleFA.trim(),
+        slug: quickCatSlug.trim().toLowerCase().replace(/\s+/g, '-'),
+        parent_id: quickCatParentId || undefined,
+        is_active: true,
+        sort_order: storeCategories.length + 1,
+      }
+      await apiService.adminCreateStoreCategory(payload)
+      notifySuccess(
+        'دسته‌بندی افزوده شد',
+        `دسته‌بندی «${payload.title_fa}» با موفقیت در دیتابیس ثبت شد.`,
+      )
+      const updatedCats = await apiService
+        .adminGetStoreCategories()
+        .catch(() => [])
+      setStoreCategories(updatedCats)
+      if (quickCatSource === 'product_modal') {
+        setPCategory(payload.slug)
+      } else {
+        setCatalogCategoryFilter(payload.slug)
+      }
+      setIsQuickCatModalOpen(false)
+      setQuickCatTitleFA('')
+      setQuickCatSlug('')
+      setQuickCatParentId('')
+    } catch (err: any) {
+      notifyError('خطا در ثبت دسته', err.message || 'مشکل در ارتباط با سرور')
+    } finally {
+      setSavingQuickCat(false)
+    }
+  }
+
+  const handleSaveQuickGroup = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!quickGroupTag.trim()) {
+      notifyError('خطا', 'شناسه انگلیسی گروه/برند الزامی است.')
+      return
+    }
+    const cleanTag = quickGroupTag.trim().toLowerCase().replace(/\s+/g, '_')
+    const cleanTitle = quickGroupTitleFA.trim() || cleanTag
+    setPGroupTag(cleanTag)
+    setPGroupTitleFA(cleanTitle)
+    setCatalogGroupFilter(cleanTag)
+    setIsQuickGroupModalOpen(false)
+    notifySuccess(
+      'گروه و برند تعیین شد',
+      `برند «${cleanTitle} (${cleanTag})» با موفقیت اعمال گردید.`,
+    )
+    setQuickGroupTag('')
+    setQuickGroupTitleFA('')
+  }
 
   const openCreateProductModal = () => {
     setEditingProduct(null)
@@ -1332,38 +1430,38 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
             <span className="text-[11px] font-medium text-muted-foreground block">
               کل محصولات کاتالوگ
             </span>
-            <span className="text-xl font-black text-foreground mt-1 block font-mono">
-              {adminProducts.length.toLocaleString('fa-IR')}
+            <span className="text-xl font-black text-foreground mt-1 block font-sans">
+              {formatNumber(adminProducts.length)}
             </span>
           </div>
           <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-4 shadow-sm">
             <span className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400 block">
               فعال در ویترین فروشگاه
             </span>
-            <span className="text-xl font-black text-emerald-600 dark:text-emerald-400 mt-1 block font-mono">
-              {adminProducts
-                .filter((p) => p.is_active)
-                .length.toLocaleString('fa-IR')}
+            <span className="text-xl font-black text-emerald-600 dark:text-emerald-400 mt-1 block font-sans">
+              {formatNumber(adminProducts.filter((p) => p.is_active).length)}
             </span>
           </div>
           <div className="rounded-2xl border border-blue-500/20 bg-blue-500/5 p-4 shadow-sm">
             <span className="text-[11px] font-medium text-blue-600 dark:text-blue-400 block">
               تحویل آنی کلید / وب‌هوک
             </span>
-            <span className="text-xl font-black text-blue-600 dark:text-blue-400 mt-1 block font-mono">
-              {adminProducts
-                .filter((p) => p.delivery_type === 'instant')
-                .length.toLocaleString('fa-IR')}
+            <span className="text-xl font-black text-blue-600 dark:text-blue-400 mt-1 block font-sans">
+              {formatNumber(
+                adminProducts.filter((p) => p.delivery_type === 'instant')
+                  .length,
+              )}
             </span>
           </div>
           <div className="rounded-2xl border border-purple-500/20 bg-purple-500/5 p-4 shadow-sm">
             <span className="text-[11px] font-medium text-purple-600 dark:text-purple-400 block">
-              ارتقای دستی / اپراتور (Mode C)
+              ارتقای دستی اپراتور
             </span>
-            <span className="text-xl font-black text-purple-600 dark:text-purple-400 mt-1 block font-mono">
-              {adminProducts
-                .filter((p) => p.delivery_type === 'manual_timed')
-                .length.toLocaleString('fa-IR')}
+            <span className="text-xl font-black text-purple-600 dark:text-purple-400 mt-1 block font-sans">
+              {formatNumber(
+                adminProducts.filter((p) => p.delivery_type === 'manual_timed')
+                  .length,
+              )}
             </span>
           </div>
         </div>
@@ -1375,37 +1473,81 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
           {/* Action & Filter Toolbar */}
           <div className="rounded-2xl border border-border bg-card p-4 flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap items-center gap-2">
-              {/* Category Filter */}
-              <select
-                aria-label="فیلتر دسته‌بندی"
-                value={catalogCategoryFilter}
-                onChange={(e) => setCatalogCategoryFilter(e.target.value)}
-                className="h-9 px-3 rounded-xl border border-border bg-background text-xs font-medium focus:outline-none focus:ring-1 focus:ring-blue-500"
-              >
-                <option value="all">همه دسته‌بندی‌ها</option>
-                <option value="ai_chat">هوش مصنوعی و چت‌بات</option>
-                <option value="coding_ai">دستیار کدنویسی</option>
-                <option value="ai_account">اکانت اختصاصی</option>
-                <option value="personal_upgrade">ارتقای اکانت شخصی</option>
-                <option value="vpn">فیلترشکن و شبکه</option>
-                <option value="api_key">کلید API</option>
-              </select>
+              {/* Category Filter with Quick Create Button */}
+              <div className="flex items-center gap-1">
+                <select
+                  aria-label="فیلتر دسته‌بندی"
+                  value={catalogCategoryFilter}
+                  onChange={(e) => setCatalogCategoryFilter(e.target.value)}
+                  className="h-9 px-3 rounded-xl border border-border bg-background text-xs font-medium focus:outline-none focus:ring-1 focus:ring-blue-500 max-w-[200px]"
+                >
+                  <option value="all">همه دسته‌بندی‌ها</option>
+                  {storeCategories.map((c) => (
+                    <optgroup key={c.id} label={`📁 ${c.title_fa}`}>
+                      <option value={c.slug}>{c.title_fa} (اصلی)</option>
+                      {c.children?.map((sub) => (
+                        <option key={sub.id} value={sub.slug}>
+                          &nbsp;&nbsp;↳ {sub.title_fa}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ))}
+                  {storeCategories.length === 0 && (
+                    <>
+                      <option value="ai_chat">هوش مصنوعی و چت‌بات</option>
+                      <option value="coding_ai">دستیار کدنویسی</option>
+                      <option value="ai_account">اکانت اختصاصی</option>
+                      <option value="personal_upgrade">
+                        ارتقای اکانت شخصی
+                      </option>
+                      <option value="vpn">فیلترشکن و شبکه</option>
+                      <option value="api_key">کلید API</option>
+                    </>
+                  )}
+                </select>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setQuickCatSource('toolbar')
+                    setIsQuickCatModalOpen(true)
+                  }}
+                  className="h-9 px-2 rounded-xl border border-border/60 bg-card hover:bg-muted text-muted-foreground hover:text-foreground text-xs flex items-center gap-1 cursor-pointer shadow-xs"
+                  title="تعریف و ایجاد دسته‌بندی جدید"
+                >
+                  <FolderPlus className="w-3.5 h-3.5 text-brand" />
+                  <span className="hidden sm:inline text-[11px] font-bold">
+                    + دسته
+                  </span>
+                </button>
+              </div>
 
-              {/* Group Tag Filter */}
-              <select
-                aria-label="فیلتر برند و گروه"
-                value={catalogGroupFilter}
-                onChange={(e) => setCatalogGroupFilter(e.target.value)}
-                className="h-9 px-3 rounded-xl border border-border bg-background text-xs font-medium focus:outline-none focus:ring-1 focus:ring-blue-500"
-              >
-                <option value="all">همه گروه‌ها و برندها</option>
-                <option value="chatgpt">ChatGPT / OpenAI</option>
-                <option value="claude">Claude / Anthropic</option>
-                <option value="gemini">Gemini / Google</option>
-                <option value="cursor">Cursor AI</option>
-                <option value="vpn">VPN / شبکه</option>
-                <option value="general">عمومی (General)</option>
-              </select>
+              {/* Group Tag Filter with Quick Create Button */}
+              <div className="flex items-center gap-1">
+                <select
+                  aria-label="فیلتر برند و گروه"
+                  value={catalogGroupFilter}
+                  onChange={(e) => setCatalogGroupFilter(e.target.value)}
+                  className="h-9 px-3 rounded-xl border border-border bg-background text-xs font-medium focus:outline-none focus:ring-1 focus:ring-blue-500 max-w-[200px]"
+                >
+                  <option value="all">همه گروه‌ها و برندها</option>
+                  {uniqueGroupTags.map((g) => (
+                    <option key={g.tag} value={g.tag}>
+                      🏷️ {g.title} ({g.tag})
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={() => setIsQuickGroupModalOpen(true)}
+                  className="h-9 px-2 rounded-xl border border-border/60 bg-card hover:bg-muted text-muted-foreground hover:text-foreground text-xs flex items-center gap-1 cursor-pointer shadow-xs"
+                  title="تعریف و ایجاد گروه/برند جدید"
+                >
+                  <Tag className="w-3.5 h-3.5 text-brand" />
+                  <span className="hidden sm:inline text-[11px] font-bold">
+                    + برند
+                  </span>
+                </button>
+              </div>
 
               {/* Search Box with Debounce & Clear */}
               <div className="w-56">
@@ -1514,7 +1656,7 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
                           دسته‌بندی و شیوه تحویل
                         </th>
                         <th className="p-3.5 text-center">
-                          قیمت فروش و بهای خرید (تومان)
+                          اطلاعات مالی، فروش و سود (تومان)
                         </th>
                         <th className="p-3.5 text-center">
                           موجودی انبار و زمان تحویل
@@ -1586,52 +1728,54 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
                               >
                                 {p.delivery_type === 'instant'
                                   ? '⚡ تحویل آنی خودکار'
-                                  : '👤 دستی اپراتور (Mode C)'}
+                                  : '👤 دستی اپراتور'}
                               </span>
                             </div>
                           </td>
 
-                          {/* Vertical Price Stacked Column */}
-                          <td className="p-3.5 text-center font-latin">
-                            <div className="font-black text-sm text-foreground">
-                              {Number(p.price_toman).toLocaleString('fa-IR')}{' '}
-                              <span className="text-[10px] font-normal text-muted-foreground font-sans">
-                                تومان
-                              </span>
+                          {/* Vertical Price, Cost & Profit Stacked Column */}
+                          <td className="p-3.5 text-center font-sans">
+                            <div className="font-bold text-xs text-foreground">
+                              فروش: {formatToman(p.price_toman)} تومان
                             </div>
                             {p.base_cost_usd > 0 ? (
-                              <div className="text-[10px] text-muted-foreground mt-0.5">
-                                خرید:{' '}
-                                {Math.round(
+                              (() => {
+                                const costToman = Math.round(
                                   p.base_cost_usd * pLiveUSDTRate,
-                                ).toLocaleString('fa-IR')}{' '}
-                                ت
-                                {p.price_toman >
-                                  Math.round(
-                                    p.base_cost_usd * pLiveUSDTRate,
-                                  ) && (
-                                  <span className="text-emerald-500 font-bold mr-1">
-                                    (+
-                                    {(
-                                      p.price_toman -
-                                      Math.round(
-                                        p.base_cost_usd * pLiveUSDTRate,
-                                      )
-                                    ).toLocaleString('fa-IR')}{' '}
-                                    ت)
-                                  </span>
-                                )}
-                              </div>
+                                )
+                                const profitToman = p.price_toman - costToman
+                                return (
+                                  <>
+                                    <div className="text-[10px] text-muted-foreground mt-0.5">
+                                      خرید: {formatToman(costToman)} تومان ($
+                                      {p.base_cost_usd.toFixed(2)})
+                                    </div>
+                                    <div className="text-[10px] font-bold mt-0.5">
+                                      {profitToman >= 0 ? (
+                                        <span className="text-emerald-400">
+                                          سود: +{formatToman(profitToman)} تومان
+                                        </span>
+                                      ) : (
+                                        <span className="text-rose-500">
+                                          ضرر: -
+                                          {formatToman(Math.abs(profitToman))}{' '}
+                                          تومان
+                                        </span>
+                                      )}
+                                    </div>
+                                  </>
+                                )
+                              })()
                             ) : (
-                              <div className="text-[10px] text-muted-foreground/60 mt-0.5">
-                                بدون هزینه ارزی
+                              <div className="text-[10px] text-muted-foreground/70 mt-0.5">
+                                بدون هزینه ارزی (۱۰۰٪ سود)
                               </div>
                             )}
                           </td>
 
                           {/* Vertical Stock & Delivery Stacked Column */}
-                          <td className="p-3.5 text-center">
-                            <div className="flex items-center justify-center gap-1.5 font-mono font-latin">
+                          <td className="p-3.5 text-center font-sans">
+                            <div className="flex items-center justify-center gap-1.5 font-sans">
                               <span
                                 className={`h-2 w-2 rounded-full ${
                                   p.stock_mode === 'out_of_stock'
@@ -1644,15 +1788,15 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
                                         : 'bg-rose-500'
                                 }`}
                               />
-                              <span className="font-mono font-bold text-xs">
+                              <span className="font-bold text-xs font-sans">
                                 {p.stock_mode === 'always_in_stock'
                                   ? 'همیشه موجود (سفارش‌پذیر)'
                                   : p.stock_mode === 'manual'
-                                    ? `${(p.manual_stock || 0).toLocaleString('fa-IR')} عدد دستی`
+                                    ? `${formatNumber(p.manual_stock || 0)} عدد دستی`
                                     : p.stock_mode === 'out_of_stock'
                                       ? p.out_of_stock_text || 'ناموجود'
                                       : (p.available_stock ?? 0) > 0
-                                        ? `${(p.available_stock ?? 0).toLocaleString('fa-IR')} کلید موجود در انبار`
+                                        ? `${formatNumber(p.available_stock ?? 0)} کلید موجود در انبار`
                                         : p.out_of_stock_text ||
                                           'اتمام موجودی (۰)'}
                               </span>
@@ -1747,8 +1891,8 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
                 <span>کلیدهای موجود و آماده تحویل</span>
                 <CheckCircle2 className="w-4 h-4" />
               </div>
-              <div className="text-xl sm:text-2xl font-black font-mono font-latin text-foreground">
-                {(stats?.available_count || 0).toLocaleString('fa-IR')}
+              <div className="text-xl sm:text-2xl font-black font-sans text-foreground">
+                {formatNumber(stats?.available_count || 0)}
               </div>
             </div>
 
@@ -1757,8 +1901,8 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
                 <span>رزروشده در صف پردازش</span>
                 <Clock className="w-4 h-4" />
               </div>
-              <div className="text-xl sm:text-2xl font-black font-mono font-latin text-foreground">
-                {(stats?.reserved_count || 0).toLocaleString('fa-IR')}
+              <div className="text-xl sm:text-2xl font-black font-sans text-foreground">
+                {formatNumber(stats?.reserved_count || 0)}
               </div>
             </div>
 
@@ -1767,8 +1911,8 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
                 <span>تحویل‌شده به خریداران</span>
                 <Package className="w-4 h-4" />
               </div>
-              <div className="text-xl sm:text-2xl font-black font-mono font-latin text-foreground">
-                {(stats?.sold_delivered_count || 0).toLocaleString('fa-IR')}
+              <div className="text-xl sm:text-2xl font-black font-sans text-foreground">
+                {formatNumber(stats?.sold_delivered_count || 0)}
               </div>
             </div>
 
@@ -1777,8 +1921,8 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
                 <span>باطل یا سوخته</span>
                 <AlertCircle className="w-4 h-4" />
               </div>
-              <div className="text-xl sm:text-2xl font-black font-mono font-latin text-foreground">
-                {(stats?.void_count || 0).toLocaleString('fa-IR')}
+              <div className="text-xl sm:text-2xl font-black font-sans text-foreground">
+                {formatNumber(stats?.void_count || 0)}
               </div>
             </div>
           </div>
@@ -2017,7 +2161,7 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
             dir="rtl"
           >
             <div className="min-h-full w-full flex items-start sm:items-center justify-center">
-              <div className="max-w-4xl w-full bg-card rounded-surface border border-border/80 shadow-overlay overflow-hidden my-auto animate-in zoom-in-95 duration-200 text-foreground">
+              <div className="max-w-5xl w-full bg-card rounded-surface border border-border/80 shadow-overlay overflow-hidden my-auto animate-in zoom-in-95 duration-200 text-foreground flex flex-col max-h-[92vh]">
                 {/* Modal Header */}
                 <div className="p-5 border-b border-border bg-muted/30">
                   <div className="flex items-center justify-between mb-3">
@@ -2056,136 +2200,162 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
                     </div>
                   </div>
 
-                  {/* Navigation Tabs for PDP Configuration - 9 Comprehensive Standard Tabs */}
-                  <div className="flex items-center gap-1.5 p-1 bg-muted/40 rounded-surface border border-border/60 overflow-x-auto pt-1 scrollbar-none">
+                  {/* Navigation Tabs for PDP Configuration - 9 Comprehensive Standard Tabs (with Left & Right Scroll Controls - Image 5) */}
+                  <div className="relative flex items-center pt-1">
                     <button
                       type="button"
-                      onClick={() => setProductModalTab('general')}
-                      className={`px-3 py-1.5 rounded-control text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer duration-motion active:scale-[0.98] ${
-                        productModalTab === 'general'
-                          ? 'bg-primary text-primary-foreground font-black shadow-control'
-                          : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
-                      }`}
+                      onClick={() => scrollProductTabs('right')}
+                      className="p-1.5 rounded-control bg-secondary hover:bg-muted border border-border/60 text-muted-foreground hover:text-foreground shadow-xs shrink-0 cursor-pointer ml-1 duration-motion active:scale-95"
+                      title="اسکرول به راست"
+                      aria-label="اسکرول به راست"
                     >
-                      <Package className="h-3.5 w-3.5" />
-                      <span>۱. مشخصات پایه و فروش</span>
+                      <ChevronRight className="w-4 h-4" />
                     </button>
+
+                    <div
+                      ref={productTabsRef}
+                      className="flex-1 flex items-center gap-1.5 p-1 bg-muted/40 rounded-surface border border-border/60 overflow-x-auto scrollbar-none scroll-smooth"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setProductModalTab('general')}
+                        className={`px-3 py-1.5 rounded-control text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer duration-motion active:scale-[0.98] ${
+                          productModalTab === 'general'
+                            ? 'bg-primary text-primary-foreground font-black shadow-control'
+                            : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+                        }`}
+                      >
+                        <Package className="h-3.5 w-3.5" />
+                        <span>۱. مشخصات پایه و فروش</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setProductModalTab('delivery')}
+                        className={`px-3 py-1.5 rounded-control text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer duration-motion active:scale-[0.98] ${
+                          productModalTab === 'delivery'
+                            ? 'bg-primary text-primary-foreground font-black shadow-control'
+                            : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+                        }`}
+                      >
+                        <Zap className="h-3.5 w-3.5" />
+                        <span>۲. شیوه تحویل و اتصال به ربات</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setProductModalTab('plans')}
+                        className={`px-3 py-1.5 rounded-control text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer duration-motion active:scale-[0.98] ${
+                          productModalTab === 'plans'
+                            ? 'bg-primary text-primary-foreground font-black shadow-control'
+                            : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+                        }`}
+                      >
+                        <Calendar className="h-3.5 w-3.5" />
+                        <span>
+                          ۳. پلن‌ها و دوره‌ها ({pPlans.length || 'پیش‌فرض'})
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setProductModalTab('notice')}
+                        className={`px-3 py-1.5 rounded-control text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer duration-motion active:scale-[0.98] ${
+                          productModalTab === 'notice'
+                            ? 'bg-primary text-primary-foreground font-black shadow-control'
+                            : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+                        }`}
+                      >
+                        <HelpCircle className="h-3.5 w-3.5" />
+                        <span>۴. نکات مهم قبل از خرید</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setProductModalTab('features')}
+                        className={`px-3 py-1.5 rounded-control text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer duration-motion active:scale-[0.98] ${
+                          productModalTab === 'features'
+                            ? 'bg-primary text-primary-foreground font-black shadow-control'
+                            : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+                        }`}
+                      >
+                        <Tag className="h-3.5 w-3.5" />
+                        <span>۵. ویژگی‌های فنی</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setProductModalTab('comparison')}
+                        className={`px-3 py-1.5 rounded-control text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer duration-motion active:scale-[0.98] ${
+                          productModalTab === 'comparison'
+                            ? 'bg-primary text-primary-foreground font-black shadow-control'
+                            : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+                        }`}
+                      >
+                        <Table className="h-3.5 w-3.5" />
+                        <span>۶. جدول مقایسه</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setProductModalTab('guide')}
+                        className={`px-3 py-1.5 rounded-control text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer duration-motion active:scale-[0.98] ${
+                          productModalTab === 'guide'
+                            ? 'bg-primary text-primary-foreground font-black shadow-control'
+                            : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+                        }`}
+                      >
+                        <Sparkles className="h-3.5 w-3.5" />
+                        <span>۷. راهنمای فعال‌سازی</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setProductModalTab('faq')}
+                        className={`px-3 py-1.5 rounded-control text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer duration-motion active:scale-[0.98] ${
+                          productModalTab === 'faq'
+                            ? 'bg-primary text-primary-foreground font-black shadow-control'
+                            : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+                        }`}
+                      >
+                        <HelpCircle className="h-3.5 w-3.5" />
+                        <span>۸. سوالات متداول (FAQ)</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setProductModalTab('trust')}
+                        className={`px-3 py-1.5 rounded-control text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer duration-motion active:scale-[0.98] ${
+                          productModalTab === 'trust'
+                            ? 'bg-primary text-primary-foreground font-black shadow-control'
+                            : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+                        }`}
+                      >
+                        <ShieldCheck className="h-3.5 w-3.5" />
+                        <span>۹. ضمانت‌ها و اعتماد خریداران</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setProductModalTab('seo')}
+                        className={`px-3 py-1.5 rounded-control text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer duration-motion active:scale-[0.98] ${
+                          productModalTab === 'seo'
+                            ? 'bg-primary text-primary-foreground font-black shadow-control'
+                            : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+                        }`}
+                      >
+                        <Globe className="h-3.5 w-3.5" />
+                        <span>۱۰. سئو و متادیتا</span>
+                      </button>
+                    </div>
+
                     <button
                       type="button"
-                      onClick={() => setProductModalTab('delivery')}
-                      className={`px-3 py-1.5 rounded-control text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer duration-motion active:scale-[0.98] ${
-                        productModalTab === 'delivery'
-                          ? 'bg-primary text-primary-foreground font-black shadow-control'
-                          : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
-                      }`}
+                      onClick={() => scrollProductTabs('left')}
+                      className="p-1.5 rounded-control bg-secondary hover:bg-muted border border-border/60 text-muted-foreground hover:text-foreground shadow-xs shrink-0 cursor-pointer mr-1 duration-motion active:scale-95"
+                      title="اسکرول به چپ"
+                      aria-label="اسکرول به چپ"
                     >
-                      <Zap className="h-3.5 w-3.5" />
-                      <span>۲. شیوه تحویل و اتصال به ربات</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setProductModalTab('plans')}
-                      className={`px-3 py-1.5 rounded-control text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer duration-motion active:scale-[0.98] ${
-                        productModalTab === 'plans'
-                          ? 'bg-primary text-primary-foreground font-black shadow-control'
-                          : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
-                      }`}
-                    >
-                      <Calendar className="h-3.5 w-3.5" />
-                      <span>
-                        ۳. پلن‌ها و دوره‌ها ({pPlans.length || 'پیش‌فرض'})
-                      </span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setProductModalTab('notice')}
-                      className={`px-3 py-1.5 rounded-control text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer duration-motion active:scale-[0.98] ${
-                        productModalTab === 'notice'
-                          ? 'bg-primary text-primary-foreground font-black shadow-control'
-                          : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
-                      }`}
-                    >
-                      <HelpCircle className="h-3.5 w-3.5" />
-                      <span>۴. نکات مهم قبل از خرید</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setProductModalTab('features')}
-                      className={`px-3 py-1.5 rounded-control text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer duration-motion active:scale-[0.98] ${
-                        productModalTab === 'features'
-                          ? 'bg-primary text-primary-foreground font-black shadow-control'
-                          : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
-                      }`}
-                    >
-                      <Tag className="h-3.5 w-3.5" />
-                      <span>۵. ویژگی‌های فنی</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setProductModalTab('comparison')}
-                      className={`px-3 py-1.5 rounded-control text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer duration-motion active:scale-[0.98] ${
-                        productModalTab === 'comparison'
-                          ? 'bg-primary text-primary-foreground font-black shadow-control'
-                          : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
-                      }`}
-                    >
-                      <Table className="h-3.5 w-3.5" />
-                      <span>۶. جدول مقایسه</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setProductModalTab('guide')}
-                      className={`px-3 py-1.5 rounded-control text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer duration-motion active:scale-[0.98] ${
-                        productModalTab === 'guide'
-                          ? 'bg-primary text-primary-foreground font-black shadow-control'
-                          : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
-                      }`}
-                    >
-                      <Sparkles className="h-3.5 w-3.5" />
-                      <span>۷. راهنمای فعال‌سازی</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setProductModalTab('faq')}
-                      className={`px-3 py-1.5 rounded-control text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer duration-motion active:scale-[0.98] ${
-                        productModalTab === 'faq'
-                          ? 'bg-primary text-primary-foreground font-black shadow-control'
-                          : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
-                      }`}
-                    >
-                      <HelpCircle className="h-3.5 w-3.5" />
-                      <span>۸. سوالات متداول (FAQ)</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setProductModalTab('trust')}
-                      className={`px-3 py-1.5 rounded-control text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer duration-motion active:scale-[0.98] ${
-                        productModalTab === 'trust'
-                          ? 'bg-primary text-primary-foreground font-black shadow-control'
-                          : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
-                      }`}
-                    >
-                      <ShieldCheck className="h-3.5 w-3.5" />
-                      <span>۹. ضمانت‌ها و اعتماد خریداران</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setProductModalTab('seo')}
-                      className={`px-3 py-1.5 rounded-control text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer duration-motion active:scale-[0.98] ${
-                        productModalTab === 'seo'
-                          ? 'bg-primary text-primary-foreground font-black shadow-control'
-                          : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
-                      }`}
-                    >
-                      <Globe className="h-3.5 w-3.5" />
-                      <span>۱۰. سئو و متادیتا</span>
+                      <ChevronLeft className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
 
                 <form
+                  id="product-modal-form"
                   onSubmit={handleProductSubmit}
-                  className="p-5 space-y-4 max-h-[72vh] overflow-y-auto text-xs"
+                  className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5 text-xs scrollbar-thin"
                 >
                   {productFormError && (
                     <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 flex items-center gap-2">
@@ -2330,12 +2500,25 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
                           </span>
                         </div>
                         <div>
-                          <label
-                            htmlFor="p-category"
-                            className="font-bold text-foreground block mb-1"
-                          >
-                            دسته‌بندی فروشگاه (دریافت زنده از پایگاه داده)
-                          </label>
+                          <div className="flex items-center justify-between mb-1">
+                            <label
+                              htmlFor="p-category"
+                              className="font-bold text-foreground block text-xs"
+                            >
+                              دسته‌بندی کالا:
+                            </label>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setQuickCatSource('product_modal')
+                                setIsQuickCatModalOpen(true)
+                              }}
+                              className="text-[11px] font-bold text-brand hover:underline flex items-center gap-1 cursor-pointer"
+                            >
+                              <FolderPlus className="w-3.5 h-3.5" />
+                              <span>+ تعریف دسته جدید</span>
+                            </button>
+                          </div>
                           <select
                             id="p-category"
                             value={pCategory}
@@ -2381,12 +2564,22 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
                       {/* Group Tag & Group Title Row (Database-driven) */}
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
-                          <label
-                            htmlFor="p-group-tag"
-                            className="font-bold text-foreground block mb-1"
-                          >
-                            شناسه گروه برند (Group Tag)
-                          </label>
+                          <div className="flex items-center justify-between mb-1">
+                            <label
+                              htmlFor="p-group-tag"
+                              className="font-bold text-foreground block text-xs"
+                            >
+                              شناسه گروه / برند (Group Tag)
+                            </label>
+                            <button
+                              type="button"
+                              onClick={() => setIsQuickGroupModalOpen(true)}
+                              className="text-[11px] font-bold text-brand hover:underline flex items-center gap-1 cursor-pointer"
+                            >
+                              <Tag className="w-3.5 h-3.5" />
+                              <span>+ تعریف گروه/برند</span>
+                            </button>
+                          </div>
                           <input
                             id="p-group-tag"
                             list="group-tags-list"
@@ -2567,9 +2760,8 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
                               }}
                               className="w-full h-9 px-2.5 text-xs font-bold rounded-xl border-2 border-brand bg-background text-foreground font-mono font-latin outline-none focus:ring-2 focus:ring-brand/30"
                             />
-                            <span className="text-[11px] text-brand font-black block font-latin">
-                              {Number(pPriceToman).toLocaleString('fa-IR')}{' '}
-                              تومان
+                            <span className="text-[11px] text-brand font-black block font-sans">
+                              {formatToman(pPriceToman)} تومان
                             </span>
                           </div>
                         </div>
@@ -2577,7 +2769,7 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
                         <div className="text-[11px] text-muted-foreground flex items-center justify-between pt-0.5">
                           <span>سود تخمینی هر فروش:</span>
                           <span
-                            className={`font-mono font-latin font-bold ${
+                            className={`font-sans font-bold ${
                               pPriceToman >=
                               Math.round(pBaseCostUSD * pLiveUSDTRate)
                                 ? 'text-emerald-400'
@@ -2588,11 +2780,13 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
                             Math.round(pBaseCostUSD * pLiveUSDTRate)
                               ? '+'
                               : ''}
-                            {(
+                            {formatToman(
                               pPriceToman -
-                              Math.round(pBaseCostUSD * pLiveUSDTRate)
-                            ).toLocaleString('fa-IR')}{' '}
-                            تومان ({Number(pMarginPercent).toFixed(2)}٪)
+                                Math.round(pBaseCostUSD * pLiveUSDTRate),
+                            )}{' '}
+                            تومان (
+                            {toPersianDigits(Number(pMarginPercent).toFixed(2))}
+                            ٪)
                           </span>
                         </div>
                       </div>
@@ -2636,11 +2830,8 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
                               className="w-full h-9 px-3 text-xs rounded-field border border-border/60 bg-card text-foreground font-mono font-latin outline-none focus:border-brand"
                             />
                             {pOriginalPriceToman > 0 && (
-                              <span className="text-[10px] text-muted-foreground block font-latin">
-                                {Number(pOriginalPriceToman).toLocaleString(
-                                  'fa-IR',
-                                )}{' '}
-                                تومان
+                              <span className="text-[10px] text-muted-foreground block font-sans">
+                                {formatToman(pOriginalPriceToman)} تومان
                               </span>
                             )}
                           </div>
@@ -2682,12 +2873,14 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
                             />
                             {Number(pDiscountPercent) > 0 &&
                               pOriginalPriceToman > pPriceToman && (
-                                <span className="text-[10px] text-emerald-500 font-bold block font-latin">
+                                <span className="text-[10px] text-emerald-500 font-bold block font-sans">
                                   سود خریدار:{' '}
-                                  {(
-                                    pOriginalPriceToman - pPriceToman
-                                  ).toLocaleString('fa-IR')}{' '}
-                                  تومان ({Number(pDiscountPercent)}٪ تخفیف)
+                                  {formatToman(
+                                    pOriginalPriceToman - pPriceToman,
+                                  )}{' '}
+                                  تومان (
+                                  {toPersianDigits(Number(pDiscountPercent))}٪
+                                  تخفیف)
                                 </span>
                               )}
                           </div>
@@ -3236,8 +3429,7 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
                               🔑 تحویل آنی از انبار لایسنس محلی (Local Vault)
                             </option>
                             <option value="manual_operator">
-                              🔷 تحویل دستی در صف اپراتور (Mode C / Operator
-                              Desk)
+                              🔷 تحویل دستی در صف اپراتور (میز کار اپراتور)
                             </option>
                           </select>
                         </div>
@@ -3304,7 +3496,8 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
                               بدون نیاز به ورودی (خرید مستقیم لایسنس/لینک)
                             </option>
                             <option value="account_creds">
-                              ایمیل و رمز عبور کاربر (ارتقای Mode C با AES-256)
+                              ایمیل و رمز عبور کاربر (ارتقای دستی اپراتور با
+                              AES-256)
                             </option>
                             <option value="telegram_username">
                               آیدی تلگرام (@username جهت استارز و پرمیوم)
@@ -4501,12 +4694,45 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
                     </div>
                   )}
 
-                  {/* Form Submit Button: Full-width Graphite primary button without cancel button per user instruction */}
-                  <div className="pt-3 border-t border-border/60">
+                  {/* Bottom padding inside form */}
+                  <div className="h-2" />
+                </form>
+
+                {/* Sticky Responsive Footer Action Bar */}
+                <div className="p-3.5 sm:p-4 border-t border-border/60 bg-card/95 backdrop-blur-md flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md shrink-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-bold text-muted-foreground">
+                      وضعیت:
+                    </span>
+                    <span
+                      className={`px-2.5 py-0.5 rounded-control text-[11px] font-bold border font-sans ${
+                        pIsActive
+                          ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                          : 'bg-muted text-muted-foreground border-border/40'
+                      }`}
+                    >
+                      {pIsActive ? 'فعال در فروشگاه' : 'غیرفعال (پیش‌نویس)'}
+                    </span>
+                    {pPriceToman > 0 && (
+                      <span className="text-xs font-black text-brand font-sans mr-2">
+                        قیمت فروش: {formatToman(pPriceToman)} تومان
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2 justify-end">
+                    <button
+                      type="button"
+                      onClick={() => setIsProductModalOpen(false)}
+                      className="h-10 px-4 rounded-control border border-border/60 bg-secondary hover:bg-muted text-foreground text-xs font-bold transition cursor-pointer"
+                    >
+                      انصراف
+                    </button>
                     <button
                       type="submit"
+                      form="product-modal-form"
                       disabled={productSubmitting}
-                      className="w-full h-11 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground text-xs font-black duration-motion ease-motion active:scale-[0.98] shadow-control flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
+                      className="h-10 px-6 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground text-xs font-black duration-motion ease-motion active:scale-[0.98] shadow-control flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
                     >
                       {productSubmitting && (
                         <Loader2 className="h-4 w-4 animate-spin" />
@@ -4518,8 +4744,189 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
                       </span>
                     </button>
                   </div>
-                </form>
+                </div>
               </div>
+            </div>
+          </div>,
+          document.body,
+        )}
+
+      {/* QUICK CREATE CATEGORY MODAL */}
+      {isQuickCatModalOpen &&
+        createPortal(
+          <div className="fixed inset-0 z-[2147483647] flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200">
+            <div
+              dir="rtl"
+              className="w-full max-w-md bg-card rounded-surface border border-border/80 shadow-overlay p-6 space-y-4 text-right animate-in zoom-in-95 duration-200 text-foreground"
+            >
+              <div className="flex items-center justify-between border-b border-border/60 pb-3">
+                <h4 className="text-sm font-black text-foreground flex items-center gap-2">
+                  <FolderPlus className="w-4 h-4 text-brand" />
+                  <span>تعریف و ایجاد دسته‌بندی جدید</span>
+                </h4>
+                <ModalCloseButton
+                  onClick={() => setIsQuickCatModalOpen(false)}
+                />
+              </div>
+
+              <form
+                onSubmit={handleSaveQuickCategory}
+                className="space-y-4 text-xs"
+              >
+                <div className="space-y-1">
+                  <label className="font-bold text-foreground block">
+                    عنوان فارسی دسته‌بندی *:
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={quickCatTitleFA}
+                    onChange={(e) => {
+                      setQuickCatTitleFA(e.target.value)
+                      if (!quickCatSlug) {
+                        setQuickCatSlug(
+                          e.target.value
+                            .trim()
+                            .toLowerCase()
+                            .replace(/\s+/g, '-'),
+                        )
+                      }
+                    }}
+                    placeholder="مثلاً: ابزارهای طراحی و گرافیک AI"
+                    className="w-full h-10 px-3 rounded-field border border-border/60 bg-muted/20 text-foreground text-xs outline-none focus:border-brand"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-bold text-foreground block">
+                    شناسه یکتا URL (اسلاگ انگلیسی) *:
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    dir="ltr"
+                    value={quickCatSlug}
+                    onChange={(e) => setQuickCatSlug(e.target.value)}
+                    placeholder="مثلاً: design-ai"
+                    className="w-full h-10 px-3 rounded-field border border-border/60 bg-muted/20 text-foreground font-mono text-xs outline-none focus:border-brand text-left"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-bold text-foreground block">
+                    دسته والد / اصلی (اختیاری جهت ساخت زیردسته):
+                  </label>
+                  <select
+                    value={quickCatParentId}
+                    onChange={(e) => setQuickCatParentId(e.target.value)}
+                    className="w-full h-10 px-3 rounded-control border border-border/60 bg-card text-foreground text-xs font-bold outline-none focus:border-brand cursor-pointer"
+                  >
+                    <option value="">-- بدون والد (دسته اصلی ریشه) --</option>
+                    {storeCategories.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        📁 {c.title_fa} ({c.slug})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-2 border-t border-border/60">
+                  <button
+                    type="button"
+                    onClick={() => setIsQuickCatModalOpen(false)}
+                    className="h-9 px-4 rounded-control border border-border/60 bg-secondary hover:bg-muted text-xs font-bold transition shadow-xs cursor-pointer"
+                  >
+                    انصراف
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={savingQuickCat}
+                    className="h-9 px-5 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs shadow-control flex items-center gap-1.5 cursor-pointer duration-motion active:scale-[0.98] disabled:opacity-50"
+                  >
+                    {savingQuickCat ? (
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Check className="w-3.5 h-3.5" />
+                    )}
+                    <span>ثبت دسته‌بندی در دیتابیس</span>
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>,
+          document.body,
+        )}
+
+      {/* QUICK CREATE GROUP / BRAND MODAL */}
+      {isQuickGroupModalOpen &&
+        createPortal(
+          <div className="fixed inset-0 z-[2147483647] flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200">
+            <div
+              dir="rtl"
+              className="w-full max-w-md bg-card rounded-surface border border-border/80 shadow-overlay p-6 space-y-4 text-right animate-in zoom-in-95 duration-200 text-foreground"
+            >
+              <div className="flex items-center justify-between border-b border-border/60 pb-3">
+                <h4 className="text-sm font-black text-foreground flex items-center gap-2">
+                  <Tag className="w-4 h-4 text-brand" />
+                  <span>تعریف گروه، برند یا اکوسیستم جدید</span>
+                </h4>
+                <ModalCloseButton
+                  onClick={() => setIsQuickGroupModalOpen(false)}
+                />
+              </div>
+
+              <form
+                onSubmit={handleSaveQuickGroup}
+                className="space-y-4 text-xs"
+              >
+                <div className="space-y-1">
+                  <label className="font-bold text-foreground block">
+                    شناسه انگلیسی گروه/برند (Group Tag) *:
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    dir="ltr"
+                    value={quickGroupTag}
+                    onChange={(e) => setQuickGroupTag(e.target.value)}
+                    placeholder="مثلاً: deepseek یا midjourney"
+                    className="w-full h-10 px-3 rounded-field border border-border/60 bg-muted/20 text-foreground font-mono text-xs outline-none focus:border-brand text-left"
+                  />
+                  <span className="text-[10px] text-muted-foreground block">
+                    جهت اعمال استراتژی‌های گروهی ربات‌ها و کاتالوگ
+                  </span>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-bold text-foreground block">
+                    عنوان فارسی نمایشی برند (Group Title):
+                  </label>
+                  <input
+                    type="text"
+                    value={quickGroupTitleFA}
+                    onChange={(e) => setQuickGroupTitleFA(e.target.value)}
+                    placeholder="مثلاً: دیپ‌سیک و هوش‌های مصنوعی متن‌باز"
+                    className="w-full h-10 px-3 rounded-field border border-border/60 bg-muted/20 text-foreground text-xs outline-none focus:border-brand"
+                  />
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-2 border-t border-border/60">
+                  <button
+                    type="button"
+                    onClick={() => setIsQuickGroupModalOpen(false)}
+                    className="h-9 px-4 rounded-control border border-border/60 bg-secondary hover:bg-muted text-xs font-bold transition shadow-xs cursor-pointer"
+                  >
+                    انصراف
+                  </button>
+                  <button
+                    type="submit"
+                    className="h-9 px-5 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs shadow-control flex items-center gap-1.5 cursor-pointer duration-motion active:scale-[0.98]"
+                  >
+                    <Check className="w-3.5 h-3.5" />
+                    <span>اعمال گروه و برند</span>
+                  </button>
+                </div>
+              </form>
             </div>
           </div>,
           document.body,

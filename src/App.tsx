@@ -22,6 +22,7 @@ import { UserProfilePage } from './pages/UserProfilePage'
 import { VirtualNumbersPage } from './pages/VirtualNumbersPage'
 import { api, apiService } from './services/api'
 import type { Order, ThemeSettings } from './types'
+import { cleanMediaUrl } from './utils/brand'
 
 export function App() {
   const [orders, setOrders] = useState<Order[]>(() =>
@@ -54,7 +55,7 @@ export function App() {
           link.rel = 'icon'
           document.head.appendChild(link)
         }
-        link.href = settings.site_favicon_url
+        link.href = cleanMediaUrl(settings.site_favicon_url)
       }
 
       // 3. Meta Description

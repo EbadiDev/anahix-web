@@ -1,16 +1,16 @@
 import {
   BellRing,
-  BookOpen,
   Boxes,
   Calendar as CalendarIcon,
   Crown,
+  FileText,
   Headphones,
   Image as ImageIcon,
+  LayoutDashboard,
   LogOut,
   ReceiptText,
   Settings,
   Ticket,
-  TrendingUp,
   UserCheck,
   Users,
   X,
@@ -85,13 +85,13 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
 }) => {
   const groups: NavGroup[] = [
     {
-      label: 'هوش تجاری و بازاریابی',
+      label: 'میز کار و گزارشات مدیریتی',
       items: [
         {
           id: 'bi-analytics',
-          title: 'داشبورد هوش تجاری (BI)',
-          subtitle: 'سود ناخالص، فروش، AOV و نرخ تبدیل',
-          icon: TrendingUp,
+          title: 'داشبورد مدیریتی',
+          subtitle: 'آمار ۷ روزه، سفارشات اخیر، فروش و وضعیت سامانه',
+          icon: LayoutDashboard,
         },
         {
           id: 'calendar',
@@ -174,9 +174,9 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
       items: [
         {
           id: 'content',
-          title: 'وبلاگ و پایگاه دانش (SEO)',
-          subtitle: 'مقالات سئو، رفع ارورها و آموزش‌ها',
-          icon: BookOpen,
+          title: 'مقالات وبلاگ و اخبار',
+          subtitle: 'تولید محتوا، اخبار تکنولوژی، مقالات سئو و پایگاه دانش',
+          icon: FileText,
         },
       ],
     },

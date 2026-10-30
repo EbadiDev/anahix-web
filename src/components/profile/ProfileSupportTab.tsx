@@ -36,6 +36,7 @@ import { formatToman, toPersianDigits } from '../../utils/formatters'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import { ConfirmModal } from '../vibefarsi/ConfirmModal'
+import { LoadingState } from '../vibefarsi/LoadingState'
 import { ModalCloseButton } from '../vibefarsi/ModalCloseButton'
 import { useNotification } from '../vibefarsi/NotificationContext'
 import { ToggleSwitch } from '../vibefarsi/ToggleSwitch'
@@ -49,7 +50,7 @@ const DEPARTMENTS = [
   { id: 'ai_accounts', label: 'اکانت‌های هوش مصنوعی (ChatGPT, Claude, Gemini)' },
   {
     id: 'license_support',
-    label: 'لایسنس و خطای فعال‌سازی اکانت شخصی (Mode C)',
+    label: 'لایسنس و خطای فعال‌سازی اکانت شخصی دستی اپراتور',
   },
   { id: 'virtual_numbers', label: 'شماره‌های مجازی و دریافت پیامک (5SIM)' },
   { id: 'billing', label: 'امور مالی، شارژ کیف پول و تراکنش‌ها' },
@@ -636,11 +637,8 @@ export const ProfileSupportTab: React.FC<ProfileSupportTabProps> = ({
 
       {/* 3. Tickets List View */}
       {loading ? (
-        <div className="p-16 rounded-surface border border-border/60 bg-card text-center space-y-3 shadow-surface">
-          <RefreshCw className="w-8 h-8 text-brand animate-spin mx-auto" />
-          <p className="text-xs text-muted-foreground font-medium">
-            در حال دریافت تیکت‌های پشتیبانی شما...
-          </p>
+        <div className="rounded-surface border border-border/60 bg-card shadow-surface overflow-hidden">
+          <LoadingState message="در حال دریافت تیکت‌های پشتیبانی شما..." />
         </div>
       ) : errorMsg ? (
         <div className="p-8 rounded-surface border border-destructive/30 bg-destructive/10 text-center space-y-3">
@@ -922,10 +920,10 @@ export const ProfileSupportTab: React.FC<ProfileSupportTabProps> = ({
                 {/* Conversation Messages Container */}
                 <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4 bg-muted/20">
                   {loadingDetail ? (
-                    <div className="py-12 text-center text-xs text-muted-foreground">
-                      <RefreshCw className="w-6 h-6 text-brand animate-spin mx-auto mb-2" />
-                      در حال بارگذاری سابقه پیام‌ها...
-                    </div>
+                    <LoadingState
+                      message="در حال بارگذاری سابقه پیام‌ها..."
+                      size="sm"
+                    />
                   ) : (
                     ticketDetail.messages.map((msg) => {
                       const isUser = msg.sender_type === 'customer'

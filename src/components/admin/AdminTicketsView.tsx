@@ -57,7 +57,7 @@ const DEPARTMENTS = [
   { id: 'ai_accounts', label: 'اکانت‌های هوش مصنوعی (ChatGPT, Claude, Gemini)' },
   {
     id: 'license_support',
-    label: 'لایسنس و خطای فعال‌سازی اکانت شخصی (Mode C)',
+    label: 'لایسنس و خطای فعال‌سازی اکانت شخصی دستی اپراتور',
   },
   { id: 'virtual_numbers', label: 'شماره‌های مجازی و دریافت پیامک (5SIM)' },
   { id: 'billing', label: 'امور مالی، شارژ کیف پول و تراکنش‌ها' },
