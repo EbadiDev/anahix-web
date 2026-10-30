@@ -25,6 +25,11 @@ import { api, apiService } from '../../services/api'
 import type { ThemeSettings } from '../../types'
 import { cleanMediaUrl, getSiteBrandName } from '../../utils/brand'
 
+const toFaDigits = (val: number | string): string => {
+  const faDigits = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹']
+  return String(val).replace(/[0-9]/g, (w) => faDigits[+w] || w)
+}
+
 export const AdminLoginPage: React.FC = () => {
   const navigate = useNavigate()
   const { success: notifySuccess, error: notifyError } = useNotification()
@@ -55,13 +60,34 @@ export const AdminLoginPage: React.FC = () => {
     setIsBanned(false)
   }
 
-  // Fetch theme settings for brand logo and site name
+  // Fetch theme settings and check IP ban status
   useEffect(() => {
+    // 1. Check IP status immediately on load
+    apiService.checkAdminLoginIP().then((ipStatus) => {
+      if (ipStatus.is_banned) {
+        if (ipStatus.kick_out) {
+          // Non-site user who was banned: kick out to storefront immediately
+          notifyError(
+            'دسترسی غیرمجاز',
+            'شما اجازه دسترسی به این صفحه را ندارید.',
+          )
+          navigate('/', { replace: true })
+          return
+        }
+        // Registered user who was banned: show disabled ban status
+        setIsBanned(true)
+        const reason = ipStatus.reason || 'ورود غیرمجاز'
+        setError(`حساب کاربری شما مسدود شده است. علت: ${reason}`)
+      }
+    })
+
+    // 2. Check active admin session
     const existingToken = apiService.getAdminToken()
     if (existingToken) {
       setHasActiveSession(true)
     }
 
+    // 3. Theme settings
     api
       .getThemeSettings()
       .then((settings) => {
@@ -77,7 +103,7 @@ export const AdminLoginPage: React.FC = () => {
     window.addEventListener('anahix:theme:updated', handleThemeSync)
     return () =>
       window.removeEventListener('anahix:theme:updated', handleThemeSync)
-  }, [])
+  }, [navigate, notifyError])
 
   const siteName = themeSettings?.site_name_fa || getSiteBrandName('آناهیکس')
 
@@ -88,7 +114,6 @@ export const AdminLoginPage: React.FC = () => {
       const banMsg =
         'حساب کاربری شما به علت بیش از ۳ بار تلاش ناموفق غیرفعال و مسدود شد. علت: ورود غیرمجاز'
       setError(banMsg)
-      notifyError('دسترسی مسدود است', banMsg)
       return
     }
 
@@ -96,7 +121,6 @@ export const AdminLoginPage: React.FC = () => {
     if (!trimmedUser || !password) {
       const msg = 'لطفاً نام کاربری و کلمه عبور را وارد کنید'
       setError(msg)
-      notifyError('خطای اعتبارسنجی', msg)
       return
     }
 
@@ -112,7 +136,6 @@ export const AdminLoginPage: React.FC = () => {
       setIsBanned(false)
       try {
         sessionStorage.removeItem('admin_login_fails')
-        sessionStorage.removeItem('admin_login_banned')
       } catch {}
 
       notifySuccess(
@@ -123,20 +146,33 @@ export const AdminLoginPage: React.FC = () => {
         navigate('/admin/dashboard')
       }, 600)
     } catch (err: any) {
+      // If user is not a user of the site at all, kick them out of this page
+      const isKickOut = err?.data?.kick_out === true
+      if (isKickOut) {
+        notifyError(
+          'دسترسی غیرمجاز',
+          'شما کاربر این سامانه نیستید و دسترسی شما به این صفحه مسدود شد.',
+        )
+        navigate('/', { replace: true })
+        return
+      }
+
       const nextFails = failedAttempts + 1
       setFailedAttempts(nextFails)
       try {
         sessionStorage.setItem('admin_login_fails', String(nextFails))
       } catch {}
 
-      const errMsg =
+      const rawMsg =
         err?.message || 'نام کاربری یا کلمه عبور وارد شده نادرست است'
+      const localizedMsg = toFaDigits(rawMsg)
 
       // Check if banned by threshold or server response
       const isServerBanned =
-        errMsg.includes('علت: ورود غیرمجاز') ||
-        errMsg.includes('مسدود شد') ||
-        errMsg.includes('مسدود شده است') ||
+        err?.data?.is_banned === true ||
+        rawMsg.includes('علت: ورود غیرمجاز') ||
+        rawMsg.includes('مسدود شد') ||
+        rawMsg.includes('مسدود شده است') ||
         nextFails >= 3
 
       if (isServerBanned) {
@@ -144,10 +180,9 @@ export const AdminLoginPage: React.FC = () => {
         const banMsg =
           'حساب کاربری شما به علت بیش از ۳ بار تلاش ناموفق غیرفعال و مسدود شد. علت: ورود غیرمجاز'
         setError(banMsg)
-        notifyError('مسدودسازی امنیتی', banMsg)
       } else {
-        setError(errMsg)
-        notifyError('خطا در ورود به پنل مدیریت', errMsg)
+        // Display error in the card's Alert ONLY without duplicate toast
+        setError(localizedMsg)
       }
     } finally {
       setLoading(false)
@@ -263,8 +298,8 @@ export const AdminLoginPage: React.FC = () => {
           {isBanned && (
             <div className="mb-5">
               <Alert variant="danger" title="حساب کاربری مسدود شد">
-                به علت بیش از ۳ بار تلاش ناموفق، حساب کاربری شما از سمت پنل
-                مدیریت غیرفعال و بن گردید. (علت: ورود غیرمجاز)
+                {error ||
+                  'به علت بیش از ۳ بار تلاش ناموفق، دسترسی شما از سمت پنل مدیریت غیرفعال و مسدود گردید. (علت: ورود غیرمجاز)'}
               </Alert>
             </div>
           )}
@@ -304,8 +339,8 @@ export const AdminLoginPage: React.FC = () => {
                   value={username}
                   onChange={(e) => handleUsernameChange(e.target.value)}
                   placeholder="admin"
-                  className="w-full h-11 pl-10 pr-3.5 text-xs font-latin rounded-field bg-muted/20 border border-border/60 text-foreground placeholder:text-muted-foreground outline-none focus:border-brand focus:ring-1 focus:ring-brand/30 transition-all font-sans disabled:opacity-50"
-                  disabled={loading || success}
+                  className="w-full h-11 pl-10 pr-3.5 text-xs rounded-field bg-muted/20 border border-border/60 text-foreground placeholder:text-muted-foreground outline-none focus:border-brand focus:ring-1 focus:ring-brand/30 transition-all font-sans disabled:opacity-50"
+                  disabled={loading || success || isBanned}
                   required
                   autoComplete="username"
                 />
@@ -351,45 +386,40 @@ export const AdminLoginPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Remaining attempts indicator if any failed attempt occurred */}
-            {failedAttempts > 0 && !isBanned && !success && (
-              <div className="p-2 rounded-control bg-amber-500/10 border border-amber-500/30 text-amber-500 text-[11px] font-bold flex items-center justify-between">
-                <span>تعداد تلاش ناموفق:</span>
-                <span className="font-latin">
-                  {failedAttempts} از ۳ (تلاش بیش از ۳ منجر به مسدودسازی حساب
-                  می‌شود)
-                </span>
-              </div>
+            {/* Submit Button or Banned Status Button */}
+            {isBanned ? (
+              <button
+                type="button"
+                disabled
+                className="w-full h-11 rounded-control bg-destructive/15 border border-destructive/40 text-destructive font-black text-xs sm:text-sm shadow-control flex items-center justify-center gap-2 cursor-not-allowed transition-all mt-2"
+              >
+                <AlertCircle className="w-4 h-4 text-destructive" />
+                <span>حساب کاربری مسدود است (علت: ورود غیرمجاز)</span>
+              </button>
+            ) : (
+              <button
+                type="submit"
+                disabled={loading || success}
+                className="w-full h-11 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs sm:text-sm duration-motion ease-motion active:scale-[0.98] shadow-control flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 transition-all mt-2"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>در حال اعتبارسنجی و صدور توکن...</span>
+                  </>
+                ) : success ? (
+                  <>
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                    <span>ورود تایید شد</span>
+                  </>
+                ) : (
+                  <>
+                    <LogIn className="w-4 h-4" />
+                    <span>ورود به میز کار مدیریت</span>
+                  </>
+                )}
+              </button>
             )}
-
-            {/* Submit Button */}
-            <button
-              type="submit"
-              disabled={loading || success || isBanned}
-              className="w-full h-11 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs sm:text-sm duration-motion ease-motion active:scale-[0.98] shadow-control flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 transition-all mt-2"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>در حال اعتبارسنجی و صدور توکن...</span>
-                </>
-              ) : success ? (
-                <>
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                  <span>ورود تایید شد</span>
-                </>
-              ) : isBanned ? (
-                <>
-                  <AlertCircle className="w-4 h-4 text-destructive" />
-                  <span>حساب کاربری مسدود است</span>
-                </>
-              ) : (
-                <>
-                  <LogIn className="w-4 h-4" />
-                  <span>ورود به میز کار مدیریت</span>
-                </>
-              )}
-            </button>
 
             {/* Return to Storefront button: Placed directly below the Login button */}
             <Link
