@@ -1542,65 +1542,6 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
         <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-brand/40 to-transparent" />
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-12 space-y-10">
-          {/* Top Trust Features Strip */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 pb-8 border-b border-border/60">
-            <div className="flex items-center gap-3 p-3.5 rounded-surface bg-muted/20 border border-border/60">
-              <div className="w-10 h-10 rounded-control bg-secondary text-brand border border-border/60 flex items-center justify-center shrink-0 shadow-xs">
-                <Zap className="w-5 h-5 text-brand" />
-              </div>
-              <div>
-                <h6 className="text-xs font-black text-foreground">
-                  تحویل آنی ۰ ثانیه‌ای
-                </h6>
-                <p className="text-[10px] text-muted-foreground mt-0.5">
-                  صدور خودکار بلافاصله پس از پرداخت
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3 p-3.5 rounded-surface bg-muted/20 border border-border/60">
-              <div className="w-10 h-10 rounded-control bg-secondary text-emerald-500 border border-border/60 flex items-center justify-center shrink-0 shadow-xs">
-                <ShieldCheck className="w-5 h-5 text-emerald-500" />
-              </div>
-              <div>
-                <h6 className="text-xs font-black text-foreground">
-                  ضمانت ۳۰ روزه تعویض
-                </h6>
-                <p className="text-[10px] text-muted-foreground mt-0.5">
-                  لایسنس قانونی و بدون قطعی
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3 p-3.5 rounded-surface bg-muted/20 border border-border/60">
-              <div className="w-10 h-10 rounded-control bg-secondary text-blue-500 border border-border/60 flex items-center justify-center shrink-0 shadow-xs">
-                <CreditCard className="w-5 h-5 text-blue-500" />
-              </div>
-              <div>
-                <h6 className="text-xs font-black text-foreground">
-                  پرداخت امن شتاب و تتر
-                </h6>
-                <p className="text-[10px] text-muted-foreground mt-0.5">
-                  شاپرک رسمی و شبکه امن TRC20
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3 p-3.5 rounded-surface bg-muted/20 border border-border/60">
-              <div className="w-10 h-10 rounded-control bg-secondary text-amber-500 border border-border/60 flex items-center justify-center shrink-0 shadow-xs">
-                <Headphones className="w-5 h-5 text-amber-500" />
-              </div>
-              <div>
-                <h6 className="text-xs font-black text-foreground">
-                  پشتیبانی ۲۴ ساعته
-                </h6>
-                <p className="text-[10px] text-muted-foreground mt-0.5">
-                  پاسخگویی سریع کارشناسان در تلگرام
-                </p>
-              </div>
-            </div>
-          </div>
-
           {/* Main 4-Column Responsive Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 text-right text-xs">
             {/* Column 1: Brand Info & About */}
@@ -1742,62 +1683,98 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
               </ul>
             </div>
 
-            {/* Column 3: Top AI Services */}
+            {/* Column 3: Top AI Services (Fully Dynamic & Admin Managed) */}
             <div className="space-y-3">
               <h5 className="font-black text-foreground text-xs flex items-center gap-1.5 pb-1 border-b border-border/40">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                 <span>سرویس‌های پرطرفدار</span>
               </h5>
               <ul className="space-y-2 text-xs">
-                <li>
-                  <Link
-                    to="/products"
-                    className="text-muted-foreground hover:text-brand transition-colors inline-flex items-center gap-1"
-                  >
-                    <span>⚡</span>
-                    <span>اشتراک قانونی ChatGPT Plus</span>
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    to="/products"
-                    className="text-muted-foreground hover:text-brand transition-colors inline-flex items-center gap-1"
-                  >
-                    <span>⚡</span>
-                    <span>اکانت اختصاصی Claude 3.7 Sonnet</span>
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    to="/products"
-                    className="text-muted-foreground hover:text-brand transition-colors inline-flex items-center gap-1"
-                  >
-                    <span>⚡</span>
-                    <span>لایسنس Google Gemini Advanced</span>
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    to="/products"
-                    className="text-muted-foreground hover:text-brand transition-colors inline-flex items-center gap-1"
-                  >
-                    <span>⚡</span>
-                    <span>اکانت Cursor AI ویژه برنامه‌نویسان</span>
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    to="/virtual-numbers"
-                    className="text-muted-foreground hover:text-brand transition-colors inline-flex items-center gap-1"
-                  >
-                    <span>⚡</span>
-                    <span>شماره مجازی ۵SIM سرویس‌های خارجی</span>
-                  </Link>
-                </li>
+                {themeSettings?.footer_services_json ? (
+                  (() => {
+                    try {
+                      const parsed = JSON.parse(
+                        themeSettings.footer_services_json,
+                      )
+                      if (Array.isArray(parsed) && parsed.length > 0) {
+                        return parsed.map((item: any) => (
+                          <li key={item.id || item.link}>
+                            {item.link.startsWith('#') ? (
+                              <a
+                                href={item.link}
+                                className="text-muted-foreground hover:text-brand transition-colors inline-flex items-center gap-1"
+                              >
+                                <span>⚡</span>
+                                <span>{item.title}</span>
+                              </a>
+                            ) : (
+                              <Link
+                                to={item.link}
+                                className="text-muted-foreground hover:text-brand transition-colors inline-flex items-center gap-1"
+                              >
+                                <span>⚡</span>
+                                <span>{item.title}</span>
+                              </Link>
+                            )}
+                          </li>
+                        ))
+                      }
+                    } catch {}
+                    return null
+                  })()
+                ) : (
+                  <>
+                    <li>
+                      <Link
+                        to="/products"
+                        className="text-muted-foreground hover:text-brand transition-colors inline-flex items-center gap-1"
+                      >
+                        <span>⚡</span>
+                        <span>اشتراک قانونی ChatGPT Plus</span>
+                      </Link>
+                    </li>
+                    <li>
+                      <Link
+                        to="/products"
+                        className="text-muted-foreground hover:text-brand transition-colors inline-flex items-center gap-1"
+                      >
+                        <span>⚡</span>
+                        <span>اکانت اختصاصی Claude 3.7 Sonnet</span>
+                      </Link>
+                    </li>
+                    <li>
+                      <Link
+                        to="/products"
+                        className="text-muted-foreground hover:text-brand transition-colors inline-flex items-center gap-1"
+                      >
+                        <span>⚡</span>
+                        <span>لایسنس Google Gemini Advanced</span>
+                      </Link>
+                    </li>
+                    <li>
+                      <Link
+                        to="/products"
+                        className="text-muted-foreground hover:text-brand transition-colors inline-flex items-center gap-1"
+                      >
+                        <span>⚡</span>
+                        <span>اکانت Cursor AI ویژه برنامه‌نویسان</span>
+                      </Link>
+                    </li>
+                    <li>
+                      <Link
+                        to="/virtual-numbers"
+                        className="text-muted-foreground hover:text-brand transition-colors inline-flex items-center gap-1"
+                      >
+                        <span>⚡</span>
+                        <span>شماره مجازی ۵SIM سرویس‌های خارجی</span>
+                      </Link>
+                    </li>
+                  </>
+                )}
               </ul>
             </div>
 
-            {/* Column 4: Trust Badges, E-Namad & Certifications */}
+            {/* Column 4: Trust Badges, E-Namad, Torob & Certifications (Authentic Standard Dimensions) */}
             <div className="space-y-3">
               <h5 className="font-black text-foreground text-xs flex items-center gap-1.5 pb-1 border-b border-border/40">
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
@@ -1808,26 +1785,26 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
                 نظارت شبکه شاپرک:
               </p>
 
-              {/* Trust Badges Grid */}
-              <div className="grid grid-cols-2 gap-2.5 pt-1">
+              {/* Trust Badges Grid - Authentic Standard Proportions */}
+              <div className="flex items-center gap-2.5 flex-wrap pt-1">
                 {footerTrustBadges.map((badge) => {
                   const content = (
-                    <div className="p-2.5 rounded-surface bg-muted/30 hover:bg-muted/60 border border-border/60 hover:border-brand/40 transition-all flex flex-col items-center justify-center text-center gap-2 group cursor-pointer shadow-xs min-h-[96px]">
+                    <div className="w-[88px] sm:w-[94px] h-[102px] sm:h-[108px] rounded-control bg-card border border-border/80 hover:border-brand/50 shadow-xs hover:shadow-md transition-all flex flex-col items-center justify-center p-2 text-center gap-1.5 group cursor-pointer">
                       {badge.image_url ? (
                         <img
                           src={cleanMediaUrl(badge.image_url)}
                           alt={badge.title}
-                          className="h-10 w-auto max-w-[70px] object-contain group-hover:scale-105 transition-transform"
+                          className="w-14 h-14 object-contain group-hover:scale-105 transition-transform"
                           onError={(e) => {
                             ;(e.target as HTMLElement).style.display = 'none'
                           }}
                         />
                       ) : (
-                        <div className="w-9 h-9 rounded-control bg-secondary text-brand flex items-center justify-center border border-border/60">
-                          <ShieldCheck className="w-5 h-5 text-emerald-500" />
+                        <div className="w-12 h-12 rounded-control bg-secondary text-brand flex items-center justify-center border border-border/60">
+                          <ShieldCheck className="w-6 h-6 text-emerald-500" />
                         </div>
                       )}
-                      <span className="text-[10px] font-bold text-foreground line-clamp-2 leading-tight">
+                      <span className="text-[10px] font-bold text-foreground line-clamp-2 leading-tight w-full px-0.5">
                         {badge.title}
                       </span>
                     </div>
@@ -1853,22 +1830,12 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
             </div>
           </div>
 
-          {/* Bottom Copyright & Security Strip */}
-          <div className="border-t border-border/60 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-muted-foreground">
-            <div>
+          {/* Bottom Copyright Strip */}
+          <div className="border-t border-border/60 pt-6 text-center text-xs text-muted-foreground">
+            <p>
               © ۱۴۰۵ تمامی حقوق محفوظ است {brandName ? `| ${brandName}` : ''}{' '}
               {brandNameEn ? `(${brandNameEn})` : ''}
-            </div>
-            <div className="flex items-center gap-3 text-[11px] font-latin">
-              <span className="flex items-center gap-1 text-emerald-500 font-bold">
-                <Lock className="w-3.5 h-3.5" />
-                <span>AES-256-GCM Vault Secured</span>
-              </span>
-              <span>•</span>
-              <span className="text-muted-foreground/80">
-                Vibe Farsi Graphite Design System
-              </span>
-            </div>
+            </p>
           </div>
         </div>
       </footer>

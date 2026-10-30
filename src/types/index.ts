@@ -611,6 +611,7 @@ export interface ThemeSettings {
   support_telegram?: string
   header_menu_json?: string
   footer_menu_json?: string
+  footer_services_json?: string
   footer_badges_json?: string
   footer_description?: string
   ticket_sms_mode?: 'default_on' | 'default_off' | 'disabled'

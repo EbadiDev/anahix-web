@@ -245,6 +245,18 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
     },
     { id: '5', title: 'پیگیری سفارش و فاکتورها', link: '/track' },
   ])
+  // Footer Popular Services Links state
+  const [footerServices, setFooterServices] = useState<FooterMenuItem[]>([
+    { id: '1', title: 'اشتراک قانونی ChatGPT Plus', link: '/products' },
+    { id: '2', title: 'اکانت اختصاصی Claude 3.7 Sonnet', link: '/products' },
+    { id: '3', title: 'لایسنس Google Gemini Advanced', link: '/products' },
+    { id: '4', title: 'اکانت Cursor AI ویژه برنامه‌نویسان', link: '/products' },
+    {
+      id: '5',
+      title: 'شماره مجازی ۵SIM سرویس‌های خارجی',
+      link: '/virtual-numbers',
+    },
+  ])
   const [footerDescription, setFooterDescription] = useState('')
   const [footerBadges, setFooterBadges] = useState<FooterTrustBadge[]>([
     {
@@ -349,6 +361,15 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
             const parsed = JSON.parse(s.footer_menu_json)
             if (Array.isArray(parsed) && parsed.length > 0) {
               setFooterLinks(parsed)
+            }
+          } catch {}
+        }
+
+        if (s.footer_services_json) {
+          try {
+            const parsed = JSON.parse(s.footer_services_json)
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              setFooterServices(parsed)
             }
           } catch {}
         }
@@ -812,6 +833,7 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
       const payload: Partial<ThemeSettings> = {
         header_menu_json: JSON.stringify(headerMenus),
         footer_menu_json: JSON.stringify(footerLinks),
+        footer_services_json: JSON.stringify(footerServices),
         footer_badges_json: JSON.stringify(footerBadges),
         footer_description: footerDescription,
       }
@@ -1877,6 +1899,89 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
               </div>
             </div>
 
+            {/* Footer Column 3: Popular Services Links Section */}
+            <div className="pt-6 border-t border-border/60 space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="text-xs font-black text-foreground flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-emerald-500" />
+                    <span>
+                      پیوندهای ستون سرویس‌های پرطرفدار فوتر (Footer Popular
+                      Services)
+                    </span>
+                  </h4>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    مدیریت آیتم‌ها و لینک‌های ستون سوم فوتر (سرویس‌های برگزیده و
+                    اشتراک‌ها)
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setFooterServices((prev) => [
+                      ...prev,
+                      {
+                        id: String(Date.now()),
+                        title: 'سرویس جدید',
+                        link: '/products',
+                      },
+                    ])
+                  }
+                  className="h-8 px-3 rounded-control bg-secondary hover:bg-muted text-foreground text-xs font-bold transition flex items-center gap-1.5 border border-border/60 cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>افزودن سرویس</span>
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {footerServices.map((item, idx) => (
+                  <div
+                    key={item.id}
+                    className="flex items-center gap-2 p-2.5 rounded-surface border border-border/60 bg-muted/20"
+                  >
+                    <input
+                      type="text"
+                      value={item.title}
+                      onChange={(e) =>
+                        setFooterServices((prev) =>
+                          prev.map((f, i) =>
+                            i === idx ? { ...f, title: e.target.value } : f,
+                          ),
+                        )
+                      }
+                      placeholder="عنوان سرویس"
+                      className="flex-1 h-8 px-2.5 rounded-field border border-border/60 bg-card text-xs font-bold text-foreground focus:outline-none focus:border-brand"
+                    />
+                    <input
+                      type="text"
+                      value={item.link}
+                      onChange={(e) =>
+                        setFooterServices((prev) =>
+                          prev.map((f, i) =>
+                            i === idx ? { ...f, link: e.target.value } : f,
+                          ),
+                        )
+                      }
+                      placeholder="لینک (e.g. /products)"
+                      className="flex-1 h-8 px-2.5 rounded-field border border-border/60 bg-card text-xs font-mono font-latin dir-ltr text-left text-foreground focus:outline-none focus:border-brand"
+                    />
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setFooterServices((prev) =>
+                          prev.filter((_, i) => i !== idx),
+                        )
+                      }
+                      className="p-1 rounded-control text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 transition cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
             {/* Footer About Text / Description */}
             <div className="pt-6 border-t border-border/60 space-y-3">
               <div className="flex items-center justify-between">
@@ -1924,20 +2029,27 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
                         },
                         {
                           id: `badge-${Date.now()}-2`,
+                          title: 'فروشگاه تاییدشده ترب (Torob)',
+                          image_url: '/images/torob.png',
+                          link_url: 'https://torob.com',
+                          is_active: true,
+                        },
+                        {
+                          id: `badge-${Date.now()}-3`,
                           title: 'نشان ساماندهی رسانه‌های دیجیتال',
                           image_url: '/images/samandehi.png',
                           link_url: 'https://samandehi.ir',
                           is_active: true,
                         },
                         {
-                          id: `badge-${Date.now()}-3`,
+                          id: `badge-${Date.now()}-4`,
                           title: 'عضو اتحادیه کشوری کسب‌وکارهای مجازی',
                           image_url: '/images/union.png',
                           link_url: 'https://ecunion.ir',
                           is_active: true,
                         },
                         {
-                          id: `badge-${Date.now()}-4`,
+                          id: `badge-${Date.now()}-5`,
                           title: 'پرداخت امن شاپرک و تتر TRC20',
                           image_url: '/images/security-seal.png',
                           link_url: '#',
@@ -1995,21 +2107,24 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
                     >
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2">
-                          {/* Live Badge Preview Box */}
-                          <div className="w-12 h-12 rounded-control bg-card border border-border/80 flex items-center justify-center shrink-0 p-1 shadow-xs">
+                          {/* Live Badge Preview Box (Standard Real-World E-Namad Dimensions) */}
+                          <div className="w-[88px] h-[98px] rounded-control bg-card border border-border/80 flex flex-col items-center justify-center shrink-0 p-1.5 shadow-xs">
                             {badge.image_url ? (
                               <img
                                 src={cleanMediaUrl(badge.image_url)}
                                 alt={badge.title}
-                                className="max-h-9 max-w-full object-contain"
+                                className="w-14 h-14 object-contain"
                                 onError={(e) => {
                                   ;(e.target as HTMLElement).style.display =
                                     'none'
                                 }}
                               />
                             ) : (
-                              <ShieldCheck className="w-6 h-6 text-muted-foreground/50" />
+                              <ShieldCheck className="w-7 h-7 text-muted-foreground/50" />
                             )}
+                            <span className="text-[9px] font-bold text-foreground text-center truncate w-full mt-1">
+                              {badge.title}
+                            </span>
                           </div>
 
                           <div className="space-y-1">
