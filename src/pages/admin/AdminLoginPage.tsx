@@ -6,7 +6,6 @@ import {
   Loader2,
   Lock,
   LogIn,
-  LogOut,
   ShieldCheck,
   Sparkles,
   Store,
@@ -40,7 +39,6 @@ export const AdminLoginPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
   const [themeSettings, setThemeSettings] = useState<ThemeSettings | null>(null)
-  const [hasActiveSession, setHasActiveSession] = useState(false)
 
   // Track failed attempts and lockout/ban state
   const [failedAttempts, setFailedAttempts] = useState<number>(() => {
@@ -81,13 +79,7 @@ export const AdminLoginPage: React.FC = () => {
       }
     })
 
-    // 2. Check active admin session
-    const existingToken = apiService.getAdminToken()
-    if (existingToken) {
-      setHasActiveSession(true)
-    }
-
-    // 3. Theme settings
+    // 2. Theme settings
     api
       .getThemeSettings()
       .then((settings) => {
@@ -255,44 +247,6 @@ export const AdminLoginPage: React.FC = () => {
               احراز هویت متمرکز مدیران کل، کارشناسان پشتیبانی و اپراتورها
             </p>
           </div>
-
-          {/* Active Session Notification & Direct Access */}
-          {hasActiveSession && !success && (
-            <div className="mb-5 p-3.5 rounded-xl border border-brand/40 bg-brand/10 text-foreground space-y-2.5 text-right">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-foreground">
-                  نشست فعال مدیریت یافت شد
-                </span>
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              </div>
-              <p className="text-[11px] text-muted-foreground leading-relaxed">
-                حساب مدیریت شما در این مرورگر فعال است. می‌توانید مستقیم وارد میز
-                کار شوید یا با حساب دیگری لاگین کنید.
-              </p>
-              <div className="flex items-center gap-2 pt-1">
-                <button
-                  type="button"
-                  onClick={() => navigate('/admin/dashboard')}
-                  className="flex-1 h-9.5 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs duration-motion ease-motion active:scale-[0.98] shadow-control flex items-center justify-center gap-1.5 cursor-pointer"
-                >
-                  <LogIn className="w-3.5 h-3.5" />
-                  <span>ورود مستقیم به داشبورد</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    apiService.clearAdminToken()
-                    setHasActiveSession(false)
-                    notifySuccess('خروج انجام شد', 'نشست قبلی لغو گردید.')
-                  }}
-                  className="h-9.5 px-3 rounded-control border border-border/60 bg-secondary/80 hover:bg-muted text-muted-foreground hover:text-foreground text-xs font-bold duration-motion ease-motion active:scale-[0.98] flex items-center gap-1 cursor-pointer"
-                >
-                  <LogOut className="w-3 h-3" />
-                  <span>خروج</span>
-                </button>
-              </div>
-            </div>
-          )}
 
           {/* Banned Alert */}
           {isBanned && (
