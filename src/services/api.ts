@@ -132,17 +132,62 @@ function normalizeProduct(raw: any): Product {
       raw.description_fa ||
       raw.description ||
       raw.sla_display_text ||
-      raw.operating_hours ||
       'تحویل آنی و مطمئن آناهیکس',
-    features:
-      Array.isArray(raw.features) && raw.features.length > 0
-        ? raw.features
+    features: Array.isArray(raw.features)
+      ? raw.features
+      : raw.features_json
+        ? (() => {
+            try {
+              const parsed = JSON.parse(raw.features_json)
+              return Array.isArray(parsed) ? parsed : defaultFeatures[mode]
+            } catch {
+              return defaultFeatures[mode]
+            }
+          })()
         : defaultFeatures[mode],
     in_stock: raw.is_active !== false,
-    stock_count: raw.available_stock ?? raw.stock_count ?? 12,
+    stock_count:
+      raw.available_stock ??
+      raw.stock_count ??
+      (raw.manual_stock ? Number(raw.manual_stock) : 12),
+    stock_display_mode: raw.stock_display_mode || 'show_exact',
+    stock_mode: raw.stock_mode || 'auto',
+    manual_stock:
+      raw.manual_stock !== undefined ? Number(raw.manual_stock) : undefined,
+    out_of_stock_text:
+      raw.out_of_stock_text &&
+      raw.out_of_stock_text !== 'در حال تهیه و تامین مجدد'
+        ? raw.out_of_stock_text
+        : 'ناموجود',
+    is_out_of_stock:
+      raw.stock_mode === 'out_of_stock' ||
+      (raw.stock_mode !== 'always_in_stock' &&
+        raw.available_stock !== undefined &&
+        Number(raw.available_stock) <= 0),
+    available_stock:
+      raw.available_stock !== undefined
+        ? Number(raw.available_stock)
+        : raw.manual_stock !== undefined
+          ? Number(raw.manual_stock)
+          : undefined,
     group_tag: raw.group_tag,
     group_title_fa: raw.group_title_fa,
-    image_url: raw.image_url,
+    required_customer_input: raw.required_customer_input || 'none',
+    delivered_payload_type: raw.delivered_payload_type || 'license_code',
+    external_provider: raw.external_provider,
+    external_product_id: raw.external_product_id
+      ? Number(raw.external_product_id)
+      : undefined,
+    external_product_id_str: raw.external_product_id_str,
+    pre_purchase_notice: raw.pre_purchase_notice,
+    pre_purchase_notice_mode: raw.pre_purchase_notice_mode || 'none',
+    pre_purchase_snooze_days: raw.pre_purchase_snooze_days || 7,
+    parent_category_slug: raw.parent_category_slug,
+    category_slug: raw.category_slug,
+    image_url:
+      raw.image_url && !raw.image_url.includes('images.unsplash.com')
+        ? raw.image_url
+        : '',
     icon_url: raw.icon_url,
     banner_url: raw.banner_url,
     badges_json: raw.badges_json,
@@ -211,7 +256,9 @@ function normalizePayment(raw: any): PaymentGateway {
       (raw.enable === false ? 'disabled_visible' : 'active'),
     icon_type: isCustomUrl ? 'custom' : iconStr,
     icon_url: isCustomUrl ? iconStr : raw.icon_url || undefined,
+    description: raw.description || '',
     description_fa: raw.description || raw.description_fa || '',
+    config: raw.config || '',
   }
 }
 
@@ -313,9 +360,11 @@ export const apiService = {
   async adminUpdatePayment(
     id: number | string,
     payload: {
+      name?: string
       name_fa?: string
       icon?: string
       description?: string
+      config?: string
       enable?: boolean
       display_mode?: string
       sort?: number
@@ -567,6 +616,32 @@ export const apiService = {
     )
   },
 
+  async checkCartStock(
+    items: { product_id: string; quantity: number }[],
+  ): Promise<{
+    all_in_stock: boolean
+    out_of_stock_items: {
+      product_id: string
+      product_title: string
+      reason: string
+    }[]
+  }> {
+    try {
+      const res = await fetch('/api/v1/orders/check-stock', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items }),
+      })
+      const json = await res.json()
+      if (res.ok && json.code === 200 && json.data) {
+        return json.data
+      }
+    } catch (err) {
+      console.error('Failed to check cart stock:', err)
+    }
+    return { all_in_stock: true, out_of_stock_items: [] }
+  },
+
   async createOrder(payload: {
     product_id?: string | number
     items?: { product_id: string; quantity: number }[]
@@ -610,6 +685,9 @@ export const apiService = {
     )
 
     // Persist to local customer order history
+    if (json.data?.payment_url) {
+      realOrder.payment_url = json.data.payment_url
+    }
     this.saveCustomerOrder(realOrder)
 
     return realOrder
@@ -1122,6 +1200,22 @@ export const apiService = {
     return json.data
   },
 
+  async deleteProductGroup(groupTag: string): Promise<any> {
+    const token = this.getAdminToken()
+    const res = await fetch(
+      `/api/v1/admin/delivery/groups/${encodeURIComponent(groupTag)}`,
+      {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      },
+    )
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'خطا در حذف گروه')
+    }
+    return json.data
+  },
+
   async linkProductProvider(
     productId: string,
     externalProductId: number,
@@ -1164,6 +1258,23 @@ export const apiService = {
   },
 
   // Multi-Bot Upstream Provider Engine API
+  async syncInventoryWithBots(): Promise<{
+    success: boolean
+    synced_products_count: number
+    message: string
+  }> {
+    const token = this.getAdminToken()
+    const res = await fetch('/api/v1/admin/providers/sync-inventory', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    const json = await res.json()
+    if (!res.ok || json.code !== 200) {
+      throw new Error(json.msg || 'خطا در همگام‌سازی موجودی انبار با ربات‌ها')
+    }
+    return json.data
+  },
+
   async getBotProviderSettings(): Promise<BotProviderSetting[]> {
     const token = this.getAdminToken()
     const res = await fetch('/api/v1/admin/providers/settings', {

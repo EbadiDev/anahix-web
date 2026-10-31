@@ -103,6 +103,11 @@ export interface Product {
   badges_json?: string
   group_tag?: string
   group_title_fa?: string
+  required_customer_input?: string
+  delivered_payload_type?: string
+  external_provider?: string
+  external_product_id?: number
+  external_product_id_str?: string
   parent_category_slug?: string
   category_slug?: string
   pre_purchase_notice?: string
@@ -216,7 +221,9 @@ export interface PaymentGateway {
   display_mode?: 'active' | 'disabled_visible' | 'hidden'
   icon_type: string
   icon_url?: string
+  description?: string
   description_fa: string
+  config?: string
 }
 
 export interface SystemAnnouncement {
@@ -279,6 +286,7 @@ export interface Order {
     notes?: string
   }
   token?: string
+  payment_url?: string
   two_factor_prompt?: string
   two_factor_status?: string
   delivered_items?: Array<{
@@ -504,7 +512,9 @@ export interface TransactionRecord {
   customer_email: string
   amount_toman: number
   amount_usd: number
-  payment_method: string
+  payment_method?: string
+  payment_platform?: string
+  external_provider?: string
   payment_ref_id: string
   payment_authority: string
   status: TransactionStatus

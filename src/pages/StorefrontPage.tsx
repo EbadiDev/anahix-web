@@ -347,6 +347,15 @@ export const StorefrontPage: React.FC<StorefrontPageProps> = ({
     cart.clearCart()
     setIsCartOpen(false)
 
+    if (
+      newOrder.payment_url &&
+      (newOrder.payment_url.startsWith('http') ||
+        newOrder.payment_url.startsWith('/payment/callback'))
+    ) {
+      window.location.href = newOrder.payment_url
+      return
+    }
+
     if (data.payment_platform === 'balance') {
       if (setBalance) {
         setBalance((prev) => Math.max(0, prev - newOrder.amount_toman))

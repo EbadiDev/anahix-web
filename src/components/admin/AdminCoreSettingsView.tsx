@@ -2897,6 +2897,74 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
                             </label>
                           </div>
                         </div>
+                        {/* Description / Subtitle Input */}
+                        <div>
+                          <label className="text-[11px] font-bold text-muted-foreground block mb-1">
+                            توضیحات و متن زیرین درگاه (نمایش در سبد خرید):
+                          </label>
+                          <input
+                            type="text"
+                            value={p.description || ''}
+                            onChange={(e) =>
+                              setPayments((prev) =>
+                                prev.map((item) =>
+                                  item.id === p.id
+                                    ? { ...item, description: e.target.value }
+                                    : item,
+                                ),
+                              )
+                            }
+                            placeholder="مثال: پرداخت سریع و ایمن عضو شبکه شاپرک با کلیه کارت‌های بانکی"
+                            className="w-full h-8 px-2.5 text-xs rounded-control border border-border/60 bg-card text-foreground outline-none focus:border-brand"
+                          />
+                        </div>
+
+                        {/* PayPing Specific Token Config */}
+                        {p.platform === 'payping' && (
+                          <div>
+                            <label className="text-[11px] font-bold text-muted-foreground block mb-1">
+                              توکن اختصاصی اتصال PayPing (Bearer Token):
+                            </label>
+                            <input
+                              type="password"
+                              dir="ltr"
+                              value={(() => {
+                                try {
+                                  const c = JSON.parse(p.config || '{}')
+                                  return c.token || ''
+                                } catch {
+                                  return ''
+                                }
+                              })()}
+                              onChange={(e) => {
+                                const val = e.target.value
+                                setPayments((prev) =>
+                                  prev.map((item) => {
+                                    if (item.id === p.id) {
+                                      let parsed: any = {}
+                                      try {
+                                        parsed = JSON.parse(item.config || '{}')
+                                      } catch {}
+                                      parsed.token = val
+                                      return {
+                                        ...item,
+                                        config: JSON.stringify(parsed),
+                                      }
+                                    }
+                                    return item
+                                  }),
+                                )
+                              }}
+                              placeholder="توکن مرچنت پی‌پینگ..."
+                              className="w-full h-8 px-2.5 text-xs rounded-control border border-border/60 bg-card text-foreground font-mono font-latin outline-none focus:border-brand"
+                            />
+                            <span className="text-[10px] text-muted-foreground mt-0.5 block">
+                              در صورت خالی بودن، پرداخت در حالت شبیه‌ساز امن
+                              (Sandbox) کار خواهد کرد.
+                            </span>
+                          </div>
+                        )}
+
                         {/* Display & Processing Status Selector */}
                         <div>
                           <label className="text-[11px] font-bold text-muted-foreground block mb-1">
@@ -2959,6 +3027,8 @@ export const AdminCoreSettingsView: React.FC<AdminCoreSettingsViewProps> = ({
                             await apiService.adminUpdatePayment(p.id, {
                               name_fa: p.name,
                               icon: p.icon_url,
+                              description: p.description,
+                              config: p.config,
                               display_mode: curMode,
                               enable: curMode === 'active',
                             })

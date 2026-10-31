@@ -14,6 +14,7 @@ import {
   Minus,
   Percent,
   Plus,
+  Send,
   ShieldCheck,
   ShoppingBag,
   Smartphone,
@@ -28,7 +29,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useCart } from '../lib/cartStore'
 import { apiService } from '../services/api'
-import type { CustomerProfile, PaymentGateway } from '../types'
+import type { CustomerProfile, PaymentGateway, Product } from '../types'
 import { formatToman, toPersianDigits } from '../utils/formatters'
 import { AuthModal } from './AuthModal'
 import { ClaudeIcon, CursorIcon, GeminiIcon, OpenAIIcon } from './BrandIcons'
@@ -211,6 +212,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
   const [isTopupModalOpen, setIsTopupModalOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isCheckingStock, setIsCheckingStock] = useState(false)
   const [internalCustomer, setInternalCustomer] =
     useState<CustomerProfile | null>(customer || null)
   const [dbPayments, setDbPayments] = useState<PaymentGateway[]>([])
@@ -589,8 +591,33 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
       }
     }
 
+    setIsCheckingStock(true)
     setIsSubmitting(true)
     try {
+      // 1. Live real-time background stock check across all cart items before proceeding
+      const stockCheck = await apiService.checkCartStock(
+        items.map((it) => ({
+          product_id: String(it.product.id),
+          quantity: it.quantity,
+        })),
+      )
+
+      if (
+        !stockCheck.all_in_stock &&
+        stockCheck.out_of_stock_items?.length > 0
+      ) {
+        stockCheck.out_of_stock_items.forEach((oos) => {
+          triggerError(
+            `اتمام موجودی: «${oos.product_title}» (${oos.reason}). این کالا از سبد خرید شما حذف گردید.`,
+          )
+          removeItem(oos.product_id)
+        })
+        setIsCheckingStock(false)
+        setIsSubmitting(false)
+        return
+      }
+      setIsCheckingStock(false)
+
       const firstModeC = modeCItems[0]
       const firstCred = firstModeC
         ? itemCreds[String(firstModeC.product.id)]
@@ -641,7 +668,14 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
     }
     for (const it of modeCItems) {
       const c = itemCreds[String(it.product.id)]
-      if (!c?.email?.trim() || !c?.password?.trim()) {
+      if (it.product.required_customer_input === 'telegram_username') {
+        if (!c?.email?.trim()) {
+          triggerError(
+            `جهت ادامه، لطفاً آیدی تلگرام را برای «${it.product.title_fa}» وارد نمایید.`,
+          )
+          return
+        }
+      } else if (!c?.email?.trim() || !c?.password?.trim()) {
         triggerError(
           `جهت ادامه، لطفاً ابتدا مشخصات اکانت (ایمیل و پسورد) را برای «${it.product.title_fa}» وارد نمایید.`,
         )
@@ -859,7 +893,9 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                         <div className="p-2.5 rounded-control bg-rose-500/10 border border-rose-500/30 text-rose-500 text-xs font-bold flex items-center justify-between">
                           <div className="flex items-center gap-1.5">
                             <AlertCircle className="w-4 h-4 shrink-0 text-rose-500" />
-                            <span>این محصول در حال حاضر ناموجود است (موجودی صفر)</span>
+                            <span>
+                              این محصول در حال حاضر ناموجود است (موجودی صفر)
+                            </span>
                           </div>
                           <button
                             type="button"
@@ -931,95 +967,144 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                         </button>
                       </div>
 
-                      {/* Contextual Per-Item Credential Expander for Mode C */}
-                      {isModeC && (
+                      {/* Contextual Per-Item Credential Expander */}
+                      {product.required_customer_input ===
+                      'telegram_username' ? (
                         <div
                           className={`rounded-control border p-3 space-y-2.5 transition-all ${
-                            isCredFilled
-                              ? 'bg-emerald-500/5 border-emerald-500/25'
+                            cred.email?.trim()
+                              ? 'bg-sky-500/5 border-sky-500/30'
                               : 'bg-muted/20 border-border/60'
                           }`}
                         >
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-1.5 text-xs font-bold text-foreground">
-                              <KeyRound className="w-3.5 h-3.5 text-brand" />
-                              <span>مشخصات اکانت {brand.badge} جهت ارتقا:</span>
+                              <Send className="w-3.5 h-3.5 text-sky-400" />
+                              <span>آیدی تلگرام خریدار جهت فعال‌سازی:</span>
                             </div>
                             <span
                               className={`text-[10px] font-bold px-2 py-0.5 rounded-control border ${
-                                isCredFilled
+                                cred.email?.trim()
                                   ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/25'
                                   : 'bg-amber-500/10 text-amber-500 border-amber-500/30'
                               }`}
                             >
-                              {isCredFilled
-                                ? 'مشخصات ثبت شد ✓'
-                                : 'نیازمند ایمیل و پسورد'}
+                              {cred.email?.trim()
+                                ? 'آیدی ثبت شد ✓'
+                                : 'الزامی (بدون نیاز به پسورد)'}
                             </span>
                           </div>
-
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                            <div>
-                              <label className="text-[11px] text-muted-foreground block mb-1">
-                                ایمیل اکانت {brand.badge}:
-                              </label>
-                              <input
-                                type="email"
-                                dir="ltr"
-                                value={cred.email}
-                                onChange={(e) =>
-                                  updateItemCred(
-                                    product.id,
-                                    'email',
-                                    e.target.value,
-                                  )
-                                }
-                                placeholder="name@example.com"
-                                className="w-full h-10 px-3.5 text-xs font-latin rounded-field bg-muted/20 border border-border/60 text-foreground placeholder:text-muted-foreground outline-none focus:border-brand transition-colors"
-                              />
-                            </div>
-                            <div>
-                              <div className="flex items-center justify-between mb-1">
-                                <label className="text-[11px] text-muted-foreground">
-                                  کلمه عبور اکانت:
-                                </label>
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    toggleItemShowPassword(product.id)
-                                  }
-                                  className="text-[10px] text-muted-foreground hover:text-foreground flex items-center gap-1 cursor-pointer"
-                                >
-                                  {cred.showPassword ? (
-                                    <>
-                                      <EyeOff className="w-3 h-3" />
-                                      <span>مخفی</span>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <Eye className="w-3 h-3" />
-                                      <span>نمایش</span>
-                                    </>
-                                  )}
-                                </button>
-                              </div>
-                              <input
-                                type={cred.showPassword ? 'text' : 'password'}
-                                dir="ltr"
-                                value={cred.password}
-                                onChange={(e) =>
-                                  updateItemCred(
-                                    product.id,
-                                    'password',
-                                    e.target.value,
-                                  )
-                                }
-                                placeholder="••••••••"
-                                className="w-full h-10 px-3.5 text-xs font-latin rounded-field bg-muted/20 border border-border/60 text-foreground placeholder:text-muted-foreground outline-none focus:border-brand transition-colors"
-                              />
-                            </div>
+                          <div>
+                            <input
+                              type="text"
+                              dir="ltr"
+                              value={cred.email}
+                              onChange={(e) =>
+                                updateItemCred(
+                                  product.id,
+                                  'email',
+                                  e.target.value,
+                                )
+                              }
+                              placeholder="@username یا شماره کاربری تلگرام"
+                              className="w-full h-10 px-3.5 text-xs font-latin rounded-field bg-muted/20 border border-border/60 text-foreground placeholder:text-muted-foreground outline-none focus:border-brand transition-colors"
+                            />
                           </div>
                         </div>
+                      ) : (
+                        (isModeC ||
+                          product.required_customer_input ===
+                            'account_creds') && (
+                          <div
+                            className={`rounded-control border p-3 space-y-2.5 transition-all ${
+                              isCredFilled
+                                ? 'bg-emerald-500/5 border-emerald-500/25'
+                                : 'bg-muted/20 border-border/60'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-1.5 text-xs font-bold text-foreground">
+                                <KeyRound className="w-3.5 h-3.5 text-brand" />
+                                <span>
+                                  مشخصات اکانت {brand.badge} جهت ارتقا:
+                                </span>
+                              </div>
+                              <span
+                                className={`text-[10px] font-bold px-2 py-0.5 rounded-control border ${
+                                  isCredFilled
+                                    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/25'
+                                    : 'bg-amber-500/10 text-amber-500 border-amber-500/30'
+                                }`}
+                              >
+                                {isCredFilled
+                                  ? 'مشخصات ثبت شد ✓'
+                                  : 'نیازمند ایمیل و پسورد'}
+                              </span>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                              <div>
+                                <label className="text-[11px] text-muted-foreground block mb-1">
+                                  ایمیل اکانت {brand.badge}:
+                                </label>
+                                <input
+                                  type="email"
+                                  dir="ltr"
+                                  value={cred.email}
+                                  onChange={(e) =>
+                                    updateItemCred(
+                                      product.id,
+                                      'email',
+                                      e.target.value,
+                                    )
+                                  }
+                                  placeholder="name@example.com"
+                                  className="w-full h-10 px-3.5 text-xs font-latin rounded-field bg-muted/20 border border-border/60 text-foreground placeholder:text-muted-foreground outline-none focus:border-brand transition-colors"
+                                />
+                              </div>
+                              <div>
+                                <div className="flex items-center justify-between mb-1">
+                                  <label className="text-[11px] text-muted-foreground">
+                                    کلمه عبور اکانت:
+                                  </label>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      toggleItemShowPassword(product.id)
+                                    }
+                                    className="text-[10px] text-muted-foreground hover:text-foreground flex items-center gap-1 cursor-pointer"
+                                  >
+                                    {cred.showPassword ? (
+                                      <>
+                                        <EyeOff className="w-3 h-3" />
+                                        <span>مخفی</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Eye className="w-3 h-3" />
+                                        <span>نمایش</span>
+                                      </>
+                                    )}
+                                  </button>
+                                </div>
+                                <input
+                                  type={cred.showPassword ? 'text' : 'password'}
+                                  dir="ltr"
+                                  value={cred.password}
+                                  onChange={(e) =>
+                                    updateItemCred(
+                                      product.id,
+                                      'password',
+                                      e.target.value,
+                                    )
+                                  }
+                                  placeholder="••••••••"
+                                  className="w-full h-10 px-3.5 text-xs font-latin rounded-field bg-muted/20 border border-border/60 text-foreground placeholder:text-muted-foreground outline-none focus:border-brand transition-colors"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        )
                       )}
 
                       {/* Quantity Stepper & Subtotal Row */}
@@ -1194,14 +1279,17 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                                   </span>
                                 ) : null}
                               </div>
-                              <p className="text-[10px] text-muted-foreground mt-0.5">
-                                {isDisabled
-                                  ? 'این درگاه موقتاً در دسترس نمی‌باشد'
-                                  : p.platform === 'balance'
-                                    ? `موجودی: ${formatToman(walletBalance)} تومان`
-                                    : p.description_fa ||
-                                      'پرداخت با کلیه کارت‌های شتاب'}
-                              </p>
+                              {(isDisabled ||
+                                p.platform === 'balance' ||
+                                Boolean(p.description || p.description_fa)) && (
+                                <p className="text-[10px] text-muted-foreground mt-0.5">
+                                  {isDisabled
+                                    ? 'این درگاه موقتاً در دسترس نمی‌باشد'
+                                    : p.platform === 'balance'
+                                      ? `موجودی: ${formatToman(walletBalance)} تومان`
+                                      : p.description || p.description_fa || ''}
+                                </p>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -1430,10 +1518,15 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                           : 'bg-primary hover:bg-primary-hover text-primary-foreground'
                   }`}
                 >
-                  {isSubmitting ? (
+                  {isCheckingStock ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin text-brand" />
+                      <span>در حال استعلام موجودی انبار...</span>
+                    </>
+                  ) : isSubmitting ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>در حال ثبت سفارش...</span>
+                      <span>در حال ثبت و اتصال به پرداخت...</span>
                     </>
                   ) : hasOutOfStockItems ? (
                     <>

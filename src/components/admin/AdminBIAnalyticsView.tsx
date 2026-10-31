@@ -345,15 +345,15 @@ export const AdminBIAnalyticsView: React.FC = () => {
         {/* Card 1: Gross Revenue */}
         <div className="bg-card border border-border/80 rounded-surface p-4 sm:p-5 shadow-surface space-y-2.5 relative overflow-hidden group hover:border-brand/40 transition-colors text-foreground">
           <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span className="font-bold flex items-center gap-1.5 text-foreground">
+            <span className="font-bold flex items-center gap-1.5 text-foreground font-sans">
               <ShoppingBag className="w-4 h-4 text-brand" />
               فروش کل ناخالص
             </span>
-            <span className="px-2 py-0.5 rounded-control bg-secondary text-brand font-mono text-[10px] font-bold border border-border/60">
+            <span className="px-2 py-0.5 rounded-control bg-secondary text-brand font-sans text-[10px] font-bold border border-border/60">
               {timeRange === '7d' ? '۷ روزه' : timeRange}
             </span>
           </div>
-          <div className="text-xl sm:text-2xl font-black text-foreground tracking-tight">
+          <div className="text-xl sm:text-2xl font-black text-foreground tracking-tight font-sans">
             {formatMoney(kpis.total_revenue_toman, kpis.total_revenue_usdt)}
           </div>
           <div className="flex items-center justify-between pt-2 border-t border-border/60 text-[11px] text-muted-foreground font-sans">
@@ -367,7 +367,7 @@ export const AdminBIAnalyticsView: React.FC = () => {
         {/* Card 2: Gross Profit & Margin */}
         <div className="bg-card border border-border/80 rounded-surface p-4 sm:p-5 shadow-surface space-y-2.5 relative overflow-hidden group hover:border-emerald-500/40 transition-colors text-foreground">
           <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span className="font-bold flex items-center gap-1.5 text-foreground">
+            <span className="font-bold flex items-center gap-1.5 text-foreground font-sans">
               <TrendingUp className="w-4 h-4 text-emerald-400" />
               سود ناخالص واقعی
             </span>
@@ -375,12 +375,12 @@ export const AdminBIAnalyticsView: React.FC = () => {
               مارجین: {toPersianDigits(kpis.gross_margin_percent)}٪
             </span>
           </div>
-          <div className="text-xl sm:text-2xl font-black text-emerald-400 tracking-tight">
+          <div className="text-xl sm:text-2xl font-black text-emerald-400 tracking-tight font-sans">
             {formatMoney(kpis.gross_profit_toman, kpis.gross_profit_usdt)}
           </div>
           <div className="flex items-center justify-between pt-2 border-t border-border/60 text-[11px] text-muted-foreground font-sans">
             <span>بهای تمام‌شده:</span>
-            <span className="font-bold text-foreground font-mono">
+            <span className="font-bold text-foreground font-sans">
               {formatMoney(kpis.total_cogs_toman, kpis.total_cogs_usdt)}
             </span>
           </div>
@@ -389,12 +389,12 @@ export const AdminBIAnalyticsView: React.FC = () => {
         {/* Card 3: Paid Orders & Conversion */}
         <div className="bg-card border border-border/80 rounded-surface p-4 sm:p-5 shadow-surface space-y-2.5 relative overflow-hidden group hover:border-sky-500/40 transition-colors text-foreground">
           <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span className="font-bold flex items-center gap-1.5 text-foreground">
+            <span className="font-bold flex items-center gap-1.5 text-foreground font-sans">
               <CheckCircle2 className="w-4 h-4 text-sky-400" />
               سفارشات پرداختی
             </span>
-            <span className="px-2 py-0.5 rounded-control bg-sky-500/10 text-sky-400 font-mono text-[10px] font-bold border border-sky-500/20">
-              {kpis.conversion_rate_percent}% راندمان
+            <span className="px-2 py-0.5 rounded-control bg-sky-500/10 text-sky-400 font-sans text-[10px] font-bold border border-sky-500/20">
+              {toPersianDigits(kpis.conversion_rate_percent)}٪ راندمان
             </span>
           </div>
           <div className="text-xl sm:text-2xl font-black text-foreground tracking-tight font-sans">
@@ -405,7 +405,7 @@ export const AdminBIAnalyticsView: React.FC = () => {
           </div>
           <div className="flex items-center justify-between pt-2 border-t border-border/60 text-[11px] text-muted-foreground font-sans">
             <span>کل سبدهای ثبت‌شده:</span>
-            <span className="font-bold text-foreground">
+            <span className="font-bold text-foreground font-sans">
               {toPersianDigits(kpis.total_orders)} سبد
             </span>
           </div>
@@ -414,23 +414,23 @@ export const AdminBIAnalyticsView: React.FC = () => {
         {/* Card 4: Average Order Value (AOV) */}
         <div className="bg-card border border-border/80 rounded-surface p-4 sm:p-5 shadow-surface space-y-2.5 relative overflow-hidden group hover:border-amber-500/40 transition-colors text-foreground">
           <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span className="font-bold flex items-center gap-1.5 text-foreground">
+            <span className="font-bold flex items-center gap-1.5 text-foreground font-sans">
               <BarChart3 className="w-4 h-4 text-amber-400" />
               میانگین سبد (AOV)
             </span>
-            <span className="px-2 py-0.5 rounded-control bg-amber-500/10 text-amber-400 font-mono text-[10px] font-bold border border-amber-500/20">
+            <span className="px-2 py-0.5 rounded-control bg-amber-500/10 text-amber-400 font-sans text-[10px] font-bold border border-amber-500/20">
               میانگین
             </span>
           </div>
-          <div className="text-xl sm:text-2xl font-black text-amber-400 tracking-tight">
+          <div className="text-xl sm:text-2xl font-black text-amber-400 tracking-tight font-sans">
             {formatMoney(
               kpis.average_order_value_toman,
               kpis.average_order_value_usdt,
             )}
           </div>
-          <div className="flex items-center justify-between pt-2 border-t border-border/60 text-[11px] text-muted-foreground">
+          <div className="flex items-center justify-between pt-2 border-t border-border/60 text-[11px] text-muted-foreground font-sans">
             <span>مشتریان خریدار:</span>
-            <span className="font-bold text-foreground">
+            <span className="font-bold text-foreground font-sans">
               {toPersianDigits(kpis.total_customers)} کاربر
             </span>
           </div>
@@ -439,11 +439,11 @@ export const AdminBIAnalyticsView: React.FC = () => {
         {/* Card 5: Registered Users & Signups */}
         <div className="bg-card border border-border/80 rounded-surface p-4 sm:p-5 shadow-surface space-y-2.5 relative overflow-hidden group hover:border-purple-500/40 transition-colors text-foreground">
           <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span className="font-bold flex items-center gap-1.5 text-foreground">
+            <span className="font-bold flex items-center gap-1.5 text-foreground font-sans">
               <Users className="w-4 h-4 text-purple-400" />
               کاربران ثبت‌نامی
             </span>
-            <span className="px-2 py-0.5 rounded-control bg-purple-500/10 text-purple-400 font-mono text-[10px] font-bold border border-purple-500/20">
+            <span className="px-2 py-0.5 rounded-control bg-purple-500/10 text-purple-400 font-sans text-[10px] font-bold border border-purple-500/20">
               +{toPersianDigits(kpis.new_registered_users || 0)} جدید
             </span>
           </div>
@@ -470,10 +470,10 @@ export const AdminBIAnalyticsView: React.FC = () => {
               <Package className="w-5 h-5 text-brand" />
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-muted-foreground font-sans">
                 فروش لایسنس و اکانت‌های هوش مصنوعی
               </p>
-              <p className="text-base font-black text-foreground font-latin">
+              <p className="text-base font-black text-foreground font-sans">
                 {formatMoney(
                   kpis.store_products_revenue,
                   data?.effective_usd_rate
@@ -483,9 +483,9 @@ export const AdminBIAnalyticsView: React.FC = () => {
               </p>
             </div>
           </div>
-          <div className="text-left text-xs text-muted-foreground font-medium">
-            <span className="font-bold text-brand font-latin">
-              {kpis.store_products_count}
+          <div className="text-left text-xs text-muted-foreground font-medium font-sans">
+            <span className="font-bold text-brand font-sans">
+              {toPersianDigits(kpis.store_products_count)}
             </span>{' '}
             آیتم تحویل شده
           </div>
@@ -497,10 +497,10 @@ export const AdminBIAnalyticsView: React.FC = () => {
               <Globe2 className="w-5 h-5 text-cyan-400" />
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-muted-foreground font-sans">
                 فروش شماره‌های مجازی بین‌المللی (5SIM)
               </p>
-              <p className="text-base font-black text-foreground font-latin">
+              <p className="text-base font-black text-foreground font-sans">
                 {formatMoney(
                   kpis.virtual_numbers_revenue,
                   data?.effective_usd_rate
@@ -510,9 +510,9 @@ export const AdminBIAnalyticsView: React.FC = () => {
               </p>
             </div>
           </div>
-          <div className="text-left text-xs text-muted-foreground font-medium">
-            <span className="font-bold text-cyan-400 font-latin">
-              {kpis.virtual_numbers_count}
+          <div className="text-left text-xs text-muted-foreground font-medium font-sans">
+            <span className="font-bold text-cyan-400 font-sans">
+              {toPersianDigits(kpis.virtual_numbers_count)}
             </span>{' '}
             شماره موفق
           </div>
@@ -772,8 +772,9 @@ export const AdminBIAnalyticsView: React.FC = () => {
                       fill="#64748b"
                       fontSize="10"
                       textAnchor="middle"
+                      className="font-sans select-none"
                     >
-                      {p.period_label || p.date}
+                      {toPersianDigits(p.period_label || p.date)}
                     </text>
                   )
                 })}
@@ -782,20 +783,21 @@ export const AdminBIAnalyticsView: React.FC = () => {
 
             {/* Hover Floating Tooltip */}
             {hoveredPoint && (
-              <div className="absolute z-20 top-2 left-1/2 -translate-x-1/2 bg-card/95 border border-border/80 p-4 rounded-surface shadow-overlay backdrop-blur-md pointer-events-none flex flex-wrap gap-4 text-xs text-foreground animate-in fade-in duration-150">
+              <div className="absolute z-20 top-2 left-1/2 -translate-x-1/2 bg-card/95 border border-border/80 p-4 rounded-surface shadow-overlay backdrop-blur-md pointer-events-none flex flex-wrap gap-4 text-xs text-foreground font-sans animate-in fade-in duration-150">
                 <div>
-                  <span className="text-muted-foreground block font-normal">
+                  <span className="text-muted-foreground block font-normal font-sans">
                     بازه زمانی:
                   </span>
-                  <span className="font-bold text-foreground">
-                    {hoveredPoint.period_label} ({hoveredPoint.date})
+                  <span className="font-bold text-foreground font-sans">
+                    {hoveredPoint.period_label} (
+                    {toPersianDigits(hoveredPoint.date)})
                   </span>
                 </div>
                 <div className="border-r border-border/60 pr-3">
-                  <span className="text-brand block font-normal">
+                  <span className="text-brand block font-normal font-sans">
                     درآمد فروش:
                   </span>
-                  <span className="font-bold text-brand font-latin">
+                  <span className="font-bold text-brand font-sans">
                     {formatMoney(
                       hoveredPoint.revenue_toman,
                       hoveredPoint.revenue_usdt,
@@ -803,10 +805,10 @@ export const AdminBIAnalyticsView: React.FC = () => {
                   </span>
                 </div>
                 <div className="border-r border-border/60 pr-3">
-                  <span className="text-emerald-400 block font-normal">
+                  <span className="text-emerald-400 block font-normal font-sans">
                     سود ناخالص:
                   </span>
-                  <span className="font-bold text-emerald-400 font-latin">
+                  <span className="font-bold text-emerald-400 font-sans">
                     {formatMoney(
                       hoveredPoint.gross_profit_toman,
                       hoveredPoint.gross_profit_usdt,
@@ -814,20 +816,20 @@ export const AdminBIAnalyticsView: React.FC = () => {
                   </span>
                 </div>
                 <div className="border-r border-border/60 pr-3">
-                  <span className="text-purple-400 block font-normal">
+                  <span className="text-purple-400 block font-normal font-sans">
                     تعداد سفارش:
                   </span>
-                  <span className="font-bold text-purple-400 font-latin">
-                    {hoveredPoint.paid_orders} پرداخت از{' '}
-                    {hoveredPoint.total_orders}
+                  <span className="font-bold text-purple-400 font-sans">
+                    {toPersianDigits(hoveredPoint.paid_orders)} پرداخت از{' '}
+                    {toPersianDigits(hoveredPoint.total_orders)}
                   </span>
                 </div>
                 <div className="border-r border-border/60 pr-3">
-                  <span className="text-amber-400 block font-normal">
+                  <span className="text-amber-400 block font-normal font-sans">
                     نرخ تبدیل:
                   </span>
-                  <span className="font-bold text-amber-400 font-latin">
-                    {hoveredPoint.conversion_rate}%
+                  <span className="font-bold text-amber-400 font-sans">
+                    {toPersianDigits(hoveredPoint.conversion_rate)}٪
                   </span>
                 </div>
               </div>
@@ -852,7 +854,7 @@ export const AdminBIAnalyticsView: React.FC = () => {
           </div>
           <span className="text-xs text-muted-foreground font-sans">
             تعداد روزهای ثبت‌شده:{' '}
-            <strong className="text-foreground font-latin">
+            <strong className="text-foreground font-sans">
               {toPersianDigits(chartPoints.length)}
             </strong>
           </span>
@@ -865,16 +867,28 @@ export const AdminBIAnalyticsView: React.FC = () => {
         ) : (
           <div className="rounded-surface border border-border/80 overflow-hidden shadow-surface">
             <div className="overflow-x-auto">
-              <table className="w-full text-xs">
+              <table className="w-full text-xs min-w-[760px] font-sans">
                 <thead>
                   <tr className="border-b border-border/60 bg-muted/40 text-muted-foreground font-bold select-none text-right">
-                    <th className="p-3 text-right">روز / تاریخ</th>
-                    <th className="p-3 text-right">فروش ناخالص</th>
-                    <th className="p-3 text-right">بهای تمام‌شده (COGS)</th>
-                    <th className="p-3 text-right">سود ناخالص</th>
-                    <th className="p-3 text-center">حاشیه سود</th>
-                    <th className="p-3 text-center">سفارشات موفق</th>
-                    <th className="p-3 text-right min-w-[120px]">
+                    <th className="p-3 text-right whitespace-nowrap font-sans">
+                      روز / تاریخ
+                    </th>
+                    <th className="p-3 text-right whitespace-nowrap font-sans">
+                      فروش ناخالص
+                    </th>
+                    <th className="p-3 text-right whitespace-nowrap font-sans">
+                      بهای تمام‌شده (COGS)
+                    </th>
+                    <th className="p-3 text-right whitespace-nowrap font-sans">
+                      سود ناخالص
+                    </th>
+                    <th className="p-3 text-center whitespace-nowrap font-sans">
+                      حاشیه سود
+                    </th>
+                    <th className="p-3 text-center whitespace-nowrap font-sans">
+                      سفارشات موفق
+                    </th>
+                    <th className="p-3 text-right min-w-[120px] whitespace-nowrap font-sans">
                       سهم از کل فروش
                     </th>
                   </tr>
@@ -893,41 +907,43 @@ export const AdminBIAnalyticsView: React.FC = () => {
                         key={pt.date ? `row-${pt.date}` : `row-idx-${idx}`}
                         className="hover:bg-muted/20 transition-colors"
                       >
-                        <td className="p-3 font-bold text-foreground whitespace-nowrap">
-                          <div>{pt.period_label || pt.date}</div>
+                        <td className="p-3 font-bold text-foreground whitespace-nowrap font-sans">
+                          <div>
+                            {pt.period_label || toPersianDigits(pt.date)}
+                          </div>
                           {pt.date && (
-                            <span className="text-[10px] text-muted-foreground font-latin font-normal">
-                              {pt.date}
+                            <span className="text-[10px] text-muted-foreground font-sans font-normal block">
+                              {toPersianDigits(pt.date)}
                             </span>
                           )}
                         </td>
-                        <td className="p-3 text-brand font-black font-latin whitespace-nowrap">
+                        <td className="p-3 text-brand font-black font-sans whitespace-nowrap tabular-nums">
                           {formatMoney(pt.revenue_toman, pt.revenue_usdt)}
                         </td>
-                        <td className="p-3 text-muted-foreground font-sans whitespace-nowrap">
+                        <td className="p-3 text-muted-foreground font-sans whitespace-nowrap tabular-nums">
                           {formatMoney(
                             pt.revenue_toman - pt.gross_profit_toman,
                             pt.revenue_usdt - pt.gross_profit_usdt,
                           )}
                         </td>
-                        <td className="p-3 text-emerald-400 font-black font-latin whitespace-nowrap">
+                        <td className="p-3 text-emerald-400 font-black font-sans whitespace-nowrap tabular-nums">
                           {formatMoney(
                             pt.gross_profit_toman,
                             pt.gross_profit_usdt,
                           )}
                         </td>
-                        <td className="p-3 text-center">
-                          <span className="px-2 py-0.5 rounded-control bg-emerald-500/10 text-emerald-400 font-bold text-[10px] border border-emerald-500/20 font-sans">
+                        <td className="p-3 text-center whitespace-nowrap">
+                          <span className="px-2 py-0.5 rounded-control bg-emerald-500/10 text-emerald-400 font-bold text-[10px] border border-emerald-500/20 font-sans whitespace-nowrap">
                             {toPersianDigits(pt.gross_margin)}٪
                           </span>
                         </td>
-                        <td className="p-3 text-center font-bold text-foreground font-latin">
+                        <td className="p-3 text-center font-bold text-foreground font-sans whitespace-nowrap">
                           {toPersianDigits(pt.paid_orders)}{' '}
-                          <span className="text-[10px] text-muted-foreground font-normal">
+                          <span className="text-[10px] text-muted-foreground font-normal font-sans">
                             از {toPersianDigits(pt.total_orders)}
                           </span>
                         </td>
-                        <td className="p-3">
+                        <td className="p-3 min-w-[120px]">
                           <div className="w-full bg-muted/60 h-2 rounded-control overflow-hidden">
                             <div
                               style={{ width: `${Math.min(pctRev, 100)}%` }}
@@ -982,16 +998,30 @@ export const AdminBIAnalyticsView: React.FC = () => {
         ) : (
           <div className="rounded-surface border border-border/80 overflow-hidden shadow-surface">
             <div className="overflow-x-auto">
-              <table className="w-full text-xs">
+              <table className="w-full text-xs min-w-[800px] font-sans">
                 <thead>
                   <tr className="border-b border-border/60 bg-muted/40 text-muted-foreground font-bold select-none text-right">
-                    <th className="p-3 text-right">شماره سفارش</th>
-                    <th className="p-3 text-right">مشتری</th>
-                    <th className="p-3 text-right">سرویس / اشتراک</th>
-                    <th className="p-3 text-right">مبلغ پرداختی</th>
-                    <th className="p-3 text-center">روش پرداخت</th>
-                    <th className="p-3 text-center">وضعیت</th>
-                    <th className="p-3 text-left">زمان ثبت</th>
+                    <th className="p-3 text-right whitespace-nowrap font-sans">
+                      شماره سفارش
+                    </th>
+                    <th className="p-3 text-right whitespace-nowrap font-sans">
+                      مشتری
+                    </th>
+                    <th className="p-3 text-right whitespace-nowrap font-sans">
+                      سرویس / اشتراک
+                    </th>
+                    <th className="p-3 text-right whitespace-nowrap font-sans">
+                      مبلغ پرداختی
+                    </th>
+                    <th className="p-3 text-center whitespace-nowrap font-sans">
+                      روش پرداخت
+                    </th>
+                    <th className="p-3 text-center whitespace-nowrap font-sans">
+                      وضعیت
+                    </th>
+                    <th className="p-3 text-left whitespace-nowrap font-sans">
+                      زمان ثبت
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/60">
@@ -1010,30 +1040,32 @@ export const AdminBIAnalyticsView: React.FC = () => {
                         key={ord.id || ord.order_number}
                         className="hover:bg-muted/20 transition-colors"
                       >
-                        <td className="p-3 font-mono font-latin font-bold text-brand">
+                        <td className="p-3 font-sans font-bold text-brand whitespace-nowrap">
                           #
-                          {ord.order_number ||
-                            ord.order_no ||
-                            ord.id?.slice?.(0, 8)}
+                          {toPersianDigits(
+                            ord.order_number ||
+                              ord.order_no ||
+                              ord.id?.slice?.(0, 8),
+                          )}
                         </td>
-                        <td className="p-3 text-foreground font-sans">
+                        <td className="p-3 text-foreground font-sans whitespace-nowrap">
                           <div className="font-bold">
                             {ord.customer_name ||
                               ord.customer_phone ||
                               'کاربر مهمان'}
                           </div>
                           {ord.customer_phone && ord.customer_name && (
-                            <span className="text-[10px] text-muted-foreground font-latin block">
-                              {ord.customer_phone}
+                            <span className="text-[10px] text-muted-foreground font-sans block">
+                              {toPersianDigits(ord.customer_phone)}
                             </span>
                           )}
                         </td>
-                        <td className="p-3 font-bold text-foreground">
+                        <td className="p-3 font-bold text-foreground font-sans whitespace-nowrap">
                           {ord.product_title ||
                             ord.items?.[0]?.product_title ||
                             'سفارش هوش مصنوعی'}
                         </td>
-                        <td className="p-3 font-black text-foreground font-sans">
+                        <td className="p-3 font-black text-foreground font-sans whitespace-nowrap tabular-nums">
                           {formatToman(
                             ord.total_amount_toman || ord.amount_toman || 0,
                           )}{' '}
@@ -1041,14 +1073,14 @@ export const AdminBIAnalyticsView: React.FC = () => {
                             تومان
                           </span>
                         </td>
-                        <td className="p-3 text-center">
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-control text-[10px] font-bold bg-muted/40 border border-border/60">
+                        <td className="p-3 text-center whitespace-nowrap">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-control text-[10px] font-bold bg-muted/40 border border-border/60 font-sans">
                             {ord.payment_platform === 'balance'
                               ? 'کیف پول'
                               : 'درگاه شاپرک'}
                           </span>
                         </td>
-                        <td className="p-3 text-center">
+                        <td className="p-3 text-center whitespace-nowrap">
                           <span
                             className={`px-2 py-0.5 rounded-control text-[10px] font-bold border font-sans ${
                               isSuccess
@@ -1070,7 +1102,7 @@ export const AdminBIAnalyticsView: React.FC = () => {
                                     : 'در انتظار')}
                           </span>
                         </td>
-                        <td className="p-3 text-left text-muted-foreground font-latin text-[11px]">
+                        <td className="p-3 text-left text-muted-foreground font-sans text-[11px] whitespace-nowrap">
                           {ord.created_at
                             ? new Date(ord.created_at).toLocaleTimeString(
                                 'fa-IR',
@@ -1176,7 +1208,7 @@ export const AdminBIAnalyticsView: React.FC = () => {
               <Package className="w-5 h-5 text-brand" />
               پرفروش‌ترین لایسنس‌ها و محصولات
             </h3>
-            <span className="text-xs text-muted-foreground font-latin font-bold">
+            <span className="text-xs text-muted-foreground font-sans font-bold">
               ۱۰ محصول برتر
             </span>
           </div>
@@ -1194,7 +1226,7 @@ export const AdminBIAnalyticsView: React.FC = () => {
                 >
                   <div className="flex items-center gap-3">
                     <span
-                      className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-xs font-latin ${
+                      className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-xs font-sans ${
                         idx === 0
                           ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40'
                           : idx === 1
@@ -1204,21 +1236,21 @@ export const AdminBIAnalyticsView: React.FC = () => {
                               : 'bg-muted text-muted-foreground'
                       }`}
                     >
-                      {idx + 1}
+                      {toPersianDigits(idx + 1)}
                     </span>
                     <div>
-                      <h4 className="text-xs font-bold text-foreground line-clamp-1">
+                      <h4 className="text-xs font-bold text-foreground line-clamp-1 font-sans">
                         {prod.title_fa}
                       </h4>
-                      <p className="text-[11px] text-muted-foreground mt-0.5">
-                        {prod.units_sold.toLocaleString('fa-IR')} فروش موفق •
-                        مارجین سود: {prod.margin_percent}%
+                      <p className="text-[11px] text-muted-foreground mt-0.5 font-sans">
+                        {formatNumber(prod.units_sold)} فروش موفق • مارجین سود:{' '}
+                        {toPersianDigits(prod.margin_percent)}٪
                       </p>
                     </div>
                   </div>
 
-                  <div className="text-left font-mono font-latin text-xs">
-                    <span className="font-bold text-brand block">
+                  <div className="text-left font-sans text-xs">
+                    <span className="font-bold text-brand block font-sans">
                       {formatMoney(
                         prod.revenue_toman,
                         data.effective_usd_rate
@@ -1226,7 +1258,7 @@ export const AdminBIAnalyticsView: React.FC = () => {
                           : 0,
                       )}
                     </span>
-                    <span className="text-[11px] text-emerald-400 font-bold">
+                    <span className="text-[11px] text-emerald-400 font-bold font-sans">
                       سود:{' '}
                       {formatMoney(
                         prod.gross_profit_toman,
@@ -1286,11 +1318,11 @@ export const AdminBIAnalyticsView: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="text-left font-mono font-latin text-xs">
-                    <span className="font-bold text-foreground block">
-                      {c.orders_count.toLocaleString('fa-IR')} شماره
+                  <div className="text-left font-sans text-xs">
+                    <span className="font-bold text-foreground block font-sans">
+                      {formatNumber(c.orders_count)} شماره
                     </span>
-                    <span className="text-[11px] text-cyan-400 font-bold">
+                    <span className="text-[11px] text-cyan-400 font-bold font-sans">
                       {formatMoney(
                         c.revenue_toman,
                         data.effective_usd_rate
@@ -1319,10 +1351,10 @@ export const AdminBIAnalyticsView: React.FC = () => {
               سازمانی
             </p>
           </div>
-          <span className="text-xs text-muted-foreground font-latin">
+          <span className="text-xs text-muted-foreground font-sans">
             کل مشتریان:{' '}
-            <strong className="text-foreground">
-              {kpis.total_customers.toLocaleString('fa-IR')}
+            <strong className="text-foreground font-sans">
+              {formatNumber(kpis.total_customers)}
             </strong>
           </span>
         </div>
@@ -1331,11 +1363,11 @@ export const AdminBIAnalyticsView: React.FC = () => {
           {(data?.loyalty_stats || []).map((t) => (
             <div
               key={t.tier_code}
-              className="bg-muted/20 border border-border/60 p-4 rounded-surface space-y-3 relative overflow-hidden"
+              className="bg-muted/20 border border-border/60 p-4 rounded-surface space-y-3 relative overflow-hidden font-sans"
             >
               <div className="flex items-center justify-between">
                 <span
-                  className="px-2.5 py-1 rounded-control text-xs font-black flex items-center gap-1.5"
+                  className="px-2.5 py-1 rounded-control text-xs font-black flex items-center gap-1.5 font-sans"
                   style={{
                     backgroundColor: `${t.badge_color}20`,
                     color: t.badge_color,
@@ -1346,31 +1378,33 @@ export const AdminBIAnalyticsView: React.FC = () => {
                   <Medal className="w-3.5 h-3.5" />
                   {t.tier_name}
                 </span>
-                <span className="text-xs font-bold text-muted-foreground">
+                <span className="text-xs font-bold text-muted-foreground font-sans">
                   {t.discount_percent > 0
-                    ? `${t.discount_percent}٪ تخفیف`
+                    ? `${toPersianDigits(t.discount_percent)}٪ تخفیف`
                     : 'استاندارد'}
                 </span>
               </div>
 
               <div>
-                <p className="text-xl font-black text-foreground font-latin">
-                  {t.customer_count.toLocaleString('fa-IR')}{' '}
+                <p className="text-xl font-black text-foreground font-sans">
+                  {formatNumber(t.customer_count)}{' '}
                   <span className="text-xs font-normal text-muted-foreground font-sans">
                     کاربر
                   </span>
                 </p>
-                <p className="text-xs text-muted-foreground mt-1">
+                <p className="text-xs text-muted-foreground mt-1 font-sans">
                   سهم از کاربران:{' '}
-                  <strong className="text-foreground font-latin">
-                    {t.percentage_of_users}%
+                  <strong className="text-foreground font-sans">
+                    {toPersianDigits(t.percentage_of_users)}٪
                   </strong>
                 </p>
               </div>
 
-              <div className="pt-2 border-t border-border/60 flex items-center justify-between text-xs">
-                <span className="text-muted-foreground">حجم خرید سطح:</span>
-                <span className="font-bold text-amber-500 font-mono font-latin">
+              <div className="pt-2 border-t border-border/60 flex items-center justify-between text-xs font-sans">
+                <span className="text-muted-foreground font-sans">
+                  حجم خرید سطح:
+                </span>
+                <span className="font-bold text-amber-500 font-sans">
                   {formatRawMoney(t.total_spent_toman)}
                 </span>
               </div>

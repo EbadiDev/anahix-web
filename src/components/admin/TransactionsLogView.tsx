@@ -51,6 +51,28 @@ export const TransactionsLogView: React.FC<TransactionsLogViewProps> = ({
   const [typeFilter, setTypeFilter] = useState<string>('')
   const [copiedId, setCopiedId] = useState<string | null>(null)
 
+  const getBotDisplayName = (provider?: string) => {
+    const key = (provider || '').toLowerCase().trim()
+    switch (key) {
+      case 'insightx':
+      case 'third_party_api':
+        return 'InsightX'
+      case 'stackvault':
+        return 'StackVault'
+      case 'paglu':
+      case 'lootpaglu':
+        return 'LootPaglu'
+      case 'jero':
+      case 'jeroaccounts':
+        return 'JeroAccounts'
+      case 'supreme':
+      case 'supremeleader':
+        return 'SupremeLeader'
+      default:
+        return provider || ''
+    }
+  }
+
   // Transaction Status Changer Modal
   const [selectedTx, setSelectedTx] = useState<TransactionRecord | null>(null)
   const [newStatus, setNewStatus] = useState<string>('SUCCESS')
@@ -196,22 +218,6 @@ export const TransactionsLogView: React.FC<TransactionsLogViewProps> = ({
             <span>سفارش خدمات دیجیتال</span>
           </span>
         )
-    }
-  }
-
-  const formatDate = (isoString: string) => {
-    if (!isoString) return '-'
-    try {
-      const d = new Date(isoString)
-      return d.toLocaleDateString('fa-IR', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      })
-    } catch {
-      return isoString
     }
   }
 
@@ -440,17 +446,33 @@ export const TransactionsLogView: React.FC<TransactionsLogViewProps> = ({
           <table className="w-full text-center text-xs">
             <thead>
               <tr className="border-b border-border/60 bg-muted/40 text-muted-foreground font-bold select-none text-center">
-                <th className="py-3.5 px-4 text-center">شناسه تراکنش</th>
-                <th className="py-3.5 px-4 text-center">نوع عملیات</th>
-                <th className="py-3.5 px-4 text-center">مشتری</th>
-                <th className="py-3.5 px-4 text-center">
+                <th className="py-3.5 px-4 text-center whitespace-nowrap">
+                  شناسه تراکنش
+                </th>
+                <th className="py-3.5 px-4 text-center whitespace-nowrap">
+                  نوع عملیات و تامین‌کننده
+                </th>
+                <th className="py-3.5 px-4 text-center whitespace-nowrap">
+                  مشتری
+                </th>
+                <th className="py-3.5 px-4 text-center whitespace-nowrap">
                   اطلاعات مالی و سود (تومان)
                 </th>
-                <th className="py-3.5 px-4 text-center">درگاه پرداخت</th>
-                <th className="py-3.5 px-4 text-center">کد پیگیری</th>
-                <th className="py-3.5 px-4 text-center">وضعیت</th>
-                <th className="py-3.5 px-4 text-center">تاریخ و زمان</th>
-                <th className="py-3.5 px-4 text-center">عملیات</th>
+                <th className="py-3.5 px-4 text-center whitespace-nowrap">
+                  درگاه پرداخت
+                </th>
+                <th className="py-3.5 px-4 text-center whitespace-nowrap">
+                  کد پیگیری بانکی
+                </th>
+                <th className="py-3.5 px-4 text-center whitespace-nowrap">
+                  وضعیت
+                </th>
+                <th className="py-3.5 px-4 text-center whitespace-nowrap">
+                  تاریخ و زمان
+                </th>
+                <th className="py-3.5 px-4 text-center whitespace-nowrap">
+                  عملیات
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/60">
@@ -488,10 +510,15 @@ export const TransactionsLogView: React.FC<TransactionsLogViewProps> = ({
                     className="hover:bg-muted/40 transition-colors"
                   >
                     {/* Transaction Number */}
-                    <td className="py-3.5 px-4 font-mono font-medium text-foreground text-center">
-                      <div className="flex items-center justify-center gap-1.5">
-                        <span className="truncate max-w-[140px] text-xs font-latin">
-                          {tx.transaction_number}
+                    <td className="py-3.5 px-4 font-mono font-medium text-foreground text-center whitespace-nowrap">
+                      <div className="flex items-center justify-center gap-1.5 font-latin">
+                        <span
+                          className="truncate max-w-[130px] text-xs font-bold font-latin"
+                          title={tx.transaction_number}
+                        >
+                          {tx.transaction_number.length > 18
+                            ? `${tx.transaction_number.slice(0, 16)}...`
+                            : tx.transaction_number}
                         </span>
                         <button
                           type="button"
@@ -499,7 +526,7 @@ export const TransactionsLogView: React.FC<TransactionsLogViewProps> = ({
                             handleCopy(tx.transaction_number, tx.id)
                           }
                           className="p-1 rounded text-muted-foreground hover:text-brand hover:bg-muted transition-colors cursor-pointer"
-                          title="کپی شناسه"
+                          title="کپی شناسه کامل تراکنش"
                         >
                           {copiedId === tx.id ? (
                             <Check className="w-3 h-3 text-emerald-400" />
@@ -509,21 +536,29 @@ export const TransactionsLogView: React.FC<TransactionsLogViewProps> = ({
                         </button>
                       </div>
                       {tx.description && (
-                        <div className="text-[10px] text-muted-foreground font-sans truncate max-w-[180px] mx-auto mt-0.5">
+                        <div
+                          className="text-[10px] text-muted-foreground font-sans truncate max-w-[180px] mx-auto mt-0.5 cursor-help"
+                          title={tx.description}
+                        >
                           {tx.description}
                         </div>
                       )}
                     </td>
 
-                    {/* Order Type */}
-                    <td className="py-3.5 px-4 text-center">
-                      <div className="flex justify-center">
+                    {/* Order Type & Fulfillment Provider */}
+                    <td className="py-3.5 px-4 text-center whitespace-nowrap">
+                      <div className="flex flex-col items-center justify-center gap-1">
                         {getTypeBadge(tx.order_type)}
+                        {tx.external_provider && (
+                          <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-control bg-primary/10 text-primary border border-primary/20 text-[9px] font-black font-latin">
+                            🤖 {getBotDisplayName(tx.external_provider)}
+                          </span>
+                        )}
                       </div>
                     </td>
 
                     {/* Customer Info */}
-                    <td className="py-3.5 px-4 text-center">
+                    <td className="py-3.5 px-4 text-center whitespace-nowrap">
                       <div
                         className="font-mono text-xs text-foreground font-latin"
                         dir="ltr"
@@ -541,7 +576,7 @@ export const TransactionsLogView: React.FC<TransactionsLogViewProps> = ({
                     </td>
 
                     {/* Financial Stacked Column: Sale, Cost & Profit/Loss */}
-                    <td className="py-3.5 px-4 text-center font-latin">
+                    <td className="py-3.5 px-4 text-center font-latin whitespace-nowrap">
                       <div className="font-bold text-xs text-foreground">
                         فروش: {formatToman(tx.amount_toman)} تومان
                       </div>
@@ -578,9 +613,10 @@ export const TransactionsLogView: React.FC<TransactionsLogViewProps> = ({
                     </td>
 
                     {/* Payment Platform with Gateway Icon & Badge */}
-                    <td className="py-3.5 px-4 text-center">
+                    <td className="py-3.5 px-4 text-center whitespace-nowrap">
                       {(() => {
-                        const gw = getGatewayDisplay(tx.payment_method)
+                        const plat = tx.payment_platform || tx.payment_method
+                        const gw = getGatewayDisplay(plat)
                         return (
                           <div
                             className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-control text-xs font-bold border shadow-xs ${gw.badgeClass}`}
@@ -593,29 +629,55 @@ export const TransactionsLogView: React.FC<TransactionsLogViewProps> = ({
                     </td>
 
                     {/* Payment Ref ID */}
-                    <td className="py-3.5 px-4 font-mono font-latin text-[11px] text-center text-muted-foreground">
+                    <td className="py-3.5 px-4 font-mono font-latin text-[11px] text-center text-muted-foreground whitespace-nowrap">
                       {tx.payment_ref_id ? (
-                        <span
-                          className="truncate max-w-[120px] inline-block font-latin"
-                          title={tx.payment_ref_id}
-                        >
-                          {tx.payment_ref_id}
-                        </span>
+                        <div className="flex items-center justify-center gap-1 font-latin">
+                          <span
+                            className="truncate max-w-[120px] font-bold"
+                            title={tx.payment_ref_id}
+                          >
+                            {tx.payment_ref_id.length > 16
+                              ? `${tx.payment_ref_id.slice(0, 14)}...`
+                              : tx.payment_ref_id}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleCopy(tx.payment_ref_id, `ref-${tx.id}`)
+                            }
+                            className="p-1 rounded text-muted-foreground hover:text-brand hover:bg-muted transition-colors cursor-pointer"
+                            title="کپی کد پیگیری بانکی"
+                          >
+                            {copiedId === `ref-${tx.id}` ? (
+                              <Check className="w-3 h-3 text-emerald-400" />
+                            ) : (
+                              <Copy className="w-3 h-3" />
+                            )}
+                          </button>
+                        </div>
                       ) : (
                         <span className="text-muted-foreground">-</span>
                       )}
                     </td>
 
                     {/* Status */}
-                    <td className="py-3.5 px-4 text-center">
+                    <td className="py-3.5 px-4 text-center whitespace-nowrap">
                       <div className="flex justify-center">
                         {getStatusBadge(tx.status)}
                       </div>
                     </td>
 
-                    {/* Date */}
-                    <td className="py-3.5 px-4 text-muted-foreground text-center text-[11px] whitespace-nowrap font-latin">
-                      {formatDate(tx.created_at)}
+                    {/* Date & Time Vertically Stacked (Date on top, Time below) */}
+                    <td className="py-3.5 px-4 text-center whitespace-nowrap font-latin">
+                      <div className="text-xs font-bold text-foreground">
+                        {new Date(tx.created_at).toLocaleDateString('fa-IR')}
+                      </div>
+                      <div className="text-[10px] text-muted-foreground font-mono mt-0.5">
+                        {new Date(tx.created_at).toLocaleTimeString('fa-IR', {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </div>
                     </td>
 
                     {/* Actions: Status Changer */}

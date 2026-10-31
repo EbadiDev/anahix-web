@@ -1,5 +1,7 @@
 import {
+  AlertCircle,
   ArrowLeft,
+  Bell,
   Clock,
   Flame,
   ShoppingCart,
@@ -35,6 +37,13 @@ export const OfferProductCard: React.FC<OfferProductCardProps> = ({
   const currentQuantity = cartItem ? cartItem.quantity : 0
 
   // Pricing calculations
+  const isOutOfStock =
+    product.stock_mode === 'out_of_stock' ||
+    product.is_out_of_stock ||
+    (product.stock_mode !== 'always_in_stock' &&
+      product.available_stock !== undefined &&
+      product.available_stock <= 0)
+
   const effectivePrice =
     product.is_flash_sale && product.flash_sale_price_toman
       ? product.flash_sale_price_toman
@@ -153,6 +162,7 @@ export const OfferProductCard: React.FC<OfferProductCardProps> = ({
   const brand = getBrandDetails()
 
   const handleAddToCart = () => {
+    if (isOutOfStock) return
     cartStore.addItem(product)
     cartAdded(product.title_fa)
   }
@@ -367,7 +377,26 @@ export const OfferProductCard: React.FC<OfferProductCardProps> = ({
 
         {/* Action Buttons */}
         <div className="space-y-2">
-          {timeLeft.isExpired ? (
+          {isOutOfStock ? (
+            <div className="space-y-1.5">
+              <div className="w-full py-1.5 px-3 rounded-control bg-rose-500/10 text-rose-500 border border-rose-500/30 text-[11px] font-black text-center flex items-center justify-center gap-1.5">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                <span>
+                  {product.out_of_stock_text &&
+                  product.out_of_stock_text !== 'در حال تهیه و تامین مجدد'
+                    ? product.out_of_stock_text
+                    : 'ناموجود (موجودی صفر)'}
+                </span>
+              </div>
+              <Link
+                to={`/products/${product.slug || product.id}`}
+                className="w-full h-9 rounded-control border border-brand/40 bg-brand/10 hover:bg-brand/20 text-brand text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer duration-motion active:scale-[0.98]"
+              >
+                <Bell className="w-3.5 h-3.5" />
+                <span>موجود شد به من اطلاع بده</span>
+              </Link>
+            </div>
+          ) : timeLeft.isExpired ? (
             <button
               type="button"
               disabled

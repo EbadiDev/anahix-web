@@ -14,6 +14,7 @@ import {
   HelpCircle,
   Lock,
   Package,
+  Send,
   ShieldCheck,
   ShoppingCart,
   Sparkles,
@@ -26,12 +27,7 @@ import type React from 'react'
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { AuthModal } from '../components/AuthModal'
-import {
-  ClaudeIcon,
-  CursorIcon,
-  GeminiIcon,
-  OpenAIIcon,
-} from '../components/BrandIcons'
+import { ClaudeIcon, GeminiIcon, OpenAIIcon } from '../components/BrandIcons'
 import { CartDrawer } from '../components/CartDrawer'
 import { MarkdownRenderer } from '../components/content/MarkdownRenderer'
 import { Header } from '../components/Header'
@@ -76,6 +72,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
   const [product, setProduct] = useState<ProductDetail | null>(null)
   const [payments, setPayments] = useState<PaymentGateway[]>([])
   const [customer, setCustomer] = useState<CustomerProfile | null>(null)
+  const [themeSettings, setThemeSettings] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -103,10 +100,11 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
       setLoading(true)
       setError(null)
       try {
-        const [prodData, paysData, custData] = await Promise.all([
+        const [prodData, paysData, custData, theme] = await Promise.all([
           apiService.getProductBySlug(slug),
           apiService.getPayments(),
           apiService.getCustomerProfile(),
+          apiService.getThemeSettings().catch(() => null),
         ])
 
         if (!isMounted) return
@@ -120,6 +118,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
         setProduct(prodData)
         setPayments(paysData)
         if (custData) setCustomer(custData)
+        if (theme) setThemeSettings(theme)
 
         // Select default plan or first plan
         const plans = prodData.plans || []
@@ -184,6 +183,23 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
 
   // Brand Icon helper
   const getBrandDetails = () => {
+    if (product?.icon_url) {
+      return {
+        icon: (
+          <img
+            src={product.icon_url}
+            alt={product.title_fa}
+            className="h-8 w-8 object-contain"
+            onError={(e) => {
+              ;(e.target as HTMLElement).style.display = 'none'
+            }}
+          />
+        ),
+        bg: 'bg-primary/10 border-primary/20 text-primary',
+        brandName: product.group_title_fa || product.title_fa,
+      }
+    }
+
     const s =
       `${product?.title_en || ''} ${product?.group_tag || ''}`.toLowerCase()
     if (s.includes('chatgpt') || s.includes('openai')) {
@@ -214,9 +230,12 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
       }
     }
     return {
-      icon: <CursorIcon className="h-8 w-8 text-sky-600 dark:text-sky-400" />,
-      bg: 'bg-sky-500/10 border-sky-500/20 text-sky-600',
-      brandName: 'Anahix Service',
+      icon: <Sparkles className="h-8 w-8 text-brand" />,
+      bg: 'bg-brand/10 border-brand/20 text-brand',
+      brandName:
+        product?.group_title_fa ||
+        product?.title_fa ||
+        getSiteBrandName('پلی شاپ'),
     }
   }
 
@@ -323,6 +342,15 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
     cart.clearCart()
     setIsCartOpen(false)
 
+    if (
+      newOrder.payment_url &&
+      (newOrder.payment_url.startsWith('http') ||
+        newOrder.payment_url.startsWith('/payment/callback'))
+    ) {
+      window.location.href = newOrder.payment_url
+      return
+    }
+
     if (data.payment_platform === 'balance') {
       if (setBalance) {
         setBalance((prev) => Math.max(0, prev - newOrder.amount_toman))
@@ -413,10 +441,18 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
   const brand = getBrandDetails()
   const effectivePrice = selectedPlan?.price_toman ?? product.price_toman
   const originalPrice =
-    selectedPlan?.original_price_toman ||
-    Math.round((effectivePrice * 1.18) / 10000) * 10000
+    selectedPlan?.original_price_toman &&
+    selectedPlan.original_price_toman > effectivePrice
+      ? selectedPlan.original_price_toman
+      : product.original_price_toman &&
+          product.original_price_toman > effectivePrice
+        ? product.original_price_toman
+        : effectivePrice
   const savingsToman = Math.max(0, originalPrice - effectivePrice)
-  const savingsPercent = Math.round((savingsToman / originalPrice) * 100)
+  const savingsPercent =
+    originalPrice > effectivePrice
+      ? Math.round((savingsToman / originalPrice) * 100)
+      : 0
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col font-sans transition-colors duration-200">
@@ -433,11 +469,12 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
           items={[
             {
               label:
-                product.category === 'ai_chat'
+                product.group_title_fa ||
+                (product.category === 'ai_chat'
                   ? 'هوش مصنوعی و چت‌بات'
                   : product.category === 'coding_ai'
                     ? 'دستیار کدنویسی'
-                    : 'کاتالوگ سرویس‌ها',
+                    : 'کاتالوگ سرویس‌ها'),
               to: `/category/${product.category || 'all'}`,
             },
             {
@@ -464,11 +501,26 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                   </span>
                   <div className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5">
                     <ShieldCheck className="h-3.5 w-3.5 text-blue-600" />
-                    <span>لایسنس ۱۰۰٪ قانونی و دائمی</span>
+                    <span>
+                      {selectedPlan?.duration_text
+                        ? `لایسنس ۱۰۰٪ قانونی (${selectedPlan.duration_text})`
+                        : product.duration_days
+                          ? `لایسنس ۱۰۰٪ قانونی (${toPersianDigits(product.duration_days)} روزه)`
+                          : 'لایسنس ۱۰۰٪ معتبر و قانونی'}
+                    </span>
                   </div>
                 </div>
 
-                {product.delivery_mode === 'UPGRADE_EXISTING' ? (
+                {product.required_customer_input === 'telegram_username' ? (
+                  <Badge
+                    variant="blue"
+                    className="gap-1.5 text-xs font-bold py-1 px-3 bg-sky-500/10 text-sky-400 border border-sky-500/20"
+                  >
+                    <Send className="h-3.5 w-3.5" />
+                    فعال‌سازی با آیدی تلگرام (بدون نیاز به پسورد)
+                  </Badge>
+                ) : product.required_customer_input === 'account_creds' ||
+                  product.delivery_mode === 'UPGRADE_EXISTING' ? (
                   <Badge
                     variant="amber"
                     className="gap-1.5 text-xs font-bold py-1 px-3"
@@ -482,7 +534,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                     className="gap-1.5 text-xs font-bold py-1 px-3 bg-muted text-foreground border border-border/60"
                   >
                     <Zap className="h-3.5 w-3.5 text-brand" />
-                    تحویل آنی
+                    تحویل آنی و بدون رمز عبور
                   </Badge>
                 )}
 
@@ -509,23 +561,27 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
               </div>
 
               {/* Description */}
-              <p className="text-sm text-muted-foreground/90 leading-relaxed">
-                {product.description || product.description_fa}
-              </p>
+              {(product.description || product.description_fa) && (
+                <p className="text-sm text-muted-foreground/90 leading-relaxed">
+                  {product.description || product.description_fa}
+                </p>
+              )}
 
               {/* Features Checklist */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 bg-card border border-border/80 rounded-2xl p-4">
-                {(product.features || []).map((feat) => (
-                  <div key={feat} className="flex items-start gap-2.5">
-                    <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 mt-0.5">
-                      <Check className="h-3 w-3" />
+              {product.features && product.features.length > 0 && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 bg-card border border-border/80 rounded-2xl p-4">
+                  {product.features.map((feat) => (
+                    <div key={feat} className="flex items-start gap-2.5">
+                      <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 mt-0.5">
+                        <Check className="h-3 w-3" />
+                      </div>
+                      <span className="text-xs text-foreground/90 font-medium leading-relaxed">
+                        {feat}
+                      </span>
                     </div>
-                    <span className="text-xs text-foreground/90 font-medium leading-relaxed">
-                      {feat}
-                    </span>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
 
               {/* Delivery & SLA Specifications */}
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
@@ -545,10 +601,20 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                 <div className="p-3 rounded-xl border border-border bg-card/60 space-y-1">
                   <span className="text-muted-foreground flex items-center gap-1">
                     <Lock className="h-3.5 w-3.5 text-blue-600" />
-                    <span>امنیت پسورد:</span>
+                    <span>
+                      {product.required_customer_input === 'telegram_username'
+                        ? 'شیوه احراز:'
+                        : product.required_customer_input === 'none'
+                          ? 'نحوه دریافت:'
+                          : 'امنیت پسورد:'}
+                    </span>
                   </span>
                   <span className="font-bold text-emerald-600 dark:text-emerald-400 block">
-                    پروتکل Zeroize
+                    {product.required_customer_input === 'telegram_username'
+                      ? 'آیدی تلگرام (بدون پسورد)'
+                      : product.required_customer_input === 'none'
+                        ? 'صدور مستقیم و آنی'
+                        : 'پروتکل امنیتی Zeroize'}
                   </span>
                 </div>
 
@@ -558,7 +624,13 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                     <span>ضمانت اصالت:</span>
                   </span>
                   <span className="font-bold text-foreground block">
-                    گارانتی کامل ۳۰ روزه
+                    {selectedPlan?.duration_text
+                      ? `گارانتی ${selectedPlan.duration_text}`
+                      : selectedPlan?.duration_days
+                        ? `گارانتی ${toPersianDigits(selectedPlan.duration_days)} روزه`
+                        : product.duration_days
+                          ? `گارانتی ${toPersianDigits(product.duration_days)} روزه`
+                          : 'ضمانت سلامت و اصالت فعال‌سازی'}
                   </span>
                 </div>
 
@@ -582,85 +654,89 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
             {/* Left Column: Interactive Plan Switcher & Checkout Card (5 cols) */}
             <div className="lg:col-span-5">
               <div className="rounded-surface border border-border/80 bg-card p-5 sm:p-6 shadow-surface space-y-6 sticky top-24 relative overflow-hidden">
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-black text-foreground flex items-center gap-1.5">
-                      <Calendar className="h-4 w-4 text-brand" />
-                      <span>انتخاب پلن و دوره زمانی:</span>
-                    </span>
-                    <span className="text-[11px] text-muted-foreground font-sans">
-                      {toPersianDigits((product.plans || []).length)} دوره قابل
-                      انتخاب
-                    </span>
-                  </div>
+                {/* Plan Options Selector Grid (Rendered ONLY if product has multiple plans configured in admin) */}
+                {product.plans && product.plans.length > 1 && (
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-black text-foreground flex items-center gap-1.5">
+                        <Calendar className="h-4 w-4 text-brand" />
+                        <span>انتخاب پلن و دوره زمانی:</span>
+                      </span>
+                      <span className="text-[11px] text-muted-foreground font-sans">
+                        {toPersianDigits(product.plans.length)} دوره قابل انتخاب
+                      </span>
+                    </div>
 
-                  {/* Plan Options Selector Grid */}
-                  <div className="space-y-2.5 pt-1">
-                    {(product.plans || []).map((plan) => {
-                      const isSelected = selectedPlan?.id === plan.id
-                      return (
-                        <button
-                          key={plan.id}
-                          type="button"
-                          onClick={() => setSelectedPlan(plan)}
-                          className={`w-full p-3.5 rounded-control border text-right duration-motion ease-motion transition-all flex items-center justify-between gap-3 cursor-pointer ${
-                            isSelected
-                              ? 'border-brand bg-brand/5 shadow-control'
-                              : 'border-border/60 bg-card hover:bg-muted/40 hover:border-border/80'
-                          }`}
-                        >
-                          <div className="flex items-center gap-3">
-                            <div
-                              className={`h-4.5 w-4.5 rounded-full border flex items-center justify-center transition-colors ${
-                                isSelected
-                                  ? 'border-brand bg-brand text-white shadow-xs'
-                                  : 'border-muted-foreground/40 bg-muted/20'
-                              }`}
-                            >
-                              {isSelected && <Check className="h-2.5 w-2.5" />}
-                            </div>
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <span className="font-bold text-xs sm:text-sm text-foreground">
-                                  {plan.title}
-                                </span>
-                                {plan.badge && (
-                                  <span
-                                    className={`px-2 py-0.5 rounded-control text-[10px] font-black transition-colors ${
-                                      isSelected
-                                        ? 'bg-brand text-white shadow-xs'
-                                        : 'bg-muted text-muted-foreground border border-border/40'
-                                    }`}
-                                  >
-                                    {plan.badge}
-                                  </span>
+                    <div className="space-y-2.5 pt-1">
+                      {product.plans.map((plan) => {
+                        const isSelected = selectedPlan?.id === plan.id
+                        return (
+                          <button
+                            key={plan.id}
+                            type="button"
+                            onClick={() => setSelectedPlan(plan)}
+                            className={`w-full p-3.5 rounded-control border text-right duration-motion ease-motion transition-all flex items-center justify-between gap-3 cursor-pointer ${
+                              isSelected
+                                ? 'border-brand bg-brand/5 shadow-control'
+                                : 'border-border/60 bg-card hover:bg-muted/40 hover:border-border/80'
+                            }`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <div
+                                className={`h-4.5 w-4.5 rounded-full border flex items-center justify-center transition-colors ${
+                                  isSelected
+                                    ? 'border-brand bg-brand text-white shadow-xs'
+                                    : 'border-muted-foreground/40 bg-muted/20'
+                                }`}
+                              >
+                                {isSelected && (
+                                  <Check className="h-2.5 w-2.5" />
                                 )}
                               </div>
-                              <span className="text-[11px] text-muted-foreground block mt-0.5">
-                                مدت اعتبار: {plan.duration_text}
-                              </span>
-                            </div>
-                          </div>
-
-                          <div className="text-left shrink-0">
-                            {plan.original_price_toman &&
-                              plan.original_price_toman > plan.price_toman && (
-                                <div className="text-[11px] text-muted-foreground/50 line-through font-sans font-medium">
-                                  {formatToman(plan.original_price_toman)}
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <span className="font-bold text-xs sm:text-sm text-foreground">
+                                    {plan.title}
+                                  </span>
+                                  {plan.badge && (
+                                    <span
+                                      className={`px-2 py-0.5 rounded-control text-[10px] font-black transition-colors ${
+                                        isSelected
+                                          ? 'bg-brand text-white shadow-xs'
+                                          : 'bg-muted text-muted-foreground border border-border/40'
+                                      }`}
+                                    >
+                                      {plan.badge}
+                                    </span>
+                                  )}
                                 </div>
-                              )}
-                            <div className="font-black text-sm text-foreground font-sans tracking-tight">
-                              {formatToman(plan.price_toman)}{' '}
-                              <span className="text-[10px] font-normal text-muted-foreground font-sans">
-                                تومان
-                              </span>
+                                <span className="text-[11px] text-muted-foreground block mt-0.5">
+                                  مدت اعتبار: {plan.duration_text}
+                                </span>
+                              </div>
                             </div>
-                          </div>
-                        </button>
-                      )
-                    })}
+
+                            <div className="text-left shrink-0">
+                              {plan.original_price_toman &&
+                                plan.original_price_toman >
+                                  plan.price_toman && (
+                                  <div className="text-[11px] text-muted-foreground/50 line-through font-sans font-medium">
+                                    {formatToman(plan.original_price_toman)}
+                                  </div>
+                                )}
+                              <div className="font-black text-sm text-foreground font-sans tracking-tight">
+                                {formatToman(plan.price_toman)}{' '}
+                                <span className="text-[10px] font-normal text-muted-foreground font-sans">
+                                  تومان
+                                </span>
+                              </div>
+                            </div>
+                          </button>
+                        )
+                      })}
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {/* Selected Plan Details & Pricing Banner */}
                 <div className="p-4 rounded-surface bg-muted/20 border border-border/60 space-y-3">
@@ -827,7 +903,13 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                     <span>پرداخت امن شاپرک</span>
                   </div>
                   <a
-                    href="https://t.me/AnahixSupport"
+                    href={
+                      themeSettings?.support_telegram
+                        ? themeSettings.support_telegram.startsWith('http')
+                          ? themeSettings.support_telegram
+                          : `https://t.me/${themeSettings.support_telegram.replace('@', '')}`
+                        : 'https://t.me/AnahixSupport'
+                    }
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex flex-col items-center gap-1 hover:text-brand transition-colors cursor-pointer group"
@@ -1009,84 +1091,94 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                 </div>
               )}
 
-              {/* Anti-Sanction & Recommended DNS Helper Card */}
-              <div className="rounded-surface border border-brand/30 bg-brand/5 p-5 sm:p-6 space-y-4">
-                <div className="flex items-center justify-between flex-wrap gap-2">
-                  <div className="flex items-center gap-2">
-                    <Globe className="h-5 w-5 text-brand" />
-                    <h4 className="font-bold text-sm text-foreground">
-                      راهنمای رفع تحریم و دی‌ان‌اس‌های پیشنهادی (Anti-Sanction DNS)
-                    </h4>
-                  </div>
-                  <span className="text-[11px] text-blue-600 dark:text-blue-400 font-semibold">
-                    بدون نیاز به افت سرعت
-                  </span>
-                </div>
-
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  سرویس‌های بین‌المللی نظیر OpenAI و Google ممکن است دسترسی
-                  آی‌پی‌های ایران را محدود کرده باشند. با تنظیم رایگان DNSهای زیر
-                  روی سیستم، موبایل یا مودم، بدون ارور ۴۰۳ وارد شوید:
-                </p>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
-                  {/* Shecan */}
-                  <div className="p-3.5 rounded-xl border border-border bg-card flex items-center justify-between gap-3">
-                    <div>
-                      <span className="font-bold text-xs text-foreground block">
-                        سامانه تحریم‌شکن شکن (Shecan)
-                      </span>
-                      <span className="font-mono text-xs text-blue-600 dark:text-blue-400 block mt-0.5">
-                        178.22.122.100 | 185.51.200.2
-                      </span>
+              {/* Anti-Sanction & Recommended DNS Helper Card (Shown only when relevant for AI chat/link services) */}
+              {(product.category === 'ai_chat' ||
+                product.category === 'ai_link') && (
+                <div className="rounded-surface border border-brand/30 bg-brand/5 p-5 sm:p-6 space-y-4">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div className="flex items-center gap-2">
+                      <Globe className="h-5 w-5 text-brand" />
+                      <h4 className="font-bold text-sm text-foreground">
+                        راهنمای رفع تحریم و دی‌ان‌اس‌های پیشنهادی (Anti-Sanction
+                        DNS)
+                      </h4>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        handleCopyDNS('178.22.122.100, 185.51.200.2', 'shecan')
-                      }
-                      className="h-8 px-3 rounded-lg border border-border hover:bg-muted text-xs font-semibold flex items-center gap-1 transition"
-                    >
-                      {copiedDns === 'shecan' ? (
-                        <Check className="h-3.5 w-3.5 text-emerald-600" />
-                      ) : (
-                        <Copy className="h-3.5 w-3.5" />
-                      )}
-                      <span>
-                        {copiedDns === 'shecan' ? 'کپی شد' : 'کپی DNS'}
-                      </span>
-                    </button>
+                    <span className="text-[11px] text-blue-600 dark:text-blue-400 font-semibold">
+                      بدون نیاز به افت سرعت
+                    </span>
                   </div>
 
-                  {/* Electro */}
-                  <div className="p-3.5 rounded-xl border border-border bg-card flex items-center justify-between gap-3">
-                    <div>
-                      <span className="font-bold text-xs text-foreground block">
-                        سامانه دی‌ان‌اس الکترو (Electro)
-                      </span>
-                      <span className="font-mono text-xs text-blue-600 dark:text-blue-400 block mt-0.5">
-                        78.157.42.101 | 78.157.42.100
-                      </span>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    سرویس‌های بین‌المللی نظیر OpenAI و Google ممکن است دسترسی
+                    آی‌پی‌های ایران را محدود کرده باشند. با تنظیم رایگان DNSهای
+                    زیر روی سیستم، موبایل یا مودم، بدون ارور ۴۰۳ وارد شوید:
+                  </p>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+                    {/* Shecan */}
+                    <div className="p-3.5 rounded-xl border border-border bg-card flex items-center justify-between gap-3">
+                      <div>
+                        <span className="font-bold text-xs text-foreground block">
+                          سامانه تحریم‌شکن شکن (Shecan)
+                        </span>
+                        <span className="font-mono text-xs text-blue-600 dark:text-blue-400 block mt-0.5">
+                          178.22.122.100 | 185.51.200.2
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleCopyDNS(
+                            '178.22.122.100, 185.51.200.2',
+                            'shecan',
+                          )
+                        }
+                        className="h-8 px-3 rounded-lg border border-border hover:bg-muted text-xs font-semibold flex items-center gap-1 transition"
+                      >
+                        {copiedDns === 'shecan' ? (
+                          <Check className="h-3.5 w-3.5 text-emerald-600" />
+                        ) : (
+                          <Copy className="h-3.5 w-3.5" />
+                        )}
+                        <span>
+                          {copiedDns === 'shecan' ? 'کپی شد' : 'کپی DNS'}
+                        </span>
+                      </button>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        handleCopyDNS('78.157.42.101, 78.157.42.100', 'electro')
-                      }
-                      className="h-8 px-3 rounded-lg border border-border hover:bg-muted text-xs font-semibold flex items-center gap-1 transition"
-                    >
-                      {copiedDns === 'electro' ? (
-                        <Check className="h-3.5 w-3.5 text-emerald-600" />
-                      ) : (
-                        <Copy className="h-3.5 w-3.5" />
-                      )}
-                      <span>
-                        {copiedDns === 'electro' ? 'کپی شد' : 'کپی DNS'}
-                      </span>
-                    </button>
+
+                    {/* Electro */}
+                    <div className="p-3.5 rounded-xl border border-border bg-card flex items-center justify-between gap-3">
+                      <div>
+                        <span className="font-bold text-xs text-foreground block">
+                          سامانه دی‌ان‌اس الکترو (Electro)
+                        </span>
+                        <span className="font-mono text-xs text-blue-600 dark:text-blue-400 block mt-0.5">
+                          78.157.42.101 | 78.157.42.100
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleCopyDNS(
+                            '78.157.42.101, 78.157.42.100',
+                            'electro',
+                          )
+                        }
+                        className="h-8 px-3 rounded-lg border border-border hover:bg-muted text-xs font-semibold flex items-center gap-1 transition"
+                      >
+                        {copiedDns === 'electro' ? (
+                          <Check className="h-3.5 w-3.5 text-emerald-600" />
+                        ) : (
+                          <Copy className="h-3.5 w-3.5" />
+                        )}
+                        <span>
+                          {copiedDns === 'electro' ? 'کپی شد' : 'کپی DNS'}
+                        </span>
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
             </section>
           </ScrollReveal>
         )}

@@ -93,6 +93,12 @@ export function getGatewayDisplay(
         icon: <CreditCard className="w-3.5 h-3.5 text-amber-500" />,
         badgeClass: 'bg-amber-500/10 text-amber-500 border-amber-500/20',
       }
+    case 'payping':
+      return {
+        label: 'درگاه پی‌پینگ',
+        icon: <CreditCard className="w-3.5 h-3.5 text-blue-500" />,
+        badgeClass: 'bg-blue-500/10 text-blue-500 border-blue-500/20',
+      }
     case 'card_to_card':
     case 'bank':
       return {
@@ -124,6 +130,8 @@ export function getGatewayName(platform: string): string {
       return 'کیف پول کاربری'
     case 'zarinpal':
       return 'درگاه پرداخت زرین‌پال'
+    case 'payping':
+      return 'درگاه پرداخت پی‌پینگ'
     case 'card_to_card':
       return 'کارت به کارت شتابی'
     case 'crypto':

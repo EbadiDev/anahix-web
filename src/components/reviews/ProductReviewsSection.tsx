@@ -22,7 +22,6 @@ import type {
 } from '../../types'
 import { formatNumber, toPersianDigits } from '../../utils/formatters'
 import { AuthModal } from '../AuthModal'
-import { Button } from '../ui/button'
 import { useNotification } from '../vibefarsi/NotificationContext'
 import { ToggleSwitch } from '../vibefarsi/ToggleSwitch'
 import { SubmitReviewModal } from './SubmitReviewModal'
@@ -254,11 +253,6 @@ export const ProductReviewsSection: React.FC<ProductReviewsSectionProps> = ({
             <span className="text-xs font-medium text-muted-foreground font-sans">
               بر اساس {formatNumber(summary.total_reviews)} تجربه خرید واقعی
             </span>
-          </div>
-
-          <div className="pt-2 text-[11px] text-muted-foreground flex items-center gap-1.5 opacity-85">
-            <ShieldCheck className="h-3.5 w-3.5 text-brand" />
-            <span>۱۰۰٪ خریداران قطعی (Verified Buyers)</span>
           </div>
         </div>
 
@@ -622,14 +616,6 @@ export const ProductReviewsSection: React.FC<ProductReviewsSectionProps> = ({
               شما اولین نفری باشید که تجربه خرید، سرعت فعال‌سازی و کیفیت این
               اکانت را با سایر کاربران به اشتراک می‌گذارد!
             </p>
-            <Button
-              type="button"
-              onClick={handleOpenReviewModal}
-              variant="outline"
-              className="rounded-2xl text-xs h-9 px-4 mt-2"
-            >
-              ثبت نظر و امتیاز خریدار
-            </Button>
           </div>
         )}
       </div>

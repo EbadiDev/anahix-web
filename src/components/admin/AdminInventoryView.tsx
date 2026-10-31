@@ -9,6 +9,7 @@ import {
   ChevronRight,
   ChevronUp,
   Clock,
+  Coins,
   Copy,
   Download,
   Edit2,
@@ -81,6 +82,114 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
   const [pDiscountPercent, setPDiscountPercent] = useState<number | string>(0)
   const [pCostToman, setPCostToman] = useState<number>(0)
   const [localFetchBotOpen, setLocalFetchBotOpen] = useState(false)
+  const [syncingBotStock, setSyncingBotStock] = useState(false)
+  const [queryingBotItem, setQueryingBotItem] = useState(false)
+  const [pricingEngineMode, setPricingEngineMode] = useState<
+    'swapwallet' | 'manual'
+  >('swapwallet')
+
+  const handleQueryLiveBotProduct = async () => {
+    if (!pExternalProductIDStr.trim() || pExternalProvider === 'manual_vault') {
+      notifyError(
+        'شناسه نامشخص',
+        'ابتدا ربات و شناسه محصول در ربات را وارد فرمایید.',
+      )
+      return
+    }
+    setQueryingBotItem(true)
+    try {
+      const catalog = await apiService.getBotCatalog(pExternalProvider, true)
+      const it = catalog.find(
+        (b) =>
+          String(b.id).trim().toLowerCase() ===
+            pExternalProductIDStr.trim().toLowerCase() ||
+          String(b.numeric_id) === pExternalProductIDStr.trim(),
+      )
+      if (it) {
+        if (it.price_usd && it.price_usd > 0) {
+          setPBaseCostUSD(it.price_usd)
+          const costToman = Math.round(it.price_usd * pLiveUSDTRate)
+          setPCostToman(costToman)
+          const m = parseFloat(String(pMarginPercent)) || 25
+          const sellT = Math.ceil((costToman * (1 + m / 100)) / 500) * 500
+          setPPriceToman(sellT)
+        }
+        if (it.unlimited) {
+          setPStockMode('always_in_stock')
+          setPManualStock(999)
+        } else if (!it.in_stock || it.stock <= 0) {
+          setPStockMode('out_of_stock')
+          setPManualStock(0)
+        } else {
+          setPStockMode('auto')
+          setPManualStock(Number(it.stock))
+        }
+        if (it.required_input) {
+          setPRequiredCustomerInput(it.required_input)
+        }
+        if (it.delivered_payload_type) {
+          setPDeliveredPayloadType(it.delivered_payload_type)
+        }
+        notifySuccess(
+          'همگام‌سازی از ربات انجام شد',
+          `نام: ${it.name} | موجودی: ${it.stock} عدد | هزینه: $${it.price_usd}`,
+        )
+      } else {
+        notifyError(
+          'یافت نشد',
+          `محصولی با شناسه ${pExternalProductIDStr} در ربات ${pExternalProvider} یافت نشد.`,
+        )
+      }
+    } catch (err: any) {
+      notifyError(
+        'خطا در استعلام ربات',
+        err.message || 'خطا در ارتباط با ربات بالادستی',
+      )
+    } finally {
+      setQueryingBotItem(false)
+    }
+  }
+
+  const getBotDisplayName = (provider?: string) => {
+    const key = (provider || '').toLowerCase().trim()
+    switch (key) {
+      case 'insightx':
+      case 'third_party_api':
+        return 'InsightX'
+      case 'stackvault':
+        return 'StackVault'
+      case 'paglu':
+      case 'lootpaglu':
+        return 'LootPaglu'
+      case 'jero':
+      case 'jeroaccounts':
+        return 'JeroAccounts'
+      case 'supreme':
+      case 'supremeleader':
+        return 'SupremeLeader'
+      default:
+        return provider || 'InsightX'
+    }
+  }
+
+  const handleSyncBotInventory = async () => {
+    setSyncingBotStock(true)
+    try {
+      const res = await apiService.syncInventoryWithBots()
+      notifySuccess(
+        'همگام‌سازی موجودی انبار انجام شد',
+        res.message || 'موجودی محصولات با ربات‌های بالادستی همگام شد.',
+      )
+      loadData()
+    } catch (err: any) {
+      notifyError(
+        'خطا در همگام‌سازی موجودی',
+        err.message || 'خطا در ارتباط با ربات‌ها',
+      )
+    } finally {
+      setSyncingBotStock(false)
+    }
+  }
 
   // Bulk Import Keys State
   const [isBulkImportOpen, setIsBulkImportOpen] = useState(false)
@@ -462,10 +571,15 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
       setPDiscountPercent(0)
     }
     setPCostToman(Math.round((p.base_cost_usd || 0) * pLiveUSDTRate))
-    if (p.base_cost_usd && p.base_cost_usd > 0 && pLiveUSDTRate > 0) {
+    if (
+      p.base_cost_usd &&
+      p.base_cost_usd > 0 &&
+      pLiveUSDTRate > 0 &&
+      (p.price_toman || 0) > 0
+    ) {
       const sellUSD = (p.price_toman || 0) / pLiveUSDTRate
       const m = ((sellUSD - p.base_cost_usd) / p.base_cost_usd) * 100.0
-      setPMarginPercent(parseFloat(m.toFixed(2)))
+      setPMarginPercent(m > 0 ? parseFloat(m.toFixed(1)) : 25.0)
     } else {
       setPMarginPercent(25.0)
     }
@@ -518,7 +632,10 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
     } else {
       setPBadgesText('')
     }
-    const r = p.rating_average !== undefined ? Number(p.rating_average) : 5.0
+    const r =
+      p.rating_average !== undefined
+        ? Math.round(Number(p.rating_average) * 10) / 10
+        : 5.0
     setPRatingAverage(r > 0 ? r : 5.0)
     setPShowRating(r > 0)
     setPIsBestSeller(p.is_best_seller || false)
@@ -1605,6 +1722,19 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
 
               <button
                 type="button"
+                onClick={handleSyncBotInventory}
+                disabled={syncingBotStock}
+                className="h-9 px-3.5 rounded-control bg-secondary hover:bg-muted text-foreground text-xs font-bold border border-border/60 shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50 duration-motion active:scale-[0.98]"
+                title="استعلام زنده و همگام‌سازی موجودی محصولات متصل به ۵ ربات"
+              >
+                <RefreshCw
+                  className={`w-3.5 h-3.5 text-brand ${syncingBotStock ? 'animate-spin' : ''}`}
+                />
+                <span>همگام‌سازی موجودی با ربات‌ها</span>
+              </button>
+
+              <button
+                type="button"
                 onClick={openCreateProductModal}
                 className="h-9 px-4 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground text-xs font-black duration-motion ease-motion active:scale-[0.98] shadow-control transition-all flex items-center gap-1.5 cursor-pointer"
               >
@@ -1782,11 +1912,16 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
                                 Boolean(
                                   p.external_provider &&
                                     p.external_provider !== 'manual_vault',
-                                ) || p.delivery_strategy === 'third_party_instant'
+                                ) ||
+                                p.delivery_strategy === 'third_party_instant'
                               const isZeroOrOut =
                                 p.stock_mode === 'out_of_stock' ||
                                 (p.stock_mode !== 'always_in_stock' &&
-                                  (p.available_stock ?? 0) <= 0)
+                                  (p.stock_mode === 'manual'
+                                    ? (p.manual_stock ?? 0) <= 0
+                                    : (p.available_stock ??
+                                        p.manual_stock ??
+                                        0) <= 0))
 
                               return (
                                 <>
@@ -1811,15 +1946,18 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
                                         </span>
                                       ) : p.stock_mode === 'manual' ? (
                                         <span className="text-emerald-500">
-                                          {formatNumber(p.manual_stock || 0)} عدد در انبار دستی
+                                          {formatNumber(p.manual_stock || 0)}{' '}
+                                          عدد در انبار دستی
                                         </span>
                                       ) : isSupplier ? (
                                         <span className="text-emerald-500">
-                                          {formatNumber(p.available_stock || 0)} عدد موجود در ربات
+                                          {formatNumber(p.available_stock || 0)}{' '}
+                                          عدد موجود در ربات
                                         </span>
                                       ) : (
                                         <span className="text-emerald-500">
-                                          {formatNumber(p.available_stock || 0)} کلید آماده در مخزن
+                                          {formatNumber(p.available_stock || 0)}{' '}
+                                          کلید آماده در مخزن
                                         </span>
                                       )}
                                     </span>
@@ -1828,33 +1966,23 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
                                   {/* Supplier / Fulfillment Source */}
                                   <div className="mt-1 flex items-center justify-center gap-1">
                                     {isSupplier ? (
-                                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-control text-[10px] font-bold bg-primary/10 text-primary border border-primary/20">
+                                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-control text-[10px] font-black bg-primary/10 text-primary border border-primary/20">
                                         <Bot className="w-3 h-3 text-brand" />
                                         <span>
-                                          تامین‌کننده:{' '}
-                                          {p.external_provider || 'InsightX'}
+                                          {getBotDisplayName(
+                                            p.external_provider,
+                                          )}
                                         </span>
-                                        {p.external_product_id_str ||
-                                        p.external_product_id ? (
-                                          <span className="opacity-70">
-                                            #
-                                            {p.external_product_id_str ||
-                                              p.external_product_id}
-                                          </span>
-                                        ) : null}
                                       </span>
                                     ) : p.delivery_type === 'instant' ? (
-                                      <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                                      <span className="text-[10px] text-muted-foreground flex items-center gap-1 font-bold">
                                         <ShieldCheck className="w-3 h-3 text-emerald-500" />
-                                        <span>مخزن محلی کلیدها (Vault)</span>
+                                        <span>مخزن محلی (Vault)</span>
                                       </span>
                                     ) : (
-                                      <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                                      <span className="text-[10px] text-muted-foreground flex items-center gap-1 font-bold">
                                         <Clock className="w-3 h-3 text-amber-500" />
-                                        <span>
-                                          {p.sla_display_text ||
-                                            `اپراتور (${p.sla_min_minutes} الی ${p.sla_max_minutes} دقیقه)`}
-                                        </span>
+                                        <span>دستی اپراتور</span>
                                       </span>
                                     )}
                                   </div>
@@ -2683,154 +2811,297 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
 
                       {/* 5-Way SwapWallet Reactive Pricing Calculator */}
                       <div className="p-4 rounded-2xl border border-brand/30 bg-brand/5 space-y-3">
-                        <div className="flex items-center justify-between border-b border-brand/20 pb-2">
+                        <div className="flex items-center justify-between border-b border-brand/20 pb-2 flex-wrap gap-2">
                           <span className="text-xs font-black text-brand flex items-center gap-1.5">
                             <Sparkles className="w-4 h-4" />
-                            ماشین‌حساب قیمت‌گذاری هوشمند متصل به SwapWallet
+                            ماشین‌حساب قیمت‌گذاری هوشمند
                           </span>
-                          <span className="text-[11px] font-mono font-latin text-muted-foreground">
-                            نرخ زنده تتر:{' '}
-                            {pLiveUSDTRate.toLocaleString('fa-IR')} تومان
-                          </span>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="text-[10px] text-muted-foreground font-bold">
+                              سود سریع:
+                            </span>
+                            {[15, 20, 25, 35, 50].map((preset) => (
+                              <button
+                                key={preset}
+                                type="button"
+                                onClick={() => {
+                                  setPMarginPercent(preset)
+                                  const cost =
+                                    pricingEngineMode === 'swapwallet' &&
+                                    pBaseCostUSD > 0
+                                      ? pBaseCostUSD * pLiveUSDTRate
+                                      : pCostToman
+                                  if (cost > 0) {
+                                    const sell =
+                                      Math.ceil(
+                                        (cost * (1.0 + preset / 100.0)) / 500,
+                                      ) * 500
+                                    setPPriceToman(sell)
+                                  }
+                                }}
+                                className={`px-2 py-0.5 rounded-control text-[10px] font-bold cursor-pointer transition ${
+                                  Number(pMarginPercent) === preset
+                                    ? 'bg-primary text-primary-foreground font-black shadow-xs'
+                                    : 'bg-secondary text-foreground hover:bg-muted border border-border/60'
+                                }`}
+                              >
+                                {preset}٪
+                              </button>
+                            ))}
+                            {pricingEngineMode === 'swapwallet' && (
+                              <span className="text-[11px] font-mono font-latin text-muted-foreground mr-2">
+                                نرخ تتر SwapWallet:{' '}
+                                {pLiveUSDTRate.toLocaleString('fa-IR')} تومان
+                              </span>
+                            )}
+                          </div>
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 text-right">
-                          <div className="space-y-1">
-                            <label className="text-[11px] font-bold text-muted-foreground block">
-                              خرید دلاری ($):
-                            </label>
-                            <input
-                              type="number"
-                              step="any"
-                              min="0"
-                              value={pBaseCostUSD}
-                              onChange={(e) => {
-                                const cost = parseFloat(e.target.value) || 0
-                                setPBaseCostUSD(cost)
-                                const m =
-                                  parseFloat(String(pMarginPercent)) || 0
-                                const sellUSD = cost * (1.0 + m / 100.0)
-                                const sellToman =
-                                  Math.ceil((sellUSD * pLiveUSDTRate) / 500) *
-                                  500
-                                setPPriceToman(sellToman)
-                              }}
-                              className="w-full h-9 px-2.5 text-xs rounded-xl border border-border/60 bg-background text-foreground font-mono font-latin outline-none focus:border-brand"
-                            />
-                          </div>
+                        {/* Dual-Mode Selector: SwapWallet Live vs Manual Toman */}
+                        <div className="flex items-center gap-1.5 p-1 bg-muted/40 rounded-surface border border-border/60 w-fit">
+                          <button
+                            type="button"
+                            onClick={() => setPricingEngineMode('swapwallet')}
+                            className={`flex items-center gap-1.5 px-3 py-1 rounded-control text-xs font-bold transition-all cursor-pointer ${
+                              pricingEngineMode === 'swapwallet'
+                                ? 'bg-primary text-primary-foreground font-black shadow-xs'
+                                : 'text-muted-foreground hover:text-foreground'
+                            }`}
+                          >
+                            <Globe className="w-3.5 h-3.5" />
+                            <span>مبدل زنده SwapWallet (دلار و تتر)</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setPricingEngineMode('manual')}
+                            className={`flex items-center gap-1.5 px-3 py-1 rounded-control text-xs font-bold transition-all cursor-pointer ${
+                              pricingEngineMode === 'manual'
+                                ? 'bg-primary text-primary-foreground font-black shadow-xs'
+                                : 'text-muted-foreground hover:text-foreground'
+                            }`}
+                          >
+                            <Coins className="w-3.5 h-3.5" />
+                            <span>قیمت‌گذاری دستی تومانی (سفارشی)</span>
+                          </button>
+                        </div>
 
-                          <div className="space-y-1">
-                            <label className="text-[11px] font-bold text-muted-foreground block">
-                              درصد سود (%):
-                            </label>
-                            <input
-                              type="number"
-                              step="any"
-                              value={pMarginPercent}
-                              onChange={(e) => {
-                                const valStr = e.target.value
-                                setPMarginPercent(valStr)
-                                const m = parseFloat(valStr)
-                                if (
-                                  !Number.isNaN(m) &&
-                                  pBaseCostUSD > 0 &&
-                                  pLiveUSDTRate > 0
-                                ) {
-                                  const sellUSD =
-                                    pBaseCostUSD * (1.0 + m / 100.0)
+                        {pricingEngineMode === 'swapwallet' ? (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 text-right">
+                            <div className="space-y-1">
+                              <label className="text-[11px] font-bold text-muted-foreground block">
+                                خرید دلاری ($):
+                              </label>
+                              <input
+                                type="number"
+                                step="any"
+                                min="0"
+                                value={pBaseCostUSD}
+                                onChange={(e) => {
+                                  const cost = parseFloat(e.target.value) || 0
+                                  setPBaseCostUSD(cost)
+                                  const m =
+                                    parseFloat(String(pMarginPercent)) || 0
+                                  const sellUSD = cost * (1.0 + m / 100.0)
                                   const sellToman =
                                     Math.ceil((sellUSD * pLiveUSDTRate) / 500) *
                                     500
                                   setPPriceToman(sellToman)
-                                }
-                              }}
-                              placeholder="مثال: ۲.۲ یا ۰.۰۲"
-                              className="w-full h-9 px-2.5 text-xs rounded-xl border border-border/60 bg-background text-foreground font-mono font-latin outline-none focus:border-brand"
-                            />
-                          </div>
-
-                          <div className="space-y-1">
-                            <label className="text-[11px] font-bold text-muted-foreground block">
-                              فروش دلاری ($):
-                            </label>
-                            <div className="h-9 px-2.5 text-xs rounded-xl border border-border/40 bg-muted/40 text-muted-foreground flex items-center font-mono font-latin">
-                              ${(pPriceToman / pLiveUSDTRate).toFixed(2)}
-                            </div>
-                          </div>
-
-                          <div className="space-y-1">
-                            <label className="text-[11px] font-bold text-muted-foreground block">
-                              تمام‌شده تومانی (خرید):
-                            </label>
-                            <input
-                              type="number"
-                              step="any"
-                              min="0"
-                              value={
-                                Math.round(pBaseCostUSD * pLiveUSDTRate) ||
-                                pCostToman ||
-                                ''
-                              }
-                              onChange={(e) => {
-                                const cToman = Number(e.target.value) || 0
-                                setPCostToman(cToman)
-                                if (pLiveUSDTRate > 0) {
-                                  setPBaseCostUSD(
-                                    Number((cToman / pLiveUSDTRate).toFixed(2)),
+                                  setPCostToman(
+                                    Math.round(cost * pLiveUSDTRate),
                                   )
-                                }
-                                const m =
-                                  parseFloat(String(pMarginPercent)) || 0
-                                const sellToman =
-                                  Math.ceil(
-                                    (cToman * (1.0 + m / 100.0)) / 500,
-                                  ) * 500
-                                setPPriceToman(sellToman)
-                              }}
-                              placeholder="مبلغ خرید تومانی"
-                              className="w-full h-9 px-2.5 text-xs rounded-xl border border-border/60 bg-background text-foreground font-mono font-latin outline-none focus:border-brand"
-                            />
-                            <span className="text-[10px] text-muted-foreground block font-latin">
-                              {Number(
-                                Math.round(pBaseCostUSD * pLiveUSDTRate) ||
-                                  pCostToman ||
-                                  0,
-                              ).toLocaleString('fa-IR')}{' '}
-                              تومان
-                            </span>
-                          </div>
+                                }}
+                                className="w-full h-9 px-2.5 text-xs rounded-xl border border-border/60 bg-background text-foreground font-mono font-latin outline-none focus:border-brand"
+                              />
+                            </div>
 
-                          <div className="space-y-1">
-                            <label className="text-[11px] font-black text-brand block">
-                              قیمت فروش تومانی *:
-                            </label>
-                            <input
-                              type="number"
-                              step="any"
-                              min="0"
-                              required
-                              value={pPriceToman}
-                              onChange={(e) => {
-                                const sellToman = Number(e.target.value) || 0
-                                setPPriceToman(sellToman)
-                                const costToman =
+                            <div className="space-y-1">
+                              <label className="text-[11px] font-bold text-muted-foreground block">
+                                درصد سود (%):
+                              </label>
+                              <input
+                                type="number"
+                                step="any"
+                                value={pMarginPercent}
+                                onChange={(e) => {
+                                  const valStr = e.target.value
+                                  setPMarginPercent(valStr)
+                                  const m = parseFloat(valStr)
+                                  if (
+                                    !Number.isNaN(m) &&
+                                    pBaseCostUSD > 0 &&
+                                    pLiveUSDTRate > 0
+                                  ) {
+                                    const sellUSD =
+                                      pBaseCostUSD * (1.0 + m / 100.0)
+                                    const sellToman =
+                                      Math.ceil(
+                                        (sellUSD * pLiveUSDTRate) / 500,
+                                      ) * 500
+                                    setPPriceToman(sellToman)
+                                  }
+                                }}
+                                placeholder="مثال: ۲۵ یا ۳۰"
+                                className="w-full h-9 px-2.5 text-xs rounded-xl border border-border/60 bg-background text-foreground font-mono font-latin outline-none focus:border-brand"
+                              />
+                            </div>
+
+                            <div className="space-y-1">
+                              <label className="text-[11px] font-bold text-muted-foreground block">
+                                فروش دلاری ($):
+                              </label>
+                              <div className="h-9 px-2.5 text-xs rounded-xl border border-border/40 bg-muted/40 text-muted-foreground flex items-center font-mono font-latin">
+                                $
+                                {pLiveUSDTRate > 0
+                                  ? (pPriceToman / pLiveUSDTRate).toFixed(2)
+                                  : '0.00'}
+                              </div>
+                            </div>
+
+                            <div className="space-y-1">
+                              <label className="text-[11px] font-bold text-muted-foreground block">
+                                تمام‌شده تومانی (خرید):
+                              </label>
+                              <input
+                                type="number"
+                                step="any"
+                                min="0"
+                                value={
                                   Math.round(pBaseCostUSD * pLiveUSDTRate) ||
                                   pCostToman ||
-                                  0
-                                if (costToman > 0) {
-                                  const m =
-                                    ((sellToman - costToman) / costToman) *
-                                    100.0
-                                  setPMarginPercent(parseFloat(m.toFixed(2)))
+                                  ''
                                 }
-                              }}
-                              className="w-full h-9 px-2.5 text-xs font-bold rounded-xl border-2 border-brand bg-background text-foreground font-mono font-latin outline-none focus:ring-2 focus:ring-brand/30"
-                            />
-                            <span className="text-[11px] text-brand font-black block font-sans">
-                              {formatToman(pPriceToman)} تومان
-                            </span>
+                                onChange={(e) => {
+                                  const cToman = Number(e.target.value) || 0
+                                  setPCostToman(cToman)
+                                  if (pLiveUSDTRate > 0) {
+                                    setPBaseCostUSD(
+                                      Number(
+                                        (cToman / pLiveUSDTRate).toFixed(2),
+                                      ),
+                                    )
+                                  }
+                                  const m =
+                                    parseFloat(String(pMarginPercent)) || 0
+                                  const sellToman =
+                                    Math.ceil(
+                                      (cToman * (1.0 + m / 100.0)) / 500,
+                                    ) * 500
+                                  setPPriceToman(sellToman)
+                                }}
+                                placeholder="مبلغ خرید تومانی"
+                                className="w-full h-9 px-2.5 text-xs rounded-xl border border-border/60 bg-background text-foreground font-mono font-latin outline-none focus:border-brand"
+                              />
+                            </div>
+
+                            <div className="space-y-1">
+                              <label className="text-[11px] font-black text-brand block">
+                                قیمت فروش تومانی *:
+                              </label>
+                              <input
+                                type="number"
+                                step="any"
+                                min="0"
+                                required
+                                value={pPriceToman}
+                                onChange={(e) => {
+                                  const sellToman = Number(e.target.value) || 0
+                                  setPPriceToman(sellToman)
+                                  const costToman =
+                                    Math.round(pBaseCostUSD * pLiveUSDTRate) ||
+                                    pCostToman ||
+                                    0
+                                  if (costToman > 0) {
+                                    const m =
+                                      ((sellToman - costToman) / costToman) *
+                                      100.0
+                                    setPMarginPercent(
+                                      m > 0 ? parseFloat(m.toFixed(1)) : 25.0,
+                                    )
+                                  }
+                                }}
+                                className="w-full h-9 px-2.5 text-xs font-bold rounded-xl border-2 border-brand bg-background text-foreground font-mono font-latin outline-none focus:ring-2 focus:ring-brand/30"
+                              />
+                            </div>
                           </div>
-                        </div>
+                        ) : (
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-right">
+                            <div className="space-y-1">
+                              <label className="text-[11px] font-bold text-muted-foreground block">
+                                بهای تمام‌شده خرید دستی (تومان):
+                              </label>
+                              <input
+                                type="number"
+                                step="500"
+                                min="0"
+                                value={pCostToman || ''}
+                                onChange={(e) => {
+                                  const cToman = Number(e.target.value) || 0
+                                  setPCostToman(cToman)
+                                  const m =
+                                    parseFloat(String(pMarginPercent)) || 25
+                                  const sellToman =
+                                    Math.ceil(
+                                      (cToman * (1.0 + m / 100.0)) / 500,
+                                    ) * 500
+                                  setPPriceToman(sellToman)
+                                }}
+                                placeholder="مثلاً: ۲۰۰,۰۰۰ تومان"
+                                className="w-full h-9 px-2.5 text-xs rounded-xl border border-border/60 bg-background text-foreground font-mono font-latin outline-none focus:border-brand"
+                              />
+                            </div>
+
+                            <div className="space-y-1">
+                              <label className="text-[11px] font-bold text-muted-foreground block">
+                                درصد سود پیشنهادی (%):
+                              </label>
+                              <input
+                                type="number"
+                                step="any"
+                                value={pMarginPercent}
+                                onChange={(e) => {
+                                  const valStr = e.target.value
+                                  setPMarginPercent(valStr)
+                                  const m = parseFloat(valStr)
+                                  if (!Number.isNaN(m) && pCostToman > 0) {
+                                    const sellToman =
+                                      Math.ceil(
+                                        (pCostToman * (1.0 + m / 100.0)) / 500,
+                                      ) * 500
+                                    setPPriceToman(sellToman)
+                                  }
+                                }}
+                                placeholder="مثال: ۲۵"
+                                className="w-full h-9 px-2.5 text-xs rounded-xl border border-border/60 bg-background text-foreground font-mono font-latin outline-none focus:border-brand"
+                              />
+                            </div>
+
+                            <div className="space-y-1">
+                              <label className="text-[11px] font-black text-brand block">
+                                قیمت فروش تومانی در فروشگاه *:
+                              </label>
+                              <input
+                                type="number"
+                                step="500"
+                                min="0"
+                                required
+                                value={pPriceToman}
+                                onChange={(e) => {
+                                  const sellToman = Number(e.target.value) || 0
+                                  setPPriceToman(sellToman)
+                                  if (pCostToman > 0) {
+                                    const m =
+                                      ((sellToman - pCostToman) / pCostToman) *
+                                      100.0
+                                    setPMarginPercent(
+                                      m > 0 ? parseFloat(m.toFixed(1)) : 25.0,
+                                    )
+                                  }
+                                }}
+                                className="w-full h-9 px-2.5 text-xs font-bold rounded-xl border-2 border-brand bg-background text-foreground font-mono font-latin outline-none focus:ring-2 focus:ring-brand/30"
+                              />
+                            </div>
+                          </div>
+                        )}
 
                         <div className="text-[11px] text-muted-foreground flex items-center justify-between pt-0.5">
                           <span>سود تخمینی هر فروش:</span>
@@ -3360,12 +3631,24 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
                             type="number"
                             min={0}
                             max={5}
-                            step={0.1}
+                            step="any"
                             disabled={!pShowRating}
-                            value={pRatingAverage || ''}
-                            onChange={(e) =>
-                              setPRatingAverage(Number(e.target.value))
+                            value={
+                              pRatingAverage !== undefined
+                                ? pRatingAverage
+                                : 5.0
                             }
+                            onChange={(e) => {
+                              const val = parseFloat(e.target.value)
+                              setPRatingAverage(
+                                Number.isNaN(val)
+                                  ? 5.0
+                                  : Math.min(
+                                      5,
+                                      Math.max(0, Math.round(val * 10) / 10),
+                                    ),
+                              )
+                            }}
                             className="w-20 h-8 px-2 rounded-control border border-border/60 bg-card text-xs font-mono font-latin text-center outline-none focus:border-brand disabled:opacity-40"
                             placeholder="5.0"
                           />
@@ -3533,18 +3816,49 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
                         </div>
 
                         <div className="space-y-1 text-right">
-                          <label className="font-bold text-foreground block">
-                            شناسه محصول در ربات (External Product ID):
-                          </label>
-                          <input
-                            type="text"
-                            value={pExternalProductIDStr}
-                            onChange={(e) =>
-                              setPExternalProductIDStr(e.target.value)
-                            }
-                            placeholder="مثال: 14 یا ps_1024 یا Paglu_1"
-                            className="w-full h-10 px-3 text-xs rounded-field border border-border/60 bg-muted/20 text-foreground font-mono font-latin outline-none focus:border-brand"
-                          />
+                          <div className="flex items-center justify-between">
+                            <label className="font-bold text-foreground block">
+                              شناسه محصول در ربات (External Product ID):
+                            </label>
+                            {pExternalProvider !== 'manual_vault' && (
+                              <button
+                                type="button"
+                                onClick={handleQueryLiveBotProduct}
+                                disabled={queryingBotItem}
+                                className="text-[10px] text-brand hover:underline font-bold flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                              >
+                                <RefreshCw
+                                  className={`w-3 h-3 ${queryingBotItem ? 'animate-spin' : ''}`}
+                                />
+                                <span>استعلام زنده از ربات</span>
+                              </button>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="text"
+                              value={pExternalProductIDStr}
+                              onChange={(e) =>
+                                setPExternalProductIDStr(e.target.value)
+                              }
+                              placeholder="مثال: 14 یا ps_1024 یا Paglu_1"
+                              className="w-full h-10 px-3 text-xs rounded-field border border-border/60 bg-muted/20 text-foreground font-mono font-latin outline-none focus:border-brand flex-1"
+                            />
+                            {pExternalProvider !== 'manual_vault' && (
+                              <button
+                                type="button"
+                                onClick={handleQueryLiveBotProduct}
+                                disabled={queryingBotItem}
+                                className="h-10 px-3 rounded-control bg-secondary hover:bg-muted text-foreground text-xs font-bold border border-border/60 shrink-0 flex items-center gap-1 cursor-pointer duration-motion active:scale-[0.98]"
+                                title="همگام‌سازی مشخصات و قیمت از ربات"
+                              >
+                                <RefreshCw
+                                  className={`w-3.5 h-3.5 text-brand ${queryingBotItem ? 'animate-spin' : ''}`}
+                                />
+                                <span>سینک با ربات</span>
+                              </button>
+                            )}
+                          </div>
                         </div>
 
                         <div className="space-y-1 text-right">

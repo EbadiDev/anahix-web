@@ -1,5 +1,6 @@
 import {
   AlertCircle,
+  ArrowLeft,
   Bell,
   CheckCircle2,
   Flame,
@@ -11,11 +12,14 @@ import { useEffect, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { apiService } from '../services/api'
 import type { SystemAnnouncement } from '../types'
+import { toPersianDigits } from '../utils/formatters'
 import { MarkdownRenderer } from './content/MarkdownRenderer'
 import { ModalCloseButton } from './vibefarsi/ModalCloseButton'
 
 export const AnnouncementPopupModal: React.FC = () => {
   const location = useLocation()
+  const [popupQueue, setPopupQueue] = useState<SystemAnnouncement[]>([])
+  const [queueIndex, setQueueIndex] = useState<number>(0)
   const [activePopup, setActivePopup] = useState<SystemAnnouncement | null>(
     null,
   )
@@ -26,6 +30,7 @@ export const AnnouncementPopupModal: React.FC = () => {
     if (location.pathname.startsWith('/admin')) {
       setIsOpen(false)
       setActivePopup(null)
+      setPopupQueue([])
       return
     }
 
@@ -34,7 +39,7 @@ export const AnnouncementPopupModal: React.FC = () => {
       if (!isMounted || !list || list.length === 0) return
       const currentPath = location.pathname
 
-      const popupItem = list.find((item) => {
+      const matching = list.filter((item) => {
         if (!item.is_active) return false
         if (
           item.display_type !== 'popup_first_load' &&
@@ -42,7 +47,7 @@ export const AnnouncementPopupModal: React.FC = () => {
         )
           return false
 
-        // Check if dismissed in localStorage within the configured duration (24h, 7d, 30d, etc.)
+        // Check if dismissed in localStorage within the configured duration
         const dismissedKey = `dismissed_announcement_${item.id}`
         const rawDismiss = localStorage.getItem(dismissedKey)
         if (rawDismiss) {
@@ -52,10 +57,7 @@ export const AnnouncementPopupModal: React.FC = () => {
               return false // Still dismissed
             }
           } catch {
-            // If legacy string was stored
-            if (rawDismiss === 'true') {
-              return false
-            }
+            if (rawDismiss === 'true') return false
           }
         }
 
@@ -74,8 +76,10 @@ export const AnnouncementPopupModal: React.FC = () => {
         return false
       })
 
-      if (popupItem) {
-        setActivePopup(popupItem)
+      if (matching.length > 0) {
+        setPopupQueue(matching)
+        setQueueIndex(0)
+        setActivePopup(matching[0])
         setIsOpen(true)
       }
     })
@@ -114,7 +118,17 @@ export const AnnouncementPopupModal: React.FC = () => {
         )
       } catch {}
     }
-    setIsOpen(false)
+
+    // Advance to next announcement in queue if available
+    if (queueIndex < popupQueue.length - 1) {
+      const nextIdx = queueIndex + 1
+      setQueueIndex(nextIdx)
+      setActivePopup(popupQueue[nextIdx])
+    } else {
+      setIsOpen(false)
+      setActivePopup(null)
+      setPopupQueue([])
+    }
   }
 
   if (!isOpen || !activePopup) return null
@@ -213,14 +227,32 @@ export const AnnouncementPopupModal: React.FC = () => {
             <MarkdownRenderer content={activePopup.content} />
           </div>
 
-          <div className="pt-3 border-t border-border/60 flex justify-end">
+          <div className="pt-3 border-t border-border/60 flex items-center justify-between gap-3">
+            {popupQueue.length > 1 ? (
+              <span className="text-[11px] font-bold text-muted-foreground font-sans">
+                اعلان {toPersianDigits(queueIndex + 1)} از{' '}
+                {toPersianDigits(popupQueue.length)}
+              </span>
+            ) : (
+              <span />
+            )}
+
             <button
               type="button"
               onClick={handleDismiss}
-              className="w-full sm:w-auto h-10 px-6 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs shadow-control flex items-center justify-center gap-1.5 cursor-pointer duration-motion active:scale-[0.98]"
+              className="h-10 px-6 rounded-control bg-primary hover:bg-primary-hover text-primary-foreground font-black text-xs shadow-control flex items-center justify-center gap-1.5 cursor-pointer duration-motion active:scale-[0.98]"
             >
-              <CheckCircle2 className="w-4 h-4" />
-              <span>متوجه شدم</span>
+              {queueIndex < popupQueue.length - 1 ? (
+                <>
+                  <span>متوجه شدم، اعلان بعدی</span>
+                  <ArrowLeft className="w-4 h-4" />
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>متوجه شدم</span>
+                </>
+              )}
             </button>
           </div>
         </div>

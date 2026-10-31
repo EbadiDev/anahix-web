@@ -51,6 +51,11 @@ const OrderTrackingPage = lazy(() =>
     default: m.OrderTrackingPage,
   })),
 )
+const PaymentCallbackPage = lazy(() =>
+  import('./pages/PaymentCallbackPage').then((m) => ({
+    default: m.PaymentCallbackPage,
+  })),
+)
 const BlogListPage = lazy(() =>
   import('./pages/BlogListPage').then((m) => ({ default: m.BlogListPage })),
 )
@@ -214,6 +219,14 @@ export function App() {
                     orders={orders}
                     onUpdateOrder={handleUpdateOrder}
                   />
+                }
+              />
+
+              {/* Payment Gateway Redirect Callbacks */}
+              <Route
+                path="/payment/callback/payping"
+                element={
+                  <PaymentCallbackPage onOrderUpdated={handleUpdateOrder} />
                 }
               />
 

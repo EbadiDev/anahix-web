@@ -24,6 +24,8 @@ import type {
   AdminProduct,
   BotCatalogProduct,
   BotProviderSetting,
+  ProductGroup,
+  StoreCategory,
 } from '../../types'
 import {
   formatNumber,
@@ -237,17 +239,27 @@ export const FetchBotModal: React.FC<FetchBotModalProps> = ({
   const [showKeyPassword, setShowKeyPassword] = useState(false)
   const [savingSettings, setSavingSettings] = useState(false)
 
+  const [storeCategories, setStoreCategories] = useState<StoreCategory[]>([])
+  const [_productGroups, setProductGroups] = useState<ProductGroup[]>([])
+
   // Load providers & exchange rate on open
   const loadInitialData = async () => {
     setLoadingProviders(true)
     setLoadingRate(true)
     try {
-      const [provList, deliverySettings] = await Promise.all([
+      const [provList, deliverySettings, cats, groups] = await Promise.all([
         apiService.getBotProviderSettings().catch(() => []),
         apiService.getInstantDeliverySettings().catch(() => null),
+        apiService.adminGetStoreCategories().catch(() => []),
+        apiService.getProductGroups().catch(() => []),
       ])
       const activeBots = provList.length > 0 ? provList : DEFAULT_FALLBACK_BOTS
       setProviders(activeBots)
+      setStoreCategories(cats)
+      setProductGroups(groups)
+      if (cats.length > 0 && !category) {
+        setCategory(cats[0].slug)
+      }
       if (deliverySettings?.effective_usd_rate) {
         setLiveUSDTRate(deliverySettings.effective_usd_rate)
       }
@@ -883,15 +895,36 @@ export const FetchBotModal: React.FC<FetchBotModalProps> = ({
             >
               {/* 5-way Two-way Reactive Pricing Calculator */}
               <div className="p-4 sm:p-5 rounded-surface border border-brand/30 bg-brand/5 space-y-4">
-                <div className="flex items-center justify-between border-b border-brand/20 pb-2.5">
+                <div className="flex items-center justify-between border-b border-brand/20 pb-2.5 flex-wrap gap-2">
                   <span className="text-xs font-black text-brand flex items-center gap-1.5">
                     <Sparkles className="w-4 h-4" />
                     ماشین‌حساب هوشمند و دوطرفه قیمت‌گذاری (Dual-Priority Pricing
                     Engine)
                   </span>
-                  <span className="text-[11px] font-sans font-bold text-muted-foreground">
-                    نرخ تتر: {formatToman(liveUSDTRate)} تومان
-                  </span>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-[10px] text-muted-foreground font-bold">
+                      سود سریع:
+                    </span>
+                    {[15, 20, 25, 35, 50].map((preset) => (
+                      <button
+                        key={preset}
+                        type="button"
+                        onClick={() =>
+                          recalculateFromMargin(costUSD, preset, liveUSDTRate)
+                        }
+                        className={`px-2 py-0.5 rounded-control text-[10px] font-bold cursor-pointer transition ${
+                          Number(marginPercent) === preset
+                            ? 'bg-primary text-primary-foreground font-black shadow-xs'
+                            : 'bg-secondary text-foreground hover:bg-muted border border-border/60'
+                        }`}
+                      >
+                        {preset}٪
+                      </button>
+                    ))}
+                    <span className="text-[11px] font-sans font-bold text-muted-foreground mr-2">
+                      نرخ تتر: {formatToman(liveUSDTRate)} تومان
+                    </span>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 text-right">
@@ -1046,19 +1079,31 @@ export const FetchBotModal: React.FC<FetchBotModalProps> = ({
                     onChange={(e) => setCategory(e.target.value)}
                     className="w-full h-10 px-3.5 text-xs rounded-field border border-border/60 bg-card text-foreground outline-none focus:border-brand cursor-pointer"
                   >
-                    <option value="ai_chat">
-                      چت‌بات‌ها و مدل‌های زبانی (AI Chat)
-                    </option>
-                    <option value="ai_link">لینک‌های فعال‌سازی (AI Link)</option>
-                    <option value="ai_account">
-                      اکانت‌های آماده (AI Account)
-                    </option>
-                    <option value="personal_upgrade">
-                      ارتقای اکانت شخصی (Personal Upgrade)
-                    </option>
-                    <option value="digital_code">
-                      کد و لایسنس دیجیتال (Digital Code)
-                    </option>
+                    {storeCategories.length > 0 ? (
+                      storeCategories.map((cat) => (
+                        <option key={cat.id} value={cat.slug}>
+                          {cat.title_fa} ({cat.slug})
+                        </option>
+                      ))
+                    ) : (
+                      <>
+                        <option value="ai_chat">
+                          چت‌بات‌ها و مدل‌های زبانی (AI Chat)
+                        </option>
+                        <option value="ai_link">
+                          لینک‌های فعال‌سازی (AI Link)
+                        </option>
+                        <option value="ai_account">
+                          اکانت‌های آماده (AI Account)
+                        </option>
+                        <option value="personal_upgrade">
+                          ارتقای اکانت شخصی (Personal Upgrade)
+                        </option>
+                        <option value="digital_code">
+                          کد و لایسنس دیجیتال (Digital Code)
+                        </option>
+                      </>
+                    )}
                   </select>
                 </div>
 

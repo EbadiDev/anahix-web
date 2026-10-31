@@ -183,8 +183,8 @@ export const Header: React.FC<HeaderProps> = ({
       .then(setThemeSettings)
       .catch(() => {})
     api
-      .getContentCategories('product')
-      .then((cats: ContentCategory[]) => {
+      .getStoreCategories()
+      .then((cats: any[]) => {
         if (cats && cats.length > 0) {
           setDynamicCategories(cats)
         }
@@ -290,15 +290,15 @@ export const Header: React.FC<HeaderProps> = ({
 
   const categoriesToRender =
     dynamicCategories.length > 0
-      ? dynamicCategories.map((c) => ({
+      ? dynamicCategories.map((c: any) => ({
           id: c.slug,
-          title: c.name,
+          title: c.title_fa || c.name || c.title,
           desc: c.description || 'مشاهده محصولات این دسته‌بندی',
           icon: <Bot className="h-4 w-4 text-brand" />,
           link: `/category/${c.slug}`,
-          children: (c.children || []).map((sub) => ({
+          children: (c.children || []).map((sub: any) => ({
             id: sub.slug,
-            title: sub.name,
+            title: sub.title_fa || sub.name,
             desc: sub.description || '',
             link: `/category/${sub.slug}`,
           })),
@@ -417,16 +417,30 @@ export const Header: React.FC<HeaderProps> = ({
 
               <div className="flex items-center gap-3 shrink-0">
                 <a
-                  href="https://t.me/AnahixSupport"
+                  href={
+                    themeSettings?.support_telegram
+                      ? themeSettings.support_telegram.startsWith('http')
+                        ? themeSettings.support_telegram
+                        : `https://t.me/${themeSettings.support_telegram.replace('@', '')}`
+                      : 'https://t.me/AnahixSupport'
+                  }
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-1 hover:text-foreground transition-colors font-medium whitespace-nowrap text-[11px]"
                 >
                   <PhoneCall className="h-3 w-3 text-muted-foreground shrink-0" />
                   <span className="hidden sm:inline">
-                    پشتیبانی تلگرام: @AnahixSupport
+                    {themeSettings?.support_telegram
+                      ? `پشتیبانی تلگرام: ${themeSettings.support_telegram.startsWith('@') ? themeSettings.support_telegram : `@${themeSettings.support_telegram}`}`
+                      : 'پشتیبانی تلگرام: @AnahixSupport'}
                   </span>
-                  <span className="sm:hidden font-latin">@AnahixSupport</span>
+                  <span className="sm:hidden font-latin">
+                    {themeSettings?.support_telegram
+                      ? themeSettings.support_telegram.startsWith('@')
+                        ? themeSettings.support_telegram
+                        : `@${themeSettings.support_telegram}`
+                      : '@AnahixSupport'}
+                  </span>
                 </a>
               </div>
             </div>
@@ -593,7 +607,7 @@ export const Header: React.FC<HeaderProps> = ({
                                 <div className="px-2.5 py-1 text-[10px] font-bold text-brand border-b border-border/80 mb-1">
                                   زیرمجموعه‌های {item.title}:
                                 </div>
-                                {item.children.map((sub) => (
+                                {item.children.map((sub: any) => (
                                   <Link
                                     key={sub.id}
                                     to={sub.link}
@@ -1367,7 +1381,7 @@ export const Header: React.FC<HeaderProps> = ({
                         {/* Subcategories Accordion Content */}
                         {hasChildren && isExpanded && (
                           <div className="mr-8 pr-2.5 border-r border-border/80 space-y-1 py-1 animate-in fade-in slide-in-from-top-2 duration-150">
-                            {item.children.map((sub) => (
+                            {item.children.map((sub: any) => (
                               <Link
                                 key={`drawer-sub-${sub.id}`}
                                 to={sub.link}

@@ -3,6 +3,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock,
+  ExternalLink,
   Eye,
   FileText,
   Package,
@@ -610,6 +611,55 @@ export const ProfileOrdersTab: React.FC<ProfileOrdersTabProps> = ({
                   </div>
                 )}
 
+                {/* Multi-item delivered list */}
+                {selectedOrder.delivered_items &&
+                  selectedOrder.delivered_items.length > 0 && (
+                    <div className="p-3.5 rounded-control bg-muted/30 border border-border/60 space-y-2 text-xs">
+                      <span className="font-bold text-foreground block">
+                        اقلام خریداری‌شده و اطلاعات دسترسی:
+                      </span>
+                      <div className="space-y-2">
+                        {selectedOrder.delivered_items.map((it, idx) => (
+                          <div
+                            key={`delivered-item-${it.product_title}-${it.payload || it.delivery_type}`}
+                            className="p-2.5 rounded-control bg-card border border-border/60 space-y-1.5"
+                          >
+                            <div className="flex justify-between items-center font-bold">
+                              <span className="text-foreground">
+                                {it.product_title}
+                              </span>
+                              <span className="text-[10px] text-muted-foreground">
+                                {it.delivery_type}
+                              </span>
+                            </div>
+                            {it.payload && (
+                              <div className="flex justify-between items-center bg-muted/40 p-1.5 rounded-control font-mono font-latin">
+                                <span className="truncate max-w-[240px] text-brand">
+                                  {it.payload}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    copyToClipboard(
+                                      it.payload,
+                                      `item-${idx}`,
+                                      'اطلاعات دسترسی',
+                                    )
+                                  }
+                                  className="text-xs px-2 py-0.5 rounded-control bg-primary text-primary-foreground font-black cursor-pointer"
+                                >
+                                  {copiedKey === `item-${idx}`
+                                    ? 'کپی شد'
+                                    : 'کپی'}
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                 {/* Order Payment & Financial Summary */}
                 <div className="p-3.5 rounded-control bg-muted/20 border border-border/40 space-y-2 text-xs">
                   <div className="flex justify-between text-muted-foreground">
@@ -654,6 +704,14 @@ export const ProfileOrdersTab: React.FC<ProfileOrdersTabProps> = ({
                     <FileText className="w-4 h-4" />
                     <span>مشاهده و چاپ فاکتور رسمی</span>
                   </button>
+
+                  <Link
+                    to={`/track?order_no=${selectedOrder.order_no}`}
+                    className="h-10 px-3.5 rounded-control border border-border/60 bg-muted/40 hover:bg-muted text-foreground text-xs font-bold duration-motion ease-motion active:scale-[0.98] flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5 text-brand" />
+                    <span>پیگیری در /track</span>
+                  </Link>
 
                   <div className="flex items-center gap-2">
                     {selectedOrder.status === 'COMPLETED' && (

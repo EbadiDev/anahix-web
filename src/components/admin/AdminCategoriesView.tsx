@@ -76,6 +76,22 @@ export const AdminCategoriesView: React.FC = () => {
     loading: false,
   })
 
+  // Delete Group Confirm State
+  const [deleteGroupConfirm, setDeleteGroupConfirm] = useState<{
+    isOpen: boolean
+    groupTag: string
+    title: string
+    loading: boolean
+  }>({
+    isOpen: false,
+    groupTag: '',
+    title: '',
+    loading: false,
+  })
+
+  const [selectedGroupCategoryFilter, setSelectedGroupCategoryFilter] =
+    useState<string>('all')
+
   const loadCategories = async () => {
     setLoading(true)
     try {
@@ -218,6 +234,41 @@ export const AdminCategoriesView: React.FC = () => {
       setDeleteConfirm((prev) => ({ ...prev, loading: false }))
     }
   }
+
+  const handleDeleteGroupConfirm = async () => {
+    if (!deleteGroupConfirm.groupTag) return
+    setDeleteGroupConfirm((prev) => ({ ...prev, loading: true }))
+    try {
+      await apiService.deleteProductGroup(deleteGroupConfirm.groupTag)
+      notifySuccess(
+        'گروه برند حذف شد',
+        `گروه «${deleteGroupConfirm.title}» حذف و محصولات آن به دسته عمومی ارجاع داده شدند.`,
+      )
+      setDeleteGroupConfirm({
+        isOpen: false,
+        groupTag: '',
+        title: '',
+        loading: false,
+      })
+      loadCategories()
+    } catch (err: any) {
+      notifyError('خطا در حذف گروه', err.message)
+      setDeleteGroupConfirm((prev) => ({ ...prev, loading: false }))
+    }
+  }
+
+  const filteredGroups = useMemo(() => {
+    if (selectedGroupCategoryFilter === 'all') return productGroups
+    return productGroups.filter((g) => {
+      const matchTag = g.group_tag
+        .toLowerCase()
+        .includes(selectedGroupCategoryFilter.toLowerCase())
+      const matchTitle = g.group_title_fa
+        .toLowerCase()
+        .includes(selectedGroupCategoryFilter.toLowerCase())
+      return matchTag || matchTitle
+    })
+  }, [productGroups, selectedGroupCategoryFilter])
 
   // Filter & Pagination for categories
   const filteredCategories = useMemo(() => {
@@ -371,6 +422,35 @@ export const AdminCategoriesView: React.FC = () => {
             </button>
           </div>
 
+          {/* Category Tabs for Groups */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+            <button
+              type="button"
+              onClick={() => setSelectedGroupCategoryFilter('all')}
+              className={`px-3 py-1.5 rounded-control text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                selectedGroupCategoryFilter === 'all'
+                  ? 'bg-primary text-primary-foreground font-black shadow-xs'
+                  : 'bg-card text-muted-foreground hover:text-foreground border border-border/60'
+              }`}
+            >
+              همه دسته‌بندی‌ها ({productGroups.length} گروه)
+            </button>
+            {categories.map((cat) => (
+              <button
+                key={cat.id}
+                type="button"
+                onClick={() => setSelectedGroupCategoryFilter(cat.slug)}
+                className={`px-3 py-1.5 rounded-control text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                  selectedGroupCategoryFilter === cat.slug
+                    ? 'bg-primary text-primary-foreground font-black shadow-xs'
+                    : 'bg-card text-muted-foreground hover:text-foreground border border-border/60'
+                }`}
+              >
+                {cat.title_fa}
+              </button>
+            ))}
+          </div>
+
           <div className="bg-card rounded-surface border border-border/80 shadow-surface overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-center text-xs">
@@ -388,7 +468,7 @@ export const AdminCategoriesView: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/60">
-                  {productGroups.map((grp) => (
+                  {filteredGroups.map((grp) => (
                     <tr
                       key={grp.group_tag}
                       className="hover:bg-muted/20 transition-colors"
@@ -433,19 +513,38 @@ export const AdminCategoriesView: React.FC = () => {
                         {grp.products_count} محصول
                       </td>
                       <td className="py-3.5 px-4 text-center">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setGroupTagInput(grp.group_tag)
-                            setGroupTitleInput(grp.group_title_fa)
-                            setGroupStrategyInput(grp.delivery_strategy)
-                            setIsGroupModalOpen(true)
-                          }}
-                          className="p-1.5 rounded-control border border-border/60 hover:bg-muted text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
-                          title="ویرایش مشخصات گروه"
-                        >
-                          <Pencil className="w-3.5 h-3.5" />
-                        </button>
+                        <div className="flex items-center justify-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setGroupTagInput(grp.group_tag)
+                              setGroupTitleInput(grp.group_title_fa)
+                              setGroupStrategyInput(grp.delivery_strategy)
+                              setIsGroupModalOpen(true)
+                            }}
+                            className="p-1.5 rounded-control border border-border/60 hover:bg-muted text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
+                            title="ویرایش مشخصات گروه"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          {grp.group_tag !== 'general' && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setDeleteGroupConfirm({
+                                  isOpen: true,
+                                  groupTag: grp.group_tag,
+                                  title: grp.group_title_fa,
+                                  loading: false,
+                                })
+                              }
+                              className="p-1.5 rounded-control border border-destructive/30 hover:bg-destructive/10 text-destructive cursor-pointer transition-colors"
+                              title="حذف گروه برند"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -952,6 +1051,25 @@ export const AdminCategoriesView: React.FC = () => {
           setDeleteConfirm({
             isOpen: false,
             id: null,
+            title: '',
+            loading: false,
+          })
+        }
+      />
+
+      {/* Delete Group Confirmation Modal */}
+      <ConfirmModal
+        isOpen={deleteGroupConfirm.isOpen}
+        title="حذف گروه برند"
+        message={`آیا از حذف گروه برند «${deleteGroupConfirm.title}» اطمینان دارید؟ محصولات مرتبط به دسته عمومی ارجاع داده خواهند شد.`}
+        confirmText="بله، حذف شود"
+        cancelText="انصراف"
+        loading={deleteGroupConfirm.loading}
+        onConfirm={handleDeleteGroupConfirm}
+        onClose={() =>
+          setDeleteGroupConfirm({
+            isOpen: false,
+            groupTag: '',
             title: '',
             loading: false,
           })

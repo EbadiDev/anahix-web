@@ -1,4 +1,6 @@
 import {
+  Check,
+  Copy,
   Layers,
   Package,
   ReceiptText,
@@ -45,6 +47,36 @@ export const AdminOrdersTableView: React.FC = () => {
   const [deliveryTypeFilter, setDeliveryTypeFilter] = useState<string>('all')
   const [paymentMethodFilter, setPaymentMethodFilter] = useState<string>('all')
   const [page, setPage] = useState(1)
+  const [copiedOrderNo, setCopiedOrderNo] = useState<string | null>(null)
+
+  const handleCopyOrderNo = (num: string) => {
+    navigator.clipboard.writeText(num)
+    setCopiedOrderNo(num)
+    notifySuccess('کپی شد', 'شماره سفارش در کلیپ‌بورد کپی شد.')
+    setTimeout(() => setCopiedOrderNo(null), 2000)
+  }
+
+  const getBotDisplayName = (provider?: string) => {
+    const key = (provider || '').toLowerCase().trim()
+    switch (key) {
+      case 'insightx':
+      case 'third_party_api':
+        return 'InsightX'
+      case 'stackvault':
+        return 'StackVault'
+      case 'paglu':
+      case 'lootpaglu':
+        return 'LootPaglu'
+      case 'jero':
+      case 'jeroaccounts':
+        return 'JeroAccounts'
+      case 'supreme':
+      case 'supremeleader':
+        return 'SupremeLeader'
+      default:
+        return provider || 'ربات تامین‌کننده'
+    }
+  }
 
   // Modals & Drawers
   const [selectedOrder, setSelectedOrder] = useState<any | null>(null)
@@ -374,7 +406,7 @@ export const AdminOrdersTableView: React.FC = () => {
           {/* Orders Table - Centered with Graphite Tokens */}
           <div className="bg-card rounded-surface border border-border/80 shadow-surface overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full text-center text-xs">
+              <table className="w-full text-center text-xs min-w-[850px] font-sans">
                 <thead>
                   <tr className="border-b border-border/60 bg-muted/30 text-muted-foreground font-semibold select-none text-center">
                     <th className="py-4 px-4 text-center">
@@ -428,41 +460,83 @@ export const AdminOrdersTableView: React.FC = () => {
                           key={oid}
                           className="hover:bg-muted/40 transition-colors"
                         >
-                          {/* Order Number & Date */}
-                          <td className="py-3.5 px-4 text-center">
-                            <div className="font-mono font-bold text-brand font-latin">
-                              {ord.order_number}
+                          {/* Order Number & Date/Time Stacked */}
+                          <td className="py-3.5 px-4 text-center whitespace-nowrap">
+                            <div className="flex items-center justify-center gap-1.5 font-latin">
+                              <span
+                                className="font-mono font-bold text-brand text-xs"
+                                title={ord.order_number}
+                              >
+                                {ord.order_number.length > 18
+                                  ? `${ord.order_number.slice(0, 16)}...`
+                                  : ord.order_number}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleCopyOrderNo(ord.order_number)
+                                }
+                                className="p-1 rounded text-muted-foreground hover:text-brand hover:bg-muted transition-colors cursor-pointer"
+                                title="کپی کامل شماره سفارش"
+                              >
+                                {copiedOrderNo === ord.order_number ? (
+                                  <Check className="w-3 h-3 text-emerald-400" />
+                                ) : (
+                                  <Copy className="w-3 h-3" />
+                                )}
+                              </button>
                             </div>
-                            <div className="text-[11px] text-muted-foreground font-mono mt-0.5 font-latin">
-                              {new Date(ord.created_at).toLocaleDateString(
-                                'fa-IR',
-                              )}
+                            <div className="text-center font-latin mt-1">
+                              <div className="text-xs font-bold text-foreground">
+                                {new Date(ord.created_at).toLocaleDateString(
+                                  'fa-IR',
+                                )}
+                              </div>
+                              <div className="text-[10px] text-muted-foreground font-mono mt-0.5">
+                                {new Date(ord.created_at).toLocaleTimeString(
+                                  'fa-IR',
+                                  {
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                  },
+                                )}
+                              </div>
                             </div>
                           </td>
 
-                          {/* Product Title */}
-                          <td className="py-3.5 px-4 text-center max-w-[200px]">
+                          {/* Product Title & Fulfillment Bot */}
+                          <td className="py-3.5 px-4 text-center whitespace-nowrap">
                             <div
-                              className="font-bold text-foreground truncate"
+                              className="font-bold text-foreground text-xs"
                               title={ord.product_title || 'سفارش هوش مصنوعی'}
                             >
                               {ord.product_title || 'سفارش هوش مصنوعی'}
                             </div>
-                            <div className="text-[10px] text-muted-foreground mt-0.5 truncate flex items-center justify-center gap-1">
-                              {ord.items?.[0]?.external_provider ? (
-                                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-control bg-brand/10 text-brand font-bold text-[9px] font-latin">
-                                  🤖 {ord.items[0].external_provider}
-                                </span>
-                              ) : ord.delivery_type === 'instant' ? (
-                                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-control bg-emerald-500/10 text-emerald-400 font-bold text-[9px]">
-                                  ⚡ آنی
-                                </span>
-                              ) : (
-                                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-control bg-amber-500/10 text-amber-500 font-bold text-[9px]">
-                                  🔷 اپراتور
-                                </span>
-                              )}
-                              <span>{ord.delivery_type}</span>
+                            <div className="text-[10px] text-muted-foreground mt-1 flex items-center justify-center gap-1.5 flex-wrap">
+                              {(() => {
+                                const botKey =
+                                  ord.external_provider ||
+                                  ord.items?.[0]?.external_provider
+                                if (botKey && botKey !== 'manual_vault') {
+                                  return (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-control bg-primary/10 text-primary border border-primary/20 font-black text-[10px] font-latin">
+                                      🤖 {getBotDisplayName(botKey)}
+                                    </span>
+                                  )
+                                }
+                                if (ord.delivery_type === 'instant') {
+                                  return (
+                                    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-control bg-emerald-500/10 text-emerald-400 font-bold text-[9px]">
+                                      ⚡ تحویل آنی
+                                    </span>
+                                  )
+                                }
+                                return (
+                                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-control bg-amber-500/10 text-amber-500 font-bold text-[9px]">
+                                    🔷 اپراتور
+                                  </span>
+                                )
+                              })()}
                             </div>
                           </td>
 
