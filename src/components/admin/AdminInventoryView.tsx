@@ -260,7 +260,9 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
   const [pBaseCostUSD, setPBaseCostUSD] = useState<number>(0)
   const [pSLAMin, setPSLAMin] = useState<number>(10)
   const [pSLAMax, setPSLAMax] = useState<number>(30)
-  const [pSLAText, setPSLAText] = useState('تحویل ۱۰ الی ۳۰ دقیقه')
+  const [pSLAText, setPSLAText] = useState('')
+  const [pWarrantyText, setPWarrantyText] = useState('')
+  const [pDeliveryMethodText, setPDeliveryMethodText] = useState('')
   const [pOperatingHours, setPOperatingHours] = useState('۹:۰۰ تا ۲۴:۰۰')
   const [pDescription, setPDescription] = useState('')
   const [pInstructions, setPInstructions] = useState('')
@@ -503,7 +505,9 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
     setPCostToman(0)
     setPSLAMin(10)
     setPSLAMax(30)
-    setPSLAText('تحویل ۱۰ الی ۳۰ دقیقه')
+    setPSLAText('')
+    setPWarrantyText('')
+    setPDeliveryMethodText('')
     setPOperatingHours('۹:۰۰ تا ۲۴:۰۰')
     setPDescription('')
     setPInstructions('')
@@ -586,6 +590,8 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
     setPSLAMin(p.sla_min_minutes || 10)
     setPSLAMax(p.sla_max_minutes || 30)
     setPSLAText(p.sla_display_text || '')
+    setPWarrantyText(p.warranty_text || '')
+    setPDeliveryMethodText(p.delivery_method_text || '')
     setPOperatingHours(p.operating_hours || '')
     setPDescription(p.description || '')
     setPInstructions(p.instructions || '')
@@ -683,6 +689,21 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
           if (full.meta_title) setPMetaTitle(full.meta_title)
           if (full.meta_description) setPMetaDescription(full.meta_description)
           if (full.og_image_url) setPOgImageURL(full.og_image_url)
+          if (full.warranty_text !== undefined)
+            setPWarrantyText(full.warranty_text || '')
+          if (full.delivery_method_text !== undefined)
+            setPDeliveryMethodText(full.delivery_method_text || '')
+          if (full.sla_display_text !== undefined)
+            setPSLAText(full.sla_display_text || '')
+          if (full.badges_json !== undefined) {
+            try {
+              const arr = JSON.parse(full.badges_json)
+              if (Array.isArray(arr)) setPBadgesText(arr.join('\n'))
+              else setPBadgesText('')
+            } catch {
+              setPBadgesText('')
+            }
+          }
           if (full.plans_json) {
             setPPlansJSON(full.plans_json)
             try {
@@ -785,6 +806,8 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
       sla_min_minutes: Number(pSLAMin) || 10,
       sla_max_minutes: Number(pSLAMax) || 30,
       sla_display_text: pSLAText.trim(),
+      warranty_text: pWarrantyText.trim(),
+      delivery_method_text: pDeliveryMethodText.trim(),
       operating_hours: pOperatingHours.trim(),
       description: pDescription.trim(),
       instructions: pInstructions.trim(),
@@ -809,7 +832,7 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
               .map((b) => b.trim())
               .filter(Boolean),
           )
-        : undefined,
+        : '',
       rating_average: pShowRating ? Number(pRatingAverage) || 5.0 : 0,
       is_best_seller: pIsBestSeller,
       is_featured: pIsFeatured,
@@ -826,12 +849,12 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
       out_of_stock_text: pOutOfStockText.trim() || undefined,
       show_sales_count: pShowSalesCount,
       show_progress: pShowProgress,
-      plans_json: finalPlansJSON || undefined,
-      comparison_json: pComparisonJSON.trim() || undefined,
-      guide_json: pGuideJSON.trim() || undefined,
-      faq_json: pFaqJSON.trim() || undefined,
+      plans_json: finalPlansJSON || '',
+      comparison_json: pComparisonJSON.trim() || '',
+      guide_json: pGuideJSON.trim() || '',
+      faq_json: pFaqJSON.trim() || '',
       features_json:
-        featuresList.length > 0 ? JSON.stringify(featuresList) : undefined,
+        featuresList.length > 0 ? JSON.stringify(featuresList) : '',
     }
 
     try {
@@ -4049,13 +4072,43 @@ export const AdminInventoryView: React.FC<AdminInventoryViewProps> = ({
                         </div>
                         <div>
                           <label className="font-bold text-foreground block mb-1">
-                            متن نمایشی زمان تحویل
+                            متن نمایشی زمان تحویل (SLA)
                           </label>
                           <input
                             type="text"
                             value={pSLAText}
                             onChange={(e) => setPSLAText(e.target.value)}
-                            placeholder="مثال: تحویل آنی ۰ ثانیه"
+                            placeholder="مثال: تحویل خودکار ۰ ثانیه‌ای یا ۱۰ الی ۳۰ دقیقه"
+                            className="w-full h-9 px-3 rounded-control border border-border/60 bg-muted/20 text-xs outline-none focus:border-brand"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Custom Delivery Method & Warranty Specification */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3 border-t border-border/60 text-right">
+                        <div>
+                          <label className="font-bold text-foreground block mb-1">
+                            نحوه دریافت برای مشتری
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="مثال: صدور مستقیم و آنی یا ارسال کد لایسنس"
+                            value={pDeliveryMethodText}
+                            onChange={(e) =>
+                              setPDeliveryMethodText(e.target.value)
+                            }
+                            className="w-full h-9 px-3 rounded-control border border-border/60 bg-muted/20 text-xs outline-none focus:border-brand"
+                          />
+                        </div>
+                        <div>
+                          <label className="font-bold text-foreground block mb-1">
+                            ضمانت اصالت و مدت گارانتی
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="مثال: گارانتی ۳۰ روزه یا بدون گارانتی پس از فعال‌سازی"
+                            value={pWarrantyText}
+                            onChange={(e) => setPWarrantyText(e.target.value)}
                             className="w-full h-9 px-3 rounded-control border border-border/60 bg-muted/20 text-xs outline-none focus:border-brand"
                           />
                         </div>

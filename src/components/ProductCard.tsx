@@ -396,16 +396,36 @@ export const ProductCard: React.FC<ProductCardProps> = memo(
               </p>
             )}
 
-            {/* Delivery SLA line if defined */}
-            {(product.sla_display_text ||
-              (product.sla_min_minutes && product.sla_max_minutes)) && (
-              <div className="text-[11px] text-muted-foreground font-medium flex items-center gap-1 pt-0.5">
-                <span>
-                  {product.sla_display_text ||
-                    `تحویل ${toPersianDigits(product.sla_min_minutes ?? '')} الی ${toPersianDigits(product.sla_max_minutes ?? '')} دقیقه`}
-                </span>
+            {/* Delivery SLA line if explicitly defined by admin */}
+            {product.sla_display_text && (
+              <div className="text-[11px] text-muted-foreground font-medium flex items-center gap-1 pt-0.5 font-sans">
+                <span>{product.sla_display_text}</span>
               </div>
             )}
+
+            {/* Custom Badges entered by Admin (in each line) */}
+            {(() => {
+              if (!product.badges_json) return null
+              try {
+                const badges = JSON.parse(product.badges_json)
+                if (Array.isArray(badges) && badges.length > 0) {
+                  return (
+                    <div className="flex flex-wrap gap-1 pt-0.5">
+                      {badges.map((b: string) => (
+                        <span
+                          key={b}
+                          className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-control bg-secondary/80 text-foreground border border-border/60"
+                        >
+                          <Sparkles className="h-2.5 w-2.5 text-brand" />
+                          <span>{b}</span>
+                        </span>
+                      ))}
+                    </div>
+                  )
+                }
+              } catch {}
+              return null
+            })()}
 
             {/* Equal Height Guaranteed Container: Inventory Progress, Stock Mode or SLA text */}
             <div className="h-7 flex items-center">

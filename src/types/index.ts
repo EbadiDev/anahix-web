@@ -80,6 +80,8 @@ export interface Product {
   sla_max_minutes?: number
   sla_display_text?: string
   operating_hours?: string
+  warranty_text?: string
+  delivery_method_text?: string
   description_fa: string
   features?: string[]
   in_stock: boolean
@@ -156,6 +158,8 @@ export interface AdminProduct {
   sla_max_minutes: number
   sla_display_text?: string
   operating_hours?: string
+  warranty_text?: string
+  delivery_method_text?: string
   base_cost_usd: number
   price_toman: number
   original_price_toman?: number

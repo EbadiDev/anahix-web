@@ -94,25 +94,6 @@ function normalizeProduct(raw: any): Product {
     mode = 'INSTANT_LINK'
   }
 
-  const defaultFeatures: Record<DeliveryMode, string[]> = {
-    INSTANT_LINK: [
-      'تحویل آنی بلافاصله پس از پرداخت',
-      'فعال‌سازی با یک کلیک روی اکانت شخصی',
-      'تضمین اصالت لایسنس و عدم قطعی',
-    ],
-    INSTANT_ACCOUNT: [
-      'تحویل درجا (ایمیل و پسورد اختصاصی)',
-      'امکان تغییر رمز عبور و شخصی‌سازی کامل',
-      'دسترسی اختصاصی بدون قطعی',
-    ],
-    UPGRADE_EXISTING: [
-      'فعال‌سازی روی ایمیل و اکانت شخصی شما',
-      'تبادل لایو کد ۲FA جهت حفظ امنیت کامل',
-      'پرداخت قانونی با کارت معتبر بین‌المللی',
-      'سیاست نابودسازی خودکار رمزها (Zeroize)',
-    ],
-  }
-
   return {
     id: raw.id,
     title_fa: raw.title_fa || raw.title,
@@ -128,23 +109,21 @@ function normalizeProduct(raw: any): Product {
     sla_max_minutes: raw.sla_max_minutes || 30,
     sla_display_text: raw.sla_display_text,
     operating_hours: raw.operating_hours,
-    description_fa:
-      raw.description_fa ||
-      raw.description ||
-      raw.sla_display_text ||
-      'تحویل آنی و مطمئن آناهیکس',
+    warranty_text: raw.warranty_text || '',
+    delivery_method_text: raw.delivery_method_text || '',
+    description_fa: raw.description_fa || raw.description || '',
     features: Array.isArray(raw.features)
       ? raw.features
       : raw.features_json
         ? (() => {
             try {
               const parsed = JSON.parse(raw.features_json)
-              return Array.isArray(parsed) ? parsed : defaultFeatures[mode]
+              return Array.isArray(parsed) ? parsed : []
             } catch {
-              return defaultFeatures[mode]
+              return []
             }
           })()
-        : defaultFeatures[mode],
+        : [],
     in_stock: raw.is_active !== false,
     stock_count:
       raw.available_stock ??

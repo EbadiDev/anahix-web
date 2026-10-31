@@ -538,6 +538,27 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                   </Badge>
                 )}
 
+                {/* Custom Badges from Admin */}
+                {(() => {
+                  if (!product.badges_json) return null
+                  try {
+                    const badges = JSON.parse(product.badges_json)
+                    if (Array.isArray(badges) && badges.length > 0) {
+                      return badges.map((b: string) => (
+                        <Badge
+                          key={b}
+                          variant="blue"
+                          className="gap-1.5 text-xs font-bold py-1 px-3 bg-secondary text-foreground border border-border/60"
+                        >
+                          <Sparkles className="h-3.5 w-3.5 text-brand" />
+                          <span>{b}</span>
+                        </Badge>
+                      ))
+                    }
+                  } catch {}
+                  return null
+                })()}
+
                 <a
                   href="#product-reviews"
                   className="inline-flex items-center gap-1.5 text-xs text-foreground bg-muted/40 hover:bg-muted px-3 py-1.5 rounded-control border border-border/60 font-bold transition mr-auto shadow-xs"
@@ -593,28 +614,23 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                   <span className="font-bold text-foreground block">
                     {product.sla_display_text ||
                       (product.delivery_mode === 'UPGRADE_EXISTING'
-                        ? `${product.sla_min_minutes || 15} الی ${product.sla_max_minutes || 30} دقیقه`
-                        : 'تحویل خودکار ۰ ثانیه‌ای')}
+                        ? `${toPersianDigits(product.sla_min_minutes || 15)} الی ${toPersianDigits(product.sla_max_minutes || 30)} دقیقه`
+                        : 'تحویل فوری')}
                   </span>
                 </div>
 
                 <div className="p-3 rounded-xl border border-border bg-card/60 space-y-1">
                   <span className="text-muted-foreground flex items-center gap-1">
                     <Lock className="h-3.5 w-3.5 text-blue-600" />
-                    <span>
-                      {product.required_customer_input === 'telegram_username'
-                        ? 'شیوه احراز:'
-                        : product.required_customer_input === 'none'
-                          ? 'نحوه دریافت:'
-                          : 'امنیت پسورد:'}
-                    </span>
+                    <span>نحوه دریافت:</span>
                   </span>
                   <span className="font-bold text-emerald-600 dark:text-emerald-400 block">
-                    {product.required_customer_input === 'telegram_username'
-                      ? 'آیدی تلگرام (بدون پسورد)'
-                      : product.required_customer_input === 'none'
-                        ? 'صدور مستقیم و آنی'
-                        : 'پروتکل امنیتی Zeroize'}
+                    {product.delivery_method_text ||
+                      (product.required_customer_input === 'telegram_username'
+                        ? 'آیدی تلگرام'
+                        : product.required_customer_input === 'none'
+                          ? 'صدور مستقیم و آنی'
+                          : 'پروتکل امنیتی Zeroize')}
                   </span>
                 </div>
 
@@ -624,13 +640,14 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                     <span>ضمانت اصالت:</span>
                   </span>
                   <span className="font-bold text-foreground block">
-                    {selectedPlan?.duration_text
-                      ? `گارانتی ${selectedPlan.duration_text}`
-                      : selectedPlan?.duration_days
-                        ? `گارانتی ${toPersianDigits(selectedPlan.duration_days)} روزه`
-                        : product.duration_days
-                          ? `گارانتی ${toPersianDigits(product.duration_days)} روزه`
-                          : 'ضمانت سلامت و اصالت فعال‌سازی'}
+                    {product.warranty_text ||
+                      (selectedPlan?.duration_text
+                        ? `گارانتی ${selectedPlan.duration_text}`
+                        : selectedPlan?.duration_days
+                          ? `گارانتی ${toPersianDigits(selectedPlan.duration_days)} روزه`
+                          : product.duration_days
+                            ? `گارانتی ${toPersianDigits(product.duration_days)} روزه`
+                            : 'ضمانت اصالت فعال‌سازی')}
                   </span>
                 </div>
 
